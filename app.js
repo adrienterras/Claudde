@@ -1,5 +1,5 @@
 import { createStore, MissingConfigError } from './store.js';
-import { computeStats, setsWon, normalizeMatch, involves, sortRecentFirst, RANKINGS } from './stats.js';
+import { computeStats, setsWon, normalizeMatch, involves, sortRecentFirst, RANKINGS, MIN_MATCHES } from './stats.js';
 
 // ---------- Préférences locales (communautés rejointes sur ce téléphone) ----------
 
@@ -111,6 +111,33 @@ function me() {
     return S.data?.players.find(p => p.uid === S.uid) || null;
 }
 
+// Application ouverte depuis l'écran d'accueil (et non dans le navigateur).
+function isInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
+function isIOS() {
+    return /iPhone|iPad|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function authMessage(e) {
+    const code = e?.code || '';
+    if (code === 'auth/invalid-email') return 'Adresse e-mail invalide.';
+    if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-login-credentials'].includes(code)) {
+        return 'E-mail ou mot de passe incorrect.';
+    }
+    if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use') {
+        return 'Cette adresse est déjà utilisée. Touchez « Se connecter » pour retrouver ce compte.';
+    }
+    if (code === 'auth/weak-password') return 'Mot de passe trop court : 6 caractères minimum.';
+    if (code === 'auth/operation-not-allowed') return 'La connexion par e-mail n’est pas encore activée dans Firebase.';
+    if (code === 'auth/network-request-failed') return 'Pas de connexion internet. Réessayez quand vous aurez du réseau.';
+    if (code === 'auth/too-many-requests') return 'Trop de tentatives. Réessayez dans quelques minutes.';
+    if (code === 'auth/requires-recent-login') return 'Par sécurité, déconnectez-vous puis reconnectez-vous.';
+    return 'Une erreur est survenue. Réessayez.';
+}
+
 function playerName(pid) {
     return S.data?.players.find(p => p.id === pid)?.name || 'Joueur supprimé';
 }
@@ -141,6 +168,13 @@ function renderWelcome() {
             <h1 class="brand">Tie-Break</h1>
             <p class="lede">Notez vos matchs entre amis, suivez le classement de votre groupe et votre bilan contre chacun.</p>
 
+            ${isInstalled() && !prefs.communities.length ? `
+                <section class="card signin-card is-first">
+                    <h2 class="card-title">Vous avez rejoint une communauté dans Safari ?</h2>
+                    <p class="muted small">Connectez-vous avec l’e-mail de votre profil pour la retrouver ici.</p>
+                    <button class="btn btn-primary" data-action="sign-in">Se connecter</button>
+                </section>` : ''}
+
             <form class="card form" data-form="create">
                 <h2 class="card-title">Créer une communauté</h2>
                 <label class="field">
@@ -168,6 +202,12 @@ function renderWelcome() {
                             </button>`).join('')}
                     </div>
                 </section>` : ''}
+
+            <section class="card signin-card">
+                <h2 class="card-title">Déjà membre d’une communauté ?</h2>
+                <p class="muted small">Connectez-vous avec l’e-mail de votre profil pour retrouver vos communautés et vos matchs.</p>
+                <button class="btn btn-ghost" data-action="sign-in">Se connecter</button>
+            </section>
 
             <p class="muted small">Un ami vous a invité ? Ouvrez simplement le lien qu’il vous a envoyé.</p>
         </main>`;
@@ -220,6 +260,8 @@ function renderJoin() {
                 </label>
                 <button class="btn btn-primary" type="submit">Rejoindre</button>
             </form>
+            <p class="muted small">Vous avez déjà protégé votre profil avec un e-mail ?
+                <button class="link" data-action="sign-in">Se connecter</button></p>
             <button class="link" data-action="home">Retour</button>
         </main>`;
 }
@@ -283,8 +325,31 @@ function modeSwitch() {
         </div>`;
 }
 
+function rankRow(r, mine) {
+    return `
+        <li>
+            <button class="rank-row ${r.player.id === mine.id ? 'is-me' : ''}" data-action="player" data-pid="${h(r.player.id)}">
+                <span class="rank-pos">${r.rank ?? '–'}</span>
+                <span class="rank-main">
+                    <span class="rank-name">${h(r.player.name)}${r.player.id === mine.id ? ' <span class="you">vous</span>' : ''}</span>
+                    <span class="rank-meta">
+                        <span class="chip">${h(r.player.ranking || 'NC')}</span>
+                        <span>${r.wins} V · ${r.losses} D</span>
+                        ${r.player.uid ? '' : '<span class="pending">invitation en attente</span>'}
+                    </span>
+                </span>
+                <span class="rank-side">
+                    <span class="rank-elo">${r.played ? r.elo : '—'}</span>
+                    ${formDots(r.form)}
+                </span>
+            </button>
+        </li>`;
+}
+
 function viewRanking(stats) {
     const mine = me();
+    const ranked = stats.table.filter(r => r.rank);
+    const rookies = stats.table.filter(r => !r.rank);
     return `
         <section class="section">
             <div class="section-head">
@@ -292,26 +357,15 @@ function viewRanking(stats) {
                 <span class="muted small">Points Elo · départ 1500</span>
             </div>
             ${modeSwitch()}
-            <ol class="ranking">
-                ${stats.table.map(r => `
-                    <li>
-                        <button class="rank-row ${r.player.id === mine.id ? 'is-me' : ''}" data-action="player" data-pid="${h(r.player.id)}">
-                            <span class="rank-pos">${r.rank ?? '–'}</span>
-                            <span class="rank-main">
-                                <span class="rank-name">${h(r.player.name)}${r.player.id === mine.id ? ' <span class="you">vous</span>' : ''}</span>
-                                <span class="rank-meta">
-                                    <span class="chip">${h(r.player.ranking || 'NC')}</span>
-                                    <span>${r.wins} V · ${r.losses} D</span>
-                                    ${r.player.uid ? '' : '<span class="pending">invitation en attente</span>'}
-                                </span>
-                            </span>
-                            <span class="rank-side">
-                                <span class="rank-elo">${r.played ? r.elo : '—'}</span>
-                                ${formDots(r.form)}
-                            </span>
-                        </button>
-                    </li>`).join('')}
-            </ol>
+            ${ranked.length
+                ? `<ol class="ranking">${ranked.map(r => rankRow(r, mine)).join('')}</ol>`
+                : `<p class="muted small">Personne n’est encore classé : il faut ${MIN_MATCHES} matchs joués.</p>`}
+            ${rookies.length ? `
+                <div class="section-head">
+                    <h3 class="sub-title">En rodage</h3>
+                    <span class="muted small">Classés à partir de ${MIN_MATCHES} matchs</span>
+                </div>
+                <ol class="ranking">${rookies.map(r => rankRow(r, mine)).join('')}</ol>` : ''}
             <button class="btn btn-ghost btn-block" data-action="add-player">+ Ajouter un joueur</button>
         </section>`;
 }
@@ -420,7 +474,7 @@ function viewPlayer(pid, allStats, isMine) {
             ${modeSwitch()}
 
             <div class="stat-row">
-                <div class="stat"><span class="stat-value">${row.rank ?? '–'}</span><span class="stat-label">Rang</span></div>
+                <div class="stat"><span class="stat-value">${row.rank ?? '–'}</span><span class="stat-label">${row.rank ? 'Rang' : `Rang dès ${MIN_MATCHES} m.`}</span></div>
                 <div class="stat"><span class="stat-value">${row.played ? row.elo : '—'}</span><span class="stat-label">Points</span></div>
                 <div class="stat"><span class="stat-value">${row.wins}<small>-</small>${row.losses}</span><span class="stat-label">V-D</span></div>
                 <div class="stat"><span class="stat-value">${row.played ? Math.round(row.winRate * 100) : 0}<small>%</small></span><span class="stat-label">Victoires</span></div>
@@ -437,6 +491,8 @@ function viewPlayer(pid, allStats, isMine) {
                 <h3 class="sub-title">Contre ${isMine ? 'vos' : 'ses'} adversaires</h3>
                 ${recordList(row.h2h, 'Pas encore de double joué.')}
             `}
+
+            ${isMine ? accountCard() : ''}
 
             ${recent.length ? `<h3 class="sub-title">Derniers ${mode === 'simple' ? 'simples' : 'doubles'}</h3><div class="matches">${recent.map(m => matchCard(m)).join('')}</div>` : ''}
 
@@ -468,6 +524,23 @@ function deletePlayerBlock(p) {
                 <button class="btn btn-small btn-danger" data-action="delete-player" data-pid="${h(p.id)}">Supprimer</button>
                 <button class="btn btn-small btn-ghost" data-action="cancel-confirm">Annuler</button>
             </div>
+        </div>`;
+}
+
+function accountCard() {
+    const account = S.store.account();
+    if (account.isAnonymous) {
+        return `
+            <div class="card account-card is-warning">
+                <h3 class="card-title">Protégez votre profil</h3>
+                <p class="small muted">Pour l’instant, votre profil n’existe que sur ce navigateur. Ajoutez un e-mail et un mot de passe pour le retrouver sur l’application installée ou sur un autre téléphone.</p>
+                <button class="btn btn-primary btn-small" data-action="secure-account">Ajouter un e-mail</button>
+            </div>`;
+    }
+    return `
+        <div class="card account-card">
+            <p class="small"><span class="muted">Connecté avec</span> <b>${h(account.email)}</b></p>
+            <button class="link small" data-action="sign-out">Se déconnecter de ce téléphone</button>
         </div>`;
 }
 
@@ -625,6 +698,67 @@ function openProfileSheet() {
         </form>`);
 }
 
+function openSignInSheet() {
+    openSheet(`
+        <form data-form="sign-in" class="form">
+            <h2 class="sheet-title">Se connecter</h2>
+            <p class="muted small">Utilisez l’e-mail et le mot de passe choisis pour protéger votre profil.</p>
+            <label class="field">
+                <span class="field-label">E-mail</span>
+                <input class="field-input" type="email" id="a-email" name="email" required autocomplete="email" autocapitalize="none">
+            </label>
+            <label class="field">
+                <span class="field-label">Mot de passe</span>
+                <input class="field-input" type="password" id="a-password" name="password" required autocomplete="current-password">
+            </label>
+            <p class="form-error" id="a-error" hidden></p>
+            <button class="btn btn-primary" type="submit">Se connecter</button>
+            <button class="link small" type="button" data-action="reset-password">Mot de passe oublié ?</button>
+        </form>`);
+}
+
+function openSecureSheet() {
+    openSheet(`
+        <form data-form="secure" class="form">
+            <h2 class="sheet-title">Protéger mon profil</h2>
+            <p class="muted small">Vous pourrez vous reconnecter avec cet e-mail sur l’application installée, sur un nouveau téléphone ou après avoir effacé vos données.</p>
+            <label class="field">
+                <span class="field-label">E-mail</span>
+                <input class="field-input" type="email" id="s-email" name="email" required autocomplete="email" autocapitalize="none">
+            </label>
+            <label class="field">
+                <span class="field-label">Mot de passe (6 caractères minimum)</span>
+                <input class="field-input" type="password" id="s-password" name="password" required minlength="6" autocomplete="new-password">
+            </label>
+            <p class="form-error" id="a-error" hidden></p>
+            <button class="btn btn-primary" type="submit">Protéger mon profil</button>
+        </form>`);
+}
+
+// Sur iPhone, Safari et l'application installée ne partagent pas leurs
+// données : il faut protéger son profil avant d'installer l'application.
+function openInstallSheet() {
+    const secured = !S.store.account().isAnonymous;
+    const shareStep = isIOS()
+        ? 'Touchez <b>Partager</b> (le carré avec une flèche) puis <b>Sur l’écran d’accueil</b>.'
+        : 'Ouvrez le menu <b>⋮</b> de Chrome puis <b>Installer l’application</b>.';
+    openSheet(`
+        <h2 class="sheet-title">Installez Tie-Break</h2>
+        <ol class="steps">
+            <li class="${secured ? 'is-done' : ''}">
+                <b>Protégez votre profil</b> avec un e-mail, pour le retrouver dans l’application.
+                ${secured ? '<span class="chip">fait</span>' : '<button class="btn btn-primary btn-small" data-action="secure-account">Ajouter un e-mail</button>'}
+            </li>
+            <li>${shareStep}</li>
+            <li>Ouvrez l’application depuis l’écran d’accueil${isIOS() ? ' et touchez <b>Se connecter</b>' : ''}.</li>
+        </ol>
+        <button class="btn btn-ghost" data-action="close-sheet">Plus tard</button>`);
+}
+
+function maybeSuggestInstall() {
+    if (!isInstalled()) openInstallSheet();
+}
+
 function openPlayerDetail(pid) {
     if (pid === me().id) { S.tab = 'moi'; render(); return; }
     const stats = computeStats(S.data.players, S.data.matches);
@@ -645,9 +779,16 @@ function openCommunitySheet() {
 
 // ---------- Actions ----------
 
+const savedMemberships = new Set();
+
 function rememberCommunity() {
     if (!S.data?.community) return;
     const entry = { id: S.cid, name: S.data.community.name };
+    const key = `${S.uid}|${entry.id}|${entry.name}`;
+    if (!savedMemberships.has(key)) {
+        savedMemberships.add(key);
+        S.store.saveMembership(entry.id, entry.name);
+    }
     const i = prefs.communities.findIndex(c => c.id === S.cid);
     if (i === -1) prefs.communities.push(entry);
     else prefs.communities[i] = entry;
@@ -674,13 +815,30 @@ function openCommunity(cid) {
     });
 }
 
+function writeErrorMessage(err) {
+    return err?.code === 'permission-denied'
+        ? 'Action refusée. Les règles Firebase ne sont peut-être pas à jour.'
+        : 'Échec de l’enregistrement. Réessayez.';
+}
+
 async function run(fn) {
     try {
         await fn();
     } catch (e) {
         console.error(e);
-        toast('Échec de l’enregistrement. Vérifiez votre connexion et réessayez.');
+        toast(writeErrorMessage(e));
     }
+}
+
+// Retrouve les communautés du compte après une connexion.
+async function afterSignIn() {
+    const memberships = await S.store.getMemberships();
+    for (const m of memberships) {
+        if (!prefs.communities.some(c => c.id === m.id)) prefs.communities.push(m);
+    }
+    savePrefs();
+    const target = (S.cid && S.data?.community) ? S.cid : (memberships[0]?.id || prefs.current);
+    openCommunity(target || null);
 }
 
 const actions = {
@@ -707,31 +865,64 @@ const actions = {
     'home': () => openCommunity(null),
     'ask-delete': el => { S.confirm = el.dataset.mid; rerenderKeepingSheet(); },
     'cancel-confirm': () => { S.confirm = null; rerenderKeepingSheet(); },
-    'delete-match': el => run(async () => {
-        await S.store.deleteMatch(S.cid, el.dataset.mid);
+    'delete-match': el => run(() => {
+        S.store.deleteMatch(S.cid, el.dataset.mid);
         S.confirm = null;
         rerenderKeepingSheet();
         toast('Match supprimé');
     }),
-    'claim': el => run(async () => {
-        await S.store.updatePlayer(S.cid, el.dataset.pid, { uid: S.uid });
+    'claim': el => run(() => {
+        S.store.updatePlayer(S.cid, el.dataset.pid, { uid: S.uid });
         toast('Bienvenue !');
+        maybeSuggestInstall();
     }),
     'ask-delete-player': el => { S.confirm = 'player:' + el.dataset.pid; rerenderKeepingSheet(); },
-    'delete-player': el => run(async () => {
+    'delete-player': el => run(() => {
         const pid = el.dataset.pid;
         const name = playerName(pid);
         const matchIds = S.data.matches.filter(m => involves(m, pid)).map(m => m.id);
-        await S.store.deletePlayer(S.cid, pid, matchIds);
+        S.store.deletePlayer(S.cid, pid, matchIds);
         S.confirm = null;
         closeSheet();
         toast(`${name} a été supprimé`);
     }),
-    'release': el => run(async () => {
-        await S.store.updatePlayer(S.cid, el.dataset.pid, { uid: null });
+    'release': el => run(() => {
+        S.store.updatePlayer(S.cid, el.dataset.pid, { uid: null });
         closeSheet();
         toast('Profil détaché : renvoyez-lui son invitation');
     }),
+    'sign-in': () => openSignInSheet(),
+    'secure-account': () => openSecureSheet(),
+    'sign-out': async () => {
+        try {
+            S.uid = await S.store.signOut();
+        } catch (e) {
+            toast(authMessage(e));
+            return;
+        }
+        prefs.communities = [];
+        prefs.current = null;
+        savePrefs();
+        openCommunity(null);
+        toast('Déconnecté');
+    },
+    'reset-password': async () => {
+        const email = document.getElementById('a-email')?.value.trim();
+        const err = document.getElementById('a-error');
+        if (!email) {
+            err.textContent = 'Saisissez d’abord votre e-mail ci-dessus.';
+            err.hidden = false;
+            return;
+        }
+        try {
+            await S.store.resetPassword(email);
+            err.hidden = true;
+            toast('E-mail de réinitialisation envoyé');
+        } catch (e) {
+            err.textContent = authMessage(e);
+            err.hidden = false;
+        }
+    },
 };
 
 function rerenderKeepingSheet() {
@@ -757,21 +948,54 @@ document.addEventListener('submit', e => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form));
     const kind = form.dataset.form;
+    const submit = form.querySelector('[type="submit"]');
+    // Un seul envoi par formulaire : évite les doublons en cas de double appui.
+    if (submit?.disabled) return;
 
-    if (kind === 'create') return run(async () => {
-        const cid = await S.store.createCommunity(f.community.trim());
-        await S.store.addPlayer(cid, { name: f.name.trim(), ranking: f.ranking, uid: S.uid });
+    if (kind === 'sign-in' || kind === 'secure') {
+        const err = form.querySelector('#a-error');
+        submit.disabled = true;
+        (async () => {
+            try {
+                if (kind === 'sign-in') {
+                    S.uid = await S.store.signIn(f.email.trim(), f.password);
+                    closeSheet();
+                    toast('Connecté');
+                    await afterSignIn();
+                } else {
+                    await S.store.secureAccount(f.email.trim(), f.password);
+                    closeSheet();
+                    render();
+                    toast('Profil protégé');
+                    if (!isInstalled()) openInstallSheet();
+                }
+            } catch (e) {
+                console.error(e);
+                err.textContent = authMessage(e);
+                err.hidden = false;
+                submit.disabled = false;
+            }
+        })();
+        return;
+    }
+
+    if (submit) submit.disabled = true;
+
+    if (kind === 'create') return run(() => {
+        const cid = S.store.createCommunity(f.community.trim());
+        S.store.addPlayer(cid, { name: f.name.trim(), ranking: f.ranking, uid: S.uid });
         openCommunity(cid);
         toast('Communauté créée. Invitez vos amis !');
     });
 
-    if (kind === 'join') return run(async () => {
-        await S.store.addPlayer(S.cid, { name: f.name.trim(), ranking: f.ranking, uid: S.uid });
+    if (kind === 'join') return run(() => {
+        S.store.addPlayer(S.cid, { name: f.name.trim(), ranking: f.ranking, uid: S.uid });
         toast('Bienvenue !');
+        maybeSuggestInstall();
     });
 
-    if (kind === 'player') return run(async () => {
-        const pid = await S.store.addPlayer(S.cid, { name: f.name.trim(), ranking: f.ranking, uid: null });
+    if (kind === 'player') return run(() => {
+        const pid = S.store.addPlayer(S.cid, { name: f.name.trim(), ranking: f.ranking, uid: null });
         closeSheet();
         openSheet(`
             <h2 class="sheet-title">${h(f.name.trim())} est ajouté</h2>
@@ -780,15 +1004,15 @@ document.addEventListener('submit', e => {
             <button class="btn btn-ghost" data-action="close-sheet">Plus tard</button>`);
     });
 
-    if (kind === 'profile') return run(async () => {
-        await S.store.updatePlayer(S.cid, me().id, { name: f.name.trim(), ranking: f.ranking });
+    if (kind === 'profile') return run(() => {
+        S.store.updatePlayer(S.cid, me().id, { name: f.name.trim(), ranking: f.ranking });
         closeSheet();
         toast('Profil mis à jour');
     });
 
     if (kind === 'match') {
         const err = form.querySelector('#m-error');
-        const fail = msg => { err.textContent = msg; err.hidden = false; };
+        const fail = msg => { err.textContent = msg; err.hidden = false; submit.disabled = false; };
         const isDouble = f.type === 'double';
         const t1 = isDouble ? [f.t1a, f.t1b] : [f.t1a];
         const t2 = isDouble ? [f.t2a, f.t2b] : [f.t2a];
@@ -811,10 +1035,10 @@ document.addEventListener('submit', e => {
         const won = setsWon(sets);
         if (won.a === won.b) return fail('Aucun vainqueur : vérifiez les sets.');
         const winnerSide = won.a > won.b ? 1 : 2;
-        return run(async () => {
+        return run(() => {
             const data = { type: f.type, date: f.date, t1, t2, sets, winnerSide };
-            if (f.id) await S.store.updateMatch(S.cid, f.id, data);
-            else await S.store.addMatch(S.cid, data);
+            if (f.id) S.store.updateMatch(S.cid, f.id, data);
+            else S.store.addMatch(S.cid, data);
             prefs.mode = f.type;
             savePrefs();
             closeSheet();
@@ -851,6 +1075,7 @@ async function start() {
     try {
         S.store = await createStore();
         S.uid = await S.store.init();
+        S.store.onWriteError = err => toast(writeErrorMessage(err));
     } catch (e) {
         console.error(e);
         const title = e instanceof MissingConfigError ? 'Bientôt prêt' : 'Connexion impossible';

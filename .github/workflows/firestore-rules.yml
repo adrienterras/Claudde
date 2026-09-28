@@ -1,0 +1,39 @@
+# Publie firestore.rules dans Firebase à chaque modification sur main.
+# Nécessite le secret FIREBASE_SERVICE_ACCOUNT (voir README.md).
+name: Règles Firestore
+
+on:
+  push:
+    branches: [main]
+    paths: [firestore.rules, firebase.json]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la clé de service
+        id: key
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::warning::Secret FIREBASE_SERVICE_ACCOUNT absent : règles non publiées (voir README.md)."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          node-version: 20
+
+      - name: Publier les règles
+        if: steps.key.outputs.present == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/service-account.json
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules --project tie-break-8fa47 --non-interactive

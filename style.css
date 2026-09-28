@@ -728,3 +728,21 @@ button { cursor: pointer; }
 .confirm-card { display: flex; flex-direction: column; gap: 8px; }
 .confirm-card p { margin: 0; }
 .confirm-card .confirm-row { justify-content: flex-start; }
+
+/* ---------- Compte et installation ---------- */
+
+.signin-card, .account-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.signin-card p, .account-card p { margin: 0; }
+.signin-card.is-first { border-color: var(--primary); }
+.account-card.is-warning { border-color: var(--accent); }
+
+.steps {
+    margin: 0;
+    padding-left: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.steps li { line-height: 1.5; }
+.steps li .btn, .steps li .chip { display: flex; margin-top: 8px; width: max-content; }
+.steps li.is-done { color: var(--muted); }

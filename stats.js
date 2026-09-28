@@ -10,6 +10,11 @@ export const RANKINGS = [
 
 export const MODES = ['simple', 'double'];
 
+// En dessous de ce nombre de matchs, un joueur est « en rodage » : ses points
+// sont affichés mais il n'a pas encore de rang, pour éviter qu'une seule
+// victoire place quelqu'un en tête.
+export const MIN_MATCHES = 3;
+
 const START = 1500;
 const K = 32;
 
@@ -96,12 +101,13 @@ function computeMode(players, matches, mode) {
     }));
 
     table.sort((a, b) =>
+        (b.played >= MIN_MATCHES) - (a.played >= MIN_MATCHES) ||
         (b.played > 0) - (a.played > 0) ||
         b.elo - a.elo ||
         b.wins - a.wins ||
         a.player.name.localeCompare(b.player.name, 'fr'));
 
-    table.forEach((row, i) => { row.rank = row.played ? i + 1 : null; });
+    table.forEach((row, i) => { row.rank = row.played >= MIN_MATCHES ? i + 1 : null; });
 
     return { table, byId: Object.fromEntries(table.map(r => [r.player.id, r])) };
 }
