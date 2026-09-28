@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atelier Collage</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="panel">
+    <header>
+      <h1>Atelier Collage</h1>
+      <p class="sub">Transformez les dessins de vos enfants en une œuvre d’art unique.</p>
+    </header>
+
+    <section>
+      <h2><span class="step">1</span> Importer les dessins</h2>
+      <label id="drop" class="drop">
+        <input id="file" type="file" multiple accept="application/pdf,image/*" hidden>
+        <strong>Déposez vos scans ici</strong>
+        <span>PDF (plusieurs pages), JPG ou PNG — ou cliquez pour choisir</span>
+      </label>
+      <div id="progress" class="progress" hidden><div></div><span></span></div>
+    </section>
+
+    <section id="drawings-section" hidden>
+      <h2><span class="step">2</span> Dessins <small id="drawings-count"></small></h2>
+      <p class="hint">Cliquez sur un dessin pour changer son rôle :
+        <b class="tag cutout">découpe</b> sujets découpés,
+        <b class="tag texture">fond</b> page peinte utilisée en arrière-plan,
+        <b class="tag off">ignoré</b>.</p>
+      <div id="drawings" class="grid"></div>
+      <h3>Pièces découpées <small id="pieces-count"></small></h3>
+      <p class="hint">Cliquez sur une pièce pour la retirer ou la remettre dans l’œuvre.</p>
+      <div id="pieces" class="grid pieces"></div>
+    </section>
+
+    <section id="compose-section" hidden>
+      <h2><span class="step">3</span> Composition</h2>
+      <label class="row">Format
+        <select id="format">
+          <option value="100x70" selected>100 × 70 cm (paysage)</option>
+          <option value="120x80">120 × 80 cm (paysage)</option>
+          <option value="80x60">80 × 60 cm (paysage)</option>
+          <option value="60x60">60 × 60 cm (carré)</option>
+          <option value="70x100">70 × 100 cm (portrait)</option>
+          <option value="42x29.7">A3 paysage</option>
+          <option value="29.7x42">A3 portrait</option>
+        </select>
+      </label>
+      <label class="row">Fond
+        <select id="bg-mode">
+          <option value="bands" selected>Paysage (ciel, milieu, sol)</option>
+          <option value="mosaic">Mosaïque de papiers</option>
+          <option value="paper">Papier uni</option>
+        </select>
+      </label>
+      <label class="row">Densité <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1"></label>
+      <label class="row">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
+      <label class="row check"><input id="shadows" type="checkbox" checked> Ombres portées (effet relief)</label>
+      <button id="generate" class="primary">✨ Nouvelle composition</button>
+    </section>
+
+    <section id="export-section" hidden>
+      <h2><span class="step">4</span> Exporter</h2>
+      <label class="row">Qualité
+        <select id="dpi">
+          <option value="screen">Écran (2400 px)</option>
+          <option value="150" selected>Impression 150 dpi</option>
+          <option value="300">Impression 300 dpi (lourd)</option>
+        </select>
+      </label>
+      <label class="row">Fichier
+        <select id="fmt">
+          <option value="image/jpeg" selected>JPEG</option>
+          <option value="image/png">PNG</option>
+        </select>
+      </label>
+      <button id="export" class="primary">⬇ Télécharger l’œuvre</button>
+      <p id="export-info" class="hint"></p>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="toolbar" id="toolbar">
+      <button data-act="front" title="Mettre devant">⬆ Devant</button>
+      <button data-act="back" title="Mettre derrière">⬇ Derrière</button>
+      <button data-act="flip" title="Retourner">⇋ Miroir</button>
+      <button data-act="dup" title="Dupliquer">⧉ Dupliquer</button>
+      <button data-act="del" title="Supprimer (Suppr)">🗑 Retirer</button>
+      <span class="tip">Glissez pour déplacer · poignée ou molette pour agrandir / tourner</span>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div id="empty" class="empty">
+      <div>
+        <p class="big">🖍️ ✂️ 🖼️</p>
+        <p>Importez les dessins scannés pour créer automatiquement un collage.</p>
+        <p class="hint">Les pages entièrement peintes deviennent le fond, les dessins sur papier sont découpés comme aux ciseaux puis disposés dessus.</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="vendor/pdf.min.js"></script>
+  <script src="js/extract.js"></script>
+  <script src="js/compose.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
