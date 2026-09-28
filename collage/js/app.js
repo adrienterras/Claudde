@@ -448,7 +448,6 @@
     return {
       format: formatCm(),
       scale: k,
-      bgMode: $('bg-mode').value,
       density: Number($('density').value),
       rotation: Number($('rotation').value),
       grain: $('grain').checked,
@@ -458,11 +457,22 @@
     };
   }
 
+  // Trois styles proposés à chaque fois, avec tous les dessins.
+  const STYLES = [
+    { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
+    { id: 'tournesol', name: 'Tournesol', hint: 'spirale depuis le cœur' },
+    { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'rangées alignées' },
+  ];
+
   function regenerate() {
     if (!state.drawings.length) return;
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
-    state.comp = Compose.generate(options());
+    const o = options();
+    state.proposals = STYLES.map((st, i) => ({ style: st, comp: Compose.generate(Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 })) }));
+    state.active = Math.min(state.active || 0, 2);
+    state.comp = state.proposals[state.active].comp;
+    renderProposals();
     state.selected = null;
     state.bgCache = null;
     refreshPieces();
@@ -477,9 +487,60 @@
     const el = $('label');
     if (!state.comp) { el.hidden = true; return; }
     el.hidden = false;
-    const title = state.title ? `« ${state.title} »` : 'Sans titre';
-    $('label-title').textContent = title;
-    $('label-meta').textContent = `Collage de ${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm · échelle ${Math.round(scale() * 100)} %`;
+    const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
+    const t = titleFor(st.id);
+    $('label-title').textContent = t ? `« ${t} »` : 'Sans titre';
+    $('label-meta').textContent = `${st.name} · collage de ${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm · échelle ${Math.round((state.comp.scale || scale()) * 100)} %`;
+  }
+
+  function titleFor(styleId) {
+    return (state.titles && state.titles[styleId]) || state.title || '';
+  }
+
+  // Vignettes des trois propositions ; un clic ouvre la proposition sur la toile pour la retoucher.
+  function thumbOfComp(comp) {
+    const s = 360 / comp.W;
+    const c = Extract.makeCanvas(comp.W * s, comp.H * s);
+    const x = c.getContext('2d');
+    Compose.renderBg(x, comp, s, false);
+    Compose.renderItems(x, comp, s, false);
+    return c.toDataURL('image/jpeg', 0.8);
+  }
+
+  function renderProposals() {
+    const box = $('proposals');
+    box.innerHTML = '';
+    (state.proposals || []).forEach((pr, i) => {
+      const b = document.createElement('button');
+      b.className = `proposal${i === state.active ? ' on' : ''}`;
+      b.setAttribute('aria-pressed', i === state.active ? 'true' : 'false');
+      const t = titleFor(pr.style.id);
+      b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${t ? `« ${t} »` : pr.style.hint}</small>`;
+      b.onclick = () => selectProposal(i);
+      box.appendChild(b);
+    });
+  }
+
+  function selectProposal(i) {
+    state.active = i;
+    state.comp = state.proposals[i].comp;
+    state.selected = null;
+    state.bgCache = null;
+    renderProposals();
+    refreshPieces();
+    render();
+    updateExportInfo();
+    updateLabel();
+  }
+
+  // après une retouche, la vignette de la proposition active suit
+  let thumbTimer = 0;
+  function refreshActiveThumb() {
+    clearTimeout(thumbTimer);
+    thumbTimer = setTimeout(() => {
+      const img = document.querySelector('#proposals .proposal.on img');
+      if (img && state.comp) img.src = thumbOfComp(state.comp);
+    }, 300);
   }
 
   // ---------- Scène ----------
@@ -611,7 +672,7 @@
     render();
   });
 
-  const endDrag = () => { drag = null; };
+  const endDrag = () => { if (drag) refreshActiveThumb(); drag = null; };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
@@ -635,6 +696,7 @@
       comp.items.push(c);
       state.selected = c;
     }
+    refreshActiveThumb();
     if (name === 'del') {
       comp.items.splice(i, 1);
       state.selected = null;
@@ -748,7 +810,7 @@
   });
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
-  ['format', 'bg-mode', 'density', 'rotation', 'scale', 'scale-auto', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
+  ['format', 'density', 'rotation', 'scale', 'scale-auto', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
   $('scale').addEventListener('input', updateScaleLabel);
   $('shadows').addEventListener('change', render);
   $('dpi').addEventListener('change', updateExportInfo);
@@ -805,10 +867,11 @@ Pour CHAQUE dessin, décide :
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
-Propose aussi un "titre" poétique et court pour l'œuvre (2 à 6 mots, en français).
+L'œuvre sera proposée dans trois styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur) et « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées).
+Propose pour chacun un titre poétique et court (2 à 6 mots, en français), inspiré des dessins.
 
 Réponds uniquement avec ce JSON :
-{"titre": "...", "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "importance": 2}, ...]}`;
+{"titres": {"paysage": "...", "tournesol": "...", "cabinet": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "importance": 2}, ...]}`;
     try {
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
@@ -825,6 +888,10 @@ Réponds uniquement avec ce JSON :
         };
         n++;
       });
+      if (res && res.titres && typeof res.titres === 'object') {
+        state.titles = {};
+        STYLES.forEach((st) => { if (res.titres[st.id]) state.titles[st.id] = String(res.titres[st.id]).slice(0, 80); });
+      }
       if (res && res.titre) state.title = String(res.titre).slice(0, 80);
       state.drawings.forEach(ensureMaterial);
       curate();
@@ -841,6 +908,9 @@ Réponds uniquement avec ce JSON :
   $('clear').onclick = () => {
     state.drawings = [];
     state.title = '';
+    state.titles = null;
+    state.proposals = null;
+    $('proposals').innerHTML = '';
     aiStatus('');
     state.current = null;
     state.comp = null;

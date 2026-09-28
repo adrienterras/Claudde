@@ -107,6 +107,20 @@
     return { ciel: [0, horizon], milieu: [horizon, ground], sol: [ground, H], horizon, ground };
   }
 
+  /*
+   * Spirale du tournesol (phyllotaxie) : l'élément n° i sur n est posé à l'angle d'or i × 137,5°,
+   * à une distance du centre en √i. Le premier élément est au cœur.
+   */
+  const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+  function spiralPoint(W, H, i, n) {
+    const t = Math.sqrt((i + 0.5) / Math.max(1, n));
+    const a = i * GOLDEN;
+    // légère inclinaison dans le sens de la rotation, pour l'effet de tourbillon
+    let tan = ((a + Math.PI / 2) % Math.PI) - Math.PI / 2;
+    tan = clamp(tan, -1.2, 1.2) * 0.3 * t;
+    return { x: W / 2 + W * 0.47 * t * Math.cos(a), y: H / 2 + H * 0.47 * t * Math.sin(a), rot: tan, r: t };
+  }
+
   // Grille de couverture au centimètre.
   function Coverage(W, H) {
     const gw = Math.ceil(W), gh = Math.ceil(H);
@@ -141,17 +155,27 @@
    *  2. les trous restants sont comblés de lambeaux déchirés dans ces mêmes pages
    *     (des recadrages, jamais d'agrandissement), comme des papiers froissés.
    */
-  function background(W, H, texs, Z, R, out) {
+  function background(W, H, texs, Z, R, out, spiral) {
     const cov = Coverage(W, H);
     const panels = [];
     // les pages pâles d'abord (dessous), puis les pages colorées par-dessus
     const imp = (t) => (t.importance === undefined ? 1 : t.importance);
     const order = texs.slice().sort((a, b) => imp(a) - imp(b) || (a.colorful || 0) - (b.colorful || 0));
-    order.forEach((t) => {
+    order.forEach((t, i) => {
       const w = t.wcm * (0.88 + 0.12 * R()), h = t.hcm * (0.88 + 0.12 * R());
       const band = Z[t.zone] || [0, H];
+      // en spirale, la page la plus forte (posée en dernier) est au centre
+      const target = spiral ? spiralPoint(W, H, order.length - 1 - i, order.length) : null;
       let best = null;
-      for (let c = 0; c < 90; c++) {
+      for (let c = 0; c < 90 && target; c++) {
+        const k = 0.15 + c / 90;
+        const cx = target.x + (R() - 0.5) * w * k, cy = target.y + (R() - 0.5) * h * k;
+        const rot = target.rot + (R() - 0.5) * 0.1;
+        const sc = cov.score(cx, cy, w, h, rot);
+        const score = sc.over + sc.out * 1.5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.3) + R() * 0.03;
+        if (!best || score < best.score) best = { cx, cy, rot, score };
+      }
+      for (let c = 0; c < 90 && !target; c++) {
         const cx = w * 0.25 + R() * Math.max(1, W - w * 0.5);
         // de préférence dans sa zone, mais une page peut déborder pour ne pas laisser de trou
         const inZone = c % 3 !== 2;
@@ -197,7 +221,7 @@
    *  - équilibre des masses, couleurs voisines variées, sujets répartis sur toute la toile ;
    *  - chevauchements réduits au minimum ; profondeur : ce qui est plus bas passe devant.
    */
-  function placePieces(W, H, pieces, o, Z, R) {
+  function placePieces(W, H, pieces, o, Z, R, spiral) {
     const gw = Math.ceil(W), gh = Math.ceil(H);
     const occ = new Uint8Array(gw * gh);
     const thirds = [[W / 3, H / 3], [(2 * W) / 3, H / 3], [W / 3, (2 * H) / 3], [(2 * W) / 3, (2 * H) / 3]];
@@ -225,14 +249,29 @@
       }
     }
 
-    sorted.forEach((p) => {
+    sorted.forEach((p, idx) => {
       const band = Z[p.zone] || [0, H];
-      const grounded = !!p.grounded;
+      const grounded = !spiral && !!p.grounded;
       const pHue = hue(p.color);
       const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
-      const star = stars.has(p);
+      const star = !spiral && stars.has(p);
       let best = null;
-      for (let c = 0; c < 110; c++) {
+      // Tournesol : chaque sujet vise son point de la spirale, les pièces maîtresses au cœur.
+      const target = spiral ? spiralPoint(W, H, idx, sorted.length) : null;
+      for (let c = 0; c < 110 && target; c++) {
+        const k = 0.1 + (c / 110) * 1.2;
+        const cx = target.x + (R() - 0.5) * p.wcm * k, cy = target.y + (R() - 0.5) * p.hcm * k;
+        let cells = 0, over = 0, out = 0;
+        footprint(p, cx, cy, (gx, gy) => {
+          cells++;
+          if (gx < 0 || gy < 0 || gx >= gw || gy >= gh) out++;
+          else if (occ[gy * gw + gx]) over++;
+        });
+        if (!cells) continue;
+        const score = (over / cells) * 3 + (out / cells) * 5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.15) + R() * 0.03;
+        if (!best || score < best.score) best = { cx, cy, score, r: target.r, rot: target.rot };
+      }
+      for (let c = 0; c < 110 && !target; c++) {
         let cx = p.wcm * 0.35 + R() * Math.max(1, W - p.wcm * 0.7);
         let cy;
         if (grounded) {
@@ -285,34 +324,93 @@
       }
       mass += w8; mx += best.cx * w8; my += best.cy * w8;
       p.placed = true;
-      const rot = (R() - 0.5) * 2 * (grounded ? Math.min(maxRot, 0.05) : maxRot);
-      placed.push({ kind: 'piece', piece: p, x: best.cx, y: best.cy, w: p.wcm, h: p.hcm, rot, flip: false, grounded });
+      const rot = best.rot !== undefined ? best.rot + (R() - 0.5) * maxRot : (R() - 0.5) * 2 * (grounded ? Math.min(maxRot, 0.05) : maxRot);
+      placed.push({ kind: 'piece', piece: p, x: best.cx, y: best.cy, w: p.wcm, h: p.hcm, rot, flip: false, grounded, r: best.r });
     });
 
+    // spirale : l'extérieur d'abord, le cœur par-dessus
+    if (spiral) return placed.sort((a, b) => b.r - a.r);
     const g = placed.filter((L) => L.grounded).sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2));
     const f = placed.filter((L) => !L.grounded).sort((a, b) => b.w * b.h - a.w * a.h);
     return g.concat(f);
   }
 
+  /*
+   * Cabinet de curiosités : chaque dessin exposé droit, en rangées alignées sur des « étagères »,
+   * sur papier blanc et sans chevauchement. On cherche la plus grande échelle (toujours la même
+   * pour tous, jamais plus grande que la taille réelle) qui fait tout tenir.
+   */
+  function cabinet(W, H, texs, pieces, o, R) {
+    const gap = 1.2;
+    const all = texs.map((t) => ({ t, w: t.wcm, h: t.hcm })).concat(pieces.map((p) => ({ p, w: p.wcm, h: p.hcm })));
+    all.sort((a, b) => b.h - a.h);
+    const shelve = (f) => {
+      const rows = [];
+      let row = [], x = gap;
+      for (const it of all) {
+        const w = it.w * f;
+        if (w > W - 2 * gap) return null;
+        if (row.length && x + w + gap > W) { rows.push(row); row = []; x = gap; }
+        row.push(it);
+        x += w + gap;
+      }
+      if (row.length) rows.push(row);
+      const height = rows.reduce((s, r) => s + Math.max(...r.map((it) => it.h * f)), 0) + gap * (rows.length + 1);
+      return height <= H ? rows : null;
+    };
+    let lo = 0.05, hi = Math.min(3, 1 / Math.max(0.01, o.scale));
+    for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; if (shelve(mid)) lo = mid; else hi = mid; }
+    const f = lo;
+    const rows = shelve(f) || [];
+    const heights = rows.map((r) => Math.max(...r.map((it) => it.h * f)));
+    const free = H - heights.reduce((a, b) => a + b, 0);
+    const vgap = free / (rows.length + 1);
+    const bg = [], items = [];
+    let y = vgap;
+    rows.forEach((row, ri) => {
+      const r = shuffle(row, R);
+      const rowW = r.reduce((s, it) => s + it.w * f, 0);
+      const hgap = Math.min((W - rowW) / (r.length + 1), 6);
+      let x = (W - rowW - hgap * (r.length - 1)) / 2;
+      r.forEach((it) => {
+        const w = it.w * f, h = it.h * f;
+        const cx = x + w / 2, cy = y + heights[ri] - h / 2; // posé sur l'étagère
+        if (it.t) bg.push({ kind: 'bg', src: it.t.canvas, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w, h, rot: 0, flip: false, clip: null });
+        else { it.p.placed = true; items.push({ kind: 'piece', piece: it.p, x: cx, y: cy, w, h, rot: 0, flip: false }); }
+        x += w + hgap;
+      });
+      y += heights[ri] + vgap;
+    });
+    return { bg, items, f };
+  }
+
+  function paperLayer(W, H) {
+    const c = paperTexture();
+    return { kind: 'bg', src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
+  }
+
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'cabinet' (rangées alignées).
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
-    const Z = zonesFor(W, H, o.bgMode !== 'mosaic');
-    const bg = [];
-    if (o.textures.length) {
-      background(W, H, o.textures, Z, R, bg);
-    } else {
-      const c = paperTexture();
-      bg.push({ kind: 'bg', src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height });
+    const style = o.style || 'paysage';
+    if (style === 'cabinet') {
+      const cab = cabinet(W, H, o.textures, o.pieces, o, R);
+      return { W, H, bg: [paperLayer(W, H), ...cab.bg], items: cab.items, grain: o.grain, style, f: cab.f, scale: o.scale * cab.f };
     }
-    const items = placePieces(W, H, o.pieces, o, Z, R);
-    return { W, H, bg, items, grain: o.grain };
+    const spiral = style === 'tournesol';
+    const Z = zonesFor(W, H, !spiral);
+    const bg = [];
+    if (o.textures.length) background(W, H, o.textures, Z, R, bg, spiral);
+    else bg.push(paperLayer(W, H));
+    const items = placePieces(W, H, o.pieces, o, Z, R, spiral);
+    return { W, H, bg, items, grain: o.grain, style, f: 1, scale: o.scale };
   }
 
   // Ajoute une découpe (à l'échelle) dans une composition existante.
   function addPiece(comp, piece, seed) {
     const R = rng(seed);
-    const item = { kind: 'piece', piece, x: comp.W * (0.25 + R() * 0.5), y: comp.H * (0.25 + R() * 0.5), w: piece.wcm, h: piece.hcm, rot: (R() - 0.5) * 0.2, flip: false };
+    const item = { kind: 'piece', piece, x: comp.W * (0.25 + R() * 0.5), y: comp.H * (0.25 + R() * 0.5), w: piece.wcm * (comp.f || 1), h: piece.hcm * (comp.f || 1), rot: (R() - 0.5) * 0.2, flip: false };
     comp.items.push(item);
     piece.placed = true;
     return item;

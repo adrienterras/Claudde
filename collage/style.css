@@ -164,3 +164,11 @@ button.primary:hover:not(:disabled) { background: var(--accent-dark); border-col
 
 .notice { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: #fdebe4; color: #8a2d12; font-size: 0.82rem; }
 button.link { border: 0; padding: 0; background: none; color: var(--accent-dark); text-decoration: underline; font-size: inherit; cursor: pointer; }
+
+.proposals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 10px; }
+.proposal { display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: 5px; text-align: left; border: 2px solid var(--line); border-radius: 10px; background: #fff; min-width: 0; }
+.proposal img { width: 100%; aspect-ratio: 10 / 7; object-fit: cover; border-radius: 5px; display: block; }
+.proposal b { font-size: 0.78rem; line-height: 1.2; }
+.proposal small { font-size: 0.68rem; line-height: 1.25; color: var(--muted); overflow-wrap: anywhere; }
+.proposal.on { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(228, 87, 46, .15); }
+.proposal:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }

@@ -26,20 +26,10 @@
         Ajoutez vos scans, ou <button id="clear" class="link">repartez de zéro</button>.</p>
     </section>
 
-    <section id="drawings-section" hidden>
-      <h2><span class="step">2</span> Dessins <small id="drawings-count"></small></h2>
-      <p class="hint">Cliquez sur un dessin pour régler son rôle
-        (<b class="tag cutout">découpe</b> <b class="tag texture">fond</b> <b class="tag off">ignoré</b>)
-        et sa <b>taille réelle</b>, qui fixe sa taille dans l’œuvre.</p>
-      <div id="detail" class="detail" hidden></div>
-      <div id="drawings" class="grid"></div>
-      <h3>Pièces découpées <small id="pieces-count"></small></h3>
-      <p class="hint">Cliquez sur une pièce pour la retirer ou l’ajouter. En pointillés : pas de place à l’échelle choisie.</p>
-      <div id="pieces" class="grid pieces"></div>
-    </section>
-
     <section id="compose-section" hidden>
-      <h2><span class="step">3</span> Composition</h2>
+      <h2><span class="step">2</span> Propositions</h2>
+      <p class="hint">Trois compositions, trois styles, toujours avec tous les dessins. Cliquez sur l’une pour la retoucher sur la toile.</p>
+      <div id="proposals" class="proposals"></div>
       <p id="ai-status" class="hint ai"></p>
       <label class="row">Format
         <select id="format">
@@ -52,12 +42,6 @@
           <option value="29.7x42">A3 portrait</option>
         </select>
       </label>
-      <label class="row">Fond
-        <select id="bg-mode">
-          <option value="bands" selected>Paysage (ciel, milieu, sol)</option>
-          <option value="mosaic">Mosaïque libre</option>
-        </select>
-      </label>
       <label class="row">Échelle des dessins
         <span class="scale"><input id="scale" type="range" min="20" max="100" step="1" value="60">
         <label class="check"><input id="scale-auto" type="checkbox" checked> auto</label></span>
@@ -67,7 +51,19 @@
       <label class="row">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
       <label class="row check"><input id="shadows" type="checkbox" checked> Ombres portées (effet relief)</label>
       <label class="row check"><input id="grain" type="checkbox" checked> Finition toile (grain, vignettage)</label>
-      <button id="generate" class="primary">✨ Nouvelle proposition</button>
+      <button id="generate" class="primary">✨ Trois nouvelles propositions</button>
+    </section>
+
+    <section id="drawings-section" hidden>
+      <h2><span class="step">3</span> Dessins <small id="drawings-count"></small></h2>
+      <p class="hint">Cliquez sur un dessin pour régler son rôle
+        (<b class="tag cutout">découpe</b> <b class="tag texture">fond</b> <b class="tag off">ignoré</b>)
+        et sa <b>taille réelle</b>, qui fixe sa taille dans l’œuvre.</p>
+      <div id="detail" class="detail" hidden></div>
+      <div id="drawings" class="grid"></div>
+      <h3>Pièces découpées <small id="pieces-count"></small></h3>
+      <p class="hint">Cliquez sur une pièce pour la retirer ou l’ajouter. En pointillés : pas de place à l’échelle choisie.</p>
+      <div id="pieces" class="grid pieces"></div>
     </section>
 
     <section id="export-section" hidden>

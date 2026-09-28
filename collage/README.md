@@ -28,7 +28,11 @@ cd collage && python3 -m http.server 8000
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
-   - « Nouvelle proposition » tire une autre composition ; tout reste modifiable à la main.
+   - **trois propositions, trois styles**, à chaque fois :
+     *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
+     *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
+     *Cabinet de curiosités* (chaque dessin exposé droit, en rangées, sur papier blanc) ;
+     un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 
 ## Fonctionnement
