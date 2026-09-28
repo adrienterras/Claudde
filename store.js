@@ -90,6 +90,10 @@ async function createFirebaseStore(config) {
             await fs.addDoc(matches(cid), { ...data, createdBy: uid, createdAt: Date.now() });
         },
 
+        async updateMatch(cid, mid, data) {
+            await fs.updateDoc(fs.doc(matches(cid), mid), { ...data, updatedBy: uid, updatedAt: Date.now() });
+        },
+
         async deleteMatch(cid, mid) {
             await fs.deleteDoc(fs.doc(matches(cid), mid));
         },

@@ -426,7 +426,8 @@ button { cursor: pointer; }
 }
 .sb-set.won { color: var(--accent); font-weight: 700; }
 
-.match-del { align-self: flex-end; color: var(--muted); }
+.match-actions { align-self: flex-end; display: flex; gap: 16px; }
+.match-del { color: var(--muted); }
 
 .confirm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 

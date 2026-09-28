@@ -341,9 +341,15 @@ function teamNames(team) {
     return team.map(id => h(playerName(id))).join('<span class="sb-amp"> / </span>');
 }
 
+// La personne qui a noté le match, ou le créateur de la communauté, peut le
+// corriger ou le supprimer (mêmes conditions que firestore.rules).
+function canManageMatch(m) {
+    return m.createdBy === S.uid || S.data.community.createdBy === S.uid;
+}
+
 function matchCard(m) {
     const w1 = m.winnerSide === 1;
-    const canDelete = m.createdBy === S.uid;
+    const canManage = canManageMatch(m);
     const confirming = S.confirm === m.id;
     const isDouble = m.type === 'double';
     return `
@@ -359,13 +365,16 @@ function matchCard(m) {
                     ${m.sets.map(s => `<span class="sb-set ${s.b > s.a ? 'won' : ''}">${s.b}</span>`).join('')}
                 </div>
             </div>
-            ${canDelete ? (confirming
+            ${canManage ? (confirming
                 ? `<div class="confirm-row">
                         <span class="small">Supprimer ce match ?</span>
                         <button class="btn btn-small btn-danger" data-action="delete-match" data-mid="${h(m.id)}">Supprimer</button>
                         <button class="btn btn-small btn-ghost" data-action="cancel-confirm">Annuler</button>
                    </div>`
-                : `<button class="link small match-del" data-action="ask-delete" data-mid="${h(m.id)}">Supprimer</button>`)
+                : `<div class="match-actions">
+                        <button class="link small" data-action="edit-match" data-mid="${h(m.id)}">Modifier</button>
+                        <button class="link small match-del" data-action="ask-delete" data-mid="${h(m.id)}">Supprimer</button>
+                   </div>`)
             : ''}
         </article>`;
 }
@@ -474,7 +483,7 @@ function closeSheet() {
     document.body.classList.remove('has-sheet');
 }
 
-function openMatchSheet() {
+function openMatchSheet(match = null) {
     const players = [...S.data.players].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     const my = me();
     const others = players.filter(p => p.id !== my.id);
@@ -485,8 +494,12 @@ function openMatchSheet() {
             <button class="btn btn-primary" data-action="add-player">+ Ajouter un joueur</button>`);
         return;
     }
-    // Composition proposée : vous et un partenaire contre les deux suivants.
-    const defaults = { t1a: my.id, t2a: others[0].id, t1b: others[1]?.id, t2b: others[2]?.id };
+    // Composition proposée : vous et un partenaire contre les deux suivants,
+    // ou celle du match à modifier.
+    const defaults = match
+        ? { t1a: match.t1[0], t1b: match.t1[1] ?? others[1]?.id, t2a: match.t2[0], t2b: match.t2[1] ?? others[2]?.id }
+        : { t1a: my.id, t2a: others[0].id, t1b: others[1]?.id, t2b: others[2]?.id };
+    const set = i => match?.sets[i];
     const select = (id, label, extraClass = '') => `
         <label class="field ${extraClass}"><span class="field-label">${label}</span>
             <select class="field-input" id="m-${id}" name="${id}">
@@ -496,13 +509,14 @@ function openMatchSheet() {
     const setRow = i => `
         <div class="set-row" data-set="${i}">
             <span class="set-label">Set ${i + 1}</span>
-            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}a" aria-label="Set ${i + 1}, camp 1">
+            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}a" aria-label="Set ${i + 1}, camp 1" value="${set(i)?.a ?? ''}">
             <span class="dash">–</span>
-            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}b" aria-label="Set ${i + 1}, camp 2">
+            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}b" aria-label="Set ${i + 1}, camp 2" value="${set(i)?.b ?? ''}">
         </div>`;
     openSheet(`
         <form data-form="match" class="form">
-            <h2 class="sheet-title">Nouveau match</h2>
+            <h2 class="sheet-title">${match ? 'Modifier le match' : 'Nouveau match'}</h2>
+            <input type="hidden" id="m-id" name="id" value="${h(match?.id ?? '')}">
             <input type="hidden" id="m-type" name="type" value="simple">
             <div class="segmented" role="tablist" aria-label="Format du match">
                 <button type="button" role="tab" class="seg" data-action="match-type" data-type="simple">Simple</button>
@@ -510,7 +524,7 @@ function openMatchSheet() {
             </div>
             <label class="field">
                 <span class="field-label">Date</span>
-                <input class="field-input" type="date" id="m-date" name="date" value="${today()}" required>
+                <input class="field-input" type="date" id="m-date" name="date" value="${h(match?.date || today())}" required>
             </label>
             <div class="versus">
                 <div class="team">
@@ -527,9 +541,9 @@ function openMatchSheet() {
             <div class="sets" id="sets">${[0, 1, 2].map(setRow).join('')}</div>
             <p class="muted small">Laissez vide un set non joué. Super tie-break : notez-le comme un set (10-7).</p>
             <p class="form-error" id="m-error" hidden></p>
-            <button class="btn btn-primary" type="submit">Enregistrer le match</button>
+            <button class="btn btn-primary" type="submit">${match ? 'Enregistrer les modifications' : 'Enregistrer le match'}</button>
         </form>`);
-    setMatchType(players.length >= 4 ? prefs.mode : 'simple');
+    setMatchType(match ? match.type : (players.length >= 4 ? prefs.mode : 'simple'));
 }
 
 function setMatchType(type) {
@@ -651,6 +665,10 @@ async function run(fn) {
 const actions = {
     'tab': el => { S.tab = el.dataset.tab; S.confirm = null; render(); window.scrollTo(0, 0); },
     'new-match': () => openMatchSheet(),
+    'edit-match': el => {
+        const match = S.data.matches.find(m => m.id === el.dataset.mid);
+        if (match) openMatchSheet(match);
+    },
     'mode': el => {
         prefs.mode = el.dataset.mode;
         savePrefs();
@@ -763,14 +781,16 @@ document.addEventListener('submit', e => {
         if (won.a === won.b) return fail('Aucun vainqueur : vérifiez les sets.');
         const winnerSide = won.a > won.b ? 1 : 2;
         return run(async () => {
-            await S.store.addMatch(S.cid, { type: f.type, date: f.date, t1, t2, sets, winnerSide });
+            const data = { type: f.type, date: f.date, t1, t2, sets, winnerSide };
+            if (f.id) await S.store.updateMatch(S.cid, f.id, data);
+            else await S.store.addMatch(S.cid, data);
             prefs.mode = f.type;
             savePrefs();
             closeSheet();
             S.tab = 'matchs';
             render();
             const names = (winnerSide === 1 ? t1 : t2).map(playerName).join(' et ');
-            toast(`Victoire de ${names} enregistrée`);
+            toast(f.id ? 'Match modifié' : `Victoire de ${names} enregistrée`);
         });
     }
 });

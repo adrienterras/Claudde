@@ -66,4 +66,4 @@ Si un ami change de téléphone, le créateur de la communauté peut ouvrir son 
 
 - Toute personne qui possède le lien de la communauté peut y noter des matchs : partagez-le seulement avec vos amis.
 - Un profil est lié au navigateur du téléphone. Effacer les données du navigateur oblige à se faire renvoyer son invitation.
-- Seule la personne qui a noté un match peut le supprimer.
+- Seuls la personne qui a noté un match et le créateur de la communauté peuvent le modifier (bouton « Modifier » sous le score) ou le supprimer.

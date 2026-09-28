@@ -36,8 +36,17 @@ service cloud.firestore {
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.sets is list
           && request.resource.data.sets.size() <= 5;
+        // Corriger ou supprimer : la personne qui a noté le match, ou le
+        // créateur de la communauté.
+        allow update: if request.auth != null
+          && (resource.data.createdBy == request.auth.uid
+              || get(/databases/$(database)/documents/communities/$(cid)).data.createdBy == request.auth.uid)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.sets is list
+          && request.resource.data.sets.size() <= 5;
         allow delete: if request.auth != null
-          && resource.data.createdBy == request.auth.uid;
+          && (resource.data.createdBy == request.auth.uid
+              || get(/databases/$(database)/documents/communities/$(cid)).data.createdBy == request.auth.uid);
       }
     }
   }
