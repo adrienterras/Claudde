@@ -5,7 +5,14 @@
   const SOURCE_MAX = 1400; // résolution conservée pour chaque page scannée (plus grand côté)
   const $ = (id) => document.getElementById(id);
 
-  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = window.PDFJS_WORKER_SRC || 'vendor/pdf.worker.min.js';
+
+  // Message affiché dans le panneau (les boîtes de dialogue du navigateur ne sont pas toujours disponibles).
+  function notice(text) {
+    const el = $('notice');
+    el.textContent = text || '';
+    el.hidden = !text;
+  }
 
   const state = {
     drawings: [],   // { id, name, thumb, analysis, role, srcLong, origLong, physCm, sizeCm, sizeMode }
@@ -73,15 +80,16 @@
     return Extract.scaleTo(canvas, max || 160).toDataURL('image/jpeg', 0.8);
   }
 
-  async function importFiles(files) {
+  async function importFiles(files, sizes) {
     let pages = [];
+    notice('');
     setProgress(0, 1, 'Lecture des fichiers…');
     for (const f of files) {
       try {
         pages = pages.concat(await pagesFromFile(f));
       } catch (e) {
         console.error(e);
-        alert(`Impossible de lire « ${f.name} ».`);
+        notice(`Impossible de lire « ${f.name} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.`);
       }
     }
     for (let i = 0; i < pages.length; i++) {
@@ -97,6 +105,7 @@
         };
         preparePieces(analysis.pieces, d);
         loadSize(d);
+        if (sizes && sizes[d.name]) { d.sizeCm = sizes[d.name]; d.sizeMode = 'manual'; }
         state.drawings.push(d);
       } catch (e) {
         console.error(e);
@@ -623,16 +632,28 @@
       const type = $('fmt').value;
       const blob = await new Promise((r) => c.toBlob(r, type, 0.92));
       if (!blob) throw new Error('toBlob');
+      const filename = `oeuvre-collage.${type === 'image/png' ? 'png' : 'jpg'}`;
+      // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur.
+      const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+      if (downloads) {
+        try {
+          await downloads.save({ filename, data: blob });
+        } catch (err) {
+          if (err && err.code === 'too_large') notice('Fichier trop lourd pour cet appareil : choisissez une qualité plus faible.');
+          else if (!err || err.code !== 'declined') notice('Enregistrement impossible ici. Réessayez dans un instant.');
+        }
+        return;
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `oeuvre-collage.${type === 'image/png' ? 'png' : 'jpg'}`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     } catch (e) {
       console.error(e);
-      alert('Export impossible à cette taille sur cet appareil. Essayez une qualité plus faible.');
+      notice('Export impossible à cette taille sur cet appareil. Choisissez une qualité plus faible.');
     } finally {
       btn.disabled = false;
       btn.textContent = '⬇ Télécharger l’œuvre';
@@ -669,8 +690,42 @@
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;
 
+  // Tout effacer pour repartir de ses propres scans
+  $('clear').onclick = () => {
+    state.drawings = [];
+    state.current = null;
+    state.comp = null;
+    state.selected = null;
+    state.bgCache = null;
+    ['drawings-section', 'compose-section', 'export-section', 'sample-note'].forEach((id) => ($(id).hidden = true));
+    $('empty').hidden = false;
+    refreshLists();
+    render();
+  };
+
+  // Dessins d'exemple fournis avec la page (version publiée) : chargés à l'ouverture.
+  async function loadSamples(m) {
+    try {
+      setProgress(0, 1, 'Chargement des dessins d’exemple…');
+      const files = await Promise.all(m.pages.map(async (p) => {
+        const r = await fetch(m.base + p.file);
+        if (!r.ok) throw new Error(p.file);
+        return new File([await r.blob()], p.name, { type: 'image/jpeg' });
+      }));
+      const sizes = {};
+      m.pages.forEach((p) => { if (p.sizeCm) sizes[p.name] = p.sizeCm; });
+      await importFiles(files, sizes);
+      $('sample-note').hidden = false;
+    } catch (e) {
+      console.error(e);
+      setProgress(1, 1);
+      notice('Les dessins d’exemple n’ont pas pu être chargés. Importez vos scans ci-dessus.');
+    }
+  }
+
   // accès pour le débogage depuis la console
   window.AtelierCollage = { state };
+  if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
 
   render();
 })();

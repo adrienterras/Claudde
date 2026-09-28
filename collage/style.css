@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light; /* univers visuel volontairement clair : un mur blanc et une toile */
   --ink: #2b2622;
   --muted: #7a7068;
   --line: #e6dfd6;
@@ -24,13 +25,14 @@ html, body {
 body {
   display: grid;
   grid-template-columns: 360px 1fr;
+  grid-template-rows: 100%;
 }
 
 .panel {
   background: var(--panel);
   border-right: 1px solid var(--line);
   overflow-y: auto;
-  height: 100vh;
+  height: 100%;
   padding: 20px 18px 40px;
 }
 
@@ -133,7 +135,7 @@ button.primary {
 }
 button.primary:hover:not(:disabled) { background: var(--accent-dark); border-color: var(--accent-dark); }
 
-.stage { position: relative; height: 100vh; overflow: hidden; }
+.stage { position: relative; height: 100%; overflow: hidden; }
 .stage canvas { position: absolute; inset: 52px 0 0 0; width: 100%; height: calc(100% - 52px); touch-action: none; }
 
 .toolbar {
@@ -147,9 +149,14 @@ button.primary:hover:not(:disabled) { background: var(--accent-dark); border-col
 .empty .big { font-size: 3rem; margin: 0; }
 
 @media (max-width: 800px) {
-  body { grid-template-columns: 1fr; grid-template-rows: auto 70vh; }
+  body { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; }
+  html { height: auto; }
   .panel { height: auto; border-right: 0; border-bottom: 1px solid var(--line); order: 2; }
-  .stage { height: 70vh; order: 1; }
+  .stage { height: min(70vh, calc(100vw * 0.78 + 52px)); order: 1; }
+  .toolbar button { white-space: nowrap; flex: none; }
   .toolbar .tip { display: none; }
   .toolbar { overflow-x: auto; }
 }
+
+.notice { margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; background: #fdebe4; color: #8a2d12; font-size: 0.82rem; }
+button.link { border: 0; padding: 0; background: none; color: var(--accent-dark); text-decoration: underline; font-size: inherit; cursor: pointer; }
