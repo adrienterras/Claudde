@@ -1,4 +1,4 @@
-/* Interface : import des scans, gestion des dessins, édition interactive et export. */
+/* Atelier Gribouille — interface : import des scans, gestion des dessins, édition interactive et export. */
 (function () {
   'use strict';
 
@@ -601,12 +601,13 @@
       ctx.save();
       ctx.translate(ox + L.x * s, oy + L.y * s);
       ctx.rotate(L.rot);
-      ctx.strokeStyle = '#e4572e';
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2f49d1';
+      ctx.strokeStyle = accent;
       ctx.lineWidth = 2 * dpr;
       ctx.setLineDash([6 * dpr, 4 * dpr]);
       ctx.strokeRect((-L.w / 2) * s, (-L.h / 2) * s, L.w * s, L.h * s);
       ctx.setLineDash([]);
-      ctx.fillStyle = '#e4572e';
+      ctx.fillStyle = accent;
       ctx.beginPath();
       ctx.arc((L.w / 2) * s, (L.h / 2) * s, 9 * dpr, 0, Math.PI * 2);
       ctx.fill();
@@ -743,7 +744,7 @@
     if (!state.comp) return;
     const btn = $('export');
     btn.disabled = true;
-    btn.textContent = 'Préparation…';
+    btn.querySelector('span').textContent = 'Préparation…';
     await tick();
     try {
       const { w } = exportSize();
@@ -782,7 +783,7 @@
       notice('Export impossible à cette taille sur cet appareil. Choisissez une qualité plus faible.');
     } finally {
       btn.disabled = false;
-      btn.textContent = '⬇ Télécharger l’œuvre';
+      btn.querySelector('span').textContent = 'Télécharger l’œuvre';
     }
   }
 
@@ -943,7 +944,7 @@ Réponds uniquement avec ce JSON :
   }
 
   // accès pour le débogage depuis la console
-  window.AtelierCollage = { state };
+  window.AtelierGribouille = { state };
   if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
 
   render();

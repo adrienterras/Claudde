@@ -1,4 +1,4 @@
-# Atelier Collage
+# Atelier Gribouille
 
 Application web qui transforme des dessins d'enfants scannés en une œuvre d'art façon collage
 (pages peintes en fond, sujets découpés « aux ciseaux » disposés par-dessus).

@@ -2,106 +2,139 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atelier Collage</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Atelier Gribouille</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="crayons" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#E4572E"/><stop offset=".3" stop-color="#F2C14E"/>
+        <stop offset=".62" stop-color="#29A19C"/><stop offset="1" stop-color="#2F49D1"/>
+      </linearGradient>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8zM18.5 16l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14"/></symbol>
+      <symbol id="i-front" viewBox="0 0 24 24"><path d="M8 8h11v11H8z"/><path d="M5 16V5h11"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M5 5h11v11H5z"/><path d="M19 8v11H8"/></symbol>
+      <symbol id="i-flip" viewBox="0 0 24 24"><path d="M12 3v18M9 7L4 17h5zM15 7l5 10h-5z"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h10v10H9z"/><path d="M15 9V5H5v10h4"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></symbol>
+    </defs>
+  </svg>
+
   <aside class="panel">
-    <header>
-      <h1>Atelier Collage</h1>
-      <p class="sub">Transformez les dessins de vos enfants en une œuvre d’art unique.</p>
+    <header class="brand">
+      <p class="brand-kicker">Atelier</p>
+      <h1 class="brand-name">Gribouille
+        <svg class="scribble" viewBox="0 0 220 22" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M3 14c18-9 34-9 46 1 9 7 19 6 28-2 12-11 27-10 36 1 8 9 20 8 30-1 13-11 30-10 40 0 9 8 20 8 33-3"/>
+        </svg>
+      </h1>
+      <p class="brand-tag">Les dessins de vos enfants, composés en une œuvre à accrocher.</p>
     </header>
 
-    <section>
-      <h2><span class="step">1</span> Importer les dessins</h2>
+    <section class="step">
+      <h2><span class="num">01</span> Importer</h2>
       <label id="drop" class="drop">
         <input id="file" type="file" multiple accept="application/pdf,image/*" hidden>
-        <strong>Déposez vos scans ici</strong>
-        <span>PDF (plusieurs pages), JPG ou PNG — ou cliquez pour choisir</span>
+        <svg class="ico ico-lg"><use href="#i-upload"/></svg>
+        <strong>Déposez vos scans</strong>
+        <span>PDF de plusieurs pages, JPG ou PNG</span>
       </label>
       <div id="progress" class="progress" hidden><div></div><span></span></div>
       <p id="notice" class="notice" role="status" hidden></p>
-      <p id="sample-note" class="hint" hidden>Exemple chargé : les dessins d’Alma et Archibald (bougie réglée à 25 cm).
+      <p id="sample-note" class="hint" hidden>Exemple chargé : les dessins d’Alma et Archibald, bougie réglée à 25 cm.
         Ajoutez vos scans, ou <button id="clear" class="link">repartez de zéro</button>.</p>
     </section>
 
-    <section id="compose-section" hidden>
-      <h2><span class="step">2</span> Propositions</h2>
-      <p class="hint">Trois compositions, trois styles, toujours avec tous les dessins. Cliquez sur l’une pour la retoucher sur la toile.</p>
+    <section id="compose-section" class="step" hidden>
+      <h2><span class="num">02</span> Propositions</h2>
+      <p class="hint">Trois styles, toujours avec tous les dessins. Choisissez-en un pour le retoucher.</p>
       <div id="proposals" class="proposals"></div>
       <p id="ai-status" class="hint ai"></p>
-      <label class="row">Format
-        <select id="format">
-          <option value="100x70" selected>100 × 70 cm (paysage)</option>
-          <option value="120x80">120 × 80 cm (paysage)</option>
-          <option value="80x60">80 × 60 cm (paysage)</option>
-          <option value="60x60">60 × 60 cm (carré)</option>
-          <option value="70x100">70 × 100 cm (portrait)</option>
-          <option value="42x29.7">A3 paysage</option>
-          <option value="29.7x42">A3 portrait</option>
-        </select>
-      </label>
-      <label class="row">Échelle des dessins
-        <span class="scale"><input id="scale" type="range" min="20" max="100" step="1" value="60">
-        <label class="check"><input id="scale-auto" type="checkbox" checked> auto</label></span>
-      </label>
-      <p id="scale-info" class="hint"></p>
-      <label class="row">Densité <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1"></label>
-      <label class="row">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
-      <label class="row check"><input id="shadows" type="checkbox" checked> Ombres portées (effet relief)</label>
-      <label class="row check"><input id="grain" type="checkbox" checked> Finition toile (grain, vignettage)</label>
-      <button id="generate" class="primary">✨ Trois nouvelles propositions</button>
+      <button id="generate" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Trois nouvelles propositions</span></button>
+
+      <details class="settings" open>
+        <summary>Réglages</summary>
+        <label class="field">Format
+          <select id="format">
+            <option value="100x70" selected>100 × 70 cm · paysage</option>
+            <option value="120x80">120 × 80 cm · paysage</option>
+            <option value="80x60">80 × 60 cm · paysage</option>
+            <option value="60x60">60 × 60 cm · carré</option>
+            <option value="70x100">70 × 100 cm · portrait</option>
+            <option value="42x29.7">A3 · paysage</option>
+            <option value="29.7x42">A3 · portrait</option>
+          </select>
+        </label>
+        <div class="field">
+          <span class="field-head">Échelle des dessins
+            <label class="switch"><input id="scale-auto" type="checkbox" checked><span></span>auto</label>
+          </span>
+          <input id="scale" type="range" min="20" max="100" step="1" value="60" aria-label="Échelle des dessins">
+          <p id="scale-info" class="hint mono-note"></p>
+        </div>
+        <label class="field">Densité <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1"></label>
+        <label class="field">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
+        <label class="switch row"><input id="shadows" type="checkbox" checked><span></span>Ombres portées</label>
+        <label class="switch row"><input id="grain" type="checkbox" checked><span></span>Finition toile</label>
+      </details>
     </section>
 
-    <section id="drawings-section" hidden>
-      <h2><span class="step">3</span> Dessins <small id="drawings-count"></small></h2>
-      <p class="hint">Cliquez sur un dessin pour régler son rôle
+    <section id="drawings-section" class="step" hidden>
+      <h2><span class="num">03</span> Dessins <small id="drawings-count"></small></h2>
+      <p class="hint">Touchez un dessin pour régler son rôle
         (<b class="tag cutout">découpe</b> <b class="tag texture">fond</b> <b class="tag off">ignoré</b>)
-        et sa <b>taille réelle</b>, qui fixe sa taille dans l’œuvre.</p>
+        et sa taille réelle.</p>
       <div id="detail" class="detail" hidden></div>
       <div id="drawings" class="grid"></div>
       <h3>Pièces découpées <small id="pieces-count"></small></h3>
-      <p class="hint">Cliquez sur une pièce pour la retirer ou l’ajouter. En pointillés : pas de place à l’échelle choisie.</p>
+      <p class="hint">Touchez une pièce pour la retirer ou l’ajouter.</p>
       <div id="pieces" class="grid pieces"></div>
     </section>
 
-    <section id="export-section" hidden>
-      <h2><span class="step">4</span> Exporter</h2>
-      <label class="row">Qualité
-        <select id="dpi">
-          <option value="screen">Écran (2400 px)</option>
-          <option value="150" selected>Impression 150 dpi</option>
-          <option value="300">Impression 300 dpi (lourd)</option>
-        </select>
-      </label>
-      <label class="row">Fichier
-        <select id="fmt">
-          <option value="image/jpeg" selected>JPEG</option>
-          <option value="image/png">PNG</option>
-        </select>
-      </label>
-      <button id="export" class="primary">⬇ Télécharger l’œuvre</button>
-      <p id="export-info" class="hint"></p>
+    <section id="export-section" class="step" hidden>
+      <h2><span class="num">04</span> Exporter</h2>
+      <div class="field-pair">
+        <label class="field">Qualité
+          <select id="dpi">
+            <option value="screen">Écran · 2400 px</option>
+            <option value="150" selected>Impression · 150 dpi</option>
+            <option value="300">Impression · 300 dpi</option>
+          </select>
+        </label>
+        <label class="field">Fichier
+          <select id="fmt">
+            <option value="image/jpeg" selected>JPEG</option>
+            <option value="image/png">PNG</option>
+          </select>
+        </label>
+      </div>
+      <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
+      <p id="export-info" class="hint mono-note"></p>
     </section>
   </aside>
 
   <main class="stage">
-    <div class="toolbar" id="toolbar">
-      <button data-act="front" title="Mettre devant">⬆ Devant</button>
-      <button data-act="back" title="Mettre derrière">⬇ Derrière</button>
-      <button data-act="flip" title="Retourner">⇋ Miroir</button>
-      <button data-act="dup" title="Dupliquer">⧉ Dupliquer</button>
-      <button data-act="del" title="Supprimer (Suppr)">🗑 Retirer</button>
-      <span class="tip">Glissez pour déplacer · poignée ↻ ou molette pour tourner · la taille suit l’échelle</span>
+    <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée">
+      <button data-act="front" title="Mettre devant"><svg class="ico"><use href="#i-front"/></svg><span>Devant</span></button>
+      <button data-act="back" title="Mettre derrière"><svg class="ico"><use href="#i-back"/></svg><span>Derrière</span></button>
+      <button data-act="flip" title="Retourner"><svg class="ico"><use href="#i-flip"/></svg><span>Miroir</span></button>
+      <button data-act="dup" title="Dupliquer"><svg class="ico"><use href="#i-copy"/></svg><span>Dupliquer</span></button>
+      <button data-act="del" title="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
     </div>
+    <p class="stage-tip">Glissez une pièce pour la déplacer · poignée ou molette pour la tourner</p>
     <canvas id="canvas"></canvas>
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <div id="empty" class="empty">
       <div>
-        <p class="big">🖍️ ✂️ 🖼️</p>
-        <p>Importez les dessins scannés pour créer automatiquement un collage.</p>
-        <p class="hint">Les pages entièrement peintes deviennent le fond, les dessins sur papier sont découpés comme aux ciseaux puis disposés dessus.</p>
+        <p class="empty-title">Chaque gribouille mérite un mur.</p>
+        <p class="hint">Importez les dessins scannés : l’atelier les découpe, les met à la même échelle et compose trois œuvres.</p>
       </div>
     </div>
   </main>
