@@ -1,0 +1,771 @@
+import { createStore } from './store.js';
+import { computeStats, setsWon, RANKINGS } from './stats.js';
+
+// ---------- Préférences locales (communautés rejointes sur ce téléphone) ----------
+
+const PREFS_KEY = 'tiebreak-prefs-v1';
+
+function loadPrefs() {
+    try {
+        const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+        return { current: p.current || null, communities: p.communities || [] };
+    } catch (e) {
+        return { current: null, communities: [] };
+    }
+}
+
+function savePrefs() {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) { /* ignore */ }
+}
+
+const prefs = loadPrefs();
+
+// ---------- État ----------
+
+const S = {
+    store: null,
+    uid: null,
+    cid: null,
+    data: null,         // { community, players, matches }
+    tab: 'classement',
+    claimPid: null,     // profil proposé par un lien d'invitation personnel
+    unsub: null,
+    confirm: null,      // id de l'élément en attente de confirmation
+};
+
+const app = document.getElementById('app');
+const sheetRoot = document.getElementById('sheet-root');
+
+// ---------- Utilitaires ----------
+
+function h(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+}
+
+function today() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+}
+
+function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function initials(name) {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+}
+
+let toastTimer;
+function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+function inviteLink(pid) {
+    const url = new URL(location.pathname, location.origin);
+    url.searchParams.set('c', S.cid);
+    if (pid) url.searchParams.set('p', pid);
+    return url.toString();
+}
+
+async function shareInvite(pid, name) {
+    const url = inviteLink(pid);
+    const communityName = S.data?.community?.name || 'notre communauté';
+    const text = name
+        ? `${name}, rejoins « ${communityName} » sur Tie-Break pour suivre nos matchs de tennis :`
+        : `Rejoins « ${communityName} » sur Tie-Break pour suivre nos matchs de tennis :`;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: 'Tie-Break', text, url });
+            return;
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+        }
+    }
+    try {
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        toast('Lien d’invitation copié');
+    } catch (e) {
+        openSheet(`
+            <h2 class="sheet-title">Lien d’invitation</h2>
+            <p class="muted">Copiez ce lien et envoyez-le par message.</p>
+            <input class="field-input" id="invite-url" readonly value="${h(url)}">
+            <button class="btn btn-primary" data-action="close-sheet">Fermer</button>
+        `);
+        const input = document.getElementById('invite-url');
+        input.focus();
+        input.select();
+    }
+    if (S.store.mode === 'demo') {
+        toast('Mode démo : le lien ne fonctionne que sur ce téléphone');
+    }
+}
+
+function me() {
+    return S.data?.players.find(p => p.uid === S.uid) || null;
+}
+
+function playerName(pid) {
+    return S.data?.players.find(p => p.id === pid)?.name || 'Joueur supprimé';
+}
+
+// ---------- Rendu ----------
+
+function render() {
+    if (!S.store) {
+        app.innerHTML = `<div class="loading"><div class="ball"></div></div>`;
+        return;
+    }
+    if (!S.cid) return renderWelcome();
+    if (!S.data) {
+        app.innerHTML = `<div class="loading"><div class="ball"></div></div>`;
+        return;
+    }
+    if (!S.data.community) return renderMissing();
+    if (!me()) return renderJoin();
+    renderMain();
+}
+
+function renderWelcome() {
+    const demo = S.store.mode === 'demo';
+    app.innerHTML = `
+        <main class="welcome">
+            <div class="court-mark" aria-hidden="true">
+                <svg viewBox="0 0 120 60"><rect x="2" y="2" width="116" height="56" rx="2"/><line x1="60" y1="2" x2="60" y2="58"/><line x1="2" y1="12" x2="118" y2="12"/><line x1="2" y1="48" x2="118" y2="48"/><line x1="30" y1="12" x2="30" y2="48"/><line x1="90" y1="12" x2="90" y2="48"/><line x1="30" y1="30" x2="90" y2="30"/></svg>
+            </div>
+            <h1 class="brand">Tie-Break</h1>
+            <p class="lede">Notez vos matchs entre amis, suivez le classement de votre groupe et votre bilan contre chacun.</p>
+
+            <form class="card form" data-form="create">
+                <h2 class="card-title">Créer une communauté</h2>
+                <label class="field">
+                    <span class="field-label">Nom de la communauté</span>
+                    <input class="field-input" id="c-name" name="community" required maxlength="40" placeholder="Les amis du dimanche">
+                </label>
+                <label class="field">
+                    <span class="field-label">Votre prénom</span>
+                    <input class="field-input" id="c-me" name="name" required maxlength="30" placeholder="Adrien" autocomplete="given-name">
+                </label>
+                <label class="field">
+                    <span class="field-label">Votre classement</span>
+                    ${rankingSelect('c-rank', 'ranking', '30/2')}
+                </label>
+                <button class="btn btn-primary" type="submit">Créer</button>
+            </form>
+
+            ${prefs.communities.length ? `
+                <section class="card">
+                    <h2 class="card-title">Vos communautés</h2>
+                    <div class="list">
+                        ${prefs.communities.map(c => `
+                            <button class="list-row" data-action="open-community" data-cid="${h(c.id)}">
+                                <span>${h(c.name)}</span><span class="chev">›</span>
+                            </button>`).join('')}
+                    </div>
+                </section>` : ''}
+
+            ${demo ? `
+                <p class="demo-note">
+                    Mode démo : les données restent sur ce téléphone.
+                    <button class="link" data-action="seed-demo">Essayer avec des données d’exemple</button>
+                </p>` : ''}
+            <p class="muted small">Un ami vous a invité ? Ouvrez simplement le lien qu’il vous a envoyé.</p>
+        </main>`;
+}
+
+function renderMissing() {
+    app.innerHTML = `
+        <main class="welcome">
+            <h1 class="brand">Tie-Break</h1>
+            <div class="card">
+                <h2 class="card-title">Communauté introuvable</h2>
+                <p class="muted">Le lien est peut-être incomplet. Demandez à la personne qui vous a invité de vous le renvoyer.</p>
+                <button class="btn btn-primary" data-action="home">Retour à l’accueil</button>
+            </div>
+        </main>`;
+}
+
+function renderJoin() {
+    const free = S.data.players.filter(p => !p.uid);
+    free.sort((a, b) => (b.id === S.claimPid) - (a.id === S.claimPid) || a.name.localeCompare(b.name, 'fr'));
+    app.innerHTML = `
+        <main class="welcome">
+            <p class="eyebrow">Invitation</p>
+            <h1 class="brand brand-sm">${h(S.data.community.name)}</h1>
+            <p class="lede">${S.data.players.length} joueur${S.data.players.length > 1 ? 's' : ''} · ${S.data.matches.length} match${S.data.matches.length > 1 ? 's' : ''} joué${S.data.matches.length > 1 ? 's' : ''}</p>
+
+            ${free.length ? `
+                <section class="card">
+                    <h2 class="card-title">Votre profil existe déjà ?</h2>
+                    <p class="muted small">Un membre a peut-être déjà ajouté votre nom.</p>
+                    <div class="list">
+                        ${free.map(p => `
+                            <div class="list-row ${p.id === S.claimPid ? 'is-highlight' : ''}">
+                                <span class="avatar">${h(initials(p.name))}</span>
+                                <span class="grow">${h(p.name)} <span class="chip">${h(p.ranking || 'NC')}</span></span>
+                                <button class="btn btn-small" data-action="claim" data-pid="${h(p.id)}">C’est moi</button>
+                            </div>`).join('')}
+                    </div>
+                </section>` : ''}
+
+            <form class="card form" data-form="join">
+                <h2 class="card-title">${free.length ? 'Sinon, créez votre profil' : 'Créez votre profil'}</h2>
+                <label class="field">
+                    <span class="field-label">Votre prénom</span>
+                    <input class="field-input" id="j-name" name="name" required maxlength="30" autocomplete="given-name">
+                </label>
+                <label class="field">
+                    <span class="field-label">Votre classement</span>
+                    ${rankingSelect('j-rank', 'ranking', 'NC')}
+                </label>
+                <button class="btn btn-primary" type="submit">Rejoindre</button>
+            </form>
+            <button class="link" data-action="home">Retour</button>
+        </main>`;
+}
+
+function rankingSelect(id, name, value) {
+    return `<select class="field-input" id="${id}" name="${name}">
+        ${RANKINGS.map(r => `<option value="${h(r)}" ${r === value ? 'selected' : ''}>${h(r)}</option>`).join('')}
+    </select>`;
+}
+
+function renderMain() {
+    const stats = computeStats(S.data.players, S.data.matches);
+    const tabs = [
+        ['classement', 'Classement'],
+        ['matchs', 'Matchs'],
+        ['moi', 'Mon bilan'],
+    ];
+    let body = '';
+    if (S.tab === 'classement') body = viewRanking(stats);
+    else if (S.tab === 'matchs') body = viewMatches();
+    else body = viewPlayer(me().id, stats, true);
+
+    app.innerHTML = `
+        <header class="topbar">
+            <button class="community-btn" data-action="switch-community" aria-label="Changer de communauté">
+                <span class="community-name">${h(S.data.community.name)}</span>
+                <span class="chev">▾</span>
+            </button>
+            <button class="btn btn-small btn-ghost" data-action="invite">Inviter</button>
+        </header>
+        ${S.store.mode === 'demo' ? `<div class="demo-banner">Mode démo · données sur ce téléphone uniquement</div>` : ''}
+        <main class="content">${body}</main>
+        <button class="fab" data-action="new-match"><span aria-hidden="true">+</span> Match</button>
+        <nav class="tabbar">
+            ${tabs.map(([id, label]) => `
+                <button class="tab ${S.tab === id ? 'is-active' : ''}" data-action="tab" data-tab="${id}">
+                    ${tabIcon(id)}<span>${label}</span>
+                </button>`).join('')}
+        </nav>`;
+}
+
+function tabIcon(id) {
+    const icons = {
+        classement: '<path d="M4 20V11h4v9M10 20V5h4v15M16 20v-6h4v6"/>',
+        matchs: '<circle cx="12" cy="12" r="8"/><path d="M5.5 7c3 2 3 8 0 10M18.5 7c-3 2-3 8 0 10"/>',
+        moi: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>',
+    };
+    return `<svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">${icons[id]}</svg>`;
+}
+
+function formDots(form) {
+    if (!form.length) return '';
+    return `<span class="form-dots" aria-label="Forme : ${form.join(' ')}">${form.map(f =>
+        `<span class="dot ${f === 'V' ? 'dot-w' : 'dot-l'}">${f}</span>`).join('')}</span>`;
+}
+
+function viewRanking(stats) {
+    const mine = me();
+    return `
+        <section class="section">
+            <div class="section-head">
+                <h2 class="section-title">Classement</h2>
+                <span class="muted small">Points Elo · départ 1500</span>
+            </div>
+            <ol class="ranking">
+                ${stats.table.map(r => `
+                    <li>
+                        <button class="rank-row ${r.player.id === mine.id ? 'is-me' : ''}" data-action="player" data-pid="${h(r.player.id)}">
+                            <span class="rank-pos">${r.rank ?? '–'}</span>
+                            <span class="rank-main">
+                                <span class="rank-name">${h(r.player.name)}${r.player.id === mine.id ? ' <span class="you">vous</span>' : ''}</span>
+                                <span class="rank-meta">
+                                    <span class="chip">${h(r.player.ranking || 'NC')}</span>
+                                    <span>${r.wins} V · ${r.losses} D</span>
+                                    ${r.player.uid ? '' : '<span class="pending">invitation en attente</span>'}
+                                </span>
+                            </span>
+                            <span class="rank-side">
+                                <span class="rank-elo">${r.played ? r.elo : '—'}</span>
+                                ${formDots(r.form)}
+                            </span>
+                        </button>
+                    </li>`).join('')}
+            </ol>
+            <button class="btn btn-ghost btn-block" data-action="add-player">+ Ajouter un joueur</button>
+        </section>`;
+}
+
+function scoreLine(m) {
+    return m.sets.map(s => `${s.a}-${s.b}`).join('  ');
+}
+
+function viewMatches() {
+    const list = [...S.data.matches].sort((x, y) =>
+        (y.date || '').localeCompare(x.date || '') || (y.createdAt || 0) - (x.createdAt || 0));
+    if (!list.length) {
+        return `<section class="section empty">
+            <p class="empty-title">Aucun match pour l’instant</p>
+            <p class="muted">Touchez « + Match » après votre prochaine partie pour noter le score.</p>
+        </section>`;
+    }
+    let lastDate = null;
+    return `<section class="section">
+        <h2 class="section-title">Matchs</h2>
+        <div class="matches">
+        ${list.map(m => {
+            const header = m.date !== lastDate ? `<p class="date-sep">${h(formatDate(m.date))}</p>` : '';
+            lastDate = m.date;
+            return header + matchCard(m);
+        }).join('')}
+        </div>
+    </section>`;
+}
+
+function matchCard(m) {
+    const w1 = m.winner === m.p1;
+    const canDelete = m.createdBy === S.uid;
+    const confirming = S.confirm === m.id;
+    return `
+        <article class="match">
+            <div class="scoreboard">
+                <div class="sb-row ${w1 ? 'is-winner' : ''}">
+                    <span class="sb-name">${h(playerName(m.p1))}</span>
+                    ${m.sets.map(s => `<span class="sb-set ${s.a > s.b ? 'won' : ''}">${s.a}</span>`).join('')}
+                </div>
+                <div class="sb-row ${!w1 ? 'is-winner' : ''}">
+                    <span class="sb-name">${h(playerName(m.p2))}</span>
+                    ${m.sets.map(s => `<span class="sb-set ${s.b > s.a ? 'won' : ''}">${s.b}</span>`).join('')}
+                </div>
+            </div>
+            ${canDelete ? (confirming
+                ? `<div class="confirm-row">
+                        <span class="small">Supprimer ce match ?</span>
+                        <button class="btn btn-small btn-danger" data-action="delete-match" data-mid="${h(m.id)}">Supprimer</button>
+                        <button class="btn btn-small btn-ghost" data-action="cancel-confirm">Annuler</button>
+                   </div>`
+                : `<button class="link small match-del" data-action="ask-delete" data-mid="${h(m.id)}">Supprimer</button>`)
+            : ''}
+        </article>`;
+}
+
+function viewPlayer(pid, stats, isMine) {
+    const row = stats.byId[pid];
+    const p = row.player;
+    const my = me();
+    const opponents = Object.entries(row.h2h)
+        .map(([oid, r]) => ({ oid, ...r, total: r.wins + r.losses }))
+        .sort((a, b) => b.total - a.total || b.wins - a.wins);
+
+    const recent = [...S.data.matches]
+        .filter(m => m.p1 === pid || m.p2 === pid)
+        .sort((x, y) => (y.date || '').localeCompare(x.date || '') || (y.createdAt || 0) - (x.createdAt || 0))
+        .slice(0, 5);
+
+    return `
+        <section class="section profile">
+            <div class="profile-head">
+                <span class="avatar avatar-lg">${h(initials(p.name))}</span>
+                <div class="grow">
+                    <h2 class="profile-name">${h(p.name)}</h2>
+                    <p class="muted small">Classement FFT <span class="chip">${h(p.ranking || 'NC')}</span></p>
+                </div>
+                ${isMine ? `<button class="btn btn-small btn-ghost" data-action="edit-profile">Modifier</button>` : ''}
+            </div>
+
+            <div class="stat-row">
+                <div class="stat"><span class="stat-value">${row.rank ?? '–'}</span><span class="stat-label">Rang</span></div>
+                <div class="stat"><span class="stat-value">${row.played ? row.elo : '—'}</span><span class="stat-label">Points</span></div>
+                <div class="stat"><span class="stat-value">${row.wins}<small>-</small>${row.losses}</span><span class="stat-label">V-D</span></div>
+                <div class="stat"><span class="stat-value">${row.played ? Math.round(row.winRate * 100) : 0}<small>%</small></span><span class="stat-label">Victoires</span></div>
+            </div>
+
+            ${!isMine && my.id !== pid ? headToHeadVs(my, p, stats) : ''}
+
+            <h3 class="sub-title">Face-à-face</h3>
+            ${opponents.length ? `
+                <ul class="h2h">
+                    ${opponents.map(o => `
+                        <li class="h2h-row">
+                            <span class="h2h-name">${h(playerName(o.oid))}</span>
+                            <span class="h2h-bar" aria-hidden="true">
+                                <span class="bar-w" style="flex:${o.wins}"></span><span class="bar-l" style="flex:${o.losses}"></span>
+                            </span>
+                            <span class="h2h-score"><b>${o.wins}</b> - ${o.losses}</span>
+                        </li>`).join('')}
+                </ul>` : `<p class="muted small">Pas encore de match joué.</p>`}
+
+            ${recent.length ? `<h3 class="sub-title">Derniers matchs</h3><div class="matches">${recent.map(m => matchCard(m)).join('')}</div>` : ''}
+
+            ${!isMine && !p.uid ? `
+                <div class="card invite-card">
+                    <p class="small">${h(p.name)} n’a pas encore rejoint la communauté.</p>
+                    <button class="btn btn-primary btn-small" data-action="invite-player" data-pid="${h(p.id)}">Envoyer son invitation</button>
+                </div>` : ''}
+            ${!isMine && p.uid && S.data.community.createdBy === S.uid ? `
+                <button class="link small" data-action="release" data-pid="${h(p.id)}">Détacher ce profil de son téléphone (changement d’appareil)</button>` : ''}
+        </section>`;
+}
+
+function headToHeadVs(my, p, stats) {
+    const r = stats.byId[my.id].h2h[p.id] || { wins: 0, losses: 0 };
+    return `
+        <div class="vs-card">
+            <p class="eyebrow">Vous contre ${h(p.name)}</p>
+            <p class="vs-score"><span class="${r.wins >= r.losses ? 'lead' : ''}">${r.wins}</span><span class="vs-sep">–</span><span class="${r.losses > r.wins ? 'lead' : ''}">${r.losses}</span></p>
+            <p class="muted small">${r.wins + r.losses ? (r.wins > r.losses ? 'Vous menez' : r.wins < r.losses ? `${h(p.name)} mène` : 'Égalité') : 'Jamais affrontés'}</p>
+        </div>`;
+}
+
+// ---------- Feuilles (formulaires en bas d'écran) ----------
+
+function openSheet(html) {
+    sheetRoot.innerHTML = `
+        <div class="sheet-backdrop" data-action="close-sheet"></div>
+        <div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+    document.body.classList.add('has-sheet');
+}
+
+function closeSheet() {
+    sheetRoot.innerHTML = '';
+    document.body.classList.remove('has-sheet');
+}
+
+function openMatchSheet() {
+    const players = [...S.data.players].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    const my = me();
+    const opts = sel => players.map(p =>
+        `<option value="${h(p.id)}" ${p.id === sel ? 'selected' : ''}>${h(p.name)}</option>`).join('');
+    const other = players.find(p => p.id !== my.id);
+    if (!other) {
+        openSheet(`
+            <h2 class="sheet-title">Nouveau match</h2>
+            <p class="muted">Ajoutez d’abord un autre joueur à la communauté.</p>
+            <button class="btn btn-primary" data-action="add-player">+ Ajouter un joueur</button>`);
+        return;
+    }
+    const setRow = i => `
+        <div class="set-row" data-set="${i}">
+            <span class="set-label">Set ${i + 1}</span>
+            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}a" aria-label="Set ${i + 1}, joueur 1">
+            <span class="dash">–</span>
+            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}b" aria-label="Set ${i + 1}, joueur 2">
+        </div>`;
+    openSheet(`
+        <form data-form="match" class="form">
+            <h2 class="sheet-title">Nouveau match</h2>
+            <label class="field">
+                <span class="field-label">Date</span>
+                <input class="field-input" type="date" id="m-date" name="date" value="${today()}" required>
+            </label>
+            <div class="versus">
+                <label class="field"><span class="field-label">Joueur 1</span>
+                    <select class="field-input" id="m-p1" name="p1">${opts(my.id)}</select></label>
+                <label class="field"><span class="field-label">Joueur 2</span>
+                    <select class="field-input" id="m-p2" name="p2">${opts(other.id)}</select></label>
+            </div>
+            <div class="sets" id="sets">${[0, 1, 2].map(setRow).join('')}</div>
+            <p class="muted small">Laissez vide un set non joué. Super tie-break : notez-le comme un set (10-7).</p>
+            <p class="form-error" id="m-error" hidden></p>
+            <button class="btn btn-primary" type="submit">Enregistrer le match</button>
+        </form>`);
+}
+
+function openPlayerSheet() {
+    openSheet(`
+        <form data-form="player" class="form">
+            <h2 class="sheet-title">Ajouter un joueur</h2>
+            <p class="muted small">Vous pourrez noter ses matchs tout de suite et lui envoyer son invitation ensuite.</p>
+            <label class="field">
+                <span class="field-label">Prénom</span>
+                <input class="field-input" id="p-name" name="name" required maxlength="30">
+            </label>
+            <label class="field">
+                <span class="field-label">Classement</span>
+                ${rankingSelect('p-rank', 'ranking', 'NC')}
+            </label>
+            <button class="btn btn-primary" type="submit">Ajouter</button>
+        </form>`);
+}
+
+function openProfileSheet() {
+    const p = me();
+    openSheet(`
+        <form data-form="profile" class="form">
+            <h2 class="sheet-title">Mon profil</h2>
+            <label class="field">
+                <span class="field-label">Prénom</span>
+                <input class="field-input" id="e-name" name="name" required maxlength="30" value="${h(p.name)}">
+            </label>
+            <label class="field">
+                <span class="field-label">Classement</span>
+                ${rankingSelect('e-rank', 'ranking', p.ranking || 'NC')}
+            </label>
+            <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </form>`);
+}
+
+function openPlayerDetail(pid) {
+    if (pid === me().id) { S.tab = 'moi'; render(); return; }
+    const stats = computeStats(S.data.players, S.data.matches);
+    openSheet(`<div class="sheet-scroll" data-pid-detail="${h(pid)}">${viewPlayer(pid, stats, false)}</div>`);
+}
+
+function openCommunitySheet() {
+    openSheet(`
+        <h2 class="sheet-title">Communautés</h2>
+        <div class="list">
+            ${prefs.communities.map(c => `
+                <button class="list-row ${c.id === S.cid ? 'is-highlight' : ''}" data-action="open-community" data-cid="${h(c.id)}">
+                    <span class="grow">${h(c.name)}</span>${c.id === S.cid ? '<span class="chip">actuelle</span>' : '<span class="chev">›</span>'}
+                </button>`).join('')}
+        </div>
+        <button class="btn btn-ghost" data-action="home">+ Créer une autre communauté</button>`);
+}
+
+// ---------- Actions ----------
+
+function rememberCommunity() {
+    if (!S.data?.community) return;
+    const entry = { id: S.cid, name: S.data.community.name };
+    const i = prefs.communities.findIndex(c => c.id === S.cid);
+    if (i === -1) prefs.communities.push(entry);
+    else prefs.communities[i] = entry;
+    prefs.current = S.cid;
+    savePrefs();
+}
+
+function openCommunity(cid) {
+    if (S.unsub) S.unsub();
+    S.cid = cid;
+    S.data = null;
+    S.tab = 'classement';
+    closeSheet();
+    render();
+    if (!cid) {
+        prefs.current = null;
+        savePrefs();
+        return;
+    }
+    S.unsub = S.store.watch(cid, data => {
+        S.data = data;
+        if (data.community && data.players.some(p => p.uid === S.uid)) rememberCommunity();
+        render();
+    });
+}
+
+async function run(fn) {
+    try {
+        await fn();
+    } catch (e) {
+        console.error(e);
+        toast('Échec de l’enregistrement. Vérifiez votre connexion et réessayez.');
+    }
+}
+
+const actions = {
+    'tab': el => { S.tab = el.dataset.tab; S.confirm = null; render(); window.scrollTo(0, 0); },
+    'new-match': () => openMatchSheet(),
+    'add-player': () => openPlayerSheet(),
+    'edit-profile': () => openProfileSheet(),
+    'player': el => openPlayerDetail(el.dataset.pid),
+    'invite': () => shareInvite(null, null),
+    'invite-player': el => shareInvite(el.dataset.pid, playerName(el.dataset.pid)),
+    'close-sheet': () => closeSheet(),
+    'switch-community': () => openCommunitySheet(),
+    'open-community': el => openCommunity(el.dataset.cid),
+    'home': () => openCommunity(null),
+    'ask-delete': el => { S.confirm = el.dataset.mid; rerenderKeepingSheet(); },
+    'cancel-confirm': () => { S.confirm = null; rerenderKeepingSheet(); },
+    'delete-match': el => run(async () => {
+        await S.store.deleteMatch(S.cid, el.dataset.mid);
+        S.confirm = null;
+        rerenderKeepingSheet();
+        toast('Match supprimé');
+    }),
+    'claim': el => run(async () => {
+        await S.store.updatePlayer(S.cid, el.dataset.pid, { uid: S.uid });
+        toast('Bienvenue !');
+    }),
+    'release': el => run(async () => {
+        await S.store.updatePlayer(S.cid, el.dataset.pid, { uid: null });
+        closeSheet();
+        toast('Profil détaché : renvoyez-lui son invitation');
+    }),
+    'seed-demo': () => run(seedDemo),
+};
+
+function rerenderKeepingSheet() {
+    const detail = sheetRoot.querySelector('[data-pid-detail]');
+    render();
+    if (detail) openPlayerDetail(detail.dataset.pidDetail);
+}
+
+document.addEventListener('click', e => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const fn = actions[el.dataset.action];
+    if (fn) { e.preventDefault(); fn(el); }
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && sheetRoot.innerHTML) closeSheet();
+});
+
+document.addEventListener('submit', e => {
+    const form = e.target.closest('[data-form]');
+    if (!form) return;
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(form));
+    const kind = form.dataset.form;
+
+    if (kind === 'create') return run(async () => {
+        const cid = await S.store.createCommunity(f.community.trim());
+        await S.store.addPlayer(cid, { name: f.name.trim(), ranking: f.ranking, uid: S.uid });
+        openCommunity(cid);
+        toast('Communauté créée. Invitez vos amis !');
+    });
+
+    if (kind === 'join') return run(async () => {
+        await S.store.addPlayer(S.cid, { name: f.name.trim(), ranking: f.ranking, uid: S.uid });
+        toast('Bienvenue !');
+    });
+
+    if (kind === 'player') return run(async () => {
+        const pid = await S.store.addPlayer(S.cid, { name: f.name.trim(), ranking: f.ranking, uid: null });
+        closeSheet();
+        openSheet(`
+            <h2 class="sheet-title">${h(f.name.trim())} est ajouté</h2>
+            <p class="muted">Envoyez-lui son lien : en l’ouvrant, il retrouvera son profil et ses matchs.</p>
+            <button class="btn btn-primary" data-action="invite-player" data-pid="${h(pid)}">Envoyer l’invitation</button>
+            <button class="btn btn-ghost" data-action="close-sheet">Plus tard</button>`);
+    });
+
+    if (kind === 'profile') return run(async () => {
+        await S.store.updatePlayer(S.cid, me().id, { name: f.name.trim(), ranking: f.ranking });
+        closeSheet();
+        toast('Profil mis à jour');
+    });
+
+    if (kind === 'match') {
+        const err = form.querySelector('#m-error');
+        const fail = msg => { err.textContent = msg; err.hidden = false; };
+        if (f.p1 === f.p2) return fail('Choisissez deux joueurs différents.');
+        const sets = [];
+        for (let i = 0; i < 3; i++) {
+            const a = form.querySelector(`#s${i}a`).value.trim();
+            const b = form.querySelector(`#s${i}b`).value.trim();
+            if (a === '' && b === '') continue;
+            if (a === '' || b === '') return fail(`Complétez le score du set ${i + 1}.`);
+            const sa = Number(a), sb = Number(b);
+            if (!Number.isInteger(sa) || !Number.isInteger(sb) || sa < 0 || sb < 0) return fail(`Le score du set ${i + 1} doit être un nombre.`);
+            if (sa === sb) return fail(`Le set ${i + 1} ne peut pas être à égalité.`);
+            sets.push({ a: sa, b: sb });
+        }
+        if (!sets.length) return fail('Indiquez au moins un set.');
+        const won = setsWon(sets);
+        if (won.a === won.b) return fail('Aucun vainqueur : vérifiez les sets.');
+        return run(async () => {
+            await S.store.addMatch(S.cid, {
+                date: f.date, p1: f.p1, p2: f.p2, sets,
+                winner: won.a > won.b ? f.p1 : f.p2,
+            });
+            closeSheet();
+            S.tab = 'matchs';
+            render();
+            toast(`Victoire de ${playerName(won.a > won.b ? f.p1 : f.p2)} enregistrée`);
+        });
+    }
+});
+
+// Saisie des scores : passer à la case suivante automatiquement.
+document.addEventListener('input', e => {
+    const input = e.target;
+    if (!input.classList.contains('score-input')) return;
+    input.value = input.value.replace(/\D/g, '');
+    const v = Number(input.value);
+    if (input.value.length === 2 || (input.value.length === 1 && v >= 2 && v <= 9)) {
+        const all = [...document.querySelectorAll('.score-input')];
+        const next = all[all.indexOf(input) + 1];
+        if (next) next.focus();
+    }
+});
+
+// ---------- Données d'exemple (mode démo) ----------
+
+async function seedDemo() {
+    const cid = await S.store.createCommunity('Les amis du dimanche');
+    const ids = {};
+    ids.me = await S.store.addPlayer(cid, { name: 'Alex', ranking: '30/2', uid: S.uid });
+    for (const [key, name, ranking] of [
+        ['lea', 'Léa', '15/4'], ['karim', 'Karim', '30/1'],
+        ['julien', 'Julien', '30/3'], ['sofia', 'Sofia', '15/5'],
+    ]) {
+        ids[key] = await S.store.addPlayer(cid, { name, ranking, uid: null });
+    }
+    const games = [
+        ['2026-08-30', 'me', 'karim', [[6, 4], [3, 6], [10, 7]]],
+        ['2026-09-06', 'lea', 'me', [[6, 2], [6, 3]]],
+        ['2026-09-06', 'julien', 'sofia', [[4, 6], [6, 4], [6, 2]]],
+        ['2026-09-13', 'me', 'julien', [[6, 3], [7, 5]]],
+        ['2026-09-20', 'karim', 'sofia', [[6, 1], [6, 4]]],
+        ['2026-09-21', 'me', 'sofia', [[7, 6], [6, 4]]],
+        ['2026-09-27', 'lea', 'karim', [[6, 4], [6, 4]]],
+    ];
+    for (const [date, a, b, sets] of games) {
+        const s = sets.map(([x, y]) => ({ a: x, b: y }));
+        const w = setsWon(s);
+        await S.store.addMatch(cid, { date, p1: ids[a], p2: ids[b], sets: s, winner: w.a > w.b ? ids[a] : ids[b] });
+    }
+    openCommunity(cid);
+}
+
+// ---------- Démarrage ----------
+
+async function start() {
+    render();
+    const params = new URLSearchParams(location.search);
+    const invitedCid = params.get('c');
+    S.claimPid = params.get('p');
+    if (invitedCid) history.replaceState(null, '', location.pathname);
+
+    try {
+        S.store = await createStore();
+        S.uid = await S.store.init();
+    } catch (e) {
+        console.error(e);
+        app.innerHTML = `<main class="welcome"><div class="card"><h2 class="card-title">Connexion impossible</h2>
+            <p class="muted">Vérifiez votre connexion internet puis rechargez la page.</p></div></main>`;
+        return;
+    }
+    openCommunity(invitedCid || prefs.current);
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+}
+
+start();

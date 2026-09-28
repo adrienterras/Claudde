@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Règles de sécurité Firestore pour Tie-Break.
+// Toute personne connectée (connexion anonyme de l'application) qui connaît
+// l'identifiant d'une communauté — donc qui a reçu le lien — peut la lire
+// et y noter des matchs.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /communities/{cid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.createdBy == request.auth.uid;
+
+      match /players/{pid} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 30
+          && (request.resource.data.uid == null || request.resource.data.uid == request.auth.uid);
+        // Réclamer un profil libre, modifier le sien, ou (créateur de la
+        // communauté) détacher un profil lors d'un changement de téléphone.
+        allow update: if request.auth != null && (
+          (resource.data.uid == null && request.resource.data.uid == request.auth.uid)
+          || (resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
+          || (resource.data.uid == null && request.resource.data.uid == null)
+          || get(/databases/$(database)/documents/communities/$(cid)).data.createdBy == request.auth.uid
+        );
+      }
+
+      match /matches/{mid} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.sets is list
+          && request.resource.data.sets.size() <= 5;
+        allow delete: if request.auth != null
+          && resource.data.createdBy == request.auth.uid;
+      }
+    }
+  }
+}
