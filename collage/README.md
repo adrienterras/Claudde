@@ -34,6 +34,9 @@ cd collage && python3 -m http.server 8000
      *Cabinet de curiosités* (chaque dessin exposé droit, en rangées, sur papier blanc) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
+**Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
+   pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
+   déplacer ; bouton plein écran, pratique sur téléphone.
 5. **Retoucher une découpe** : bouton « Retoucher » (ou double-clic sur une pièce de l'œuvre, ou ciseaux
    sur la vignette d'une pièce). Éditeur plein écran avec zoom (molette, pincement, + / −), gomme,
    pinceau « restaurer » qui remet le dessin d'origine (y compris autour de la découpe initiale),
