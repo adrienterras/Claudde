@@ -19,19 +19,16 @@ cd collage && python3 -m http.server 8000
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré) et **taille réelle** de la feuille
    (A5, A4, A3, A2 ou autre). Sans information dans le fichier, la taille est estimée à partir du scan
    (le scan médian est supposé A4) : vérifiez-la, c'est elle qui fixe la taille du dessin dans l'œuvre.
-3. **Composition**
-   - **Échelle des dessins** : un facteur unique appliqué à *tous* les dessins, qui gardent donc leurs
-     proportions réelles les uns par rapport aux autres. Rien n'est agrandi ou réduit individuellement.
-     En automatique, environ cinq feuilles de fond tiennent sur la largeur de la toile.
-   - **Paysage** : un fond peint (ciel, ocre, terre) aux couleurs tirées des dessins ; les pages peintes
-     y sont collées une seule fois chacune (ciel en haut, terre en bas, pans déchirés au milieu).
-   - Placement des sujets selon des règles de composition : sujets posés au sol / flottants,
-     points forts (tiers), équilibre des masses, couleurs voisines variées, profondeur.
-     Les sujets pâles (crayon gris, texte) passent après les sujets colorés ; ce qui ne tient pas à
-     l'échelle choisie reste disponible (pointillés dans la liste des pièces).
-   - Sur l'œuvre : glisser pour déplacer, poignée ↻ ou molette pour tourner (la taille reste fixée
-     par l'échelle), barre d'outils pour devant/derrière/miroir/dupliquer/retirer.
-   - Finition toile : grain et léger vignettage pour unifier l'ensemble.
+3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
+   et de TOUS les dessins (chacun apparaît au moins une fois) :
+   - les pages peintes (et les dessins au crayon gris) sont collées en grands papiers déchirés ;
+     les trous restants sont comblés de petits lambeaux pris dans ces pages ;
+   - chaque dessin découpé apporte son sujet principal et ses autres sujets colorés ;
+   - **une seule échelle** pour tous, calculée pour que tout tienne sur la toile ;
+   - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
+     chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
+     titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
+   - « Nouvelle proposition » tire une autre composition ; tout reste modifiable à la main.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 
 ## Fonctionnement

@@ -113,6 +113,7 @@
     }
     setProgress(1, 1);
     estimateSizes();
+    state.drawings.forEach(ensureMaterial);
     curate();
     if (state.drawings.length) {
       ['drawings-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
@@ -120,6 +121,7 @@
     }
     refreshLists();
     regenerate();
+    artDirect();
   }
 
   /*
@@ -168,8 +170,20 @@
   const ROLES = ['cutout', 'texture', 'off'];
   const ROLE_LABEL = { cutout: 'découpe', texture: 'fond', off: 'ignoré' };
 
+  // Rôle d'un dessin : choix de l'utilisateur, sinon celui du directeur artistique (Claude),
+  // sinon celui de l'analyse d'image.
   function roleOf(d) {
-    return d.role === 'auto' ? d.analysis.kind : d.role;
+    if (d.role !== 'auto') return d.role;
+    if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
+    // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
+    if (d.analysis.kind === 'cutout' && pale(d)) return 'texture';
+    return d.analysis.kind;
+  }
+
+  function pale(d) {
+    const ps = d.analysis.pieces || [];
+    const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
+    return !main || main.colorful < 0.1;
   }
 
   function ensureMaterial(d) {
@@ -191,18 +205,20 @@
     });
   }
 
-  // Présélection : les sujets les plus grands et les plus colorés, au plus 3 par dessin.
-  // La composition place ensuite ce qui tient à l'échelle choisie.
-  const MAX_PIECES = 45;
+  /*
+   * Tous les dessins entrent dans l'œuvre : chaque dessin découpé apporte son sujet principal
+   * (sa plus grande pièce), plus ses autres sujets exploitables (colorés, pas des traits fins).
+   */
+  const EXTRAS_PER_DRAWING = 4;
   function curate() {
-    const ranked = [];
     state.drawings.forEach((d) => {
-      (d.analysis.pieces || [])
-        .slice()
-        .sort((a, b) => rank(b) - rank(a))
-        .forEach((p, i) => { p.enabled = false; if (i < 3 && eligible(p)) ranked.push(p); });
+      const ps = d.analysis.pieces || [];
+      const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
+      ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && eligible(p))
+        .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; p.main = false; });
+      ps.forEach((p) => { if (p !== main && !eligible(p)) { p.enabled = false; p.main = false; } });
+      if (main) { main.enabled = true; main.main = true; }
     });
-    ranked.sort((a, b) => rank(b) - rank(a)).slice(0, MAX_PIECES).forEach((p) => (p.enabled = true));
   }
 
   // Un bon sujet : assez grand, coloré (les traits de crayon gris et les textes passent après),
@@ -227,7 +243,7 @@
       const role = roleOf(d);
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
-      el.title = d.name;
+      el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
       el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${ROLE_LABEL[role]}</b><i class="size">${sheetName(d.sizeCm)}</i>`;
       el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
       dEl.appendChild(el);
@@ -250,7 +266,7 @@
     box.innerHTML = `
       <img src="${d.thumb}" alt="">
       <div>
-        <p class="name">${d.name}</p>
+        <p class="name">${d.ai ? `${d.ai.sujet} <small>· ${d.ai.zone}</small><br>` : ''}<small>${d.name}</small></p>
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
         <label class="row">Taille réelle
           <select data-size>
@@ -354,12 +370,20 @@
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
   // de fond côte à côte sur la largeur de la toile.
+  // Échelle automatique : la même pour tous, choisie pour que TOUS les sujets tiennent sur la toile
+  // (ils en couvrent environ 60 %, les pages de fond et les lambeaux font le reste).
   function autoScale() {
-    const tex = state.drawings.filter((d) => roleOf(d) === 'texture');
-    const pool = (tex.length ? tex : state.drawings).map((d) => d.sizeCm).sort((a, b) => a - b);
-    if (!pool.length) return 0.6;
-    const median = pool[Math.floor(pool.length / 2)];
-    return Math.max(0.2, Math.min(1, formatCm().w / 5 / median));
+    let area = 0;
+    activePieces().filter((p) => p.enabled).forEach((p) => {
+      const c = cmPerPx(p.drawing);
+      let fill = 0;
+      for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i];
+      area += p.canvas.width * c * p.canvas.height * c * (fill / p.hit.data.length);
+    });
+    if (!area) return 0.6;
+    const f = formatCm();
+    const k = Math.sqrt((0.55 * Number($('density').value) * f.w * f.h) / area);
+    return Math.max(0.15, Math.min(1, k));
   }
 
   function scale() {
@@ -370,7 +394,7 @@
     const k = scale();
     if ($('scale-auto').checked) $('scale').value = Math.round(k * 100);
     $('scale').disabled = $('scale-auto').checked;
-    $('scale-info').textContent = `${Math.round(k * 100)} % — une feuille A4 mesure ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre. Tous les dessins sont réduits de la même façon.`;
+    $('scale-info').textContent = `${Math.round(k * 100)} % — une feuille A4 mesure ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre. Tous les dessins sont réduits de la même façon${$('scale-auto').checked ? ', juste assez pour qu’ils tiennent tous' : ''}.`;
   }
 
   function sizePiece(p, k) {
@@ -381,6 +405,34 @@
 
   // ---------- Composition ----------
 
+  // Où va chaque élément dans la scène : décision de Claude si disponible, sinon règles simples.
+  const ZONES = ['ciel', 'milieu', 'sol'];
+  function direct(textures, pieces) {
+    const noAi = textures.filter((t) => !t.drawing.ai);
+    const sky = (t) => t.lum / 255 + (t.color[2] - t.color[0]) / 255;
+    noAi.sort((a, b) => sky(b) - sky(a)).forEach((t, i) => {
+      t.zone = i < noAi.length / 3 ? 'ciel' : i >= (2 * noAi.length) / 3 ? 'sol' : 'milieu';
+    });
+    textures.forEach((t) => {
+      if (t.drawing.ai) { t.zone = t.drawing.ai.zone; t.importance = t.drawing.ai.importance; }
+      // une page pâle (crayon gris) reste au milieu, sous les autres
+      if ((t.colorful || 0) < 0.12) { t.zone = 'milieu'; t.importance = 0; }
+    });
+    const ranked = pieces.slice().sort((a, b) => rank(b) - rank(a));
+    pieces.forEach((p) => {
+      const ai = p.drawing.ai;
+      if (ai) {
+        p.zone = ai.zone;
+        p.grounded = p.main ? ai.pose : false;
+        p.importance = p.main ? ai.importance : 1;
+      } else {
+        p.grounded = p.base > 0.55 && p.frac > 0.05;
+        p.zone = p.grounded ? (p.frac > 0.3 ? 'sol' : 'milieu') : (p.frac < 0.06 ? 'ciel' : 'milieu');
+        p.importance = ranked.indexOf(p) < 3 ? 3 : 1;
+      }
+    });
+  }
+
   function options() {
     const k = scale();
     const pieces = activePieces().filter((p) => p.enabled);
@@ -390,8 +442,9 @@
       .map((d) => {
         const t = d.analysis.texture;
         const c = cmPerPx(d) * k;
-        return Object.assign({}, t, { wcm: t.canvas.width * c, hcm: t.canvas.height * c });
+        return Object.assign({}, t, { drawing: d, wcm: t.canvas.width * c, hcm: t.canvas.height * c });
       });
+    direct(textures, pieces);
     return {
       format: formatCm(),
       scale: k,
@@ -416,6 +469,17 @@
     renderDetail();
     render();
     updateExportInfo();
+    updateLabel();
+  }
+
+  // Cartel sous l'œuvre, comme au musée.
+  function updateLabel() {
+    const el = $('label');
+    if (!state.comp) { el.hidden = true; return; }
+    el.hidden = false;
+    const title = state.title ? `« ${state.title} »` : 'Sans titre';
+    $('label-title').textContent = title;
+    $('label-meta').textContent = `Collage de ${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm · échelle ${Math.round(scale() * 100)} %`;
   }
 
   // ---------- Scène ----------
@@ -690,14 +754,99 @@
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;
 
+  // ---------- Direction artistique par Claude ----------
+
+  function aiStatus(text) {
+    $('ai-status').textContent = text;
+  }
+
+  // Planche contact numérotée : Claude voit tous les dessins d'un coup d'œil.
+  async function contactSheet(list, offset) {
+    const cols = Math.ceil(Math.sqrt(list.length * 1.3));
+    const rows = Math.ceil(list.length / cols);
+    const cell = Math.floor(Math.min(1280 / cols, 1000 / rows));
+    const c = Extract.makeCanvas(cols * cell, rows * cell);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    list.forEach((d, i) => {
+      const x = (i % cols) * cell, y = Math.floor(i / cols) * cell;
+      const src = d.analysis.page;
+      const k = Math.min((cell - 8) / src.width, (cell - 8) / src.height);
+      ctx.drawImage(src, x + (cell - src.width * k) / 2, y + (cell - src.height * k) / 2, src.width * k, src.height * k);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x + 2, y + 2, 34, 24);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(String(offset + i + 1), x + 6, y + 21);
+    });
+    return new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+  }
+
+  async function artDirect() {
+    const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
+    if (!sample) { aiStatus('Composition automatique avec les règles intégrées.'); return; }
+    const limits = await sample.limits().catch(() => null);
+    if (!limits || !limits.images) { aiStatus('Composition automatique avec les règles intégrées.'); return; }
+    const all = state.drawings;
+    const nSheets = Math.min(limits.images.maxCount, Math.ceil(all.length / 20));
+    const per = Math.ceil(all.length / nSheets);
+    const sheets = [];
+    for (let i = 0; i < all.length; i += per) sheets.push(await contactSheet(all.slice(i, i + per), i));
+    aiStatus(`Claude regarde les ${all.length} dessins et imagine la composition…`);
+    const prompt = `Tu es le directeur artistique d'un collage : une toile faite UNIQUEMENT de dessins d'enfants, tous utilisés, collés à la même échelle (comme une grande œuvre de famille accrochée au salon).
+Voici ${all.length} dessins numérotés de 1 à ${all.length} (planches contact, le numéro est en haut à gauche de chaque dessin).
+La toile est un paysage : « ciel » en haut, « milieu », « sol » en bas.
+
+Pour CHAQUE dessin, décide :
+- "sujet" : ce qu'il représente, en 1 à 4 mots en français (ex. « bougie », « chapiteau de cirque », « montagnes »).
+- "role" : "fond" si c'est une page entièrement peinte ou colorée qui servira de grand papier de fond (on la verra en entier, déchirée sur les bords) ; "decoupe" si c'est un sujet dessiné sur du papier qu'on découpera aux ciseaux autour du dessin.
+- "zone" : "ciel", "milieu" ou "sol", là où il a le plus de sens dans la scène (soleil, nuages, oiseaux, cœurs volants → ciel ; terre, herbe, racines, maisons, chapiteau, animaux au sol → sol ; le reste → milieu). Répartis les fonds pour que chaque zone en ait.
+- "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
+- "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
+
+Propose aussi un "titre" poétique et court pour l'œuvre (2 à 6 mots, en français).
+
+Réponds uniquement avec ce JSON :
+{"titre": "...", "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "importance": 2}, ...]}`;
+    try {
+      const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
+      const items = Array.isArray(res && res.dessins) ? res.dessins : [];
+      let n = 0;
+      items.forEach((it) => {
+        const d = all[Number(it.n) - 1];
+        if (!d) return;
+        d.ai = {
+          sujet: String(it.sujet || '').slice(0, 40),
+          role: it.role === 'fond' ? 'fond' : 'decoupe',
+          zone: ZONES.includes(it.zone) ? it.zone : 'milieu',
+          pose: it.pose === true,
+          importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
+        };
+        n++;
+      });
+      if (res && res.titre) state.title = String(res.titre).slice(0, 80);
+      state.drawings.forEach(ensureMaterial);
+      curate();
+      aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length} et placé chacun dans la scène.`);
+      refreshLists();
+      regenerate();
+    } catch (e) {
+      const why = { not_granted: 'autorisation refusée', rate_limited: 'trop de demandes, réessayez plus tard', refused: 'demande refusée' }[e && e.code];
+      aiStatus(`Composition automatique avec les règles intégrées${why ? ` (Claude : ${why})` : ''}.`);
+    }
+  }
+
   // Tout effacer pour repartir de ses propres scans
   $('clear').onclick = () => {
     state.drawings = [];
+    state.title = '';
+    aiStatus('');
     state.current = null;
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'compose-section', 'export-section', 'sample-note'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'compose-section', 'export-section', 'sample-note', 'label'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
     refreshLists();
     render();

@@ -40,6 +40,7 @@
 
     <section id="compose-section" hidden>
       <h2><span class="step">3</span> Composition</h2>
+      <p id="ai-status" class="hint ai"></p>
       <label class="row">Format
         <select id="format">
           <option value="100x70" selected>100 × 70 cm (paysage)</option>
@@ -53,9 +54,8 @@
       </label>
       <label class="row">Fond
         <select id="bg-mode">
-          <option value="bands" selected>Paysage (ciel, milieu, terre)</option>
-          <option value="mosaic">Mosaïque de papiers</option>
-          <option value="paper">Papier uni</option>
+          <option value="bands" selected>Paysage (ciel, milieu, sol)</option>
+          <option value="mosaic">Mosaïque libre</option>
         </select>
       </label>
       <label class="row">Échelle des dessins
@@ -67,7 +67,7 @@
       <label class="row">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
       <label class="row check"><input id="shadows" type="checkbox" checked> Ombres portées (effet relief)</label>
       <label class="row check"><input id="grain" type="checkbox" checked> Finition toile (grain, vignettage)</label>
-      <button id="generate" class="primary">✨ Nouvelle composition</button>
+      <button id="generate" class="primary">✨ Nouvelle proposition</button>
     </section>
 
     <section id="export-section" hidden>
@@ -100,6 +100,7 @@
       <span class="tip">Glissez pour déplacer · poignée ↻ ou molette pour tourner · la taille suit l’échelle</span>
     </div>
     <canvas id="canvas"></canvas>
+    <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <div id="empty" class="empty">
       <div>
         <p class="big">🖍️ ✂️ 🖼️</p>

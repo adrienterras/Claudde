@@ -1,5 +1,6 @@
 /*
  * Composition du collage.
+ * L'œuvre n'est faite QUE des dessins, et utilise TOUS les dessins.
  * Toutes les dimensions sont en centimètres sur l'œuvre finale.
  * Chaque dessin arrive déjà à sa taille réelle multipliée par une échelle unique
  * (wcm / hcm) : la composition ne l'agrandit ni ne le réduit jamais,
@@ -10,7 +11,6 @@
 (function () {
   'use strict';
 
-  const KID_PALETTE = ['#f2c14e', '#e4572e', '#29a19c', '#3b5bdb', '#8cc63f', '#f78fb3', '#7b4bb7', '#ff8c42'];
   const TEAR = 0.25; // amplitude des bords déchirés, en cm
 
   function rng(seed) {
@@ -33,7 +33,6 @@
   }
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const rgb = (c) => `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
 
   function hue(c) {
     const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
@@ -85,33 +84,6 @@
     };
   }
 
-  // Texture « gouache » générée si l'on n'a pas assez de pages peintes.
-  function paintedTexture(colors, R, scale) {
-    const c = Extract.makeCanvas(900, 640);
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = colors[Math.floor(R() * colors.length)];
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 70; i++) {
-      ctx.strokeStyle = colors[Math.floor(R() * colors.length)];
-      ctx.globalAlpha = 0.35 + R() * 0.5;
-      ctx.lineWidth = 12 + R() * 50;
-      ctx.beginPath();
-      let x = R() * c.width, y = R() * c.height;
-      ctx.moveTo(x, y);
-      for (let k = 0; k < 3; k++) {
-        const nx = x + (R() - 0.5) * 400, ny = y + (R() - 0.5) * 200;
-        ctx.quadraticCurveTo(x + (R() - 0.5) * 300, y + (R() - 0.5) * 300, nx, ny);
-        x = nx; y = ny;
-      }
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-    const color = Extract.averageColor(c);
-    // une feuille A4 paysage, à la même échelle que les vrais dessins
-    return { canvas: c, color, lum: Extract.lum(color), colorful: 0.5, wcm: 29.7 * scale, hcm: 21 * scale };
-  }
-
   function paperTexture() {
     const c = Extract.makeCanvas(1024, 1024);
     const ctx = c.getContext('2d');
@@ -125,220 +97,119 @@
     return c;
   }
 
-  function palette(pieces) {
-    const cols = pieces.filter((p) => p.colorful > 0.25).map((p) => rgb(p.color));
-    return cols.length >= 3 ? cols : KID_PALETTE;
-  }
-
-  // « Ciel » : clair et froid. « Terre » : sombre et chaud.
-  const skyness = (t) => t.lum / 255 + (t.color[2] - t.color[0]) / 255;
-  const earthiness = (t) => (255 - t.lum) / 255 + (t.color[0] - t.color[2]) / 255;
-
-  function saturate(c, f) {
-    const l = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
-    return c.map((v) => clamp(l + (v - l) * f, 0, 255));
-  }
-
-  const mix = (a, b, t) => [0, 1, 2].map((i) => a[i] * (1 - t) + b[i] * t);
-  const avg = (list, fallback) => (list.length ? [0, 1, 2].map((i) => list.reduce((s, t) => s + t.color[i], 0) / list.length) : fallback);
-
   /*
-   * Fond peint : un lavis de gouache qui passe du ciel à l'ocre puis à la terre,
-   * avec des coups de pinceau visibles. Ses couleurs viennent des dessins eux-mêmes,
-   * pour que l'ensemble reste harmonieux. Il sert de liant entre les pages collées.
+   * Zones de la scène (paysage) : ciel en haut, milieu, sol en bas.
+   * En mode « mosaïque libre », une seule zone : toute la toile.
    */
-  function paintedGround(W, H, zones, R) {
-    const k = Math.min(14, 2000 / W); // pixels par cm
-    const c = Extract.makeCanvas(W * k, H * k);
-    const ctx = c.getContext('2d');
-    const { horizon, ground, sky, mid, earth } = zones;
-    const g = ctx.createLinearGradient(0, 0, 0, c.height);
-    const soft = 3 / H;
-    g.addColorStop(0, rgb(mix(sky, [255, 255, 255], 0.15)));
-    g.addColorStop(clamp(horizon / H - soft, 0, 1), rgb(sky));
-    g.addColorStop(clamp(horizon / H + soft, 0, 1), rgb(mid));
-    g.addColorStop(clamp(ground / H - soft, 0, 1), rgb(mix(mid, earth, 0.25)));
-    g.addColorStop(clamp(ground / H + soft, 0, 1), rgb(earth));
-    g.addColorStop(1, rgb(mix(earth, [0, 0, 0], 0.15)));
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, c.width, c.height);
+  function zonesFor(W, H, useZones) {
+    if (!useZones) return { ciel: [0, H], milieu: [0, H], sol: [0, H], horizon: H * 0.3, ground: H * 0.72 };
+    const horizon = H * 0.3, ground = H * 0.72;
+    return { ciel: [0, horizon], milieu: [horizon, ground], sol: [ground, H], horizon, ground };
+  }
 
-    // coups de pinceau : chaque trait est un faisceau de poils
-    const zoneColor = (y) => (y < horizon ? sky : y < ground ? mid : earth);
-    ctx.lineCap = 'round';
-    const n = Math.round((W * H) / 10);
-    for (let i = 0; i < n; i++) {
-      const x = R() * W, y = R() * H;
-      const base = zoneColor(y);
-      const shade = (R() - 0.5) * 0.3;
-      const col = shade > 0 ? mix(base, [255, 255, 255], shade) : mix(base, [0, 0, 0], -shade * 0.8);
-      const len = 4 + R() * 14, ang = (R() - 0.5) * 0.5, width = 0.8 + R() * 2.2;
-      const dx = Math.cos(ang) * len, dy = Math.sin(ang) * len;
-      const bend = (R() - 0.5) * 3;
-      const hairs = 5 + Math.floor(R() * 5);
-      for (let hIdx = 0; hIdx < hairs; hIdx++) {
-        const off = (hIdx / hairs - 0.5) * width;
-        const ox = -Math.sin(ang) * off, oy = Math.cos(ang) * off;
-        ctx.strokeStyle = rgb(col);
-        ctx.globalAlpha = 0.12 + R() * 0.2;
-        ctx.lineWidth = (0.15 + R() * 0.35) * k;
-        ctx.beginPath();
-        ctx.moveTo((x + ox) * k, (y + oy) * k);
-        ctx.quadraticCurveTo((x + ox + dx / 2) * k, (y + oy + dy / 2 + bend) * k, (x + ox + dx * (0.7 + R() * 0.3)) * k, (y + oy + dy) * k);
-        ctx.stroke();
-      }
-    }
-    // quelques grands gestes de couleur, pris dans la palette des dessins
-    (zones.accents || []).length && (() => {
-      const acc = zones.accents;
-      const m = 10 + Math.floor(R() * 8);
-      for (let i = 0; i < m; i++) {
-        ctx.strokeStyle = acc[Math.floor(R() * acc.length)];
-        ctx.globalAlpha = 0.12 + R() * 0.14;
-        ctx.lineWidth = (0.6 + R() * 1.6) * k;
-        let x = R() * W, y = zones.horizon + R() * (zones.ground - zones.horizon);
-        ctx.beginPath();
-        ctx.moveTo(x * k, y * k);
-        for (let j = 0; j < 3; j++) {
-          const nx = x + (R() - 0.5) * 30, ny = y + (R() - 0.5) * 10;
-          ctx.quadraticCurveTo((x + (R() - 0.5) * 20) * k, (y + (R() - 0.5) * 14) * k, nx * k, ny * k);
-          x = nx; y = ny;
+  // Grille de couverture au centimètre.
+  function Coverage(W, H) {
+    const gw = Math.ceil(W), gh = Math.ceil(H);
+    const cells = new Uint8Array(gw * gh);
+    // parcourt les cellules à l'intérieur d'un rectangle tourné (légèrement rétréci)
+    function each(cx, cy, w, h, rot, fn) {
+      const c = Math.cos(rot), s = Math.sin(rot);
+      const r = Math.hypot(w, h) / 2;
+      for (let gy = Math.floor(cy - r); gy <= Math.ceil(cy + r); gy++) {
+        for (let gx = Math.floor(cx - r); gx <= Math.ceil(cx + r); gx++) {
+          const dx = gx + 0.5 - cx, dy = gy + 0.5 - cy;
+          const lx = dx * c + dy * s, ly = -dx * s + dy * c;
+          if (Math.abs(lx) > w * 0.46 || Math.abs(ly) > h * 0.46) continue;
+          fn(gx, gy, gx >= 0 && gy >= 0 && gx < gw && gy < gh ? gy * gw + gx : -1);
         }
-        ctx.stroke();
       }
-    })();
-    ctx.globalAlpha = 1;
-    return { kind: 'bg', src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
+    }
+    return {
+      gw, gh, cells,
+      score(cx, cy, w, h, rot) {
+        let n = 0, over = 0, out = 0;
+        each(cx, cy, w, h, rot, (x, y, i) => { n++; if (i < 0) out++; else if (cells[i]) over++; });
+        return n ? { over: over / n, out: out / n } : { over: 1, out: 1 };
+      },
+      mark(cx, cy, w, h, rot) { each(cx, cy, w, h, rot, (x, y, i) => { if (i >= 0) cells[i] = 1; }); },
+    };
   }
 
   /*
-   * Pages collées contre un bord (haut ou bas), en partant des deux coins vers le centre.
-   * Chaque page n'est utilisée qu'une fois ; on laisse respirer le centre.
+   * Fond : UNIQUEMENT les dessins.
+   *  1. chaque page peinte est collée une fois, en grand papier déchiré, dans sa zone ;
+   *  2. les trous restants sont comblés de lambeaux déchirés dans ces mêmes pages
+   *     (des recadrages, jamais d'agrandissement), comme des papiers froissés.
    */
-  function edgeRow(W, H, pages, R, anchor, maxH, out) {
-    let left = -0.5, right = W + 0.5, side = R() < 0.5 ? 0 : 1;
-    const rest = [];
-    pages.forEach((t) => {
-      const w = t.wcm * (0.8 + 0.2 * R());
-      const h = Math.min(t.hcm, maxH + 0.5);
-      if (right - left - w < W * 0.18) { rest.push(t); return; }
-      const x = side === 0 ? left : right - w;
-      const y = anchor === 'top' ? -0.5 : H + 0.5 - h;
-      const edges = anchor === 'top' ? { b: 1, l: side, r: 1 - side } : { t: 1, l: side, r: 1 - side };
-      const L = tile(t, x, y, w, h, 0, R, edges);
-      if (side === 0) left += L.w - 0.3; else right -= L.w - 0.3;
-      out.push(L);
-      side = 1 - side;
-    });
-    return rest;
-  }
-
-  // Pages du milieu : grands papiers déchirés légèrement inclinés, répartis sans s'empiler.
-  function midPanels(W, H, pages, zones, R, out) {
-    const placed = [];
-    pages.forEach((t, i) => {
-      const w = t.wcm * (0.75 + 0.25 * R()), h = Math.min(t.hcm, (zones.ground - zones.horizon) * 0.95);
+  function background(W, H, texs, Z, R, out) {
+    const cov = Coverage(W, H);
+    const panels = [];
+    // les pages pâles d'abord (dessous), puis les pages colorées par-dessus
+    const imp = (t) => (t.importance === undefined ? 1 : t.importance);
+    const order = texs.slice().sort((a, b) => imp(a) - imp(b) || (a.colorful || 0) - (b.colorful || 0));
+    order.forEach((t) => {
+      const w = t.wcm * (0.88 + 0.12 * R()), h = t.hcm * (0.88 + 0.12 * R());
+      const band = Z[t.zone] || [0, H];
       let best = null;
-      for (let c = 0; c < 40; c++) {
-        // de préférence contre les bords gauche/droit, comme des pans de décor
-        const edge = i < 2 && c < 20;
-        const x = edge ? (i % 2 === 0 ? -w * 0.1 : W - w * 0.9) : R() * (W - w);
-        const y = zones.horizon - 1 + R() * Math.max(0, zones.ground - zones.horizon - h + 2);
-        let score = 0;
-        placed.forEach((q) => {
-          const ox = Math.max(0, Math.min(x + w, q.x + q.w) - Math.max(x, q.x));
-          const oy = Math.max(0, Math.min(y + h, q.y + q.h) - Math.max(y, q.y));
-          score += (ox * oy) / (w * h);
-        });
-        score += R() * 0.05;
-        if (!best || score < best.score) best = { x, y, score };
+      for (let c = 0; c < 90; c++) {
+        const cx = w * 0.25 + R() * Math.max(1, W - w * 0.5);
+        // de préférence dans sa zone, mais une page peut déborder pour ne pas laisser de trou
+        const inZone = c % 3 !== 2;
+        const lo = inZone ? band[0] + h * 0.25 : h * 0.25, hi = inZone ? band[1] - h * 0.25 : H - h * 0.25;
+        const cy = clamp(lo + R() * Math.max(0, hi - lo), h * 0.25, H - h * 0.25);
+        const rot = (R() - 0.5) * 0.08;
+        const sc = cov.score(cx, cy, w, h, rot);
+        const off = cy < band[0] || cy > band[1] ? 0.35 : 0;
+        const score = sc.over + sc.out * 1.5 + off + R() * 0.03;
+        if (!best || score < best.score) best = { cx, cy, rot, score };
       }
-      placed.push({ x: best.x, y: best.y, w, h });
-      out.push(tile(t, best.x, best.y, w, h, (R() - 0.5) * 0.1, R));
+      panels.push(tile(t, best.cx - w / 2, best.cy - h / 2, w, h, best.rot, R));
+      cov.mark(best.cx, best.cy, w, h, best.rot);
     });
-  }
 
-  // Petits lambeaux de papier peint froissés (ce sont des recadrages, jamais des agrandissements).
-  function scraps(W, zones, texs, R, out) {
-    const n = 8 + Math.floor(R() * 6);
-    for (let i = 0; i < n; i++) {
-      const t = texs[Math.floor(R() * texs.length)];
-      const fw = 2.5 + R() * 5, fh = fw * (0.5 + R() * 0.7);
-      const y = zones.horizon + R() * Math.max(1, zones.ground - zones.horizon - fh);
-      out.push(tile(t, R() * (W - fw), y, fw, fh, (R() - 0.5) * 1.4, R));
-    }
-  }
-
-  function landscape(W, H, texs, R, out, o) {
-    const bySky = texs.slice().sort((a, b) => skyness(b) - skyness(a));
-    const n = texs.length;
-    const nSky = n >= 3 ? Math.max(1, Math.round(n * 0.3)) : Math.min(1, n);
-    const sky = bySky.slice(0, nSky);
-    const earth = texs.filter((t) => !sky.includes(t)).sort((a, b) => earthiness(b) - earthiness(a)).slice(0, Math.max(n >= 3 ? 1 : 0, Math.round(n * 0.3)));
-    const middle = texs.filter((t) => !sky.includes(t) && !earth.includes(t));
-
-    const median = (l) => { const v = l.map((t) => t.hcm).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : 0; };
-    const horizon = clamp(median(sky) * 0.95 || H * 0.24, H * 0.15, H * 0.32);
-    const ground = H - clamp(median(earth) * 0.85 || H * 0.2, H * 0.12, H * 0.26);
-    const zones = {
-      horizon, ground,
-      sky: mix(saturate(avg(sky, [170, 205, 235]), 1.5), [196, 224, 246], 0.55),
-      mid: mix(saturate(avg(middle, [232, 200, 140]), 1.5), [238, 202, 132], 0.55),
-      earth: mix(saturate(avg(earth, [130, 85, 50]), 1.4), [128, 72, 40], 0.5),
-      accents: o.accents,
-    };
-
-    out.push(paintedGround(W, H, zones, R));
-    const extraSky = edgeRow(W, H, sky, R, 'top', horizon, out);
-    const extraEarth = edgeRow(W, H, earth, R, 'bottom', H - ground, out);
-    midPanels(W, H, middle.concat(extraSky, extraEarth), zones, R, out);
-    if (texs.length) scraps(W, zones, texs, R, out);
-    return zones;
-  }
-
-  // Mosaïque : chaque page une seule fois, épinglée en grille lâche sur un fond peint neutre.
-  function mosaic(W, H, texs, R, out) {
-    const zones = { horizon: H * 0.5, ground: H * 1.01, sky: [236, 228, 214], mid: [236, 228, 214], earth: [236, 228, 214] };
-    out.push(paintedGround(W, H, zones, R));
-    const order = shuffle(texs, R);
-    const cols = Math.max(1, Math.round(Math.sqrt((order.length * W) / H)));
-    const rows = Math.max(1, Math.ceil(order.length / cols));
-    order.forEach((t, i) => {
-      const cx = ((i % cols) + 0.5) * (W / cols) + (R() - 0.5) * (W / cols) * 0.3;
-      const cy = (Math.floor(i / cols) + 0.5) * (H / rows) + (R() - 0.5) * (H / rows) * 0.3;
-      out.push(tile(t, cx - t.wcm / 2, cy - t.hcm / 2, t.wcm, t.hcm, (R() - 0.5) * 0.12, R));
+    // lambeaux pour combler les trous
+    const holes = [];
+    for (let i = 0; i < cov.cells.length; i++) if (!cov.cells[i]) holes.push(i);
+    // lambeaux petits et pris dans toutes les pages colorées, pour ne jamais répéter un motif reconnaissable
+    const colorful = texs.filter((t) => (t.colorful || 0) > 0.2);
+    const pool = colorful.length ? colorful : texs;
+    const scrapsOut = [];
+    shuffle(holes, R).forEach((i) => {
+      if (cov.cells[i] || scrapsOut.length > 1500) return;
+      const cx = (i % cov.gw) + 0.5, cy = Math.floor(i / cov.gw) + 0.5;
+      const t = pool[Math.floor(R() * pool.length)];
+      const fw = 3 + R() * 4.5, fh = fw * (0.55 + R() * 0.6), rot = (R() - 0.5) * 1.2;
+      const L = tile(t, cx - fw / 2, cy - fh / 2, fw, fh, rot, R);
+      scrapsOut.push(L);
+      cov.mark(L.x, L.y, L.w * 1.05, L.h * 1.05, rot);
     });
-    return { horizon: H * 0.3, ground: H * 0.85 };
+    // les lambeaux passent sous les grandes pages
+    out.push(...scrapsOut, ...panels);
   }
 
   // ---------- Placement des découpes ----------
 
   /*
-   * Règles de composition utilisées :
-   *  - les sujets « posés » (base large : maison, chapiteau, bougie…) reposent sur une ligne de sol,
-   *    les autres (cœurs, étoiles, soleils…) flottent dans le ciel et le milieu ;
-   *  - le sujet principal va sur un point fort (règle des tiers), les suivants sur les autres ;
-   *  - équilibre des masses visuelles autour du centre ;
-   *  - deux sujets voisins de même couleur sont évités ;
-   *  - chevauchements limités ; ce qui ne trouve pas de place à l'échelle choisie est laissé de côté ;
-   *  - profondeur : ce qui est plus bas passe devant.
+   * TOUTES les découpes sont placées. Règles de composition :
+   *  - chaque sujet va dans la zone décidée (ciel / milieu / sol) ; les sujets « posés »
+   *    reposent sur une ligne de sol de leur zone, les autres flottent ;
+   *  - les pièces maîtresses vont sur les points forts (règle des tiers) ;
+   *  - équilibre des masses, couleurs voisines variées, sujets répartis sur toute la toile ;
+   *  - chevauchements réduits au minimum ; profondeur : ce qui est plus bas passe devant.
    */
-  function placePieces(W, H, pieces, o, lines, R) {
-    const gw = Math.ceil(W), gh = Math.ceil(H); // grille d'occupation au centimètre
+  function placePieces(W, H, pieces, o, Z, R) {
+    const gw = Math.ceil(W), gh = Math.ceil(H);
     const occ = new Uint8Array(gw * gh);
-    const target = clamp(0.4 * o.density, 0.15, 0.7) * gw * gh;
-    let covered = 0;
     const thirds = [[W / 3, H / 3], [(2 * W) / 3, H / 3], [W / 3, (2 * H) / 3], [(2 * W) / 3, (2 * H) / 3]];
     const usedThirds = new Set();
     const placed = [];
     let mass = 0, mx = 0, my = 0;
     const maxRot = (o.rotation * Math.PI) / 180;
+    const weight = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(Math.max(0.05, p.colorful), 1.3) * (p.importance || 1);
+    const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
+    const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
+    if (!stars.size) sorted.slice(0, 3).forEach((p) => stars.add(p));
 
-    const importance = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(p.colorful, 1.3);
-    const sorted = pieces.slice().sort((a, b) => importance(b) - importance(a));
-    const groundLines = [lines.ground + (H - lines.ground) * 0.6, lines.ground + 0.6, lines.horizon + (lines.ground - lines.horizon) * 0.62];
-
-    // parcourt les cellules couvertes par la forme d'une pièce centrée en (cx, cy)
     function footprint(p, cx, cy, fn) {
       const x0 = cx - p.wcm / 2, y0 = cy - p.hcm / 2;
       const hm = p.hit;
@@ -354,28 +225,29 @@
       }
     }
 
-    sorted.forEach((p, rankIdx) => {
-      p.placed = false;
-      if (covered >= target) return;
-      const grounded = p.base > 0.55 && p.hcm > 3;
+    sorted.forEach((p) => {
+      const band = Z[p.zone] || [0, H];
+      const grounded = !!p.grounded;
       const pHue = hue(p.color);
       const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
+      const star = stars.has(p);
       let best = null;
-      for (let c = 0; c < 90; c++) {
-        let cx = p.wcm * 0.3 + R() * (W - p.wcm * 0.6);
+      for (let c = 0; c < 110; c++) {
+        let cx = p.wcm * 0.35 + R() * Math.max(1, W - p.wcm * 0.7);
         let cy;
         if (grounded) {
-          const line = groundLines[Math.floor(R() * groundLines.length)];
-          cy = line + (R() - 0.5) * 1.5 - p.hcm / 2;
+          // le bas du sujet repose dans la moitié basse de sa zone
+          const bottom = band[0] + (band[1] - band[0]) * (0.55 + R() * 0.45);
+          cy = Math.min(bottom, H + p.hcm * 0.08) - p.hcm / 2;
         } else {
-          cy = p.hcm * 0.35 + R() * Math.max(1, lines.ground - p.hcm * 0.35);
+          cy = band[0] + R() * (band[1] - band[0]);
         }
-        if (rankIdx < 4 && c < 30) {
-          // les sujets principaux essaient d'abord les points forts
+        if (star && c < 40) {
           const [tx, ty] = thirds[c % 4];
-          cx = tx + (R() - 0.5) * W * 0.08;
-          if (!grounded) cy = ty + (R() - 0.5) * H * 0.08;
+          cx = tx + (R() - 0.5) * W * 0.1;
+          if (!grounded) cy = ty + (R() - 0.5) * H * 0.1;
         }
+        cy = clamp(cy, p.hcm * 0.3, H - p.hcm * 0.3);
         let cells = 0, over = 0, out = 0;
         footprint(p, cx, cy, (gx, gy) => {
           cells++;
@@ -383,72 +255,57 @@
           else if (occ[gy * gw + gx]) over++;
         });
         if (!cells) continue;
-        const overlap = over / cells, outside = out / cells;
-        if (overlap > 0.3 || outside > 0.15) continue;
-        let score = overlap * 3 + outside * 4;
-        // équilibre des masses
+        let score = (over / cells) * 3 + (out / cells) * 5;
         const nm = mass + w8;
-        const bx = (mx + cx * w8) / nm, by = (my + cy * w8) / nm;
-        score += Math.hypot((bx - W / 2) / W, (by - H / 2) / H) * (placed.length > 3 ? 2 : 0.5);
-        // pas deux voisins de la même couleur
+        score += Math.hypot(((mx + cx * w8) / nm - W / 2) / W, ((my + cy * w8) / nm - H / 2) / H) * (placed.length > 3 ? 2 : 0.5);
+        let near = Infinity;
         for (const q of placed) {
           const d = Math.hypot(q.x - cx, q.y - cy);
+          near = Math.min(near, d);
           if (d < (Math.max(p.wcm, p.hcm) + Math.max(q.w, q.h)) * 0.7 && p.colorful > 0.2 && q.piece.colorful > 0.2) {
             const dh = Math.abs(pHue - hue(q.piece.color));
-            if (Math.min(dh, 360 - dh) < 35) score += 0.35;
+            if (Math.min(dh, 360 - dh) < 35) score += 0.3;
           }
         }
-        // point fort pour les sujets principaux
-        if (rankIdx < 4) {
+        if (near < Infinity) score -= Math.min(near / (W * 0.25), 1) * 0.5;
+        if (star) {
           let dmin = Infinity;
           thirds.forEach(([tx, ty], i) => { if (!usedThirds.has(i)) dmin = Math.min(dmin, Math.hypot(tx - cx, (ty - cy) * (grounded ? 0.3 : 1))); });
           if (dmin < Infinity) score += (dmin / W) * 2.5;
         }
-        // aller vers les zones encore vides pour répartir les sujets sur toute l'œuvre
-        let near = Infinity;
-        for (const q of placed) near = Math.min(near, Math.hypot(q.x - cx, q.y - cy));
-        if (near < Infinity) score -= Math.min(near / (W * 0.25), 1) * 0.6;
-        score += R() * 0.05;
-        if (!best || score < best.score) best = { cx, cy, score, grounded };
+        score += R() * 0.04;
+        if (!best || score < best.score) best = { cx, cy, score };
       }
-      if (!best) return;
-      footprint(p, best.cx, best.cy, (gx, gy) => {
-        if (gx >= 0 && gy >= 0 && gx < gw && gy < gh && !occ[gy * gw + gx]) { occ[gy * gw + gx] = 1; covered++; }
-      });
-      if (rankIdx < 4) {
+      if (!best) best = { cx: W / 2, cy: H / 2 };
+      footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh) occ[gy * gw + gx] = 1; });
+      if (star) {
         let bi = -1, bd = Infinity;
         thirds.forEach(([tx, ty], i) => { const d = Math.hypot(tx - best.cx, ty - best.cy); if (!usedThirds.has(i) && d < bd) { bd = d; bi = i; } });
         if (bi >= 0 && bd < W * 0.15) usedThirds.add(bi);
       }
       mass += w8; mx += best.cx * w8; my += best.cy * w8;
       p.placed = true;
-      const rot = (R() - 0.5) * 2 * (best.grounded ? Math.min(maxRot, 0.05) : maxRot);
-      placed.push({ kind: 'piece', piece: p, x: best.cx, y: best.cy, w: p.wcm, h: p.hcm, rot, flip: false, grounded: best.grounded });
+      const rot = (R() - 0.5) * 2 * (grounded ? Math.min(maxRot, 0.05) : maxRot);
+      placed.push({ kind: 'piece', piece: p, x: best.cx, y: best.cy, w: p.wcm, h: p.hcm, rot, flip: false, grounded });
     });
 
-    // profondeur : ce qui est posé plus bas passe devant ; les petits éléments flottants au-dessus
-    const grounded = placed.filter((L) => L.grounded).sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2));
-    const floating = placed.filter((L) => !L.grounded).sort((a, b) => b.w * b.h - a.w * a.h);
-    return grounded.concat(floating);
+    const g = placed.filter((L) => L.grounded).sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2));
+    const f = placed.filter((L) => !L.grounded).sort((a, b) => b.w * b.h - a.w * a.h);
+    return g.concat(f);
   }
 
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
+    const Z = zonesFor(W, H, o.bgMode !== 'mosaic');
     const bg = [];
-    let lines = { horizon: H * 0.25, ground: H * 0.8 };
-    const texs = o.textures.slice();
-    if (o.bgMode === 'paper') {
+    if (o.textures.length) {
+      background(W, H, o.textures, Z, R, bg);
+    } else {
       const c = paperTexture();
       bg.push({ kind: 'bg', src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height });
-    } else {
-      if (!texs.length) {
-        const cols = palette(o.pieces);
-        for (let i = 0; i < 3; i++) texs.push(paintedTexture(cols, R, o.scale));
-      }
-      lines = o.bgMode === 'mosaic' ? mosaic(W, H, texs, R, bg) : landscape(W, H, texs, R, bg, { accents: palette(o.pieces) });
     }
-    const items = placePieces(W, H, o.pieces, o, lines, R);
+    const items = placePieces(W, H, o.pieces, o, Z, R);
     return { W, H, bg, items, grain: o.grain };
   }
 

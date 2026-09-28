@@ -136,7 +136,11 @@ button.primary {
 button.primary:hover:not(:disabled) { background: var(--accent-dark); border-color: var(--accent-dark); }
 
 .stage { position: relative; height: 100%; overflow: hidden; }
-.stage canvas { position: absolute; inset: 52px 0 0 0; width: 100%; height: calc(100% - 52px); touch-action: none; }
+.stage canvas { position: absolute; inset: 52px 0 44px 0; width: 100%; height: calc(100% - 96px); touch-action: none; }
+.label { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 0.78rem; color: var(--muted); text-align: center; padding-inline: 16px; }
+.label b { color: var(--ink); font-size: 0.9rem; font-style: italic; font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+.hint.ai:empty { display: none; }
+.detail .name small { font-weight: 400; color: var(--muted); }
 
 .toolbar {
   position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 6px;
@@ -152,7 +156,7 @@ button.primary:hover:not(:disabled) { background: var(--accent-dark); border-col
   body { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; }
   html { height: auto; }
   .panel { height: auto; border-right: 0; border-bottom: 1px solid var(--line); order: 2; }
-  .stage { height: min(70vh, calc(100vw * 0.78 + 52px)); order: 1; }
+  .stage { height: min(75vh, calc(100vw * 0.78 + 96px)); order: 1; }
   .toolbar button { white-space: nowrap; flex: none; }
   .toolbar .tip { display: none; }
   .toolbar { overflow-x: auto; }
