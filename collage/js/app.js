@@ -337,8 +337,9 @@
       const unplaced = p.enabled && state.comp && !p.placed;
       el.className = `thumb${p.enabled ? '' : ' off'}${unplaced ? ' unplaced' : ''}`;
       el.title = !p.enabled ? 'Retirée — cliquer pour l’ajouter' : unplaced ? 'Pas de place à cette échelle — cliquer pour l’ajouter quand même' : 'Dans l’œuvre — cliquer pour la retirer';
-      el.innerHTML = `<img src="${p.thumb}" alt="">`;
+      el.innerHTML = `<img src="${p.thumb}" alt=""><button class="edit-piece" title="Retoucher la découpe" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg></button>`;
       el.onclick = () => togglePiece(p);
+      el.querySelector('.edit-piece').onclick = (e) => { e.stopPropagation(); editPiece(p); };
       pEl.appendChild(el);
     });
     const inArt = state.comp ? state.comp.items.length : 0;
@@ -686,9 +687,48 @@
     render();
   }, { passive: false });
 
+  // ---------- Retouche d'une découpe ----------
+
+  function pieceName(p) {
+    const d = p.drawing;
+    const n = state.drawings.indexOf(d) + 1;
+    const base = d.ai && d.ai.sujet ? d.ai.sujet.charAt(0).toUpperCase() + d.ai.sujet.slice(1) : `Dessin ${n}`;
+    const ps = d.analysis.pieces || [];
+    return ps.length > 1 ? `${base} · pièce ${ps.indexOf(p) + 1}` : base;
+  }
+
+  function editPiece(p) {
+    if (!p || !p.src || !window.Editor) return;
+    Editor.open(p, { title: pieceName(p), onApply: applyPieceEdit });
+  }
+
+  // La pièce a changé de forme : on met à jour ses calques dans les trois propositions,
+  // sans la déplacer sur la toile (le dessin reste exactement au même endroit).
+  function applyPieceEdit(p, oldSrc, newSrc) {
+    const dcx = newSrc.x + newSrc.w / 2 - (oldSrc.x + oldSrc.w / 2);
+    const dcy = newSrc.y + newSrc.h / 2 - (oldSrc.y + oldSrc.h / 2);
+    (state.proposals || []).forEach((pr) => pr.comp.items.forEach((L) => {
+      if (L.piece !== p) return;
+      const u = L.w / oldSrc.w; // cm sur la toile par pixel de page
+      let sx = dcx * u;
+      const sy = dcy * u;
+      if (L.flip) sx = -sx;
+      L.x += sx * Math.cos(L.rot) - sy * Math.sin(L.rot);
+      L.y += sx * Math.sin(L.rot) + sy * Math.cos(L.rot);
+      L.w = newSrc.w * u;
+      L.h = newSrc.h * u;
+    }));
+    if (p.wcm) { p.wcm *= newSrc.w / oldSrc.w; p.hcm *= newSrc.h / oldSrc.h; }
+    p.thumb = thumbOf(p.canvas, 120, true);
+    refreshPieces();
+    renderProposals();
+    render();
+  }
+
   function act(name) {
     const comp = state.comp, L = state.selected;
     if (!comp || !L) return;
+    if (name === 'edit') { editPiece(L.piece); return; }
     const i = comp.items.indexOf(L);
     if (name === 'front') { comp.items.splice(i, 1); comp.items.push(L); }
     if (name === 'back') { comp.items.splice(i, 1); comp.items.unshift(L); }
@@ -714,7 +754,10 @@
 
   document.querySelectorAll('#toolbar button').forEach((b) => (b.onclick = () => act(b.dataset.act)));
 
+  canvas.addEventListener('dblclick', () => { if (state.selected) editPiece(state.selected.piece); });
+
   window.addEventListener('keydown', (e) => {
+    if (window.Editor && Editor.isOpen()) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     if (e.key === 'Delete' || e.key === 'Backspace') act('del');
     if (e.key === 'Escape') { state.selected = null; render(); }

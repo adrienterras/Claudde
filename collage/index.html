@@ -24,6 +24,12 @@
       <symbol id="i-flip" viewBox="0 0 24 24"><path d="M12 3v18M9 7L4 17h5zM15 7l5 10h-5z"/></symbol>
       <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h10v10H9z"/><path d="M15 9V5H5v10h4"/></symbol>
       <symbol id="i-guide" viewBox="0 0 24 24"><path d="M5 4.5h9l5 5V19.5H5z"/><path d="M14 4.5v5h5M8.5 14.5l2 2 4.5-4.5"/></symbol>
+      <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6.5" cy="7" r="2.6"/><circle cx="6.5" cy="17" r="2.6"/><path d="M8.7 8.4L20 16.5M8.7 15.6L20 7.5"/></symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7L5 11l4 4"/><path d="M5 11h9a5 5 0 0 1 0 10h-3"/></symbol>
+      <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 7l4 4-4 4"/><path d="M19 11h-9a5 5 0 0 0 0 10h3"/></symbol>
+      <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 19.5h11M4.8 14.7l8.9-8.9a2 2 0 0 1 2.8 0l3 3a2 2 0 0 1 0 2.8l-7.3 7.3a2 2 0 0 1-1.4.6H9.3a2 2 0 0 1-1.4-.6l-3.1-3.1a1.5 1.5 0 0 1 0-2.1z"/><path d="M9.5 10l5.8 5.8"/></symbol>
+      <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8 8-5-5z"/><path d="M6.5 12.5c-2 .5-3 2.2-3 4.5 0 1-.5 2-1 2.5 3 .5 6-.5 7-3"/></symbol>
+      <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 12.5V6a1.5 1.5 0 0 1 3 0v5.5M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6.5 7-2.6 0-4.3-1.3-5.6-3.4L3 12.9a1.5 1.5 0 0 1 2.4-1.8L8 13.5"/></symbol>
       <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></symbol>
     </defs>
   </svg>
@@ -133,6 +139,7 @@
       <button data-act="back" title="Mettre derrière"><svg class="ico"><use href="#i-back"/></svg><span>Derrière</span></button>
       <button data-act="flip" title="Retourner"><svg class="ico"><use href="#i-flip"/></svg><span>Miroir</span></button>
       <button data-act="dup" title="Dupliquer"><svg class="ico"><use href="#i-copy"/></svg><span>Dupliquer</span></button>
+      <button data-act="edit" title="Retoucher la découpe (double-clic)"><svg class="ico"><use href="#i-scissors"/></svg><span>Retoucher</span></button>
       <button data-act="del" title="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
     </div>
     <p class="stage-tip">Glissez une pièce pour la déplacer · poignée ou molette pour la tourner</p>
@@ -146,11 +153,48 @@
     </div>
   </main>
 
+  <div id="editor" class="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title" hidden>
+    <div class="ed-bar">
+      <div class="ed-head">
+        <p class="ed-kicker">Retoucher la découpe</p>
+        <h2 id="ed-title"></h2>
+      </div>
+      <div class="ed-tools seg" role="group" aria-label="Outil">
+        <button data-tool="erase" title="Gomme (E)"><svg class="ico"><use href="#i-eraser"/></svg><span>Gomme</span></button>
+        <button data-tool="restore" title="Restaurer le dessin (R)"><svg class="ico"><use href="#i-brush"/></svg><span>Restaurer</span></button>
+        <button data-tool="pan" title="Se déplacer (H ou barre d’espace)"><svg class="ico"><use href="#i-hand"/></svg><span>Déplacer</span></button>
+      </div>
+      <label class="ed-size">Pinceau <input id="ed-size" type="range" min="4" max="140" step="1" value="28"></label>
+      <div class="ed-group">
+        <button id="ed-zout" class="ed-btn" title="Dézoomer" aria-label="Dézoomer">−</button>
+        <span id="ed-zval" class="ed-zval">100 %</span>
+        <button id="ed-zin" class="ed-btn" title="Zoomer" aria-label="Zoomer">+</button>
+        <button id="ed-fit" class="ed-btn">Ajuster</button>
+      </div>
+      <div class="ed-group">
+        <button id="ed-undo" class="ed-btn" title="Défaire (Ctrl+Z)"><svg class="ico"><use href="#i-undo"/></svg><span>Défaire</span></button>
+        <button id="ed-redo" class="ed-btn" title="Refaire (Ctrl+Maj+Z)"><svg class="ico"><use href="#i-redo"/></svg><span>Refaire</span></button>
+        <button id="ed-reset" class="ed-btn">Découpe d’origine</button>
+      </div>
+    </div>
+    <div class="ed-stage">
+      <canvas id="ed-canvas"></canvas>
+      <p class="ed-legend"><span class="sw sw-cut"></span>trait de coupe · <span class="sw sw-faded"></span>dessin non utilisé, à restaurer au pinceau</p>
+    </div>
+    <div class="ed-foot">
+      <p id="ed-msg" class="ed-msg" role="status"></p>
+      <p class="hint ed-help">Molette ou pincement pour zoomer · barre d’espace ou deux doigts pour se déplacer · [ ] taille du pinceau</p>
+      <button id="ed-cancel" class="btn">Fermer sans enregistrer</button>
+      <button id="ed-apply" class="btn btn-primary"><svg class="ico"><use href="#i-scissors"/></svg><span>Valider la découpe</span></button>
+    </div>
+  </div>
+
   <script src="vendor/pdf.min.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="js/extract.js"></script>
   <script src="js/compose.js"></script>
   <script src="js/guide.js"></script>
+  <script src="js/editor.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

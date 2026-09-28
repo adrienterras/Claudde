@@ -34,7 +34,12 @@ cd collage && python3 -m http.server 8000
      *Cabinet de curiosités* (chaque dessin exposé droit, en rangées, sur papier blanc) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
-5. **Guide de création (PDF)** pour réaliser l'œuvre à la main :
+5. **Retoucher une découpe** : bouton « Retoucher » (ou double-clic sur une pièce de l'œuvre, ou ciseaux
+   sur la vignette d'une pièce). Éditeur plein écran avec zoom (molette, pincement, + / −), gomme,
+   pinceau « restaurer » qui remet le dessin d'origine (y compris autour de la découpe initiale),
+   défaire / refaire (Ctrl+Z), retour à la découpe d'origine. Le trait de coupe magenta est affiché
+   en direct ; en validant, la pièce est mise à jour dans les trois propositions sans bouger sur la toile.
+6. **Guide de création (PDF)** pour réaliser l'œuvre à la main :
    - couverture (matériel, mode d'emploi), **plan de pose** quadrillé tous les 10 cm avec le numéro
      de chaque élément ;
    - **étapes de collage** dans l'ordre (lambeaux de fond, grandes pages, puis découpes) : mini-carte
@@ -51,6 +56,7 @@ cd collage && python3 -m http.server 8000
 - `js/compose.js` : tout est exprimé en centimètres sur la toile ; fond peint procédural, pages collées
   (recadrées, jamais agrandies), placement des découpes par score de composition, rendu et finition.
 - `js/app.js` : interface, édition interactive, export haute résolution.
+- `js/editor.js` : éditeur de découpe (masque en pixels de la page, historique, zoom tactile).
 - `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
 - `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (Apache 2.0) pour lire les PDF,
   [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide.

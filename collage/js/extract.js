@@ -353,6 +353,8 @@
       color,
       colorful: cnt ? satSum / cnt : 0,
       base,
+      // emplacement de la pièce dans la page (en pixels de page), pour pouvoir retoucher la découpe
+      src: { x: x0 * k, y: y0 * k, w: pw, h: ph },
     };
   }
 
@@ -363,7 +365,11 @@
     return seg.comps
       .filter((c) => c.area >= minArea && c.x1 - c.x0 > 10 && c.y1 - c.y0 > 10)
       .slice(0, MAX_PIECES_PER_PAGE)
-      .map((c) => makePiece(enhanced, seg, c));
+      .map((c) => {
+        const piece = makePiece(enhanced, seg, c);
+        piece.src.paper = seg.paper;
+        return piece;
+      });
   }
 
   function textureFrom(page) {
@@ -412,5 +418,5 @@
     return result;
   }
 
-  window.Extract = { analyze, cutPieces, textureFrom, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();
