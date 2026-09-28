@@ -96,6 +96,7 @@
           sizeCm: 29.7, sizeMode: 'auto',
         };
         preparePieces(analysis.pieces, d);
+        loadSize(d);
         state.drawings.push(d);
       } catch (e) {
         console.error(e);
@@ -133,6 +134,18 @@
   }
 
   const cmPerPx = (d) => d.sizeCm / d.srcLong;
+
+  // Les tailles corrigées à la main sont mémorisées dans ce navigateur (clé : fichier + page).
+  const sizeKey = (d) => `atelier-collage:taille:${d.name}:${Math.round(d.origLong)}`;
+  function loadSize(d) {
+    try {
+      const v = Number(localStorage.getItem(sizeKey(d)));
+      if (v > 0) { d.sizeCm = v; d.sizeMode = 'manual'; }
+    } catch (e) { /* stockage indisponible : on garde l'estimation */ }
+  }
+  function saveSize(d) {
+    try { localStorage.setItem(sizeKey(d), String(d.sizeCm)); } catch (e) { /* ignoré */ }
+  }
 
   function sheetName(cm) {
     const s = SHEETS.find(([, v]) => Math.abs(v - cm) < 0.05);
@@ -239,8 +252,11 @@
         <label class="row" data-custom ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? 'hidden' : ''}>Plus grand côté (cm)
           <input type="number" min="3" max="200" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>
+        ${mainPiece(d) ? `<label class="row" data-subject>Ou taille du sujet (cm)
+          <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="Plus grand côté du sujet découpé, mesuré sur le dessin original">
+        </label>` : ''}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? 'Taille lue dans le PDF.' : 'Taille estimée d’après le scan — corrigez-la si besoin.') : 'Taille saisie.'}
-          Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm.</p>
+          Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm${mainPiece(d) ? ` (sujet principal : ${fmt(subjectCm(d))} cm en vrai, ${fmt(subjectCm(d) * k)} cm sur l’œuvre)` : ''}.</p>
       </div>`;
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
@@ -254,14 +270,36 @@
       if (!(cm > 0)) return;
       d.sizeCm = cm;
       d.sizeMode = 'manual';
+      saveSize(d);
       refreshLists();
       regenerate();
     };
+    const subject = box.querySelector('[data-subject] input');
+    if (subject) {
+      // taille connue du sujet → taille de la feuille entière, par simple proportion
+      subject.onchange = () => {
+        const cm = Number(subject.value);
+        const p = mainPiece(d);
+        if (cm > 0 && p) setSize((cm * d.srcLong) / Math.max(p.canvas.width, p.canvas.height));
+      };
+    }
     sel.onchange = () => {
       if (sel.value === 'custom') { custom.hidden = false; custom.querySelector('input').focus(); return; }
       setSize(Number(sel.value));
     };
     custom.querySelector('input').onchange = (e) => setSize(Number(e.target.value));
+  }
+
+  // Le sujet principal d'un dessin découpé : sa plus grande pièce.
+  function mainPiece(d) {
+    if (roleOf(d) !== 'cutout') return null;
+    const ps = d.analysis.pieces || [];
+    return ps.reduce((a, b) => (!a || b.canvas.width * b.canvas.height > a.canvas.width * a.canvas.height ? b : a), null);
+  }
+
+  function subjectCm(d) {
+    const p = mainPiece(d);
+    return p ? Math.max(p.canvas.width, p.canvas.height) * cmPerPx(d) : 0;
   }
 
   function refreshPieces() {
