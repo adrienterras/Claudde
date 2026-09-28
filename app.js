@@ -1,5 +1,5 @@
 import { createStore } from './store.js';
-import { computeStats, setsWon, RANKINGS } from './stats.js';
+import { computeStats, setsWon, normalizeMatch, involves, sortRecentFirst, RANKINGS } from './stats.js';
 
 // ---------- Préférences locales (communautés rejointes sur ce téléphone) ----------
 
@@ -8,9 +8,9 @@ const PREFS_KEY = 'tiebreak-prefs-v1';
 function loadPrefs() {
     try {
         const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
-        return { current: p.current || null, communities: p.communities || [] };
+        return { current: p.current || null, communities: p.communities || [], mode: p.mode === 'double' ? 'double' : 'simple' };
     } catch (e) {
-        return { current: null, communities: [] };
+        return { current: null, communities: [], mode: 'simple' };
     }
 }
 
@@ -247,7 +247,7 @@ function renderMain() {
         ['moi', 'Mon bilan'],
     ];
     let body = '';
-    if (S.tab === 'classement') body = viewRanking(stats);
+    if (S.tab === 'classement') body = viewRanking(stats[prefs.mode]);
     else if (S.tab === 'matchs') body = viewMatches();
     else body = viewPlayer(me().id, stats, true);
 
@@ -285,6 +285,14 @@ function formDots(form) {
         `<span class="dot ${f === 'V' ? 'dot-w' : 'dot-l'}">${f}</span>`).join('')}</span>`;
 }
 
+function modeSwitch() {
+    return `
+        <div class="segmented" role="tablist" aria-label="Format">
+            <button role="tab" class="seg ${prefs.mode === 'simple' ? 'is-active' : ''}" aria-selected="${prefs.mode === 'simple'}" data-action="mode" data-mode="simple">Simple</button>
+            <button role="tab" class="seg ${prefs.mode === 'double' ? 'is-active' : ''}" aria-selected="${prefs.mode === 'double'}" data-action="mode" data-mode="double">Double</button>
+        </div>`;
+}
+
 function viewRanking(stats) {
     const mine = me();
     return `
@@ -293,6 +301,7 @@ function viewRanking(stats) {
                 <h2 class="section-title">Classement</h2>
                 <span class="muted small">Points Elo · départ 1500</span>
             </div>
+            ${modeSwitch()}
             <ol class="ranking">
                 ${stats.table.map(r => `
                     <li>
@@ -317,13 +326,8 @@ function viewRanking(stats) {
         </section>`;
 }
 
-function scoreLine(m) {
-    return m.sets.map(s => `${s.a}-${s.b}`).join('  ');
-}
-
 function viewMatches() {
-    const list = [...S.data.matches].sort((x, y) =>
-        (y.date || '').localeCompare(x.date || '') || (y.createdAt || 0) - (x.createdAt || 0));
+    const list = sortRecentFirst(S.data.matches);
     if (!list.length) {
         return `<section class="section empty">
             <p class="empty-title">Aucun match pour l’instant</p>
@@ -343,19 +347,25 @@ function viewMatches() {
     </section>`;
 }
 
+function teamNames(team) {
+    return team.map(id => h(playerName(id))).join('<span class="sb-amp"> / </span>');
+}
+
 function matchCard(m) {
-    const w1 = m.winner === m.p1;
+    const w1 = m.winnerSide === 1;
     const canDelete = m.createdBy === S.uid;
     const confirming = S.confirm === m.id;
+    const isDouble = m.type === 'double';
     return `
         <article class="match">
-            <div class="scoreboard">
+            <div class="scoreboard ${isDouble ? 'is-double' : ''}">
+                ${isDouble ? '<span class="sb-type">Double</span>' : ''}
                 <div class="sb-row ${w1 ? 'is-winner' : ''}">
-                    <span class="sb-name">${h(playerName(m.p1))}</span>
+                    <span class="sb-name">${teamNames(m.t1)}</span>
                     ${m.sets.map(s => `<span class="sb-set ${s.a > s.b ? 'won' : ''}">${s.a}</span>`).join('')}
                 </div>
                 <div class="sb-row ${!w1 ? 'is-winner' : ''}">
-                    <span class="sb-name">${h(playerName(m.p2))}</span>
+                    <span class="sb-name">${teamNames(m.t2)}</span>
                     ${m.sets.map(s => `<span class="sb-set ${s.b > s.a ? 'won' : ''}">${s.b}</span>`).join('')}
                 </div>
             </div>
@@ -370,18 +380,32 @@ function matchCard(m) {
         </article>`;
 }
 
-function viewPlayer(pid, stats, isMine) {
+function recordList(map, emptyText) {
+    const rows = Object.entries(map)
+        .map(([oid, r]) => ({ oid, ...r, total: r.wins + r.losses }))
+        .sort((a, b) => b.total - a.total || b.wins - a.wins);
+    if (!rows.length) return `<p class="muted small">${emptyText}</p>`;
+    return `
+        <ul class="h2h">
+            ${rows.map(o => `
+                <li class="h2h-row">
+                    <span class="h2h-name">${h(playerName(o.oid))}</span>
+                    <span class="h2h-bar" aria-hidden="true">
+                        <span class="bar-w" style="flex:${o.wins}"></span><span class="bar-l" style="flex:${o.losses}"></span>
+                    </span>
+                    <span class="h2h-score"><b>${o.wins}</b> - ${o.losses}</span>
+                </li>`).join('')}
+        </ul>`;
+}
+
+function viewPlayer(pid, allStats, isMine) {
+    const mode = prefs.mode;
+    const stats = allStats[mode];
     const row = stats.byId[pid];
     const p = row.player;
     const my = me();
-    const opponents = Object.entries(row.h2h)
-        .map(([oid, r]) => ({ oid, ...r, total: r.wins + r.losses }))
-        .sort((a, b) => b.total - a.total || b.wins - a.wins);
 
-    const recent = [...S.data.matches]
-        .filter(m => m.p1 === pid || m.p2 === pid)
-        .sort((x, y) => (y.date || '').localeCompare(x.date || '') || (y.createdAt || 0) - (x.createdAt || 0))
-        .slice(0, 5);
+    const recent = sortRecentFirst(S.data.matches.filter(m => m.type === mode && involves(m, pid))).slice(0, 5);
 
     return `
         <section class="section profile">
@@ -394,6 +418,8 @@ function viewPlayer(pid, stats, isMine) {
                 ${isMine ? `<button class="btn btn-small btn-ghost" data-action="edit-profile">Modifier</button>` : ''}
             </div>
 
+            ${modeSwitch()}
+
             <div class="stat-row">
                 <div class="stat"><span class="stat-value">${row.rank ?? '–'}</span><span class="stat-label">Rang</span></div>
                 <div class="stat"><span class="stat-value">${row.played ? row.elo : '—'}</span><span class="stat-label">Points</span></div>
@@ -401,22 +427,19 @@ function viewPlayer(pid, stats, isMine) {
                 <div class="stat"><span class="stat-value">${row.played ? Math.round(row.winRate * 100) : 0}<small>%</small></span><span class="stat-label">Victoires</span></div>
             </div>
 
-            ${!isMine && my.id !== pid ? headToHeadVs(my, p, stats) : ''}
+            ${!isMine && my.id !== pid ? headToHeadVs(my, p, allStats) : ''}
 
-            <h3 class="sub-title">Face-à-face</h3>
-            ${opponents.length ? `
-                <ul class="h2h">
-                    ${opponents.map(o => `
-                        <li class="h2h-row">
-                            <span class="h2h-name">${h(playerName(o.oid))}</span>
-                            <span class="h2h-bar" aria-hidden="true">
-                                <span class="bar-w" style="flex:${o.wins}"></span><span class="bar-l" style="flex:${o.losses}"></span>
-                            </span>
-                            <span class="h2h-score"><b>${o.wins}</b> - ${o.losses}</span>
-                        </li>`).join('')}
-                </ul>` : `<p class="muted small">Pas encore de match joué.</p>`}
+            ${mode === 'simple' ? `
+                <h3 class="sub-title">Face-à-face</h3>
+                ${recordList(row.h2h, 'Pas encore de simple joué.')}
+            ` : `
+                <h3 class="sub-title">Avec ${isMine ? 'vos' : 'ses'} partenaires</h3>
+                ${recordList(row.partners, 'Pas encore de double joué.')}
+                <h3 class="sub-title">Contre ${isMine ? 'vos' : 'ses'} adversaires</h3>
+                ${recordList(row.h2h, 'Pas encore de double joué.')}
+            `}
 
-            ${recent.length ? `<h3 class="sub-title">Derniers matchs</h3><div class="matches">${recent.map(m => matchCard(m)).join('')}</div>` : ''}
+            ${recent.length ? `<h3 class="sub-title">Derniers ${mode === 'simple' ? 'simples' : 'doubles'}</h3><div class="matches">${recent.map(m => matchCard(m)).join('')}</div>` : ''}
 
             ${!isMine && !p.uid ? `
                 <div class="card invite-card">
@@ -428,13 +451,22 @@ function viewPlayer(pid, stats, isMine) {
         </section>`;
 }
 
-function headToHeadVs(my, p, stats) {
-    const r = stats.byId[my.id].h2h[p.id] || { wins: 0, losses: 0 };
+function headToHeadVs(my, p, allStats) {
+    const vs = allStats.simple.byId[my.id].h2h[p.id] || { wins: 0, losses: 0 };
+    const dv = allStats.double.byId[my.id].h2h[p.id] || { wins: 0, losses: 0 };
+    const dw = allStats.double.byId[my.id].partners[p.id] || { wins: 0, losses: 0 };
+    const verdict = (r, them) => r.wins + r.losses
+        ? (r.wins > r.losses ? 'Vous menez' : r.wins < r.losses ? `${h(them)} mène` : 'Égalité')
+        : 'Jamais affrontés';
+    const line = (label, r) => r.wins + r.losses
+        ? `<span>${label} <b>${r.wins}-${r.losses}</b></span>` : '';
+    const doubles = [line('En double contre', dv), line('En double ensemble', dw)].filter(Boolean).join('');
     return `
         <div class="vs-card">
-            <p class="eyebrow">Vous contre ${h(p.name)}</p>
-            <p class="vs-score"><span class="${r.wins >= r.losses ? 'lead' : ''}">${r.wins}</span><span class="vs-sep">–</span><span class="${r.losses > r.wins ? 'lead' : ''}">${r.losses}</span></p>
-            <p class="muted small">${r.wins + r.losses ? (r.wins > r.losses ? 'Vous menez' : r.wins < r.losses ? `${h(p.name)} mène` : 'Égalité') : 'Jamais affrontés'}</p>
+            <p class="eyebrow">Vous contre ${h(p.name)} · simple</p>
+            <p class="vs-score"><span class="${vs.wins >= vs.losses ? 'lead' : ''}">${vs.wins}</span><span class="vs-sep">–</span><span class="${vs.losses > vs.wins ? 'lead' : ''}">${vs.losses}</span></p>
+            <p class="muted small">${verdict(vs, p.name)}</p>
+            ${doubles ? `<p class="vs-doubles small">${doubles}</p>` : ''}
         </div>`;
 }
 
@@ -455,41 +487,83 @@ function closeSheet() {
 function openMatchSheet() {
     const players = [...S.data.players].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     const my = me();
-    const opts = sel => players.map(p =>
-        `<option value="${h(p.id)}" ${p.id === sel ? 'selected' : ''}>${h(p.name)}</option>`).join('');
-    const other = players.find(p => p.id !== my.id);
-    if (!other) {
+    const others = players.filter(p => p.id !== my.id);
+    if (!others.length) {
         openSheet(`
             <h2 class="sheet-title">Nouveau match</h2>
             <p class="muted">Ajoutez d’abord un autre joueur à la communauté.</p>
             <button class="btn btn-primary" data-action="add-player">+ Ajouter un joueur</button>`);
         return;
     }
+    // Composition proposée : vous et un partenaire contre les deux suivants.
+    const defaults = { t1a: my.id, t2a: others[0].id, t1b: others[1]?.id, t2b: others[2]?.id };
+    const select = (id, label, extraClass = '') => `
+        <label class="field ${extraClass}"><span class="field-label">${label}</span>
+            <select class="field-input" id="m-${id}" name="${id}">
+                ${players.map(p => `<option value="${h(p.id)}" ${p.id === defaults[id] ? 'selected' : ''}>${h(p.name)}</option>`).join('')}
+            </select>
+        </label>`;
     const setRow = i => `
         <div class="set-row" data-set="${i}">
             <span class="set-label">Set ${i + 1}</span>
-            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}a" aria-label="Set ${i + 1}, joueur 1">
+            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}a" aria-label="Set ${i + 1}, camp 1">
             <span class="dash">–</span>
-            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}b" aria-label="Set ${i + 1}, joueur 2">
+            <input class="score-input" inputmode="numeric" pattern="[0-9]*" maxlength="2" id="s${i}b" aria-label="Set ${i + 1}, camp 2">
         </div>`;
     openSheet(`
         <form data-form="match" class="form">
             <h2 class="sheet-title">Nouveau match</h2>
+            <input type="hidden" id="m-type" name="type" value="simple">
+            <div class="segmented" role="tablist" aria-label="Format du match">
+                <button type="button" role="tab" class="seg" data-action="match-type" data-type="simple">Simple</button>
+                <button type="button" role="tab" class="seg" data-action="match-type" data-type="double">Double</button>
+            </div>
             <label class="field">
                 <span class="field-label">Date</span>
                 <input class="field-input" type="date" id="m-date" name="date" value="${today()}" required>
             </label>
             <div class="versus">
-                <label class="field"><span class="field-label">Joueur 1</span>
-                    <select class="field-input" id="m-p1" name="p1">${opts(my.id)}</select></label>
-                <label class="field"><span class="field-label">Joueur 2</span>
-                    <select class="field-input" id="m-p2" name="p2">${opts(other.id)}</select></label>
+                <div class="team">
+                    <p class="team-label" data-label-simple="Joueur 1" data-label-double="Équipe 1">Joueur 1</p>
+                    ${select('t1a', 'Joueur')}
+                    ${select('t1b', 'Partenaire', 'double-only')}
+                </div>
+                <div class="team">
+                    <p class="team-label" data-label-simple="Joueur 2" data-label-double="Équipe 2">Joueur 2</p>
+                    ${select('t2a', 'Joueur')}
+                    ${select('t2b', 'Partenaire', 'double-only')}
+                </div>
             </div>
             <div class="sets" id="sets">${[0, 1, 2].map(setRow).join('')}</div>
             <p class="muted small">Laissez vide un set non joué. Super tie-break : notez-le comme un set (10-7).</p>
             <p class="form-error" id="m-error" hidden></p>
             <button class="btn btn-primary" type="submit">Enregistrer le match</button>
         </form>`);
+    setMatchType(players.length >= 4 ? prefs.mode : 'simple');
+}
+
+function setMatchType(type) {
+    const form = sheetRoot.querySelector('[data-form="match"]');
+    if (!form) return;
+    form.querySelector('#m-type').value = type;
+    form.querySelectorAll('[data-action="match-type"]').forEach(b => {
+        b.classList.toggle('is-active', b.dataset.type === type);
+        b.setAttribute('aria-selected', b.dataset.type === type);
+    });
+    form.querySelectorAll('.double-only').forEach(el => { el.hidden = type !== 'double'; });
+    form.querySelectorAll('.team-label').forEach(el => {
+        el.textContent = type === 'double' ? el.dataset.labelDouble : el.dataset.labelSimple;
+    });
+    form.querySelectorAll('.team .field:not(.double-only) .field-label').forEach(el => {
+        el.hidden = type !== 'double';
+    });
+    const err = form.querySelector('#m-error');
+    if (type === 'double' && S.data.players.length < 4) {
+        err.textContent = 'Il faut au moins 4 joueurs dans la communauté pour un double.';
+        err.hidden = false;
+    } else {
+        err.hidden = true;
+    }
 }
 
 function openPlayerSheet() {
@@ -569,7 +643,7 @@ function openCommunity(cid) {
         return;
     }
     S.unsub = S.store.watch(cid, data => {
-        S.data = data;
+        S.data = { ...data, matches: data.matches.map(normalizeMatch) };
         if (data.community && data.players.some(p => p.uid === S.uid)) rememberCommunity();
         render();
     });
@@ -587,6 +661,12 @@ async function run(fn) {
 const actions = {
     'tab': el => { S.tab = el.dataset.tab; S.confirm = null; render(); window.scrollTo(0, 0); },
     'new-match': () => openMatchSheet(),
+    'mode': el => {
+        prefs.mode = el.dataset.mode;
+        savePrefs();
+        rerenderKeepingSheet();
+    },
+    'match-type': el => setMatchType(el.dataset.type),
     'add-player': () => openPlayerSheet(),
     'edit-profile': () => openProfileSheet(),
     'player': el => openPlayerDetail(el.dataset.pid),
@@ -671,7 +751,13 @@ document.addEventListener('submit', e => {
     if (kind === 'match') {
         const err = form.querySelector('#m-error');
         const fail = msg => { err.textContent = msg; err.hidden = false; };
-        if (f.p1 === f.p2) return fail('Choisissez deux joueurs différents.');
+        const isDouble = f.type === 'double';
+        const t1 = isDouble ? [f.t1a, f.t1b] : [f.t1a];
+        const t2 = isDouble ? [f.t2a, f.t2b] : [f.t2a];
+        const everyone = [...t1, ...t2];
+        if (new Set(everyone).size !== everyone.length) {
+            return fail(isDouble ? 'Choisissez quatre joueurs différents.' : 'Choisissez deux joueurs différents.');
+        }
         const sets = [];
         for (let i = 0; i < 3; i++) {
             const a = form.querySelector(`#s${i}a`).value.trim();
@@ -686,15 +772,16 @@ document.addEventListener('submit', e => {
         if (!sets.length) return fail('Indiquez au moins un set.');
         const won = setsWon(sets);
         if (won.a === won.b) return fail('Aucun vainqueur : vérifiez les sets.');
+        const winnerSide = won.a > won.b ? 1 : 2;
         return run(async () => {
-            await S.store.addMatch(S.cid, {
-                date: f.date, p1: f.p1, p2: f.p2, sets,
-                winner: won.a > won.b ? f.p1 : f.p2,
-            });
+            await S.store.addMatch(S.cid, { type: f.type, date: f.date, t1, t2, sets, winnerSide });
+            prefs.mode = f.type;
+            savePrefs();
             closeSheet();
             S.tab = 'matchs';
             render();
-            toast(`Victoire de ${playerName(won.a > won.b ? f.p1 : f.p2)} enregistrée`);
+            const names = (winnerSide === 1 ? t1 : t2).map(playerName).join(' et ');
+            toast(`Victoire de ${names} enregistrée`);
         });
     }
 });
@@ -726,6 +813,9 @@ async function seedDemo() {
     }
     const games = [
         ['2026-08-30', 'me', 'karim', [[6, 4], [3, 6], [10, 7]]],
+        ['2026-08-31', 'me+lea', 'karim+julien', [[6, 3], [6, 4]]],
+        ['2026-09-14', 'me+sofia', 'lea+karim', [[4, 6], [6, 7]]],
+        ['2026-09-28', 'me+lea', 'julien+sofia', [[7, 5], [4, 6], [10, 6]]],
         ['2026-09-06', 'lea', 'me', [[6, 2], [6, 3]]],
         ['2026-09-06', 'julien', 'sofia', [[4, 6], [6, 4], [6, 2]]],
         ['2026-09-13', 'me', 'julien', [[6, 3], [7, 5]]],
@@ -736,7 +826,11 @@ async function seedDemo() {
     for (const [date, a, b, sets] of games) {
         const s = sets.map(([x, y]) => ({ a: x, b: y }));
         const w = setsWon(s);
-        await S.store.addMatch(cid, { date, p1: ids[a], p2: ids[b], sets: s, winner: w.a > w.b ? ids[a] : ids[b] });
+        const t1 = a.split('+').map(k => ids[k]);
+        const t2 = b.split('+').map(k => ids[k]);
+        await S.store.addMatch(cid, {
+            type: t1.length > 1 ? 'double' : 'simple', date, t1, t2, sets: s, winnerSide: w.a > w.b ? 1 : 2,
+        });
     }
     openCommunity(cid);
 }

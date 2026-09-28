@@ -682,3 +682,62 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Simple / Double ---------- */
+
+.segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+}
+.seg {
+    min-height: 38px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--muted);
+}
+.seg.is-active { background: var(--court); color: var(--court-ink); }
+
+.team { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.team-label {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    text-transform: uppercase;
+}
+
+.scoreboard { position: relative; }
+.sb-type {
+    display: block;
+    padding: 2px 10px 4px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ball);
+}
+.scoreboard.is-double .sb-name { white-space: normal; font-size: 18px; line-height: 1.1; }
+.sb-amp { opacity: .55; }
+
+.vs-doubles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 16px;
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, .15);
+}
+.vs-doubles b { color: var(--ball); }

@@ -2,9 +2,10 @@
 
 Application pour téléphone qui sert à noter les matchs de tennis entre amis :
 
-- **Classement de la communauté** en points Elo (tout le monde démarre à 1500 ; battre un joueur mieux classé rapporte plus).
+- **Simples et doubles**, chacun avec son propre classement.
+- **Classement de la communauté** en points Elo (tout le monde démarre à 1500 ; battre un joueur mieux classé rapporte plus). En double, la force d’une équipe est la moyenne de ses deux joueurs.
 - **Bilan personnel** : victoires, défaites, pourcentage et forme sur les 5 derniers matchs.
-- **Face-à-face** : votre bilan contre chaque ami.
+- **Face-à-face** : en simple, votre bilan contre chaque ami ; en double, votre bilan avec chaque partenaire et contre chaque adversaire.
 - **Profils** avec le classement FFT de chacun (NC, 40, 30/5 … 15/1, 5/6 … -30).
 - **Invitations par lien** : ajoutez vos amis d’abord, notez vos matchs, puis envoyez-leur leur lien. En l’ouvrant, ils retrouvent leur profil et leur historique.
 
@@ -56,7 +57,7 @@ Puis ouvrez http://localhost:8000. Sans configuration Firebase, l’application 
 
 1. Créez votre communauté avec votre prénom et votre classement.
 2. **Classement → + Ajouter un joueur** pour chaque ami.
-3. **+ Match** après chaque partie : date, deux joueurs et le score de chaque set. Un super tie-break se note comme un set (10-7).
+3. **+ Match** après chaque partie : choisissez Simple ou Double, la date, les joueurs (deux équipes de deux en double) et le score de chaque set. Un super tie-break se note comme un set (10-7).
 4. Touchez un joueur puis **Envoyer son invitation** : il reçoit un lien personnel qui l’attache directement à son profil. Le bouton **Inviter** en haut envoie un lien général : la personne choisit alors son profil ou en crée un.
 
 Si un ami change de téléphone, le créateur de la communauté peut ouvrir son profil et le **détacher**, puis lui renvoyer son invitation.

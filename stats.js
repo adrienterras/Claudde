@@ -1,4 +1,5 @@
 // Calculs dérivés des matchs : points Elo, victoires/défaites, face-à-face.
+// Simples et doubles ont chacun leur propre classement.
 
 export const RANKINGS = [
     'NC', '40', '30/5', '30/4', '30/3', '30/2', '30/1', '30',
@@ -6,6 +7,8 @@ export const RANKINGS = [
     '5/6', '4/6', '3/6', '2/6', '1/6', '0',
     '-2/6', '-4/6', '-15', '-30', 'Top 100', 'Top 60', 'Top 40',
 ];
+
+export const MODES = ['simple', 'double'];
 
 const START = 1500;
 const K = 32;
@@ -19,34 +22,69 @@ export function setsWon(sets) {
     return { a, b };
 }
 
+// Un match se lit toujours comme deux équipes : t1 et t2 (1 joueur en
+// simple, 2 en double), et le camp vainqueur (1 ou 2). Les premiers matchs
+// enregistrés utilisaient p1/p2/winner : on les convertit à la volée.
+export function normalizeMatch(m) {
+    if (Array.isArray(m.t1)) return { ...m, type: m.type || (m.t1.length > 1 ? 'double' : 'simple') };
+    return {
+        ...m,
+        type: 'simple',
+        t1: [m.p1],
+        t2: [m.p2],
+        winnerSide: m.winner === m.p1 ? 1 : 2,
+    };
+}
+
+export function involves(m, pid) {
+    return m.t1.includes(pid) || m.t2.includes(pid);
+}
+
+export function sortRecentFirst(matches) {
+    return [...matches].sort((x, y) =>
+        (y.date || '').localeCompare(x.date || '') || (y.createdAt || 0) - (x.createdAt || 0));
+}
+
 function chronological(matches) {
     return [...matches].sort((x, y) =>
         (x.date || '').localeCompare(y.date || '') || (x.createdAt || 0) - (y.createdAt || 0));
 }
 
-export function computeStats(players, matches) {
+function record(map, id) {
+    return (map[id] ||= { wins: 0, losses: 0 });
+}
+
+function computeMode(players, matches, mode) {
     const ids = new Set(players.map(p => p.id));
     const by = {};
     for (const p of players) {
-        by[p.id] = { elo: START, wins: 0, losses: 0, played: 0, form: [], h2h: {} };
+        // h2h : bilan contre chaque adversaire ; partners : bilan avec chaque partenaire (double).
+        by[p.id] = { elo: START, wins: 0, losses: 0, played: 0, form: [], h2h: {}, partners: {} };
     }
 
     for (const m of chronological(matches)) {
-        if (!ids.has(m.p1) || !ids.has(m.p2) || !m.winner) continue;
-        const loserId = m.winner === m.p1 ? m.p2 : m.p1;
-        const w = by[m.winner], l = by[loserId];
+        if (m.type !== mode) continue;
+        if (![...m.t1, ...m.t2].every(id => ids.has(id))) continue;
+        const winners = m.winnerSide === 1 ? m.t1 : m.t2;
+        const losers = m.winnerSide === 1 ? m.t2 : m.t1;
 
-        const expected = 1 / (1 + Math.pow(10, (l.elo - w.elo) / 400));
+        // En double, la force d'une équipe est la moyenne de ses deux joueurs.
+        const avg = team => team.reduce((s, id) => s + by[id].elo, 0) / team.length;
+        const expected = 1 / (1 + Math.pow(10, (avg(losers) - avg(winners)) / 400));
         const delta = K * (1 - expected);
-        w.elo += delta;
-        l.elo -= delta;
 
-        w.wins++; l.losses++;
-        w.played++; l.played++;
-        w.form.push('V'); l.form.push('D');
-
-        (w.h2h[loserId] ||= { wins: 0, losses: 0 }).wins++;
-        (l.h2h[m.winner] ||= { wins: 0, losses: 0 }).losses++;
+        for (const id of winners) {
+            const r = by[id];
+            r.elo += delta; r.wins++; r.played++; r.form.push('V');
+            for (const o of losers) record(r.h2h, o).wins++;
+            for (const mate of winners) if (mate !== id) record(r.partners, mate).wins++;
+        }
+        for (const id of losers) {
+            const r = by[id];
+            r.elo -= delta; r.losses++; r.played++; r.form.push('D');
+            for (const o of winners) record(r.h2h, o).losses++;
+            for (const mate of losers) if (mate !== id) record(r.partners, mate).losses++;
+        }
     }
 
     const table = players.map(p => ({
@@ -66,4 +104,11 @@ export function computeStats(players, matches) {
     table.forEach((row, i) => { row.rank = row.played ? i + 1 : null; });
 
     return { table, byId: Object.fromEntries(table.map(r => [r.player.id, r])) };
+}
+
+export function computeStats(players, matches) {
+    return {
+        simple: computeMode(players, matches, 'simple'),
+        double: computeMode(players, matches, 'double'),
+    };
 }
