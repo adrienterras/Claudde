@@ -10,11 +10,12 @@
 
   const DPI = 150;
   const PX = DPI / 25.4; // pixels par millimètre
-  const C = { ink: '#1c1a21', muted: '#6d6873', line: '#e2dfd9', accent: '#2f49d1', cut: '#e5007d', soft: '#f3f2ee' };
+  // Charte Atelier Gribouille ; le trait de coupe reste magenta, pour être visible sur tous les dessins.
+  const C = { ink: '#3b3a2a', muted: '#847e6e', line: '#e3d9ca', accent: '#c26f56', olive: '#6b6f4e', cut: '#e5007d', soft: '#f1ebe1', craie: '#f8f5ef' };
   const F = {
-    display: '"Young Serif", Georgia, "Times New Roman", serif',
-    body: 'Figtree, "Helvetica Neue", Arial, sans-serif',
-    mono: '"IBM Plex Mono", Menlo, Consolas, monospace',
+    display: '"Playfair Display", Georgia, "Times New Roman", serif',
+    body: 'Montserrat, "Helvetica Neue", Arial, sans-serif',
+    mono: 'Montserrat, "Helvetica Neue", Arial, sans-serif',
   };
   const A4 = [210, 297], A3 = [297, 420];
   const MARGIN = 12;
@@ -58,9 +59,40 @@
     return y;
   }
 
+  // Texte en capitales espacées, centré (style des étiquettes de la charte).
+  function spaced(ctx, s, cx, y, size, spacing, font, color) {
+    ctx.font = `${size}px ${font}`;
+    const widths = [...s].map((ch) => ctx.measureText(ch).width);
+    const total = widths.reduce((a, b) => a + b, 0) + spacing * (s.length - 1);
+    let x = cx - total / 2;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    [...s].forEach((ch, i) => { ctx.fillText(ch, x, y); x += widths[i] + spacing; });
+  }
+
+  function tinted(img, color) {
+    const c = Extract.makeCanvas(img.width, img.height);
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = color;
+    x.fillRect(0, 0, c.width, c.height);
+    return c;
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => resolve(null);
+      i.src = src;
+    });
+  }
+
   function chrome(pg, section, n, total) {
     const { ctx, w, h } = pg;
-    text(ctx, 'ATELIER GRIBOUILLE · GUIDE DE CRÉATION', MARGIN, 9, 2.4, { font: F.mono, color: C.muted });
+    if (chrome.logo) ctx.drawImage(chrome.logo, MARGIN, 4.6, 7, (7 * chrome.logo.height) / chrome.logo.width);
+    text(ctx, 'ATELIER GRIBOUILLE · GUIDE DE CRÉATION', MARGIN + 9, 9, 2.2, { font: F.body, color: C.muted });
     text(ctx, section.toUpperCase(), w - MARGIN, 9, 2.4, { font: F.mono, color: C.muted, align: 'right' });
     ctx.strokeStyle = C.line;
     ctx.lineWidth = 0.25;
@@ -186,7 +218,12 @@
    */
   async function build(comp, opts) {
     const { jsPDF } = window.jspdf;
-    if (document.fonts && document.fonts.ready) await document.fonts.ready.catch(() => {});
+    if (document.fonts && document.fonts.load) {
+      await Promise.all(['400 10px "Playfair Display"', 'italic 400 10px "Playfair Display"', '400 10px Montserrat', '600 10px Montserrat']
+        .map((f) => document.fonts.load(f).catch(() => {})));
+    }
+    const logo = await loadImage('assets/logo-mark.png');
+    chrome.logo = logo ? tinted(logo, C.muted) : null;
     const texOwner = new Map();
     opts.drawings.forEach((d) => { if (d.analysis.texture) texOwner.set(d.analysis.texture.canvas, d); });
     const ownerOf = (L) => (L.kind === 'piece' ? L.piece.drawing : texOwner.get(L.src));
@@ -302,23 +339,35 @@
     {
       const pg = newPage(...A4);
       const { ctx } = pg;
-      text(ctx, 'ATELIER GRIBOUILLE', MARGIN, 24, 3, { font: F.mono, color: C.muted });
-      text(ctx, 'Guide de création', MARGIN, 38, 11, { font: F.display });
-      if (opts.title) text(ctx, `« ${opts.title} »`, MARGIN, 49, 6, { font: F.display, color: C.accent });
-      const iw = A4[0] - 2 * MARGIN, ih = iw * comp.H / comp.W;
+      const mid = A4[0] / 2;
+      ctx.fillStyle = C.craie;
+      ctx.fillRect(0, 0, A4[0], A4[1]);
+      // logo complet de la charte
+      if (logo) {
+        const lw = 30, lh = (lw * logo.height) / logo.width;
+        ctx.drawImage(tinted(logo, C.ink), mid - lw / 2, 15, lw, lh);
+      }
+      spaced(ctx, 'ATELIER', mid, 48, 3.4, 2.2, F.body, C.ink);
+      text(ctx, 'Gribouille', mid, 61, 14, { font: F.display, align: 'center' });
+      spaced(ctx, 'LES DESSINS D’ENFANTS DEVIENNENT DES ŒUVRES D’ART', mid, 68, 2.1, 0.9, F.body, C.ink);
+      ctx.fillStyle = C.ink;
+      ctx.fillRect(mid - 6, 73, 12, 0.25);
+      text(ctx, 'Guide de création', mid, 84, 8, { font: F.display, weight: 'italic', align: 'center' });
+      if (opts.title) text(ctx, `« ${opts.title} »`, mid, 92, 4.6, { font: F.display, weight: 'italic', align: 'center', color: C.accent });
+      const iw = Math.min(128, (88 * comp.W) / comp.H), ih = iw * comp.H / comp.W;
       ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.2;
-      ctx.drawImage(baseThumb, MARGIN, 56, iw, ih);
+      ctx.shadowColor = 'rgba(59,58,42,0.3)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1.2;
+      ctx.drawImage(baseThumb, mid - iw / 2, 98, iw, ih);
       ctx.restore();
-      let yy = 56 + ih + 10;
+      let yy = 98 + ih + 10;
       const nPieces = comp.items.length, nPanels = panels.length;
       const facts = [
         `${opts.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
         `${opts.drawings.length} dessins · échelle ${Math.round(k * 100)} % · ${nPanels} pages de fond · ${nPieces} découpes${scraps.length ? ` · ${scraps.length} lambeaux` : ''}`,
         `${sheets.length} planches à imprimer · ${steps.length} étapes de collage`,
       ];
-      facts.forEach((f) => { text(ctx, f, MARGIN, yy, 3.4, { font: F.mono, color: C.ink }); yy += 5.5; });
-      yy += 5;
+      facts.forEach((f) => { text(ctx, f, mid, yy, 3.1, { font: F.body, color: C.ink, align: 'center' }); yy += 5; });
+      yy += 6;
       const colW = (A4[0] - 2 * MARGIN - 10) / 2;
       text(ctx, 'Matériel', MARGIN, yy, 5, { font: F.display });
       text(ctx, 'Mode d’emploi', MARGIN + colW + 10, yy, 5, { font: F.display });
@@ -330,16 +379,16 @@
         'Colle vinylique ou vernis-colle (type Mod Podge), pinceau plat',
         'Crayon à papier, règle d’un mètre, gomme',
         'Vernis mat pour protéger l’œuvre (facultatif)',
-      ].forEach((m) => { y1 = wrap(ctx, '·  ' + m, MARGIN, y1, colW, 3.3, 4.6); y1 += 1; });
+      ].forEach((m) => { y1 = wrap(ctx, '·  ' + m, MARGIN, y1, colW, 3, 4.2); y1 += 0.8; });
       [
         '1. Imprimez les planches à 100 % et vérifiez la règle de 10 cm.',
         '2. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile.',
         `3. Découpez chaque élément en suivant le trait magenta ; gardez-le avec son numéro.`,
         '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier.',
         '5. Laissez sécher sous un poids, puis passez une couche de vernis.',
-      ].forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3.3, 4.6); y2 += 1; });
-      let y3 = Math.max(y1, y2) + 6;
-      y3 = wrap(ctx, `Les planches reproduisent chaque dessin à l’échelle de l’œuvre (${Math.round(k * 100)} %), ce qui permet aussi de réutiliser un même dessin plusieurs fois. Pour coller les dessins originaux eux-mêmes, réglez l’échelle à 100 % avant de créer le guide : les planches servent alors de gabarits à poser sur les originaux.`, MARGIN, y3, A4[0] - 2 * MARGIN, 3.1, 4.4, { color: C.muted });
+      ].forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
+      let y3 = Math.max(y1, y2) + 4;
+      y3 = wrap(ctx, `Les planches reproduisent chaque dessin à l’échelle de l’œuvre (${Math.round(k * 100)} %), ce qui permet aussi de réutiliser un même dessin plusieurs fois. Pour coller les dessins originaux eux-mêmes, réglez l’échelle à 100 % avant de créer le guide : les planches servent alors de gabarits à poser sur les originaux.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
       pages.push({ pg, section: 'Couverture' });
     }
 
@@ -368,7 +417,7 @@
       steps.forEach((st) => {
         if (st.kind === 'scraps') return;
         const L = st.layer;
-        badge(ctx, st.n, left + L.x * sc, top + L.y * sc, 2.1, st.kind === 'panel' ? '#1f7a6e' : C.accent);
+        badge(ctx, st.n, left + L.x * sc, top + L.y * sc, 2.1, st.kind === 'panel' ? C.olive : C.accent);
       });
       text(ctx, '● pages de fond   ● découpes', MARGIN, h - 7, 2.6, { font: F.mono, color: C.muted });
       pages.push({ pg, section: 'Plan de pose' });
@@ -408,7 +457,7 @@
         ctx.drawImage(map, dx, y0 + 4, dw, mh);
         ctx.strokeStyle = C.line; ctx.strokeRect(dx, y0 + 4, dw, mh);
         let ty = y0 + 4 + mh + 6;
-        badge(ctx, st.n, x0 + 7.5, ty - 1.2, 3, st.kind === 'piece' ? C.accent : '#1f7a6e');
+        badge(ctx, st.n, x0 + 7.5, ty - 1.2, 3, st.kind === 'piece' ? C.accent : C.olive);
         if (st.kind === 'scraps') {
           text(ctx, 'Lambeaux de fond', x0 + 13, ty, 3.8, { weight: '600' });
           const srcs = [...new Set(st.layers.map((L) => ownerOf(L)).filter(Boolean))].map((d) => opts.numberOf(d));

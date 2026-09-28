@@ -61,5 +61,8 @@ cd collage && python3 -m http.server 8000
 - `js/app.js` : interface, édition interactive, export haute résolution.
 - `js/editor.js` : éditeur de découpe (masque en pixels de la page, historique, zoom tactile).
 - `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
+- `assets/` : éléments de la charte Atelier Gribouille (monogramme détouré, motif de crayons, pictogrammes).
+  Palette : craie #F8F5EF, lin #DCCBB8, blush #D9A7A0, argile #C26F56, olive #6B6F4E ; typographies
+  Playfair Display et Montserrat.
 - `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (Apache 2.0) pour lire les PDF,
   [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide.

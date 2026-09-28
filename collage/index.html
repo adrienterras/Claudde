@@ -6,16 +6,12 @@
   <title>Atelier Gribouille</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
-      <linearGradient id="crayons" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0" stop-color="#E4572E"/><stop offset=".3" stop-color="#F2C14E"/>
-        <stop offset=".62" stop-color="#29A19C"/><stop offset="1" stop-color="#2F49D1"/>
-      </linearGradient>
       <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
       <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8zM18.5 16l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
       <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14"/></symbol>
@@ -36,15 +32,17 @@
     </defs>
   </svg>
 
+  <div class="mobile-brand" aria-hidden="true">
+    <span class="brand-mark"></span>
+    <span class="mobile-brand-name"><small>Atelier</small> Gribouille</span>
+  </div>
+
   <aside class="panel">
     <header class="brand">
+      <span class="brand-mark" role="img" aria-label="Monogramme Atelier Gribouille"></span>
       <p class="brand-kicker">Atelier</p>
-      <h1 class="brand-name">Gribouille
-        <svg class="scribble" viewBox="0 0 220 22" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M3 14c18-9 34-9 46 1 9 7 19 6 28-2 12-11 27-10 36 1 8 9 20 8 30-1 13-11 30-10 40 0 9 8 20 8 33-3"/>
-        </svg>
-      </h1>
-      <p class="brand-tag">Les dessins de vos enfants, composés en une œuvre à accrocher.</p>
+      <h1 class="brand-name">Gribouille</h1>
+      <p class="brand-tag">Les dessins d’enfants<br>deviennent des œuvres d’art</p>
     </header>
 
     <section class="step">
@@ -133,6 +131,11 @@
         <p id="guide-info" class="hint mono-note"></p>
       </div>
     </section>
+
+    <footer class="brand-foot">
+      <img src="assets/motif-crayons.png" alt="">
+      <p class="brand-values">Créativité · Tendresse · Savoir-faire<br>Émotion · Art de la famille</p>
+    </footer>
   </aside>
 
   <main class="stage">
@@ -156,7 +159,11 @@
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <div id="empty" class="empty">
       <div>
-        <p class="empty-title">Chaque gribouille mérite un mur.</p>
+        <div class="empty-pictos" aria-hidden="true">
+          <img src="assets/picto-coeur.png" alt=""><img src="assets/picto-etoile.png" alt=""><img src="assets/picto-arc-en-ciel.png" alt=""><img src="assets/picto-maison.png" alt=""><img src="assets/picto-feuille.png" alt="">
+        </div>
+        <p class="empty-title">Les grands souvenirs commencent par un gribouillage.</p>
+        <span class="empty-rule"></span>
         <p class="hint">Importez les dessins scannés : l’atelier les découpe, les met à la même échelle et compose trois œuvres.</p>
       </div>
     </div>
