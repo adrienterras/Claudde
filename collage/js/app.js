@@ -21,6 +21,7 @@
     seed: 1,
     selected: null,
     bgCache: null,
+    zoom: { z: 1, px: 0, py: 0 }, // zoom de la vue sur l'œuvre
     seq: 0,
   };
 
@@ -525,6 +526,7 @@
 
   function selectProposal(i) {
     state.active = i;
+    state.zoom = { z: 1, px: 0, py: 0 };
     state.comp = state.proposals[i].comp;
     state.selected = null;
     state.bgCache = null;
@@ -566,17 +568,26 @@
     const comp = state.comp;
     updateToolbar();
     if (!comp) return;
-    const pad = 36 * dpr;
-    const s = Math.min((cw - 2 * pad) / comp.W, (ch - 2 * pad) / comp.H);
-    const ox = (cw - comp.W * s) / 2, oy = (ch - comp.H * s) / 2;
-    view = { s, ox, oy, dpr };
+    const pad = (document.body.classList.contains('stage-full') ? 12 : 36) * dpr;
+    const fitS = Math.min((cw - 2 * pad) / comp.W, (ch - 2 * pad) / comp.H);
+    const Z = state.zoom;
+    const s = fitS * Z.z;
+    // on garde toujours un morceau de l'œuvre à l'écran
+    const mx = Math.max(0, (comp.W * s - cw) / 2 + cw * 0.4), my = Math.max(0, (comp.H * s - ch) / 2 + ch * 0.4);
+    Z.px = Math.max(-mx, Math.min(mx, Z.px));
+    Z.py = Math.max(-my, Math.min(my, Z.py));
+    const ox = (cw - comp.W * s) / 2 + Z.px, oy = (ch - comp.H * s) / 2 + Z.py;
+    view = { s, ox, oy, dpr, fitS };
     const shadows = $('shadows').checked;
+    $('zoom-val').textContent = `${Math.round(Z.z * 100)} %`;
 
-    // fond mis en cache : il ne change pas pendant qu'on déplace les découpes
-    if (!state.bgCache || state.bgCache.s !== s || state.bgCache.shadows !== shadows) {
-      const c = Extract.makeCanvas(comp.W * s, comp.H * s);
-      Compose.renderBg(c.getContext('2d'), comp, s, shadows);
-      state.bgCache = { canvas: c, s, shadows };
+    // fond mis en cache (il ne change pas pendant qu'on déplace les découpes),
+    // à une résolution plafonnée pour rester léger quand on zoome fort
+    const bs = Math.min(s, 4096 / comp.W, Math.sqrt(16e6 / (comp.W * comp.H)));
+    if (!state.bgCache || Math.abs(state.bgCache.s - bs) > 1e-6 || state.bgCache.shadows !== shadows) {
+      const c = Extract.makeCanvas(comp.W * bs, comp.H * bs);
+      Compose.renderBg(c.getContext('2d'), comp, bs, shadows);
+      state.bgCache = { canvas: c, s: bs, shadows };
     }
 
     // la toile accrochée au mur
@@ -592,7 +603,7 @@
     ctx.beginPath();
     ctx.rect(ox, oy, comp.W * s, comp.H * s);
     ctx.clip();
-    ctx.drawImage(state.bgCache.canvas, ox, oy);
+    ctx.drawImage(state.bgCache.canvas, ox, oy, comp.W * s, comp.H * s);
     ctx.translate(ox, oy);
     Compose.renderItems(ctx, comp, s, shadows);
     Compose.renderFinish(ctx, comp, s);
@@ -635,35 +646,101 @@
   }
 
   let drag = null;
+  const touches = new Map(); // doigts / pointeurs posés sur la toile
+  let pinch = null;
+  let selectionBefore = null;
+
+  // ---------- Zoom sur l'œuvre ----------
+
+  function zoomAt(f, px, py) {
+    const Z = state.zoom;
+    const nz = Math.max(1, Math.min(8, Z.z * f));
+    const k = nz / Z.z;
+    // le point sous les doigts reste sous les doigts
+    const r = canvas.getBoundingClientRect();
+    const cx = (r.width * view.dpr) / 2, cy = (r.height * view.dpr) / 2;
+    Z.px = px - cx - (px - cx - Z.px) * k;
+    Z.py = py - cy - (py - cy - Z.py) * k;
+    Z.z = nz;
+    if (nz === 1) { Z.px = 0; Z.py = 0; }
+    render();
+  }
+
+  function resetZoom() {
+    state.zoom = { z: 1, px: 0, py: 0 };
+    render();
+  }
+
+  function devicePoint(e) {
+    const r = canvas.getBoundingClientRect();
+    return { px: (e.clientX - r.left) * view.dpr, py: (e.clientY - r.top) * view.dpr };
+  }
+
+  function hitAt(p) {
+    const items = state.comp.items;
+    for (let i = items.length - 1; i >= 0; i--) if (Compose.hitItem(items[i], p.X, p.Y)) return items[i];
+    return null;
+  }
 
   canvas.addEventListener('pointerdown', (e) => {
     if (!state.comp) return;
+    canvas.setPointerCapture(e.pointerId);
+    touches.set(e.pointerId, devicePoint(e));
+    if (touches.size === 1) selectionBefore = state.selected;
+    if (touches.size === 2) {
+      state.selected = selectionBefore; // un pincement ne sélectionne rien
+      // deuxième doigt : on annule le geste en cours et on passe au zoom
+      if (drag && drag.mode === 'move') { drag.L.x = drag.x0; drag.L.y = drag.y0; }
+      if (drag && drag.mode === 'rotate') drag.L.rot = drag.r0;
+      drag = null;
+      const [a, b] = [...touches.values()];
+      pinch = { d: Math.hypot(a.px - b.px, a.py - b.py), mx: (a.px + b.px) / 2, my: (a.py + b.py) / 2 };
+      render();
+      return;
+    }
+    if (touches.size > 2) return;
     const p = toComp(e);
     const L = state.selected;
     if (L) {
       const h = handlePos(L);
-      if (Math.hypot(h.x - p.X, h.y - p.Y) * view.s < 16 * view.dpr) {
+      if (Math.hypot(h.x - p.X, h.y - p.Y) * view.s < 18 * view.dpr) {
         // la poignée tourne la pièce, sans changer sa taille : l'échelle reste juste
         drag = { mode: 'rotate', L, a0: Math.atan2(p.Y - L.y, p.X - L.x), r0: L.rot };
-        canvas.setPointerCapture(e.pointerId);
         return;
       }
     }
-    const items = state.comp.items;
-    let hit = null;
-    for (let i = items.length - 1; i >= 0; i--) {
-      if (Compose.hitItem(items[i], p.X, p.Y)) { hit = items[i]; break; }
-    }
-    state.selected = hit;
+    const hit = hitAt(p);
     if (hit) {
-      drag = { mode: 'move', L: hit, dx: p.X - hit.x, dy: p.Y - hit.y };
-      canvas.setPointerCapture(e.pointerId);
+      state.selected = hit;
+      drag = { mode: 'move', L: hit, dx: p.X - hit.x, dy: p.Y - hit.y, x0: hit.x, y0: hit.y };
+    } else {
+      state.selected = null;
+      // zone vide : on fait glisser la vue quand l'œuvre est zoomée
+      if (state.zoom.z > 1) { const d = devicePoint(e); drag = { mode: 'pan', px: d.px, py: d.py }; canvas.style.cursor = 'grabbing'; }
     }
     render();
   });
 
   canvas.addEventListener('pointermove', (e) => {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, devicePoint(e));
+    if (pinch && touches.size >= 2) {
+      const [a, b] = [...touches.values()];
+      const d = Math.hypot(a.px - b.px, a.py - b.py), mx = (a.px + b.px) / 2, my = (a.py + b.py) / 2;
+      state.zoom.px += mx - pinch.mx;
+      state.zoom.py += my - pinch.my;
+      zoomAt(d / Math.max(1, pinch.d), mx, my);
+      pinch = { d, mx, my };
+      return;
+    }
     if (!drag) return;
+    if (drag.mode === 'pan') {
+      const d = devicePoint(e);
+      state.zoom.px += d.px - drag.px;
+      state.zoom.py += d.py - drag.py;
+      drag.px = d.px; drag.py = d.py;
+      render();
+      return;
+    }
     const p = toComp(e);
     const L = drag.L;
     if (drag.mode === 'move') {
@@ -675,17 +752,49 @@
     render();
   });
 
-  const endDrag = () => { if (drag) refreshActiveThumb(); drag = null; };
+  const endDrag = (e) => {
+    touches.delete(e.pointerId);
+    if (touches.size < 2) pinch = null;
+    if (drag && drag.mode !== 'pan') refreshActiveThumb();
+    if (drag && drag.mode === 'pan') canvas.style.cursor = '';
+    drag = null;
+  };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
   canvas.addEventListener('wheel', (e) => {
-    const L = state.selected;
-    if (!L) return;
+    if (!state.comp) return;
     e.preventDefault();
+    const L = state.selected;
+    // pincement sur pavé tactile (ctrl + molette) ou aucune pièce choisie : zoom sur l'œuvre
+    if (e.ctrlKey || !L) {
+      const d = devicePoint(e);
+      zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), d.px, d.py);
+      return;
+    }
     L.rot += e.deltaY * 0.002;
     render();
   }, { passive: false });
+
+  // double-clic / double-tap : sur une pièce, on la retouche ; ailleurs, on zoome ou on revient
+  canvas.addEventListener('dblclick', (e) => {
+    if (!state.comp) return;
+    const hit = hitAt(toComp(e));
+    if (hit) { state.selected = hit; editPiece(hit.piece); return; }
+    if (state.zoom.z > 1.05) resetZoom();
+    else { const d = devicePoint(e); zoomAt(2.5, d.px, d.py); }
+  });
+
+  $('zoom-in').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };
+  $('zoom-out').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1 / 1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };
+  $('zoom-fit').onclick = resetZoom;
+  $('zoom-full').onclick = () => {
+    const on = document.body.classList.toggle('stage-full');
+    $('zoom-full').setAttribute('aria-pressed', on ? 'true' : 'false');
+    $('zoom-full').title = on ? 'Quitter le plein écran' : 'Plein écran';
+    state.bgCache = null;
+    render();
+  };
 
   // ---------- Retouche d'une découpe ----------
 
@@ -754,13 +863,15 @@
 
   document.querySelectorAll('#toolbar button').forEach((b) => (b.onclick = () => act(b.dataset.act)));
 
-  canvas.addEventListener('dblclick', () => { if (state.selected) editPiece(state.selected.piece); });
-
   window.addEventListener('keydown', (e) => {
     if (window.Editor && Editor.isOpen()) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     if (e.key === 'Delete' || e.key === 'Backspace') act('del');
-    if (e.key === 'Escape') { state.selected = null; render(); }
+    if (e.key === 'Escape') {
+      if (document.body.classList.contains('stage-full')) $('zoom-full').click();
+      state.selected = null;
+      render();
+    }
   });
 
   window.addEventListener('resize', render);

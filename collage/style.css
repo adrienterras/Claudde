@@ -316,6 +316,31 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .toolbar button:disabled { opacity: .35; cursor: default; }
 .stage-tip { position: absolute; top: 66px; left: 0; right: 0; margin: 0; text-align: center; font-size: 0.74rem; color: var(--muted); pointer-events: none; z-index: 1; }
 
+/* Zoom sur l'œuvre */
+.zoom {
+  position: absolute; right: 14px; bottom: 14px; z-index: 3;
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  border-radius: 999px; background: var(--glass); border: 1px solid var(--line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px -18px rgba(0, 0, 0, .5);
+}
+.zoom button {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border: 0; border-radius: 999px; background: none; font-size: 1.05rem; cursor: pointer;
+}
+.zoom button:hover { background: var(--accent-soft); }
+.zoom button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.zoom-val { min-width: 48px; text-align: center; font-family: var(--f-mono); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+body.stage-full .stage { position: fixed; inset: 0; z-index: 40; height: auto; }
+body.stage-full .stage { padding-top: env(safe-area-inset-top, 0px); }
+body.stage-full .toolbar { top: calc(10px + env(safe-area-inset-top, 0px)); }
+body.stage-full .stage canvas {
+  inset: calc(60px + env(safe-area-inset-top, 0px)) 0 auto 0;
+  height: calc(100% - 60px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+body.stage-full .label, body.stage-full .stage-tip { display: none; }
+body.stage-full { overflow: hidden; }
+
 /* Cartel de musée */
 .label {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
@@ -418,5 +443,8 @@ body.editing { overflow: hidden; }
   .stage-tip { display: none; }
   .toolbar { top: 10px; }
   .toolbar button span { display: none; }
+  .zoom { right: 10px; bottom: auto; top: 62px; flex-direction: column; }
+  .zoom-val { min-width: 0; font-size: 0.64rem; }
+  .label { bottom: 10px; max-width: calc(100% - 20px); }
   .brand-name { font-size: 2.2rem; }
 }
