@@ -18,8 +18,8 @@ C’est une application web installable (PWA) : elle s’ouvre dans le navigateu
 | `index.html`, `style.css` | Page et apparence |
 | `app.js` | Écrans et actions |
 | `stats.js` | Calcul du classement Elo, des bilans et des face-à-face |
-| `store.js` | Enregistrement des données (mode démo ou Firebase) |
-| `firebase-config.js` | Clés de votre projet Firebase (vide = mode démo) |
+| `store.js` | Enregistrement des données en ligne (Firebase) |
+| `firebase-config.js` | Clés de votre projet Firebase |
 | `firestore.rules` | Règles de sécurité de la base de données |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Installation sur le téléphone et fonctionnement hors ligne |
 | `horloge/` | L’ancienne horloge digitale |
@@ -30,7 +30,7 @@ C’est une application web installable (PWA) : elle s’ouvre dans le navigateu
 python3 -m http.server 8000
 ```
 
-Puis ouvrez http://localhost:8000. Sans configuration Firebase, l’application est en **mode démo** : les données restent dans le navigateur. Le bouton « Essayer avec des données d’exemple » remplit une communauté fictive.
+Puis ouvrez http://localhost:8000. Toutes les données sont enregistrées dans Firebase : l’application a donc besoin de `firebase-config.js` rempli pour fonctionner.
 
 ## Mettre en ligne (pour jouer avec vos amis)
 

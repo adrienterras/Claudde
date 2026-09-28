@@ -1,12 +1,9 @@
 // Configuration Firebase.
 //
-// Laissez `null` pour utiliser le mode démo : les données restent alors
-// uniquement sur ce téléphone et les liens d'invitation ne marchent pas
-// pour vos amis.
-//
-// Pour partager la communauté, collez ici la configuration de votre projet
-// Firebase (voir README.md, section « Mettre en ligne »). Ces valeurs ne sont
-// pas secrètes : la sécurité est assurée par firestore.rules.
+// Collez ici la configuration de votre projet Firebase (voir README.md,
+// section « Mettre en ligne »). Tant qu'elle vaut `null`, l'application
+// affiche un message d'attente. Ces valeurs ne sont pas secrètes : la
+// sécurité est assurée par firestore.rules.
 export const firebaseConfig = null;
 
 // Exemple :

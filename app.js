@@ -1,4 +1,4 @@
-import { createStore } from './store.js';
+import { createStore, MissingConfigError } from './store.js';
 import { computeStats, setsWon, normalizeMatch, involves, sortRecentFirst, RANKINGS } from './stats.js';
 
 // ---------- Préférences locales (communautés rejointes sur ce téléphone) ----------
@@ -105,9 +105,6 @@ async function shareInvite(pid, name) {
         input.focus();
         input.select();
     }
-    if (S.store.mode === 'demo') {
-        toast('Mode démo : le lien ne fonctionne que sur ce téléphone');
-    }
 }
 
 function me() {
@@ -136,7 +133,6 @@ function render() {
 }
 
 function renderWelcome() {
-    const demo = S.store.mode === 'demo';
     app.innerHTML = `
         <main class="welcome">
             <div class="court-mark" aria-hidden="true">
@@ -173,11 +169,6 @@ function renderWelcome() {
                     </div>
                 </section>` : ''}
 
-            ${demo ? `
-                <p class="demo-note">
-                    Mode démo : les données restent sur ce téléphone.
-                    <button class="link" data-action="seed-demo">Essayer avec des données d’exemple</button>
-                </p>` : ''}
             <p class="muted small">Un ami vous a invité ? Ouvrez simplement le lien qu’il vous a envoyé.</p>
         </main>`;
 }
@@ -259,7 +250,6 @@ function renderMain() {
             </button>
             <button class="btn btn-small btn-ghost" data-action="invite">Inviter</button>
         </header>
-        ${S.store.mode === 'demo' ? `<div class="demo-banner">Mode démo · données sur ce téléphone uniquement</div>` : ''}
         <main class="content">${body}</main>
         <button class="fab" data-action="new-match"><span aria-hidden="true">+</span> Match</button>
         <nav class="tabbar">
@@ -693,7 +683,6 @@ const actions = {
         closeSheet();
         toast('Profil détaché : renvoyez-lui son invitation');
     }),
-    'seed-demo': () => run(seedDemo),
 };
 
 function rerenderKeepingSheet() {
@@ -799,42 +788,6 @@ document.addEventListener('input', e => {
     }
 });
 
-// ---------- Données d'exemple (mode démo) ----------
-
-async function seedDemo() {
-    const cid = await S.store.createCommunity('Les amis du dimanche');
-    const ids = {};
-    ids.me = await S.store.addPlayer(cid, { name: 'Alex', ranking: '30/2', uid: S.uid });
-    for (const [key, name, ranking] of [
-        ['lea', 'Léa', '15/4'], ['karim', 'Karim', '30/1'],
-        ['julien', 'Julien', '30/3'], ['sofia', 'Sofia', '15/5'],
-    ]) {
-        ids[key] = await S.store.addPlayer(cid, { name, ranking, uid: null });
-    }
-    const games = [
-        ['2026-08-30', 'me', 'karim', [[6, 4], [3, 6], [10, 7]]],
-        ['2026-08-31', 'me+lea', 'karim+julien', [[6, 3], [6, 4]]],
-        ['2026-09-14', 'me+sofia', 'lea+karim', [[4, 6], [6, 7]]],
-        ['2026-09-28', 'me+lea', 'julien+sofia', [[7, 5], [4, 6], [10, 6]]],
-        ['2026-09-06', 'lea', 'me', [[6, 2], [6, 3]]],
-        ['2026-09-06', 'julien', 'sofia', [[4, 6], [6, 4], [6, 2]]],
-        ['2026-09-13', 'me', 'julien', [[6, 3], [7, 5]]],
-        ['2026-09-20', 'karim', 'sofia', [[6, 1], [6, 4]]],
-        ['2026-09-21', 'me', 'sofia', [[7, 6], [6, 4]]],
-        ['2026-09-27', 'lea', 'karim', [[6, 4], [6, 4]]],
-    ];
-    for (const [date, a, b, sets] of games) {
-        const s = sets.map(([x, y]) => ({ a: x, b: y }));
-        const w = setsWon(s);
-        const t1 = a.split('+').map(k => ids[k]);
-        const t2 = b.split('+').map(k => ids[k]);
-        await S.store.addMatch(cid, {
-            type: t1.length > 1 ? 'double' : 'simple', date, t1, t2, sets: s, winnerSide: w.a > w.b ? 1 : 2,
-        });
-    }
-    openCommunity(cid);
-}
-
 // ---------- Démarrage ----------
 
 async function start() {
@@ -849,8 +802,12 @@ async function start() {
         S.uid = await S.store.init();
     } catch (e) {
         console.error(e);
-        app.innerHTML = `<main class="welcome"><div class="card"><h2 class="card-title">Connexion impossible</h2>
-            <p class="muted">Vérifiez votre connexion internet puis rechargez la page.</p></div></main>`;
+        const title = e instanceof MissingConfigError ? 'Bientôt prêt' : 'Connexion impossible';
+        const text = e instanceof MissingConfigError
+            ? 'La base de données de l’application n’est pas encore branchée. Revenez dans quelques instants.'
+            : 'Vérifiez votre connexion internet puis rechargez la page.';
+        app.innerHTML = `<main class="welcome"><h1 class="brand">Tie-Break</h1><div class="card"><h2 class="card-title">${title}</h2>
+            <p class="muted">${text}</p></div></main>`;
         return;
     }
     openCommunity(invitedCid || prefs.current);
