@@ -187,7 +187,7 @@
         const score = sc.over + sc.out * 1.5 + off + R() * 0.03;
         if (!best || score < best.score) best = { cx, cy, rot, score };
       }
-      panels.push(tile(t, best.cx - w / 2, best.cy - h / 2, w, h, best.rot, R));
+      panels.push(Object.assign(tile(t, best.cx - w / 2, best.cy - h / 2, w, h, best.rot, R), { panel: true }));
       cov.mark(best.cx, best.cy, w, h, best.rot);
     });
 
@@ -203,7 +203,7 @@
       const cx = (i % cov.gw) + 0.5, cy = Math.floor(i / cov.gw) + 0.5;
       const t = pool[Math.floor(R() * pool.length)];
       const fw = 3 + R() * 4.5, fh = fw * (0.55 + R() * 0.6), rot = (R() - 0.5) * 1.2;
-      const L = tile(t, cx - fw / 2, cy - fh / 2, fw, fh, rot, R);
+      const L = Object.assign(tile(t, cx - fw / 2, cy - fh / 2, fw, fh, rot, R), { scrap: true });
       scrapsOut.push(L);
       cov.mark(L.x, L.y, L.w * 1.05, L.h * 1.05, rot);
     });
@@ -375,7 +375,7 @@
       r.forEach((it) => {
         const w = it.w * f, h = it.h * f;
         const cx = x + w / 2, cy = y + heights[ri] - h / 2; // posé sur l'étagère
-        if (it.t) bg.push({ kind: 'bg', src: it.t.canvas, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w, h, rot: 0, flip: false, clip: null });
+        if (it.t) bg.push({ kind: 'bg', panel: true, src: it.t.canvas, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w, h, rot: 0, flip: false, clip: null });
         else { it.p.placed = true; items.push({ kind: 'piece', piece: it.p, x: cx, y: cy, w, h, rot: 0, flip: false }); }
         x += w + hgap;
       });
@@ -386,7 +386,7 @@
 
   function paperLayer(W, H) {
     const c = paperTexture();
-    return { kind: 'bg', src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
+    return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
   // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'cabinet' (rangées alignées).

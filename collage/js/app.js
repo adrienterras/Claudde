@@ -76,8 +76,9 @@
     return pages;
   }
 
-  function thumbOf(canvas, max) {
-    return Extract.scaleTo(canvas, max || 160).toDataURL('image/jpeg', 0.8);
+  // Vignette ; en PNG pour les pièces découpées, qui ont un fond transparent.
+  function thumbOf(canvas, max, png) {
+    return Extract.scaleTo(canvas, max || 160).toDataURL(png ? 'image/png' : 'image/jpeg', 0.8);
   }
 
   async function importFiles(files, sizes) {
@@ -201,7 +202,7 @@
       p.id = ++state.seq;
       p.enabled = true;
       p.drawing = d;
-      p.thumb = thumbOf(p.canvas, 120);
+      p.thumb = thumbOf(p.canvas, 120, true);
     });
   }
 
@@ -740,6 +741,63 @@
     $('export-info').textContent = `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm`;
   }
 
+  // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
+  // en local, par un lien de téléchargement classique.
+  async function saveFile(blob, filename) {
+    const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (downloads) {
+      try {
+        await downloads.save({ filename, data: blob });
+      } catch (err) {
+        if (err && err.code === 'too_large') notice('Fichier trop lourd pour cet appareil : choisissez une qualité plus faible.');
+        else if (!err || err.code !== 'declined') notice('Enregistrement impossible ici. Réessayez dans un instant.');
+      }
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+
+  // Guide de création : planches de découpe à taille réelle et ordre de collage.
+  async function exportGuide() {
+    if (!state.comp) return;
+    if (!window.Guide || !window.jspdf) { notice('Le module de création du guide n’a pas pu se charger. Rechargez la page.'); return; }
+    const btn = $('guide');
+    const label = btn.querySelector('span');
+    btn.disabled = true;
+    state.selected = null;
+    render();
+    try {
+      const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
+      const res = await Guide.build(state.comp, {
+        drawings: state.drawings,
+        numberOf: (d) => state.drawings.indexOf(d) + 1,
+        nameOf: (d) => {
+          const n = state.drawings.indexOf(d) + 1;
+          return d.ai && d.ai.sujet ? d.ai.sujet.charAt(0).toUpperCase() + d.ai.sujet.slice(1) : `Dessin ${n}`;
+        },
+        title: titleFor(st.id),
+        styleName: st.name,
+        scale: state.comp.scale || scale(),
+        onProgress: (t) => { label.textContent = t; },
+      });
+      label.textContent = 'Enregistrement…';
+      await saveFile(res.blob, 'guide-de-creation-atelier-gribouille.pdf');
+      $('guide-info').textContent = `${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} planches à imprimer à 100 %.`;
+    } catch (e) {
+      console.error(e);
+      notice('Le guide n’a pas pu être créé sur cet appareil. Réessayez sur un ordinateur.');
+    } finally {
+      btn.disabled = false;
+      label.textContent = 'Créer le guide de création';
+    }
+  }
+
   async function exportImage() {
     if (!state.comp) return;
     const btn = $('export');
@@ -759,25 +817,7 @@
       const type = $('fmt').value;
       const blob = await new Promise((r) => c.toBlob(r, type, 0.92));
       if (!blob) throw new Error('toBlob');
-      const filename = `oeuvre-collage.${type === 'image/png' ? 'png' : 'jpg'}`;
-      // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur.
-      const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
-      if (downloads) {
-        try {
-          await downloads.save({ filename, data: blob });
-        } catch (err) {
-          if (err && err.code === 'too_large') notice('Fichier trop lourd pour cet appareil : choisissez une qualité plus faible.');
-          else if (!err || err.code !== 'declined') notice('Enregistrement impossible ici. Réessayez dans un instant.');
-        }
-        return;
-      }
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      await saveFile(blob, `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`);
     } catch (e) {
       console.error(e);
       notice('Export impossible à cette taille sur cet appareil. Choisissez une qualité plus faible.');
@@ -816,6 +856,7 @@
   $('shadows').addEventListener('change', render);
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;
+  $('guide').onclick = exportGuide;
 
   // ---------- Direction artistique par Claude ----------
 

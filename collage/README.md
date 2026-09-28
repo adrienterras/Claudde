@@ -34,6 +34,14 @@ cd collage && python3 -m http.server 8000
      *Cabinet de curiosités* (chaque dessin exposé droit, en rangées, sur papier blanc) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
+5. **Guide de création (PDF)** pour réaliser l'œuvre à la main :
+   - couverture (matériel, mode d'emploi), **plan de pose** quadrillé tous les 10 cm avec le numéro
+     de chaque élément ;
+   - **étapes de collage** dans l'ordre (lambeaux de fond, grandes pages, puis découpes) : mini-carte
+     de l'œuvre avec l'élément en couleur, case de la grille, position du centre en cm, rotation ;
+   - **planches de découpe à taille réelle** (A4, ou A3 pour les grands éléments, découpés en parties
+     à assembler si besoin) : chaque élément entouré d'un trait de coupe magenta épais, numéroté,
+     avec une règle de 10 cm pour vérifier l'impression à 100 %.
 
 ## Fonctionnement
 
@@ -43,4 +51,6 @@ cd collage && python3 -m http.server 8000
 - `js/compose.js` : tout est exprimé en centimètres sur la toile ; fond peint procédural, pages collées
   (recadrées, jamais agrandies), placement des découpes par score de composition, rendu et finition.
 - `js/app.js` : interface, édition interactive, export haute résolution.
-- `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (licence Apache 2.0) pour lire les PDF.
+- `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
+- `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (Apache 2.0) pour lire les PDF,
+  [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide.
