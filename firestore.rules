@@ -28,6 +28,9 @@ service cloud.firestore {
           || (resource.data.uid == null && request.resource.data.uid == null)
           || get(/databases/$(database)/documents/communities/$(cid)).data.createdBy == request.auth.uid
         );
+        // Supprimer un joueur : créateur de la communauté uniquement.
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/communities/$(cid)).data.createdBy == request.auth.uid;
       }
 
       match /matches/{mid} {

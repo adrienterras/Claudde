@@ -1,5 +1,5 @@
 // Service worker : l'application s'ouvre même sans réseau.
-const CACHE = 'tiebreak-v3';
+const CACHE = 'tiebreak-v4';
 const SHELL = [
     './', 'index.html', 'style.css', 'app.js', 'store.js', 'stats.js',
     'firebase-config.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',

@@ -723,3 +723,8 @@ button { cursor: pointer; }
     border-top: 1px solid rgba(255, 255, 255, .15);
 }
 .vs-doubles b { color: var(--accent); }
+
+.danger-link { color: #C2413A; align-self: flex-start; }
+.confirm-card { display: flex; flex-direction: column; gap: 8px; }
+.confirm-card p { margin: 0; }
+.confirm-card .confirm-row { justify-content: flex-start; }

@@ -86,6 +86,14 @@ async function createFirebaseStore(config) {
             await fs.updateDoc(fs.doc(players(cid), pid), patch);
         },
 
+        // Supprime le joueur et ses matchs en une seule opération.
+        async deletePlayer(cid, pid, matchIds) {
+            const batch = fs.writeBatch(db);
+            for (const mid of matchIds) batch.delete(fs.doc(matches(cid), mid));
+            batch.delete(fs.doc(players(cid), pid));
+            await batch.commit();
+        },
+
         async addMatch(cid, data) {
             await fs.addDoc(matches(cid), { ...data, createdBy: uid, createdAt: Date.now() });
         },

@@ -60,6 +60,8 @@ Puis ouvrez http://localhost:8000. Toutes les données sont enregistrées dans F
 3. **+ Match** après chaque partie : choisissez Simple ou Double, la date, les joueurs (deux équipes de deux en double) et le score de chaque set. Un super tie-break se note comme un set (10-7).
 4. Touchez un joueur puis **Envoyer son invitation** : il reçoit un lien personnel qui l’attache directement à son profil. Le bouton **Inviter** en haut envoie un lien général : la personne choisit alors son profil ou en crée un.
 
+Le créateur de la communauté peut aussi **supprimer un joueur** depuis sa fiche : ses matchs sont supprimés avec lui et le classement est recalculé.
+
 Si un ami change de téléphone, le créateur de la communauté peut ouvrir son profil et le **détacher**, puis lui renvoyer son invitation.
 
 ## Limites connues

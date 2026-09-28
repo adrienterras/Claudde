@@ -447,7 +447,28 @@ function viewPlayer(pid, allStats, isMine) {
                 </div>` : ''}
             ${!isMine && p.uid && S.data.community.createdBy === S.uid ? `
                 <button class="link small" data-action="release" data-pid="${h(p.id)}">Détacher ce profil de son téléphone (changement d’appareil)</button>` : ''}
+            ${!isMine && S.data.community.createdBy === S.uid ? deletePlayerBlock(p) : ''}
         </section>`;
+}
+
+// Suppression d'un joueur (créateur de la communauté uniquement) : ses
+// matchs sont supprimés avec lui pour que le classement reste juste.
+function deletePlayerBlock(p) {
+    const count = S.data.matches.filter(m => involves(m, p.id)).length;
+    if (S.confirm !== 'player:' + p.id) {
+        return `<button class="link small danger-link" data-action="ask-delete-player" data-pid="${h(p.id)}">Supprimer ce joueur</button>`;
+    }
+    return `
+        <div class="card confirm-card">
+            <p class="small"><b>Supprimer ${h(p.name)} de la communauté ?</b></p>
+            <p class="small muted">${count
+                ? `${count > 1 ? `Ses ${count} matchs seront` : 'Son match sera'} aussi supprimé${count > 1 ? 's' : ''} et le classement sera recalculé.`
+                : 'Il n’a joué aucun match.'} Cette action est définitive.</p>
+            <div class="confirm-row">
+                <button class="btn btn-small btn-danger" data-action="delete-player" data-pid="${h(p.id)}">Supprimer</button>
+                <button class="btn btn-small btn-ghost" data-action="cancel-confirm">Annuler</button>
+            </div>
+        </div>`;
 }
 
 function headToHeadVs(my, p, allStats) {
@@ -695,6 +716,16 @@ const actions = {
     'claim': el => run(async () => {
         await S.store.updatePlayer(S.cid, el.dataset.pid, { uid: S.uid });
         toast('Bienvenue !');
+    }),
+    'ask-delete-player': el => { S.confirm = 'player:' + el.dataset.pid; rerenderKeepingSheet(); },
+    'delete-player': el => run(async () => {
+        const pid = el.dataset.pid;
+        const name = playerName(pid);
+        const matchIds = S.data.matches.filter(m => involves(m, pid)).map(m => m.id);
+        await S.store.deletePlayer(S.cid, pid, matchIds);
+        S.confirm = null;
+        closeSheet();
+        toast(`${name} a été supprimé`);
     }),
     'release': el => run(async () => {
         await S.store.updatePlayer(S.cid, el.dataset.pid, { uid: null });
