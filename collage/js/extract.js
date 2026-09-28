@@ -280,6 +280,21 @@
     return [d[0], d[1], d[2]];
   }
 
+  // Largeur de la forme près de sa base / largeur maximale :
+  // proche de 1 pour une maison ou un chapiteau (posés au sol), faible pour un cœur ou une étoile.
+  function baseRatio(a, w, h) {
+    const widths = new Float32Array(h);
+    let top = -1, bottom = -1, max = 0;
+    for (let y = 0; y < h; y++) {
+      let x0 = -1, x1 = -1;
+      for (let x = 0; x < w; x++) if (a[y * w + x]) { if (x0 < 0) x0 = x; x1 = x; }
+      if (x0 >= 0) { widths[y] = x1 - x0 + 1; if (top < 0) top = y; bottom = y; max = Math.max(max, widths[y]); }
+    }
+    if (bottom < 0 || !max) return 0;
+    const y = Math.round(bottom - (bottom - top) * 0.08);
+    return widths[y] / max;
+  }
+
   function makePiece(page, seg, comp) {
     const { w, h, labels, data } = seg;
     const k = page.width / w;
@@ -302,6 +317,7 @@
         }
       }
     }
+    const base = baseRatio(a, bw, bh);
     a = boxBlur(boxBlur(a, bw, bh), bw, bh);
 
     // Masque lissé, agrandi à la résolution de la page, puis contour net (effet ciseaux).
@@ -336,6 +352,7 @@
       frac: comp.area / (w * h),
       color,
       colorful: cnt ? satSum / cnt : 0,
+      base,
     };
   }
 

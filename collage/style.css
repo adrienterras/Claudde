@@ -90,6 +90,25 @@ small { color: var(--muted); font-weight: 400; }
 .thumb.off img { opacity: 0.25; filter: grayscale(1); }
 .thumb .tag { position: absolute; left: 3px; bottom: 3px; }
 .thumb.cutout { border-color: var(--cutout); }
+.thumb.current { outline: 3px solid var(--accent); outline-offset: 1px; }
+.thumb .size { position: absolute; right: 3px; top: 3px; font-style: normal; font-size: 0.6rem; background: rgba(255,255,255,.85); padding: 0 4px; border-radius: 4px; }
+.thumb.unplaced { border: 2px dashed #b9aea3; }
+.thumb.unplaced img { opacity: 0.55; }
+
+.detail { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 90px 1fr; gap: 10px; margin: 0 0 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fbf7f1; box-shadow: 0 4px 10px rgba(0,0,0,.06); }
+.detail > img { width: 90px; height: 90px; object-fit: contain; background: #f3eee7; border-radius: 6px; }
+.detail .name { margin: 0 0 6px; font-size: 0.8rem; font-weight: 600; word-break: break-word; }
+.detail .row select, .detail .row input { width: 50%; }
+.detail .hint { margin: 4px 0 0; }
+.seg { display: flex; gap: 4px; }
+.seg button { flex: 1; padding: 4px; font-size: 0.75rem; }
+.seg button.on { color: #fff; }
+.seg button.on.cutout { background: var(--cutout); border-color: var(--cutout); }
+.seg button.on.texture { background: var(--texture); border-color: var(--texture); }
+.seg button.on.off { background: #9a918a; border-color: #9a918a; }
+.scale { display: flex; align-items: center; gap: 6px; width: 60%; }
+.scale input[type=range] { flex: 1; min-width: 0; }
+.scale .check { font-size: 0.8rem; white-space: nowrap; }
 .thumb.texture { border-color: var(--texture); }
 
 .tag { display: inline-block; font-size: 0.65rem; font-weight: 600; padding: 1px 5px; border-radius: 4px; color: #fff; }

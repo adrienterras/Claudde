@@ -25,13 +25,13 @@
 
     <section id="drawings-section" hidden>
       <h2><span class="step">2</span> Dessins <small id="drawings-count"></small></h2>
-      <p class="hint">Cliquez sur un dessin pour changer son rôle :
-        <b class="tag cutout">découpe</b> sujets découpés,
-        <b class="tag texture">fond</b> page peinte utilisée en arrière-plan,
-        <b class="tag off">ignoré</b>.</p>
+      <p class="hint">Cliquez sur un dessin pour régler son rôle
+        (<b class="tag cutout">découpe</b> <b class="tag texture">fond</b> <b class="tag off">ignoré</b>)
+        et sa <b>taille réelle</b>, qui fixe sa taille dans l’œuvre.</p>
+      <div id="detail" class="detail" hidden></div>
       <div id="drawings" class="grid"></div>
       <h3>Pièces découpées <small id="pieces-count"></small></h3>
-      <p class="hint">Cliquez sur une pièce pour la retirer ou la remettre dans l’œuvre.</p>
+      <p class="hint">Cliquez sur une pièce pour la retirer ou l’ajouter. En pointillés : pas de place à l’échelle choisie.</p>
       <div id="pieces" class="grid pieces"></div>
     </section>
 
@@ -50,14 +50,20 @@
       </label>
       <label class="row">Fond
         <select id="bg-mode">
-          <option value="bands" selected>Paysage (ciel, milieu, sol)</option>
+          <option value="bands" selected>Paysage (ciel, milieu, terre)</option>
           <option value="mosaic">Mosaïque de papiers</option>
           <option value="paper">Papier uni</option>
         </select>
       </label>
+      <label class="row">Échelle des dessins
+        <span class="scale"><input id="scale" type="range" min="20" max="100" step="1" value="60">
+        <label class="check"><input id="scale-auto" type="checkbox" checked> auto</label></span>
+      </label>
+      <p id="scale-info" class="hint"></p>
       <label class="row">Densité <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1"></label>
       <label class="row">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
       <label class="row check"><input id="shadows" type="checkbox" checked> Ombres portées (effet relief)</label>
+      <label class="row check"><input id="grain" type="checkbox" checked> Finition toile (grain, vignettage)</label>
       <button id="generate" class="primary">✨ Nouvelle composition</button>
     </section>
 
@@ -88,7 +94,7 @@
       <button data-act="flip" title="Retourner">⇋ Miroir</button>
       <button data-act="dup" title="Dupliquer">⧉ Dupliquer</button>
       <button data-act="del" title="Supprimer (Suppr)">🗑 Retirer</button>
-      <span class="tip">Glissez pour déplacer · poignée ou molette pour agrandir / tourner</span>
+      <span class="tip">Glissez pour déplacer · poignée ↻ ou molette pour tourner · la taille suit l’échelle</span>
     </div>
     <canvas id="canvas"></canvas>
     <div id="empty" class="empty">
