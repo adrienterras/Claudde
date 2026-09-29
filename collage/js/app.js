@@ -644,7 +644,7 @@
   const STYLES = [
     { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
     { id: 'tournesol', name: 'Tournesol', hint: 'spirale depuis le cœur' },
-    { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'rangées alignées' },
+    { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
   ];
 
   function regenerate() {
@@ -674,7 +674,9 @@
     const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
     const t = titleFor(st.id);
     $('label-title').textContent = t ? `« ${t} »` : 'Sans titre';
-    $('label-meta').textContent = `${st.name} · collage de ${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm · dessins à taille réelle`;
+    const c = state.comp;
+    const count = c.style === 'cabinet' && c.total ? `${c.kept} des ${c.total} dessins, les plus beaux` : `${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
+    $('label-meta').textContent = `${st.name} · collage de ${count} · ${fmt(c.W)} × ${fmt(c.H)} cm · dessins à taille réelle`;
   }
 
   function titleFor(styleId) {
@@ -699,7 +701,8 @@
       b.className = `proposal${i === state.active ? ' on' : ''}`;
       b.setAttribute('aria-pressed', i === state.active ? 'true' : 'false');
       const t = titleFor(pr.style.id);
-      b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${t ? `« ${t} »` : pr.style.hint}</small>`;
+      const sub = t ? `« ${t} »` : (pr.comp.style === 'cabinet' && pr.comp.total ? `${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
+      b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${sub}</small>`;
       b.onclick = () => selectProposal(i);
       box.appendChild(b);
     });

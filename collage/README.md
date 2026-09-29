@@ -44,7 +44,8 @@ cd collage && python3 -m http.server 8000
    - **trois propositions, trois styles**, à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
-     *Cabinet de curiosités* (chaque dessin exposé droit, en rangées, sur papier blanc) ;
+     *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
+     sans chevauchement : ceux qui n'y tiennent pas restent disponibles) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du

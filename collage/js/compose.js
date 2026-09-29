@@ -406,42 +406,62 @@
    * sur papier blanc et sans chevauchement. On cherche la plus grande échelle (toujours la même
    * pour tous, jamais plus grande que la taille réelle) qui fait tout tenir.
    */
+  /*
+   * Cabinet de curiosités : la même toile que les autres styles, à taille réelle, sans chevauchement.
+   * Tout ne peut pas y tenir : on retient les plus beaux dessins (note de Claude, puis couleur et
+   * taille du sujet), un par dessin d'abord, par ordre de beauté, tant qu'ils entrent en rangées.
+   */
   function cabinet(W, H, texs, pieces, o, R) {
-    const gap = 1.2;
-    const all = texs.map((t) => ({ t, w: t.wcm, h: t.hcm })).concat(pieces.map((p) => ({ p, w: p.wcm, h: p.hcm })));
-    all.sort((a, b) => b.h - a.h);
-    // à taille réelle : la toile prend les proportions demandées autour du papier à exposer
-    const f = 1;
-    const ratio = W / H;
-    const area = all.reduce((sum, it) => sum + (it.w + gap) * (it.h + gap), 0) * 1.25;
-    W = Math.max(Math.round(Math.sqrt(area * ratio)), ...all.map((it) => it.w + 2 * gap));
-    H = Math.round(Math.sqrt(area / ratio));
-    const rowsAt = () => {
+    const gap = 1.5, margin = 3;
+    const beauty = (it) => {
+      const imp = it.t ? (it.t.importance === undefined ? 1 : it.t.importance) : (it.p.importance || 1);
+      const col = it.t ? (it.t.colorful || 0) : (it.p.colorful || 0);
+      const area = it.w * it.h;
+      return imp * 2 + col * 1.5 + Math.min(1, area / 900) * 0.6 + (it.p && it.p.main ? 0.8 : 0);
+    };
+    const cands = texs.map((t) => ({ t, w: t.wcm, h: t.hcm, d: t.drawing }))
+      .concat(pieces.map((p) => ({ p, w: p.wcm, h: p.hcm, d: p.drawing })))
+      .filter((it) => it.w <= W - 2 * margin && it.h <= H - 2 * margin)
+      .sort((a, b) => beauty(b) - beauty(a));
+    // un sujet par dessin d'abord, puis les seconds sujets
+    const seen = new Set();
+    const firsts = [], seconds = [];
+    cands.forEach((it) => { if (it.d && seen.has(it.d)) seconds.push(it); else { if (it.d) seen.add(it.d); firsts.push(it); } });
+    const order = firsts.concat(seconds);
+
+    // rangées : on ajoute les dessins un à un, du plus beau au moins beau, tant que tout tient en hauteur
+    const fits = (list) => {
+      const sorted = list.slice().sort((a, b) => b.h - a.h);
       const rows = [];
-      let row = [], x = gap;
-      for (const it of all) {
-        if (row.length && x + it.w + gap > W) { rows.push(row); row = []; x = gap; }
+      let row = [], x = margin;
+      for (const it of sorted) {
+        if (row.length && x + it.w + margin > W) { rows.push(row); row = []; x = margin; }
         row.push(it);
         x += it.w + gap;
       }
       if (row.length) rows.push(row);
-      return rows;
+      const need = rows.reduce((s2, r) => s2 + Math.max(...r.map((it) => it.h)), 0) + gap * (rows.length - 1) + 2 * margin;
+      return need <= H ? rows : null;
     };
-    const rows = rowsAt();
+    const chosen = [];
+    let rows = [];
+    for (const it of order) {
+      const r = fits(chosen.concat([it]));
+      if (r) { chosen.push(it); rows = r; }
+    }
+    // pièces retenues : marquées placées ; les autres restent disponibles
     const heights = rows.map((r) => Math.max(...r.map((it) => it.h)));
-    const need = heights.reduce((a, b) => a + b, 0) + gap * (rows.length + 1);
-    H = Math.max(H, Math.ceil(need));
-    const free = H - heights.reduce((a, b) => a + b, 0);
-    const vgap = free / (rows.length + 1);
+    const free = H - 2 * margin - heights.reduce((a, b) => a + b, 0);
+    const vgap = rows.length > 1 ? free / (rows.length - 1) : 0;
     const bg = [], items = [];
-    let y = vgap;
+    let y = margin + (rows.length > 1 ? 0 : free / 2);
     rows.forEach((row, ri) => {
       const r = shuffle(row, R);
-      const rowW = r.reduce((s, it) => s + it.w * f, 0);
-      const hgap = Math.min((W - rowW) / (r.length + 1), 6);
+      const rowW = r.reduce((s2, it) => s2 + it.w, 0);
+      const hgap = Math.min((W - 2 * margin - rowW) / Math.max(1, r.length - 1), 10);
       let x = (W - rowW - hgap * (r.length - 1)) / 2;
       r.forEach((it) => {
-        const w = it.w * f, h = it.h * f;
+        const w = it.w, h = it.h;
         const cx = x + w / 2, cy = y + heights[ri] - h / 2; // posé sur l'étagère
         if (it.t) bg.push({ kind: 'bg', panel: true, src: it.t.canvas, pageW: it.t.wcm, pageH: it.t.hcm, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w, h, rot: 0, flip: false, clip: null });
         else { it.p.placed = true; items.push({ kind: 'piece', piece: it.p, x: cx, y: cy, w, h, rot: 0, flip: false }); }
@@ -449,7 +469,8 @@
       });
       y += heights[ri] + vgap;
     });
-    return { bg, items, f, W, H };
+    const drawingsOf = (list) => new Set(list.map((it) => it.d).filter(Boolean)).size;
+    return { bg, items, f: 1, W, H, kept: drawingsOf(chosen), total: drawingsOf(texs.map((t) => ({ d: t.drawing })).concat(pieces.map((p) => ({ d: p.drawing })))) };
   }
 
   function paperLayer(W, H) {
@@ -464,7 +485,7 @@
     const style = o.style || 'paysage';
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
-      return { W: cab.W, H: cab.H, bg: [paperLayer(cab.W, cab.H), ...cab.bg], items: cab.items, grain: o.grain, style, f: 1, scale: 1 };
+      return { W, H, bg: [paperLayer(W, H), ...cab.bg], items: cab.items, grain: o.grain, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
     }
     const spiral = style === 'tournesol';
     const Z = zonesFor(W, H, !spiral);
