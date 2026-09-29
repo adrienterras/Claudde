@@ -68,24 +68,21 @@
 
       <details class="settings" open>
         <summary>Réglages</summary>
-        <label class="field">Format
+        <label class="field">Toile
           <select id="format">
-            <option value="100x70" selected>100 × 70 cm · paysage</option>
+            <option value="auto:1.4286" selected>Taille adaptée aux dessins · paysage</option>
+            <option value="auto:1">Taille adaptée aux dessins · carré</option>
+            <option value="auto:0.7">Taille adaptée aux dessins · portrait</option>
+            <option value="100x70">100 × 70 cm · paysage</option>
             <option value="120x80">120 × 80 cm · paysage</option>
-            <option value="80x60">80 × 60 cm · paysage</option>
-            <option value="60x60">60 × 60 cm · carré</option>
-            <option value="70x100">70 × 100 cm · portrait</option>
-            <option value="42x29.7">A3 · paysage</option>
-            <option value="29.7x42">A3 · portrait</option>
+            <option value="150x100">150 × 100 cm · paysage</option>
+            <option value="180x120">180 × 120 cm · paysage</option>
+            <option value="100x100">100 × 100 cm · carré</option>
+            <option value="120x120">120 × 120 cm · carré</option>
+            <option value="100x150">100 × 150 cm · portrait</option>
           </select>
         </label>
-        <div class="field">
-          <span class="field-head">Échelle des dessins
-            <label class="switch"><input id="scale-auto" type="checkbox" checked><span></span>auto</label>
-          </span>
-          <input id="scale" type="range" min="20" max="100" step="1" value="60" aria-label="Échelle des dessins">
-          <p id="scale-info" class="hint mono-note"></p>
-        </div>
+        <p id="scale-info" class="hint mono-note"></p>
         <label class="field">Densité <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1"></label>
         <label class="field">Rotation <input id="rotation" type="range" min="0" max="35" step="1" value="12"></label>
         <label class="switch row"><input id="shadows" type="checkbox" checked><span></span>Ombres portées</label>
@@ -127,7 +124,7 @@
       <p id="export-info" class="hint mono-note"></p>
       <div class="guide-box">
         <p class="guide-title">Réaliser l’œuvre à la main</p>
-        <p class="hint">Un PDF avec le plan de pose, l’ordre de collage et, pour chaque dessin, une planche à taille réelle avec le trait de découpe.</p>
+        <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
         <button id="guide" class="btn"><svg class="ico"><use href="#i-guide"/></svg><span>Créer le guide de création</span></button>
         <p id="guide-info" class="hint mono-note"></p>
       </div>

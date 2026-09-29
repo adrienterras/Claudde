@@ -1,9 +1,9 @@
 /*
  * Guide de création imprimable (PDF) pour réaliser l'œuvre à la main :
  *  - couverture, plan de pose quadrillé, étapes de collage dans l'ordre (du fond vers le dessus) ;
- *  - planches de découpe à TAILLE RÉELLE : chaque élément est reproduit à sa taille dans l'œuvre,
- *    entouré d'un trait de coupe magenta épais et numéroté.
- * Chaque page est dessinée sur un canvas à 150 dpi puis placée dans le PDF à ses dimensions exactes.
+ *  - fiches de découpe : chaque dessin original avec ses traits de coupe magenta, numérotés,
+ *    et leurs cotes en cm (les dessins sont collés à leur taille réelle, rien n'est imprimé à l'échelle).
+ * Chaque page est dessinée sur un canvas à 150 dpi puis placée dans le PDF.
  */
 (function () {
   'use strict';
@@ -126,126 +126,11 @@
     ctx.restore();
   }
 
-  // Règle de contrôle : doit mesurer 10 cm une fois imprimée.
-  function ruler(pg, y) {
-    const { ctx } = pg;
-    const x0 = MARGIN;
-    ctx.strokeStyle = C.ink;
-    ctx.lineWidth = 0.3;
-    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + 100, y); ctx.stroke();
-    for (let i = 0; i <= 100; i += 5) {
-      ctx.beginPath(); ctx.moveTo(x0 + i, y); ctx.lineTo(x0 + i, y - (i % 10 === 0 ? 3 : 1.6)); ctx.stroke();
-      if (i % 10 === 0) text(ctx, String(i / 10), x0 + i, y - 4, 2.2, { font: F.mono, align: 'center', color: C.muted });
-    }
-    text(ctx, 'Imprimez à 100 %, sans « ajuster à la page » :', x0 + 106, y - 3.2, 2.6, { color: C.muted });
-    text(ctx, 'cette règle doit mesurer exactement 10 cm.', x0 + 106, y + 0.4, 2.6, { color: C.muted });
-  }
 
   // ---------- Éléments à découper ----------
 
-  /*
-   * Rend un élément à taille réelle (sur l'œuvre) avec son trait de coupe :
-   * un liseré magenta épais, bordé de blanc, qui suit exactement le contour.
-   */
-  /*
-   * Page de fond entière, à l'échelle, avec le trait de coupe du grand morceau :
-   * ce qui reste autour (les chutes) sert aux lambeaux de fond.
-   */
-  function panelPageCanvas(L) {
-    const wmm = L.pageW * 10, hmm = L.pageH * 10, pad = 2.2;
-    const W = Math.round(wmm * PX), H = Math.round(hmm * PX), P = Math.round(pad * PX);
-    const k = W / L.src.width; // pixels de planche par pixel de page
-    const c = Extract.makeCanvas(W + 2 * P, H + 2 * P);
-    const x = c.getContext('2d');
-    x.imageSmoothingQuality = 'high';
-    x.drawImage(L.src, P, P, W, H);
-    x.strokeStyle = C.line;
-    x.lineWidth = 0.25 * PX;
-    x.strokeRect(P, P, W, H);
-    // contour déchiré du morceau, replacé dans la page
-    const cx = P + (L.sx + L.sw / 2) * k, cy = P + (L.sy + L.sh / 2) * k;
-    const drawClip = () => {
-      x.beginPath();
-      (L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]]).forEach(([px, py], i) => {
-        const X = cx + px * 10 * PX, Y = cy + py * 10 * PX;
-        i ? x.lineTo(X, Y) : x.moveTo(X, Y);
-      });
-      x.closePath();
-    };
-    x.lineJoin = 'round';
-    drawClip(); x.strokeStyle = '#ffffff'; x.lineWidth = 3 * PX; x.stroke();
-    drawClip(); x.strokeStyle = C.cut; x.lineWidth = 1.8 * PX; x.stroke();
-    // les chutes, hachurées légèrement
-    x.save();
-    x.beginPath();
-    x.rect(P, P, W, H);
-    // même chemin que le contour, dans le sens inverse : la page moins le morceau
-    const pts = L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]];
-    pts.slice().reverse().forEach(([px, py], i) => {
-      const X = cx + px * 10 * PX, Y = cy + py * 10 * PX;
-      i ? x.lineTo(X, Y) : x.moveTo(X, Y);
-    });
-    x.closePath();
-    x.clip('evenodd');
-    x.strokeStyle = 'rgba(59,58,42,0.35)';
-    x.lineWidth = 0.15 * PX;
-    for (let d = -H; d < W + H; d += 4 * PX) { x.beginPath(); x.moveTo(P + d, P); x.lineTo(P + d + H, P + H); x.stroke(); }
-    x.restore();
-    return { canvas: c, w: wmm + 2 * pad, h: hmm + 2 * pad };
-  }
 
-  function elementCanvas(L) {
-    if (L.kind === 'bg' && L.panel && L.pageW) return panelPageCanvas(L);
-    const wmm = L.w * 10, hmm = L.h * 10, pad = 2.2;
-    const W = Math.max(1, Math.round(wmm * PX)), H = Math.max(1, Math.round(hmm * PX)), P = Math.round(pad * PX);
-    const img = Extract.makeCanvas(W, H);
-    const ig = img.getContext('2d');
-    ig.imageSmoothingQuality = 'high';
-    if (L.flip) { ig.translate(W, 0); ig.scale(-1, 1); }
-    if (L.kind === 'piece') {
-      ig.drawImage(L.piece.canvas, 0, 0, W, H);
-    } else {
-      if (L.clip) {
-        ig.beginPath();
-        L.clip.forEach(([x, y], i) => {
-          const px = (x + L.w / 2) * 10 * PX, py = (y + L.h / 2) * 10 * PX;
-          i ? ig.lineTo(px, py) : ig.moveTo(px, py);
-        });
-        ig.closePath();
-        ig.clip();
-      }
-      ig.drawImage(L.src, L.sx, L.sy, L.sw, L.sh, 0, 0, W, H);
-    }
-    const silhouette = (color) => {
-      const s = Extract.makeCanvas(W, H);
-      const sc = s.getContext('2d');
-      sc.drawImage(img, 0, 0);
-      sc.globalCompositeOperation = 'source-in';
-      sc.fillStyle = color;
-      sc.fillRect(0, 0, W, H);
-      return s;
-    };
-    const c = Extract.makeCanvas(W + 2 * P, H + 2 * P);
-    const x = c.getContext('2d');
-    [[1.5, '#ffffff'], [0.9, C.cut]].forEach(([r, col]) => {
-      const s = silhouette(col);
-      for (let k = 0; k < 28; k++) {
-        const a = (k / 28) * Math.PI * 2;
-        x.drawImage(s, P + Math.cos(a) * r * PX, P + Math.sin(a) * r * PX);
-      }
-    });
-    x.drawImage(img, P, P);
-    return { canvas: c, w: wmm + 2 * pad, h: hmm + 2 * pad };
-  }
 
-  function rotate90(el) {
-    const c = Extract.makeCanvas(el.canvas.height, el.canvas.width);
-    const x = c.getContext('2d');
-    x.translate(c.width, 0);
-    x.rotate(Math.PI / 2);
-    x.drawImage(el.canvas, 0, 0);
-    return { canvas: c, w: el.h, h: el.w, rotated: true };
-  }
 
   // ---------- Construction ----------
 
@@ -273,81 +158,21 @@
     comp.items.forEach((L) => steps.push({ kind: 'piece', layer: L }));
     steps.forEach((st, i) => { st.n = i + 1; });
 
-    const k = opts.scale; // échelle des dessins sur l'œuvre
 
-    // ---- Planches : rangement des éléments (à taille réelle) sur des pages A4 ----
-    opts.onProgress && opts.onProgress('Préparation des planches de découpe…');
-    const toPack = [];
-    for (const st of steps) {
-      if (st.kind === 'scraps') continue;
-      toPack.push({ st, label: String(st.n), el: elementCanvas(st.layer) });
-      await tick();
-    }
-
-    const sheets = []; // { size:[w,h], items:[{x,y,it}], shelves, used, tile? }
-    const AW = A4[0] - 2 * MARGIN, AH = A4[1] - 22 - 24; // zone utile A4
-    const labelH = 7, gap = 6;
-    const oversized = [];
-    // Rangement « premier emplacement libre » : les plus grands d'abord, chaque élément va dans
-    // la première planche où il tient (sur une étagère existante ou une nouvelle), pour économiser le papier.
-    const fits = [];
-    toPack.forEach((it) => {
-      let el = it.el;
-      if (el.w > AW || el.h + labelH > AH) {
-        const r = rotate90(el);
-        if (r.w <= AW && r.h + labelH <= AH) el = r;
-        else { oversized.push(it); return; }
-      }
-      it.el = el;
-      fits.push(it);
+    // ---- Fiches de découpe : une par dessin original, avec les traits de coupe et les cotes ----
+    opts.onProgress && opts.onProgress('Préparation des fiches de découpe…');
+    const fiches = []; // { d, layers: [{ st, L }] }
+    const ficheOf = new Map();
+    steps.forEach((st) => {
+      if (st.kind === 'scraps') return;
+      const d = ownerOf(st.layer);
+      if (!d) return;
+      if (!ficheOf.has(d)) { ficheOf.set(d, { d, layers: [] }); fiches.push(ficheOf.get(d)); }
+      ficheOf.get(d).layers.push({ st, L: st.layer });
     });
-    fits.sort((a, b) => b.el.h - a.el.h);
-    fits.forEach((it) => {
-      const el = it.el, hh = el.h + labelH;
-      let placed = false;
-      for (const sh of sheets) {
-        for (const shelf of sh.shelves) {
-          if (hh <= shelf.h && shelf.x + el.w <= AW) {
-            sh.items.push({ x: MARGIN + shelf.x, y: 22 + shelf.y, it });
-            shelf.x += el.w + gap;
-            placed = true;
-            break;
-          }
-        }
-        if (placed) break;
-        if (sh.used + hh <= AH) {
-          sh.shelves.push({ y: sh.used, h: hh, x: el.w + gap });
-          sh.items.push({ x: MARGIN, y: 22 + sh.used, it });
-          sh.used += hh + gap;
-          placed = true;
-          break;
-        }
-      }
-      if (!placed) {
-        sheets.push({ size: A4, items: [{ x: MARGIN, y: 22, it }], shelves: [{ y: 0, h: hh, x: el.w + gap }], used: hh + gap });
-      }
-    });
-    // numéros de planche, et éléments rangés par numéro d'étape sur chaque planche
-    sheets.forEach((sh, i) => sh.items.forEach(({ it }) => { if (it.st) it.st.sheet = i + 1; }));
-    // Grands éléments : une page A3, ou plusieurs pages A3 à assembler.
-    oversized.forEach((it) => {
-      const el = it.el;
-      const BW = A3[0] - 2 * MARGIN, BH = A3[1] - 22 - 24 - labelH;
-      if (el.w <= BW && el.h <= BH) {
-        sheets.push({ size: A3, items: [{ x: MARGIN, y: 22, it }] });
-        if (it.st) it.st.sheet = sheets.length;
-        return;
-      }
-      const ov = 10; // recouvrement entre morceaux, en mm
-      const nx = Math.ceil((el.w - ov) / (BW - ov)), ny = Math.ceil((el.h - ov) / (BH - ov));
-      const first = sheets.length + 1;
-      for (let j = 0; j < ny; j++) {
-        for (let i = 0; i < nx; i++) {
-          sheets.push({ size: A3, tile: { i, j, nx, ny, ov, BW, BH }, items: [{ x: MARGIN, y: 22, it }] });
-        }
-      }
-      if (it.st) { it.st.sheet = first; it.st.sheetEnd = sheets.length; }
-    });
+    fiches.sort((x, y) => opts.numberOf(x.d) - opts.numberOf(y.d));
+    fiches.forEach((f, i) => { f.n = i + 1; f.layers.forEach(({ st }) => { st.sheet = i + 1; }); });
+    const sheets = fiches;
 
     // ---- Pages ----
     const pages = [];
@@ -388,8 +213,8 @@
       const nPieces = comp.items.length, nPanels = panels.length;
       const facts = [
         `${opts.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
-        `${opts.drawings.length} dessins · échelle ${Math.round(k * 100)} % · ${nPanels} pages de fond · ${nPieces} découpes${scraps.length ? ` · ${scraps.length} lambeaux` : ''}`,
-        `${sheets.length} planches à imprimer · ${steps.length} étapes de collage`,
+        `${opts.drawings.length} dessins originaux, à taille réelle · ${nPanels} pages de fond · ${nPieces} découpes${scraps.length ? ` · ${scraps.length} lambeaux` : ''}`,
+        `${sheets.length} fiches de découpe · ${steps.length} étapes de collage`,
       ];
       facts.forEach((f) => { text(ctx, f, mid, yy, 3.1, { font: F.body, color: C.ink, align: 'center' }); yy += 5; });
       yy += 6;
@@ -399,21 +224,21 @@
       let y1 = yy + 7, y2 = yy + 7;
       [
         `Une toile ou un carton de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
-        'Les planches imprimées sur papier mat 120 g ou plus',
+        'Les dessins originaux, et ce guide imprimé (format libre)',
         'Ciseaux fins et cutter, tapis de coupe',
         'Colle vinylique ou vernis-colle (type Mod Podge), pinceau plat',
         'Crayon à papier, règle d’un mètre, gomme',
         'Vernis mat pour protéger l’œuvre (facultatif)',
       ].forEach((m) => { y1 = wrap(ctx, '·  ' + m, MARGIN, y1, colW, 3, 4.2); y1 += 0.8; });
       [
-        '1. Imprimez les planches à 100 % et vérifiez la règle de 10 cm.',
-        '2. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile.',
-        `3. Découpez chaque élément en suivant le trait magenta ; gardez-le avec son numéro.`,
+        '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile.',
+        '2. Pour chaque dessin, reportez sur l’original le trait magenta de sa fiche, à l’aide des cotes en cm, puis découpez ; gardez chaque morceau avec son numéro.',
+        '3. Déchirez les chutes des pages de fond en lambeaux, sans rien jeter.',
         '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',
         '5. Laissez sécher sous un poids, puis passez une couche de vernis.',
       ].forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
       let y3 = Math.max(y1, y2) + 4;
-      y3 = wrap(ctx, `Les planches reproduisent chaque dessin à l’échelle de l’œuvre (${Math.round(k * 100)} %), ce qui permet aussi de réutiliser un même dessin plusieurs fois. Pour coller les dessins originaux eux-mêmes, réglez l’échelle à 100 % avant de créer le guide : les planches servent alors de gabarits à poser sur les originaux.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
+      y3 = wrap(ctx, `L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
       pages.push({ pg, section: 'Couverture' });
     }
 
@@ -495,7 +320,7 @@
         const name = d ? opts.nameOf(d) : 'Élément';
         text(ctx, name.length > 34 ? name.slice(0, 33) + '…' : name, x0 + 13, ty, 3.8, { weight: '600' });
         ty += 5;
-        const where = st.sheetEnd ? `planches ${st.sheet} à ${st.sheetEnd}` : `planche ${st.sheet}`;
+        const where = `fiche ${st.sheet}`;
         text(ctx, `${st.kind === 'panel' ? 'Page de fond' : 'Découpe'} · dessin ${d ? opts.numberOf(d) : '?'} · ${where}`, x0 + 4, ty, 2.8, { color: C.muted });
         ty += 4.4;
         text(ctx, `Case ${cellName(L.x, L.y)} · centre à ${fmt(L.x)} cm de la gauche,`, x0 + 4, ty, 2.7, { font: F.mono });
@@ -511,42 +336,82 @@
       await tick();
     }
 
-    // Planches de découpe
-    for (let si = 0; si < sheets.length; si++) {
-      const sh = sheets[si];
-      const pg = newPage(...sh.size);
+    // Fiches de découpe : l'original avec ses traits de coupe et ses cotes en cm
+    for (let fi = 0; fi < fiches.length; fi++) {
+      const f = fiches[fi];
+      const d = f.d;
+      const page = d.analysis.page;
+      const cmPx = d.sizeCm / d.srcLong; // cm par pixel de page
+      const pw = page.width * cmPx, ph = page.height * cmPx; // taille réelle de la feuille
+      const land = pw > ph * 1.15;
+      const pg = newPage(land ? A4[1] : A4[0], land ? A4[0] : A4[1]);
       const { ctx, w, h } = pg;
-      text(ctx, `Planche ${si + 1}`, MARGIN, 19, 5, { font: F.display });
-      scissors(ctx, MARGIN + 30, 17.5, 5, C.cut);
-      text(ctx, 'Découpez sur le trait magenta. Le numéro est celui de l’étape de collage.', MARGIN + 36, 19, 2.8, { color: C.muted });
-      sh.items.forEach(({ x: ix, y: iy, it }) => {
-        const el = it.el;
-        const ly = iy + 5;
-        if (sh.tile) {
-          const t = sh.tile;
-          const sx = t.i * (t.BW - t.ov), sy = t.j * (t.BH - t.ov);
-          const tw = Math.min(t.BW, el.w - sx), th = Math.min(t.BH, el.h - sy);
-          ctx.drawImage(el.canvas, sx * PX, sy * PX, tw * PX, th * PX, ix, ly + 2, tw, th);
-          ctx.fillStyle = 'rgba(28,26,33,0.08)';
-          if (t.i > 0) ctx.fillRect(ix, ly + 2, t.ov, th);
-          if (t.j > 0) ctx.fillRect(ix, ly + 2, tw, t.ov);
-          badge(ctx, it.label, ix + 3, iy + 1, 2.8, it.st && it.st.kind === 'panel' ? C.olive : C.accent);
-          text(ctx, `partie ${t.j * t.nx + t.i + 1} / ${t.nx * t.ny} · ligne ${t.j + 1}, colonne ${t.i + 1} — superposez les bandes grises de 1 cm`, ix + 8, iy + 2, 2.6, { color: C.muted });
-          return;
+      text(ctx, `Fiche ${f.n}`, MARGIN, 19, 5, { font: F.display });
+      scissors(ctx, MARGIN + 24, 17.5, 5, C.cut);
+      text(ctx, `${opts.nameOf(d)} · dessin ${opts.numberOf(d)} · feuille de ${fmt(pw)} × ${fmt(ph)} cm`, MARGIN + 30, 19, 2.8, { color: C.muted });
+      // l'original, ajusté à la page (ce n'est pas à l'échelle : les cotes font foi)
+      const top = 26, bottom = h - 34;
+      const sc = Math.min((w - 2 * MARGIN - 14) / pw, (bottom - top) / ph); // mm par cm
+      const ox = MARGIN + 10, oy = top;
+      ctx.drawImage(page, ox, oy, pw * sc, ph * sc);
+      ctx.strokeStyle = C.line; ctx.lineWidth = 0.25;
+      ctx.strokeRect(ox, oy, pw * sc, ph * sc);
+      // règle de la feuille : graduations tous les 5 cm sur le bord gauche et le haut
+      ctx.strokeStyle = C.muted; ctx.lineWidth = 0.2;
+      for (let g = 0; g <= pw + 0.01; g += 5) {
+        ctx.beginPath(); ctx.moveTo(ox + g * sc, oy - 1.5); ctx.lineTo(ox + g * sc, oy - (g % 10 === 0 ? 3.5 : 2.2)); ctx.stroke();
+        if (g % 10 === 0) text(ctx, String(g), ox + g * sc, oy - 4.2, 2, { align: 'center', color: C.muted });
+      }
+      for (let g = 0; g <= ph + 0.01; g += 5) {
+        ctx.beginPath(); ctx.moveTo(ox - 1.5, oy + g * sc); ctx.lineTo(ox - (g % 10 === 0 ? 3.5 : 2.2), oy + g * sc); ctx.stroke();
+        if (g % 10 === 0) text(ctx, String(g), ox - 4.5, oy + g * sc + 0.7, 2, { align: 'right', color: C.muted });
+      }
+      // traits de coupe, avec numéro d'étape et cotes
+      const notes = [];
+      f.layers.forEach(({ st, L }) => {
+        const isPanel = st.kind === 'panel';
+        let path, box;
+        if (isPanel) {
+          const cx = ox + (L.sx + L.sw / 2) * cmPx * sc, cy = oy + (L.sy + L.sh / 2) * cmPx * sc;
+          path = (L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]]).map(([px, py]) => [cx + px * sc, cy + py * sc]);
+          box = { x: L.sx * cmPx, y: L.sy * cmPx, w: L.sw * cmPx, h: L.sh * cmPx };
+        } else {
+          const src = L.piece.src;
+          box = { x: src.x * cmPx, y: src.y * cmPx, w: src.w * cmPx, h: src.h * cmPx };
+          // contour de la découpe : silhouette de la pièce, tracée à partir de son masque
+          const hm = L.piece.hit;
+          const sil = Extract.makeCanvas(hm.w, hm.h);
+          const sd = sil.getContext('2d').createImageData(hm.w, hm.h);
+          for (let i = 0; i < hm.data.length; i++) sd.data[i * 4 + 3] = hm.data[i] ? 255 : 0;
+          sil.getContext('2d').putImageData(sd, 0, 0);
+          const dw = box.w * sc, dh = box.h * sc;
+          const off = Extract.makeCanvas(Math.ceil(dw * PX) + 12, Math.ceil(dh * PX) + 12);
+          const oc = off.getContext('2d');
+          oc.imageSmoothingEnabled = false;
+          // liseré : la silhouette décalée dans toutes les directions, en magenta, puis évidée
+          for (let kk = 0; kk < 24; kk++) {
+            const a2 = (kk / 24) * Math.PI * 2;
+            oc.drawImage(sil, 6 + Math.cos(a2) * 4, 6 + Math.sin(a2) * 4, dw * PX, dh * PX);
+          }
+          oc.globalCompositeOperation = 'source-in'; oc.fillStyle = C.cut; oc.fillRect(0, 0, off.width, off.height);
+          oc.globalCompositeOperation = 'destination-out'; oc.drawImage(sil, 6, 6, dw * PX, dh * PX);
+          ctx.drawImage(off, ox + box.x * sc - 6 / PX, oy + box.y * sc - 6 / PX, off.width / PX, off.height / PX);
         }
-        ctx.drawImage(el.canvas, ix, ly + 2, el.w, el.h);
-        badge(ctx, it.label, ix + 3, iy + 1, 2.8, it.st && it.st.kind === 'panel' ? C.olive : C.accent);
-        const d = it.st && ownerOf(it.st.layer);
-        const isPanel = it.st && it.st.kind === 'panel';
-        const cap = `${d ? opts.nameOf(d) : ''}${isPanel ? ' · page de fond : découpez le morceau, gardez les chutes hachurées pour les lambeaux' : ''}${el.rotated ? ' · couché sur la planche' : ''}`;
-        ctx.save();
-        ctx.beginPath(); ctx.rect(ix + 7, iy - 3, Math.max(10, el.w - 7), 6); ctx.clip();
-        text(ctx, cap, ix + 7, iy + 2, 2.6, { color: C.muted });
-        ctx.restore();
+        if (path) {
+          ctx.lineJoin = 'round';
+          [['#ffffff', 2.2], [C.cut, 1.1]].forEach(([col, lw]) => {
+            ctx.beginPath(); path.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+            ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.stroke();
+          });
+        }
+        badge(ctx, st.n, ox + box.x * sc + 3.5, oy + box.y * sc + 3.5, 2.8, isPanel ? C.olive : C.accent);
+        const dims = `${fmt(box.w)} × ${fmt(box.h)} cm, à ${fmt(box.x)} cm du bord gauche et ${fmt(box.y)} cm du haut`;
+        notes.push(`${st.n}  ${isPanel ? 'Grand morceau de fond' : 'Découpe'} : ${dims}${isPanel ? ' — le reste de la feuille est déchiré en lambeaux (étape 1)' : ''}.`);
       });
-      ruler(pg, h - 12);
-      pages.push({ pg, section: 'Planches de découpe' });
-      if (si % 3 === 2) { opts.onProgress && opts.onProgress(`Planches de découpe… ${si + 1} / ${sheets.length}`); await tick(); }
+      let ny = bottom + 5;
+      notes.forEach((n) => { ny = wrap(ctx, n, MARGIN, ny, w - 2 * MARGIN, 2.7, 3.7); });
+      pages.push({ pg, section: 'Fiches de découpe' });
+      if (fi % 3 === 2) { opts.onProgress && opts.onProgress(`Fiches de découpe… ${fi + 1} / ${fiches.length}`); await tick(); }
     }
 
     // ---- PDF ----

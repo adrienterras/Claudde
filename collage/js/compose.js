@@ -410,25 +410,27 @@
     const gap = 1.2;
     const all = texs.map((t) => ({ t, w: t.wcm, h: t.hcm })).concat(pieces.map((p) => ({ p, w: p.wcm, h: p.hcm })));
     all.sort((a, b) => b.h - a.h);
-    const shelve = (f) => {
+    // à taille réelle : la toile prend les proportions demandées autour du papier à exposer
+    const f = 1;
+    const ratio = W / H;
+    const area = all.reduce((sum, it) => sum + (it.w + gap) * (it.h + gap), 0) * 1.25;
+    W = Math.max(Math.round(Math.sqrt(area * ratio)), ...all.map((it) => it.w + 2 * gap));
+    H = Math.round(Math.sqrt(area / ratio));
+    const rowsAt = () => {
       const rows = [];
       let row = [], x = gap;
       for (const it of all) {
-        const w = it.w * f;
-        if (w > W - 2 * gap) return null;
-        if (row.length && x + w + gap > W) { rows.push(row); row = []; x = gap; }
+        if (row.length && x + it.w + gap > W) { rows.push(row); row = []; x = gap; }
         row.push(it);
-        x += w + gap;
+        x += it.w + gap;
       }
       if (row.length) rows.push(row);
-      const height = rows.reduce((s, r) => s + Math.max(...r.map((it) => it.h * f)), 0) + gap * (rows.length + 1);
-      return height <= H ? rows : null;
+      return rows;
     };
-    let lo = 0.05, hi = Math.min(3, 1 / Math.max(0.01, o.scale));
-    for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; if (shelve(mid)) lo = mid; else hi = mid; }
-    const f = lo;
-    const rows = shelve(f) || [];
-    const heights = rows.map((r) => Math.max(...r.map((it) => it.h * f)));
+    const rows = rowsAt();
+    const heights = rows.map((r) => Math.max(...r.map((it) => it.h)));
+    const need = heights.reduce((a, b) => a + b, 0) + gap * (rows.length + 1);
+    H = Math.max(H, Math.ceil(need));
     const free = H - heights.reduce((a, b) => a + b, 0);
     const vgap = free / (rows.length + 1);
     const bg = [], items = [];
@@ -447,7 +449,7 @@
       });
       y += heights[ri] + vgap;
     });
-    return { bg, items, f };
+    return { bg, items, f, W, H };
   }
 
   function paperLayer(W, H) {
@@ -462,7 +464,7 @@
     const style = o.style || 'paysage';
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
-      return { W, H, bg: [paperLayer(W, H), ...cab.bg], items: cab.items, grain: o.grain, style, f: cab.f, scale: o.scale * cab.f };
+      return { W: cab.W, H: cab.H, bg: [paperLayer(cab.W, cab.H), ...cab.bg], items: cab.items, grain: o.grain, style, f: 1, scale: 1 };
     }
     const spiral = style === 'tournesol';
     const Z = zonesFor(W, H, !spiral);
@@ -470,7 +472,7 @@
     if (o.textures.length) background(W, H, o.textures, Z, R, bg, spiral);
     else bg.push(paperLayer(W, H));
     const items = placePieces(W, H, o.pieces, o, Z, R, spiral);
-    return { W, H, bg, items, grain: o.grain, style, f: 1, scale: o.scale };
+    return { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
   }
 
   // Ajoute une découpe (à l'échelle) dans une composition existante.

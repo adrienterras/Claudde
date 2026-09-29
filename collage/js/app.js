@@ -246,30 +246,62 @@
     return a.width * c * a.height * c;
   }
 
+  function paperAreas(drawings) {
+    let bgArea = 0, pieceArea = 0;
+    drawings.forEach((d) => {
+      if (roleOf(d) === 'texture') { bgArea += pageAreaCm2(d); return; }
+      if (roleOf(d) !== 'cutout') return;
+      (d.analysis.pieces || []).filter((p) => p.enabled).forEach((p) => {
+        const c = cmPerPx(d);
+        let fill = 0;
+        for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i];
+        pieceArea += p.canvas.width * c * p.canvas.height * c * (fill / p.hit.data.length);
+      });
+    });
+    return { bgArea, pieceArea };
+  }
+
+  /*
+   * Plan de couverture, à taille réelle. Le papier de fond doit couvrir la toile avec 15 % de
+   * recouvrement, et les découpes en couvrir environ la moitié (réglage « densité »).
+   *  - toile automatique : on passe en fond, par ordre de mérite, juste assez de pages pour que
+   *    le fond suffise aux découpes, et la toile prend la taille du fond ;
+   *  - toile imposée : on passe en fond juste assez de pages pour la couvrir, et on dit s'il manque du papier.
+   */
   function planCoverage() {
-    const f = formatCm();
-    const canvasArea = f.w * f.h;
+    const v = $('format').value;
+    const auto = v.startsWith('auto:');
+    const density = Number($('density').value);
     const cands = state.drawings.filter((d) => d.role === 'auto');
     cands.forEach((d) => { d.auto = null; });
-    // ce que les découpes couvriront, pièces principales comprises, à l'échelle 1
     const ranked = cands.slice().sort((a, b) => bgMerit(b) - bgMerit(a));
-    // on itère : plus de pages en fond => l'échelle monte => il faut encore plus de surface
-    // On essaie chaque nombre de pages de fond et on garde le meilleur compromis :
-    // la toile couverte (fond ≥ 108 % de la toile), l'échelle la plus grande possible,
-    // et le plus de dessins gardés en découpe.
-    let best = null;
-    const minBg = Math.min(ranked.length, Math.max(3, ranked.filter((d) => roleOf(d) === 'texture').length));
-    for (let nBg = minBg; nBg <= ranked.length; nBg++) {
-      ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
-      const k = autoScaleFor(ranked);
-      const bgArea = ranked.slice(0, nBg).reduce((s, d) => s + pageAreaCm2(d), 0) * k * k;
-      const covered = bgArea >= canvasArea * 1.14;
-      // score : toile couverte avant tout, puis l'échelle la plus grande, puis peu de pages sacrifiées
-      const score = (covered ? 1 : 0) * 10 + k * 4 - nBg / ranked.length;
-      if (!best || score > best.score) best = { nBg, score };
-      if (covered && k >= 0.999) break;
+    const forcedBg = state.drawings.filter((d) => d.role === 'texture').reduce((sum, d) => sum + pageAreaCm2(d), 0);
+    const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => roleOf(d) === 'texture').length)) : 0;
+    let chosen = { nBg: minBg, area: 7000 };
+    if (auto) {
+      for (let nBg = minBg; nBg <= ranked.length; nBg++) {
+        ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
+        const { bgArea, pieceArea } = paperAreas(state.drawings);
+        const canvasArea = (bgArea + forcedBg * 0) / 1.15;
+        chosen = { nBg, area: canvasArea };
+        if (pieceArea <= 0.5 * density * canvasArea || nBg >= ranked.length) break;
+      }
+      state.canvasArea = Math.max(chosen.area, 900);
+      state.coverage = 1.15;
+    } else {
+      const [w, h] = v.split('x').map(Number);
+      const canvasArea = w * h;
+      let nBg = minBg;
+      for (; nBg <= ranked.length; nBg++) {
+        ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
+        const { bgArea } = paperAreas(state.drawings);
+        if (bgArea >= canvasArea * 1.15) break;
+      }
+      chosen = { nBg: Math.min(nBg, ranked.length) };
+      ranked.forEach((d, i) => { d.auto = i < chosen.nBg ? 'texture' : 'cutout'; });
+      state.coverage = paperAreas(state.drawings).bgArea / canvasArea;
     }
-    ranked.forEach((d, i) => { d.auto = i < best.nBg ? 'texture' : 'cutout'; });
+    ranked.forEach((d, i) => { d.auto = i < chosen.nBg ? 'texture' : 'cutout'; });
     ranked.forEach((d) => ensureMaterial(d));
   }
 
@@ -347,23 +379,6 @@
     refreshPieces();
   }
 
-  // Explique la taille sur l'œuvre : le dessin n'est pas coupé, il est réduit comme tous les autres.
-  function sizeNote(d, k, aw, ah) {
-    const pct = Math.round(k * 100);
-    const main = mainPiece(d);
-    const subj = main ? ` Le sujet principal fait ${fmt(subjectCm(d))} cm en vrai, ${fmt(subjectCm(d) * k)} cm sur l’œuvre.` : '';
-    if (k >= 0.995) return `Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.${subj}`;
-    return `Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm — la feuille entière, réduite à ${pct} % comme tous les dessins (rien n’est coupé).${subj}`;
-  }
-
-  function realSizeWarning(d) {
-    const f = formatCm();
-    const ar = d.analysis.page.width / d.analysis.page.height;
-    const [w, h] = ar >= 1 ? [d.sizeCm, d.sizeCm / ar] : [d.sizeCm * ar, d.sizeCm];
-    const fits = (w <= f.w && h <= f.h) || (h <= f.w && w <= f.h);
-    return fits ? '' : ` — à 100 %, ce dessin (${fmt(w)} × ${fmt(h)} cm) dépasse la toile de ${fmt(f.w)} × ${fmt(f.h)} cm : choisissez un format plus grand.`;
-  }
-
   function renderDetail() {
     const box = $('detail');
     const d = state.current;
@@ -392,8 +407,7 @@
           <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="Plus grand côté du sujet découpé, mesuré sur le dessin original">
         </label>` : ''}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? 'Taille lue dans le PDF.' : 'Taille estimée d’après le scan — corrigez-la si besoin.') : 'Taille saisie.'}
-          ${sizeNote(d, k, aw, ah)}</p>
-        ${k < 0.995 ? `<p class="hint"><button class="link" data-real>Coller ce dessin à sa taille réelle (échelle 100 %)</button>${realSizeWarning(d)}</p>` : ''}
+          Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.${mainPiece(d) ? ` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
       </div>`;
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
@@ -401,12 +415,6 @@
       refreshLists();
       regenerate();
     }));
-    const realBtn = box.querySelector('[data-real]');
-    if (realBtn) realBtn.onclick = () => {
-      $('scale-auto').checked = false;
-      $('scale').value = 100;
-      regenerate();
-    };
     const sel = box.querySelector('[data-size]');
     const custom = box.querySelector('[data-custom]');
     const setSize = (cm) => {
@@ -482,59 +490,57 @@
 
   // ---------- Échelle ----------
 
+  // Toile : soit un format imposé, soit une taille calculée d'après le papier disponible
+  // (les dessins sont toujours à leur taille réelle : c'est la toile qui s'adapte).
   function formatCm() {
-    const [w, h] = $('format').value.split('x').map(Number);
-    return { w, h };
+    const v = $('format').value;
+    if (v.startsWith('auto:')) {
+      const ratio = Number(v.slice(5));
+      const A = state.canvasArea || 7000;
+      return { w: Math.round(Math.sqrt(A * ratio)), h: Math.round(Math.sqrt(A / ratio)), auto: true };
+    }
+    const [w, h] = v.split('x').map(Number);
+    return { w, h, auto: false };
+  }
+
+  // Formats de toile courants, pour suggérer le plus proche de la taille calculée
+  const STOCK = [[100, 70], [120, 80], [150, 100], [180, 120], [200, 140], [80, 60], [60, 60], [80, 80], [100, 100], [120, 120], [70, 100], [80, 120], [100, 150]];
+  function nearestStock(w, h) {
+    let best = null;
+    STOCK.forEach(([a, b]) => {
+      [[a, b], [b, a]].forEach(([x, y]) => {
+        const d = Math.abs(x - w) / w + Math.abs(y - h) / h;
+        if (!best || d < best.d) best = { w: x, h: y, d };
+      });
+    });
+    return best;
   }
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
   // de fond côte à côte sur la largeur de la toile.
   // Échelle automatique : la même pour tous, choisie pour que TOUS les sujets tiennent sur la toile
   // (ils en couvrent environ 60 %, les pages de fond et les lambeaux font le reste).
-  // Échelle telle que fond + découpes couvrent la toile ; une seule pour tous, jamais plus de 100 %.
-  function autoScaleFor(drawings) {
-    const f = formatCm();
-    let bgArea = 0, pieceArea = 0;
-    drawings.forEach((d) => {
-      if (roleOf(d) === 'texture') { bgArea += pageAreaCm2(d); return; }
-      if (roleOf(d) !== 'cutout') return;
-      (d.analysis.pieces || []).filter((p) => p.enabled).forEach((p) => {
-        const c = cmPerPx(d);
-        let fill = 0;
-        for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i];
-        pieceArea += p.canvas.width * c * p.canvas.height * c * (fill / p.hit.data.length);
-      });
-    });
-    const density = Number($('density').value);
-    // le fond doit couvrir la toile (avec 8 % de recouvrement des déchirures),
-    // et les découpes environ la moitié de la toile
-    const kBg = bgArea ? Math.sqrt((f.w * f.h * 1.15) / bgArea) : 1;
-    const kPieces = pieceArea ? Math.sqrt((0.5 * density * f.w * f.h) / pieceArea) : 1;
-    // le fond fixe la limite haute (il doit couvrir la toile) ; les découpes l'abaissent
-    // si elles couvriraient plus de la moitié de la toile
-    return Math.max(0.15, Math.min(1, kBg, kPieces));
-  }
-
-  function autoScale() {
-    return autoScaleFor(state.drawings);
-  }
-
+  // Les dessins sont toujours à leur taille réelle : l'échelle vaut 1.
   function scale() {
-    return $('scale-auto').checked ? autoScale() : Number($('scale').value) / 100;
+    return 1;
   }
 
+  // Texte sous le choix de toile : taille calculée, papier disponible, couverture.
   function updateScaleLabel() {
-    const k = scale();
-    if ($('scale-auto').checked) $('scale').value = Math.round(k * 100);
-    $('scale').disabled = $('scale-auto').checked;
-    const pct = Math.round(k * 100);
     const f = formatCm();
-    let txt = pct >= 100
-      ? `100 % — chaque dessin est collé à sa taille réelle.`
-      : `${pct} % — chaque dessin est réduit à ${pct} % de sa taille réelle, tous de la même façon (une feuille A4 fait ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre)${$('scale-auto').checked ? ' ; l’échelle est choisie pour que tout couvre la toile' : ''}.`;
-    if (pct >= 100 && $('scale-auto').checked === false) {
-      const big = state.drawings.filter((d) => roleOf(d) !== 'off' && realSizeWarning(d));
-      if (big.length) txt += ` ${big.length} dessin${big.length > 1 ? 's' : ''} dépasse${big.length > 1 ? 'nt' : ''} la toile de ${fmt(f.w)} × ${fmt(f.h)} cm.`;
+    const { bgArea, pieceArea } = paperAreas(state.drawings);
+    const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
+    let txt;
+    if (f.auto) {
+      const near = nearestStock(f.w, f.h);
+      txt = `Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages, ${fmt(bgArea / 1e4, 2)} m²) couvre tout avec 15 % de recouvrement et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Format du commerce le plus proche : ${near.w} × ${near.h} cm.`;
+    } else {
+      const cov = (state.coverage || 0) * 100;
+      txt = cov >= 114
+        ? `Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre avec ${Math.round(cov - 100)} % de recouvrement.`
+        : cov >= 100
+          ? `Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre tout juste (${Math.round(cov)} %) ; les déchirures laisseront de petits jours.`
+          : `Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite ou « taille adaptée aux dessins ».`;
     }
     $('scale-info').textContent = txt;
   }
@@ -608,7 +614,7 @@
 
   function regenerate() {
     if (!state.drawings.length) return;
-    if ($('scale-auto').checked) planCoverage();
+    planCoverage();
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
     const o = options();
@@ -633,7 +639,7 @@
     const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
     const t = titleFor(st.id);
     $('label-title').textContent = t ? `« ${t} »` : 'Sans titre';
-    $('label-meta').textContent = `${st.name} · collage de ${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm · échelle ${Math.round((state.comp.scale || scale()) * 100)} %`;
+    $('label-meta').textContent = `${st.name} · collage de ${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm · dessins à taille réelle`;
   }
 
   function titleFor(styleId) {
@@ -1077,12 +1083,11 @@
         },
         title: titleFor(st.id),
         styleName: st.name,
-        scale: state.comp.scale || scale(),
         onProgress: (t) => { label.textContent = t; },
       });
       label.textContent = 'Enregistrement…';
       await saveFile(res.blob, 'guide-de-creation-atelier-gribouille.pdf');
-      $('guide-info').textContent = `${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} planches à imprimer à 100 %.`;
+      $('guide-info').textContent = `${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} fiches de découpe sur les originaux.`;
     } catch (e) {
       console.error(e);
       notice('Le guide n’a pas pu être créé sur cet appareil. Réessayez sur un ordinateur.');
@@ -1145,8 +1150,7 @@
   });
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
-  ['format', 'density', 'rotation', 'scale', 'scale-auto', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
-  $('scale').addEventListener('input', updateScaleLabel);
+  ['format', 'density', 'rotation', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
   $('shadows').addEventListener('change', render);
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;
