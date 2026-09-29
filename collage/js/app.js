@@ -1593,7 +1593,7 @@ Réponds uniquement avec ce JSON :
   fillFormats();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state };
+  window.AtelierGribouille = { state, options };
   if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
 
   render();

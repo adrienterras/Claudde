@@ -501,6 +501,79 @@
     return { ciel: [0, lines.horizon], milieu: [lines.horizon, lines.ground], sol: [lines.ground, H], horizon: lines.horizon, ground: lines.ground };
   }
 
+
+  /*
+   * Courtepointe : les pages de fond sont les carreaux d'un patchwork, posées bord à bord, presque
+   * droites, en alternant claires et foncées comme un damier cousu. Retourne les centres des carreaux.
+   */
+  function backgroundQuilt(W, H, texs, R, out) {
+    const cov = Coverage(W, H);
+    const byLum = texs.slice().sort((a, b) => a.lum - b.lum);
+    // alternance clair / foncé : on pioche aux deux bouts
+    const order = [];
+    for (let i = 0, j = byLum.length - 1; i <= j; i++, j--) { order.push(byLum[j]); if (i !== j) order.push(byLum[i]); }
+    const cuts = order.map((t) => ({ t, cut: tearPage(t, R, W, H) }));
+    const widths = cuts.map(({ cut }) => cut.panel.w / cut.k);
+    const rows = Math.max(1, Math.round(widths.reduce((a, b) => a + b, 0) / (W * 1.08)));
+    const rowH = H / rows;
+    const rowsList = Array.from({ length: rows }, () => []);
+    cuts.forEach((c, i) => rowsList[i % rows].push({ c, w: widths[i] }));
+    const panels = [], tiles = [];
+    rowsList.forEach((row, ri) => {
+      const sumW = row.reduce((a, it) => a + it.w, 0);
+      const gap = clamp((W * 1.04 - sumW) / Math.max(1, row.length), -Math.min(...row.map((it) => it.w)) * 0.35, 1.5);
+      let x = -W * 0.02 + (ri % 2 ? -3 : 0);
+      row.forEach(({ c, w }) => {
+        const h = c.cut.panel.h / c.cut.k;
+        const cx = x + w / 2;
+        let cy = ri * rowH + rowH / 2;
+        if (ri === 0) cy = Math.min(cy, h / 2 - 0.5);
+        if (ri === rows - 1) cy = Math.max(cy, H - h / 2 + 0.5);
+        const rot = (R() - 0.5) * 0.03;
+        panels.push({
+          kind: 'bg', panel: true, whole: c.cut.whole, src: c.t.canvas, pageW: c.t.wcm, pageH: c.t.hcm,
+          sx: c.cut.panel.x, sy: c.cut.panel.y, sw: c.cut.panel.w, sh: c.cut.panel.h,
+          x: cx, y: cy, w, h, rot, flip: false, clip: tornPolygon(w, h, R, TEAR, c.cut.whole ? {} : null), band: [ri * rowH, (ri + 1) * rowH],
+        });
+        x += w + gap;
+      });
+    });
+    spreadPanels(W, H, panels, 10);
+    panels.forEach((p) => { cov.mark(p.x, p.y, p.w, p.h, p.rot); tiles.push({ x: p.x, y: p.y, w: p.w, h: p.h, lum: 0 }); });
+    out.push(...panels);
+    return tiles;
+  }
+
+  /*
+   * Vitrail : chaque page de fond est un fragment tourné d'un angle franc, posé sur une trame de
+   * cellules ; entre les fragments, de fines lignes de toile nue (peintes en noir : le plomb).
+   */
+  function backgroundShards(W, H, texs, R, out) {
+    const pages = texs.slice().sort((a, b) => (b.colorful || 0) - (a.colorful || 0)); // les plus colorées au centre
+    const n = pages.length;
+    const cols = Math.max(1, Math.round(Math.sqrt(n * W / H))), rows = Math.max(1, Math.ceil(n / cols));
+    const cw = W / cols, ch = H / rows;
+    // cellules triées par distance au centre : la page la plus colorée au milieu
+    const cells = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push({ x: (c + 0.5) * cw, y: (r + 0.5) * ch });
+    cells.sort((a, b) => Math.hypot(a.x - W / 2, a.y - H / 2) - Math.hypot(b.x - W / 2, b.y - H / 2));
+    const panels = [];
+    pages.forEach((t, i) => {
+      const cell = cells[i % cells.length];
+      const cut = tearPage(t, R, W, H);
+      const w = cut.panel.w / cut.k, h = cut.panel.h / cut.k;
+      const rot = (R() - 0.5) * 0.7 + (i % 2 ? 0.25 : -0.25);
+      panels.push({
+        kind: 'bg', panel: true, whole: cut.whole, src: t.canvas, pageW: t.wcm, pageH: t.hcm,
+        sx: cut.panel.x, sy: cut.panel.y, sw: cut.panel.w, sh: cut.panel.h,
+        x: cell.x + (R() - 0.5) * cw * 0.2, y: cell.y + (R() - 0.5) * ch * 0.2, w, h, rot, flip: false,
+        clip: tornPolygon(w, h, R, TEAR, cut.whole ? {} : null),
+      });
+    });
+    spreadPanels(W, H, panels, 12);
+    out.push(...panels);
+  }
+
   // Carte de charge visuelle et de clarté du fond, au centimètre : pour poser les sujets au calme.
   function backgroundMaps(W, H, bg) {
     const gw = Math.ceil(W), gh = Math.ceil(H);
@@ -532,7 +605,10 @@
    *  - équilibre des masses, couleurs voisines variées, sujets répartis sur toute la toile ;
    *  - chevauchements réduits au minimum ; profondeur : ce qui est plus bas passe devant.
    */
-  function placePieces(W, H, pieces, o, Z, R, spiral, maps) {
+  // mode : null (libre, par zones) ou { targets(idx, n, piece) → {x, y, rot, r}, byRadius, tight }
+  function placePieces(W, H, pieces, o, Z, R, mode, maps) {
+    const spiral = !!mode;
+    const targetsFn = mode ? mode.targets : null;
     const gw = Math.ceil(W), gh = Math.ceil(H);
     const occ = new Uint8Array(gw * gh);
     const pieceLum = (p) => 0.299 * p.color[0] + 0.587 * p.color[1] + 0.114 * p.color[2];
@@ -574,9 +650,9 @@
       let best = null, fallback = null;
       // Tournesol : chaque sujet vise son point de la spirale, les pièces maîtresses au cœur.
       // graines : elles restent dans le disque central (70 % du rayon), la couronne de pétales reste visible
-      const target = spiral ? (idx === 0 ? { x: W / 2, y: H / 2, rot: 0, r: 0 } : spiralPoint(W, H, idx, sorted.length, 0.7)) : null;
+      const target = targetsFn ? targetsFn(idx, sorted.length, p) : null;
       for (let c = 0; c < 110 && target; c++) {
-        const k = idx === 0 ? 0.05 : 0.1 + (c / 110) * 1.2;
+        const k = target.r === 0 ? 0.05 : 0.1 + (c / 110) * (mode.tight === false ? 2.2 : 1.2);
         const cx = target.x + (R() - 0.5) * p.wcm * k, cy = target.y + (R() - 0.5) * p.hcm * k;
         let cells = 0, over = 0, out = 0;
         footprint(p, cx, cy, (gx, gy) => {
@@ -665,7 +741,7 @@
         if (!best || score < best.score) best = { cx, cy, score };
       }
       // pas de place sans empiler : le sujet reste en attente (sauf en spirale, où l'on serre)
-      if (!best) { if (spiral && idx === 0 && fallback) best = fallback; else return; }
+      if (!best) { if (spiral && idx === 0 && fallback && mode.tight !== false) best = fallback; else return; }
       footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh && !occ[gy * gw + gx]) { occ[gy * gw + gx] = 1; covered++; } });
       if (star) {
         let bi = -1, bd = Infinity;
@@ -680,8 +756,8 @@
       placed.push({ kind: 'piece', piece: p, x: best.cx, y: best.cy, w: p.wcm, h: p.hcm, rot, flip: false, grounded, star, r: best.r });
     });
 
-    // spirale : l'extérieur d'abord, le cœur par-dessus
-    if (spiral) return placed.sort((a, b) => b.r - a.r);
+    // cibles : l'extérieur d'abord, le cœur par-dessus (ou les grandes pièces dessous)
+    if (spiral) return mode.byRadius ? placed.sort((a, b) => b.r - a.r) : placed.sort((a, b) => b.w * b.h - a.w * a.h);
     const g = placed.filter((L) => L.grounded).sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2));
     const f = placed.filter((L) => !L.grounded).sort((a, b) => b.w * b.h - a.w * a.h);
     return g.concat(f);
@@ -773,16 +849,66 @@
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
       return { W, H, bg: [paperLayer(W, H), ...cab.bg], items: cab.items, grain: o.grain, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
     }
-    const spiral = style === 'tournesol';
-    let Z = zonesFor(W, H, !spiral);
     const bg = [];
-    if (o.textures.length) {
-      if (spiral) backgroundPetals(W, H, o.textures, R, bg);
-      else Z = backgroundBands(W, H, o.textures, R, bg);
-    } else bg.push(paperLayer(W, H));
+    let Z = zonesFor(W, H, true);
+    let mode = null, ground = null, lines = null;
+    if (style === 'tournesol') {
+      Z = zonesFor(W, H, false);
+      if (o.textures.length) backgroundPetals(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
+      mode = { targets: (idx, n) => (idx === 0 ? { x: W / 2, y: H / 2, rot: 0, r: 0 } : spiralPoint(W, H, idx, n, 0.7)), byRadius: true };
+    } else if (style === 'courtepointe') {
+      // un médaillon par carreau : les plus grandes découpes sur les plus grands carreaux
+      Z = zonesFor(W, H, false);
+      const tiles = o.textures.length ? backgroundQuilt(W, H, o.textures, R, bg) : [];
+      if (!tiles.length) { bg.push(paperLayer(W, H)); }
+      const byArea = tiles.slice().sort((a, b) => b.w * b.h - a.w * a.h);
+      mode = { targets: (idx) => { const t = byArea.length ? byArea[idx % byArea.length] : { x: W / 2, y: H / 2 }; return { x: t.x, y: t.y, rot: 0, r: idx }; }, byRadius: false, tight: false };
+    } else if (style === 'cerfsvolants') {
+      // le ciel en bandes, incliné par le vent ; les découpes s'envolent sur une diagonale montante
+      if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
+      bg.forEach((L) => { if (L.panel) L.rot += 0.06; });
+      Z = zonesFor(W, H, false);
+      mode = { targets: (idx, n) => { const t = n > 1 ? idx / (n - 1) : 0.5; const side = idx % 2 ? 1 : -1; return { x: W * (0.14 + 0.72 * t) + side * W * 0.06 * (t > 0.2 ? 1 : 0), y: H * (0.8 - 0.62 * t) - side * H * 0.08 * (t > 0.2 ? 1 : 0), rot: -0.3 + (R() - 0.5) * 0.15, r: 1 - t }; }, byRadius: false, tight: false };
+    } else if (style === 'vitrail') {
+      Z = zonesFor(W, H, false);
+      ground = '#1c1b15';
+      if (o.textures.length) backgroundShards(W, H, o.textures, R, bg);
+      // rosace : la pièce maîtresse au centre, puis deux anneaux
+      mode = { targets: (idx, n) => { if (idx === 0) return { x: W / 2, y: H / 2, rot: 0, r: 0 }; const ring = idx <= 6 ? 1 : 2; const k = ring === 1 ? idx - 1 : idx - 7; const m = ring === 1 ? 6 : Math.max(1, n - 7); const a = (k / m) * Math.PI * 2 + (ring === 2 ? Math.PI / m : -Math.PI / 2); const rad = ring === 1 ? Math.min(W, H) * 0.27 : Math.min(W, H) * 0.44; return { x: W / 2 + Math.cos(a) * rad * (W / Math.min(W, H)) * 0.85, y: H / 2 + Math.sin(a) * rad, rot: 0, r: ring }; }, byRadius: true, tight: false };
+    } else if (style === 'constellation') {
+      if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
+      Z = zonesFor(W, H, false);
+      // des étoiles semées avec un espacement minimal ; la plus grande au centre
+      const pts = [{ x: W / 2, y: H / 2 }];
+      for (let tries = 0; tries < 4000 && pts.length < 40; tries++) {
+        const q = { x: W * (0.08 + R() * 0.84), y: H * (0.08 + R() * 0.84) };
+        if (pts.every((p) => Math.hypot(p.x - q.x, p.y - q.y) > Math.min(W, H) * 0.19)) pts.push(q);
+      }
+      mode = { targets: (idx) => ({ x: pts[idx % pts.length].x, y: pts[idx % pts.length].y, rot: 0, r: idx }), byRadius: false, tight: false };
+      lines = 'chain';
+    } else {
+      if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
+    }
     const maps = backgroundMaps(W, H, bg);
-    const items = placePieces(W, H, o.pieces, o, Z, R, spiral, maps);
-    return { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
+    const items = placePieces(W, H, o.pieces, o, Z, R, mode, maps);
+    const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
+    if (ground) comp.ground = ground;
+    if (lines === 'chain') {
+      // la constellation : chaque étoile reliée à sa plus proche voisine non encore reliée
+      const pts = items.map((L) => ({ x: L.x, y: L.y }));
+      const segs = [];
+      const left = pts.slice(1);
+      let cur = pts[0];
+      while (cur && left.length) {
+        let bi = 0;
+        left.forEach((q, i) => { if (Math.hypot(q.x - cur.x, q.y - cur.y) < Math.hypot(left[bi].x - cur.x, left[bi].y - cur.y)) bi = i; });
+        const nxt = left.splice(bi, 1)[0];
+        segs.push([cur.x, cur.y, nxt.x, nxt.y]);
+        cur = nxt;
+      }
+      comp.lines = segs;
+    }
+    return comp;
   }
 
   // Ajoute une découpe (à l'échelle) dans une composition existante.
@@ -832,9 +958,20 @@
   }
 
   function renderBg(ctx, comp, s, shadows) {
-    ctx.fillStyle = '#f8f5ef';
+    ctx.fillStyle = comp.ground || '#f8f5ef';
     ctx.fillRect(0, 0, comp.W * s, comp.H * s);
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
+    if (comp.lines) {
+      // traits de crayon reliant les étoiles de la constellation
+      ctx.save();
+      ctx.strokeStyle = 'rgba(40,25,10,0.55)';
+      ctx.lineWidth = 0.18 * s;
+      ctx.setLineDash([1.2 * s, 0.8 * s]);
+      ctx.beginPath();
+      comp.lines.forEach(([x0, y0, x1, y1]) => { ctx.moveTo(x0 * s, y0 * s); ctx.lineTo(x1 * s, y1 * s); });
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function renderItems(ctx, comp, s, shadows) {
