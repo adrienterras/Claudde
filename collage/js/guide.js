@@ -143,7 +143,7 @@
       await Promise.all(['400 10px "Playfair Display"', 'italic 400 10px "Playfair Display"', '400 10px Montserrat', '600 10px Montserrat']
         .map((f) => document.fonts.load(f).catch(() => {})));
     }
-    const logo = await loadImage('assets/logo-mark.png');
+    const logo = await loadImage('assets/logo-mark@4x.png');
     chrome.logo = logo ? tinted(logo, C.muted) : null;
     const texOwner = new Map();
     opts.drawings.forEach((d) => { if (d.analysis.texture) texOwner.set(d.analysis.texture.canvas, d); });
