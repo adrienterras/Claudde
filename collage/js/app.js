@@ -879,7 +879,8 @@
     el.hidden = false;
     const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
     const t = titleFor(st.id);
-    $('label-title').textContent = t ? `« ${t} »` : 'Sans titre';
+    $('label-title').textContent = t ? `« ${t} »` : '';
+    $('label-title').hidden = !t;
     const c = state.comp;
     const count = c.style === 'cabinet' && c.total ? `${c.kept} des ${c.total} dessins, les plus beaux` : `${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
     const aside = asideDrawings().length;
