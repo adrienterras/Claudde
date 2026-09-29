@@ -347,6 +347,23 @@
     refreshPieces();
   }
 
+  // Explique la taille sur l'œuvre : le dessin n'est pas coupé, il est réduit comme tous les autres.
+  function sizeNote(d, k, aw, ah) {
+    const pct = Math.round(k * 100);
+    const main = mainPiece(d);
+    const subj = main ? ` Le sujet principal fait ${fmt(subjectCm(d))} cm en vrai, ${fmt(subjectCm(d) * k)} cm sur l’œuvre.` : '';
+    if (k >= 0.995) return `Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.${subj}`;
+    return `Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm — la feuille entière, réduite à ${pct} % comme tous les dessins (rien n’est coupé).${subj}`;
+  }
+
+  function realSizeWarning(d) {
+    const f = formatCm();
+    const ar = d.analysis.page.width / d.analysis.page.height;
+    const [w, h] = ar >= 1 ? [d.sizeCm, d.sizeCm / ar] : [d.sizeCm * ar, d.sizeCm];
+    const fits = (w <= f.w && h <= f.h) || (h <= f.w && w <= f.h);
+    return fits ? '' : ` — à 100 %, ce dessin (${fmt(w)} × ${fmt(h)} cm) dépasse la toile de ${fmt(f.w)} × ${fmt(f.h)} cm : choisissez un format plus grand.`;
+  }
+
   function renderDetail() {
     const box = $('detail');
     const d = state.current;
@@ -375,7 +392,8 @@
           <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="Plus grand côté du sujet découpé, mesuré sur le dessin original">
         </label>` : ''}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? 'Taille lue dans le PDF.' : 'Taille estimée d’après le scan — corrigez-la si besoin.') : 'Taille saisie.'}
-          Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm${mainPiece(d) ? ` (sujet principal : ${fmt(subjectCm(d))} cm en vrai, ${fmt(subjectCm(d) * k)} cm sur l’œuvre)` : ''}.</p>
+          ${sizeNote(d, k, aw, ah)}</p>
+        ${k < 0.995 ? `<p class="hint"><button class="link" data-real>Coller ce dessin à sa taille réelle (échelle 100 %)</button>${realSizeWarning(d)}</p>` : ''}
       </div>`;
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
@@ -383,6 +401,12 @@
       refreshLists();
       regenerate();
     }));
+    const realBtn = box.querySelector('[data-real]');
+    if (realBtn) realBtn.onclick = () => {
+      $('scale-auto').checked = false;
+      $('scale').value = 100;
+      regenerate();
+    };
     const sel = box.querySelector('[data-size]');
     const custom = box.querySelector('[data-custom]');
     const setSize = (cm) => {
@@ -503,7 +527,16 @@
     const k = scale();
     if ($('scale-auto').checked) $('scale').value = Math.round(k * 100);
     $('scale').disabled = $('scale-auto').checked;
-    $('scale-info').textContent = `${Math.round(k * 100)} % — une feuille A4 mesure ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre. Tous les dessins sont réduits de la même façon${$('scale-auto').checked ? ', choisie pour couvrir toute la toile' : ''}.`;
+    const pct = Math.round(k * 100);
+    const f = formatCm();
+    let txt = pct >= 100
+      ? `100 % — chaque dessin est collé à sa taille réelle.`
+      : `${pct} % — chaque dessin est réduit à ${pct} % de sa taille réelle, tous de la même façon (une feuille A4 fait ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre)${$('scale-auto').checked ? ' ; l’échelle est choisie pour que tout couvre la toile' : ''}.`;
+    if (pct >= 100 && $('scale-auto').checked === false) {
+      const big = state.drawings.filter((d) => roleOf(d) !== 'off' && realSizeWarning(d));
+      if (big.length) txt += ` ${big.length} dessin${big.length > 1 ? 's' : ''} dépasse${big.length > 1 ? 'nt' : ''} la toile de ${fmt(f.w)} × ${fmt(f.h)} cm.`;
+    }
+    $('scale-info').textContent = txt;
   }
 
   function sizePiece(p, k) {
