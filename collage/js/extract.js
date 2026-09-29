@@ -241,7 +241,9 @@
       }
     }
     const unit = Math.max(w, h);
-    let mask = dilate(ink, w, h, unit * 0.014); // regroupe les traits + marge de découpe
+    // regroupe les traits, puis garde une marge de papier généreuse (≈ 0,6 cm sur un A4) :
+    // la découpe ressort comme un autocollant, comme sur un collage fait main
+    let mask = dilate(ink, w, h, unit * 0.026);
     mask = fillHoles(mask, w, h);
     mask = erode(mask, w, h, unit * 0.005);
     const { labels, comps } = components(mask, w, h);

@@ -345,22 +345,39 @@
     const cands = state.drawings.filter((d) => d.role === 'auto');
     cands.forEach((d) => { d.auto = null; });
     // une feuille pâle (crayon gris, texte) ne se découpe pas : elle est toujours un papier de fond
+    // Sur l'exemple de référence, le fond n'est fait que de pages colorées : les feuilles pâles
+    // (crayon gris, texte) sont mises de côté par défaut ; un réglage permet de les coller en fond.
     const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
-    paleOnes.forEach((d) => { d.auto = 'texture'; ensureMaterial(d); });
-    const ranked = cands.filter((d) => !paleOnes.includes(d)).sort((a, b) => bgMerit(b) - bgMerit(a));
+    const paleMode = $('pale') ? $('pale').value : 'aside';
+    paleOnes.forEach((d) => { d.auto = paleMode === 'fond' ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
+    state.paleCount = paleOnes.length;
+    // seules les pages franchement peintes ou colorées peuvent faire le fond (comme sur l'exemple) ;
+    // une feuille blanche avec un petit dessin reste une découpe
+    const bgEligible = (d) => {
+      const a = d.analysis;
+      const t = a.texture || (a.texture = Extract.textureFrom(a.page));
+      const painted = 1 - (a.paperFrac === undefined ? 0.5 : a.paperFrac);
+      // un sujet net et coloré (une bougie photographiée sur du parquet) reste une découpe
+      const main = (a.pieces || []).reduce((x, b) => (!x || b.frac > x.frac ? b : x), null);
+      if (a.kind === 'cutout' && (a.paperFrac || 0) >= 0.3 && main && main.frac > 0.25 && main.colorful > 0.35) return false;
+      return painted >= 0.5 || (painted >= 0.33 && (t.colorful || 0) >= 0.3);
+    };
+    const rest = cands.filter((d) => !paleOnes.includes(d));
+    rest.forEach((d) => { if (!bgEligible(d)) d.auto = 'cutout'; });
+    const ranked = rest.filter(bgEligible).sort((a, b) => bgMerit(b) - bgMerit(a));
     const forcedBg = state.drawings.filter((d) => d.role === 'texture').reduce((sum, d) => sum + pageAreaCm2(d), 0);
-    const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => roleOf(d) === 'texture').length)) : 0;
+    const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => d.auto === 'texture' || d.analysis.kind === 'texture').length)) : 0;
     let chosen = { nBg: minBg, area: 7000 };
     if (auto) {
       for (let nBg = minBg; nBg <= ranked.length; nBg++) {
         ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
         const { bgArea, pieceArea } = paperAreas(state.drawings);
-        const canvasArea = (bgArea + forcedBg * 0) / 1.15;
+        const canvasArea = bgArea / 1.3; // 30 % de recouvrement : les pages se chevauchent franchement
         chosen = { nBg, area: canvasArea };
         if (pieceArea <= 0.5 * density * canvasArea || nBg >= ranked.length) break;
       }
       state.canvasArea = Math.max(chosen.area, 900);
-      state.coverage = 1.15;
+      state.coverage = 1.3;
     } else {
       const [w, h] = v.split('x').map(Number);
       const canvasArea = w * h;
@@ -407,13 +424,17 @@
    * Tous les dessins entrent dans l'œuvre : chaque dessin découpé apporte son sujet principal
    * (sa plus grande pièce), plus ses autres sujets exploitables (colorés, pas des traits fins).
    */
-  const EXTRAS_PER_DRAWING = 4;
+  const EXTRAS_PER_DRAWING = 2;
+  // Un sujet par dessin ; un second ou un troisième seulement s'il est grand (≥ 7 cm) et coloré,
+  // pour que chaque découpe reste lisible et que l'œuvre ne se couvre pas de confettis.
   function curateDrawing(d) {
     const ps = d.analysis.pieces || [];
     const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
-    ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && eligible(p))
-      .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; p.main = false; });
-    ps.forEach((p) => { if (p !== main && !eligible(p)) { p.enabled = false; p.main = false; } });
+    const c = cmPerPx(d);
+    const strong = (p) => eligible(p) && Math.max(p.canvas.width, p.canvas.height) * c >= 7 && p.colorful >= 0.3;
+    ps.forEach((p) => { p.enabled = false; p.main = false; });
+    ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && strong(p))
+      .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; });
     if (main) { main.enabled = true; main.main = true; }
   }
 
@@ -651,10 +672,11 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
+    const aside = state.paleCount && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté, comme sur l’exemple.` : '';
     let txt;
     if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
-      txt = `Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages, ${fmt(bgArea / 1e4, 2)} m²) couvre tout avec 15 % de recouvrement et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
+      txt = `Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
     } else {
       const cov = (state.coverage || 0) * 100;
       txt = cov >= 114
@@ -663,7 +685,7 @@
           ? `Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre tout juste (${Math.round(cov)} %) ; les déchirures laisseront de petits jours.`
           : `Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite ou « taille adaptée aux dessins ».`;
     }
-    $('scale-info').textContent = txt;
+    $('scale-info').textContent = txt + aside;
   }
 
   function sizePiece(p, k) {
@@ -1276,7 +1298,7 @@
   });
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
-  ['format', 'density', 'rotation', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
+  ['format', 'pale', 'density', 'rotation', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
   $('shadows').addEventListener('change', render);
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;

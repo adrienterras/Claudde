@@ -41,8 +41,14 @@ cd collage && python3 -m http.server 8000
      150 × 50). On peut imposer l'une d'elles : l'application dit alors si le papier suffit ;
    - chaque page de fond est utilisée UNE SEULE FOIS et EN ENTIER : un grand morceau déchiré, et le
      reste de la page déchiré en lambeaux qui bouchent les trous ; le papier peut déborder du bord ;
-   - chaque dessin découpé apporte son sujet principal et ses autres sujets colorés ; une feuille pâle
-     (crayon gris, texte) est toujours un papier de fond ;
+   - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
+     colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
+     découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut, un réglage permet
+     de les coller en fond ; les pages de fond restent presque entières, avec peu de lambeaux ;
+   - chaque dessin découpé apporte son sujet principal, plus un ou deux sujets secondaires seulement
+     s'ils sont grands (≥ 7 cm) et colorés ; les découpes gardent une marge de papier généreuse
+     (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
+     et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
      leur couleur (claires et froides en haut, sombres et chaudes en bas), posées en tuiles presque
      droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les lambeaux,

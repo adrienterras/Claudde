@@ -159,9 +159,11 @@
   function tearPage(t, R) {
     const pw = t.canvas.width, ph = t.canvas.height, k = pw / t.wcm;
     // une grande page (plus d'un A3) reste presque entière : son dessin doit rester lisible
+    // les pages restent presque entières (comme sur l'exemple, des feuilles posées côte à côte) ;
+    // ce qui reste donne un ou deux grands lambeaux
     const big = t.wcm * t.hcm > 1300;
-    const sw = Math.round(pw * (big ? 0.88 + 0.08 * R() : 0.7 + 0.18 * R()));
-    const sh = Math.round(ph * (big ? 0.9 + 0.07 * R() : 0.74 + 0.14 * R()));
+    const sw = Math.round(pw * (big ? 0.92 + 0.06 * R() : 0.84 + 0.11 * R()));
+    const sh = Math.round(ph * (big ? 0.93 + 0.05 * R() : 0.86 + 0.1 * R()));
     const left = R() < 0.5, top = R() < 0.5;
     const panel = { x: left ? 0 : pw - sw, y: top ? 0 : ph - sh, w: sw, h: sh };
     const strips = [];
@@ -177,8 +179,8 @@
       const tPx = Math.floor(thick / nThick);
       let pos = 0;
       while (pos < along) {
-        const len = Math.min(along - pos, Math.round((8 + R() * 10) * k));
-        if (len < 3 * k && scraps.length) { // trop petit : on l'ajoute au précédent
+        const len = Math.min(along - pos, Math.round((8 + R() * 8) * k));
+        if (len < 4 * k && scraps.length) { // trop petit : on l'ajoute au précédent
           const prev = scraps[scraps.length - 1];
           if (horizontal) prev.w += len; else prev.h += len;
           pos += len; continue;
@@ -323,7 +325,7 @@
         const order = shuffle(row, R);
         const sumW = order.reduce((a, it) => a + it.w, 0);
         // espacement : chevauchement si la rangée déborde, sinon un peu d'air (les lambeaux boucheront)
-        const gap = clamp((W * 1.06 - sumW) / Math.max(1, order.length), -Math.min(...order.map((it) => it.w)) * 0.35, 6);
+        const gap = clamp((W * 1.06 - sumW) / Math.max(1, order.length), -Math.min(...order.map((it) => it.w)) * 0.4, 2);
         let x = -W * 0.03 + (R() - 0.5) * 4;
         order.forEach(({ c, w }) => {
           const h = c.cut.panel.h / c.cut.k;
@@ -334,11 +336,12 @@
           if (ri === 0) cy = Math.min(cy, y0 + h / 2 - 1);
           if (ri === rowsList.length - 1) cy = Math.max(cy, y0 + bh - h / 2 + 1);
           cy += (R() - 0.5) * rowH * 0.1;
-          const rot = (R() - 0.5) * 0.05;
+          const rot = z === 'ciel' ? 0 : (R() - 0.5) * 0.05;
           panels.push({
             kind: 'bg', panel: true, src: c.t.canvas, pageW: c.t.wcm, pageH: c.t.hcm,
             sx: c.cut.panel.x, sy: c.cut.panel.y, sw: c.cut.panel.w, sh: c.cut.panel.h,
-            x: cx, y: cy, w, h, rot, flip: false, clip: tornPolygon(w, h, R, TEAR),
+            x: cx, y: cy, w, h, rot, flip: false,
+            clip: tornPolygon(w, h, R, TEAR, z === 'ciel' ? { b: 1 } : z === 'sol' ? { t: 1 } : null),
           });
           cov.mark(cx, cy, w, h, rot);
           x += w + gap;
@@ -425,6 +428,9 @@
     const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
     if (!stars.size) sorted.slice(0, 3).forEach((p) => stars.add(p));
+    // les découpes couvrent au plus ~45 % de la toile (× densité) : au-delà, les sujets restent en attente
+    const targetCover = 0.45 * (o.density || 1) * W * H;
+    let covered = 0;
 
     function footprint(p, cx, cy, fn) {
       const x0 = cx - p.wcm / 2, y0 = cy - p.hcm / 2;
@@ -442,7 +448,8 @@
     }
 
     sorted.forEach((p, idx) => {
-      const band = Z[p.zone] || [0, H];
+      p.placed = false;
+      if (!spiral && covered >= targetCover) return;
       const grounded = !spiral && !!p.grounded;
       const pHue = hue(p.color);
       const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
@@ -463,7 +470,10 @@
         const score = (over / cells) * 3 + (out / cells) * 5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.15) + R() * 0.03;
         if (!best || score < best.score) best = { cx, cy, score, r: target.r, rot: target.rot };
       }
-      for (let c = 0; c < 110 && !target; c++) {
+      let fallback = null;
+      for (let c = 0; c < 170 && !target; c++) {
+        // un sujet posé peut aussi se tenir sur le bas du milieu, pas seulement dans la bande du sol
+        const band = grounded && c % 2 ? [Z.milieu[0], Z.sol[1]] : Z[p.zone] || [0, H];
         let cx = p.wcm * 0.35 + R() * Math.max(1, W - p.wcm * 0.7);
         let cy;
         if (grounded) {
@@ -489,7 +499,7 @@
           }
         });
         if (!cells) continue;
-        let score = (over / cells) * 3 + (out / cells) * 5;
+        let score = (over / cells) * 6 + (out / cells) * 5;
         if (maps) {
           // zone calme, et contraste clair / foncé entre le sujet et le fond
           const inside = Math.max(1, cells - out);
@@ -531,10 +541,13 @@
           if (dmin < Infinity) score += (dmin / W) * 2.5;
         }
         score += R() * 0.04;
+        if (!fallback || score < fallback.score) fallback = { cx, cy, score };
+        if (over / cells > 0.12 || out / cells > 0.15) continue; // pas de vrai chevauchement
         if (!best || score < best.score) best = { cx, cy, score };
       }
-      if (!best) best = { cx: W / 2, cy: H / 2 };
-      footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh) occ[gy * gw + gx] = 1; });
+      // pas de place sans empiler : le sujet reste en attente (sauf en spirale, où l'on serre)
+      if (!best) { if (spiral && fallback) best = fallback; else return; }
+      footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh && !occ[gy * gw + gx]) { occ[gy * gw + gx] = 1; covered++; } });
       if (star) {
         let bi = -1, bd = Infinity;
         thirds.forEach(([tx, ty], i) => { const d = Math.hypot(tx - best.cx, ty - best.cy); if (!usedThirds.has(i) && d < bd) { bd = d; bi = i; } });
