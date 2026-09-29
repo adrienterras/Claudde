@@ -129,10 +129,12 @@
       await tick();
       try {
         const src = await pages[i].render();
-        const analysis = Extract.analyze(src.canvas);
+        // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
+        const analysis = Extract.analyze(src.canvas, 0, { photo: !src.physCm });
         const d = {
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
           orient: 'auto', orientDeg: 0,
+          original: analysis.original || null, photo: analysis.photo || null, photoMode: 'auto',
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm,
           sizeCm: 29.7, sizeMode: 'auto',
         };
@@ -285,6 +287,23 @@
     if (d.analysis.pieces) curateDrawing(d);
     ensureMaterial(d);
     return true;
+  }
+
+  // Photo sur une surface : bascule entre le dessin détouré et la photo entière.
+  function setPhotoMode(d, mode) {
+    if (!d.original || d.photoMode === mode) return;
+    d.photoMode = mode;
+    const a = Extract.analyze(d.original, 0, { photo: mode === 'auto' });
+    if (mode === 'auto' && !a.photo) return; // la surface n'est plus reconnue : on garde tel quel
+    d.base = a; d.analysis = a; d.orientDeg = 0;
+    d.photo = a.photo || null;
+    d.thumb = thumbOf(a.page);
+    preparePieces(a.pieces, d);
+    if (a.pieces) curateDrawing(d);
+    ensureMaterial(d);
+    planCoverage();
+    refreshLists();
+    regenerate();
   }
 
   function applyOrientations() {
@@ -528,7 +547,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b><i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.original && d.photoMode === 'auto' ? '<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>' : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
       el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
       dEl.appendChild(el);
     });
@@ -569,9 +588,13 @@
         ${mainPiece(d) ? `<label class="row" data-subject>Ou taille du sujet (cm)
           <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="Plus grand côté du sujet découpé, mesuré sur le dessin original">
         </label>` : ''}
+        ${d.original ? `<p class="hint photo">${d.photoMode === 'auto'
+          ? `Photo sur ${d.photo && d.photo.kind === 'bois' ? 'du bois ou du parquet' : 'un sol ou une table'} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
+          : 'Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>'}</p>` : ''}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? 'Taille lue dans le PDF.' : 'Taille estimée d’après le scan — corrigez-la si besoin.') : 'Taille saisie.'}
           Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.${mainPiece(d) ? ` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
       </div>`;
+    box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
       ensureMaterial(d);

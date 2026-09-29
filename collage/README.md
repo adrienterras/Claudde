@@ -47,6 +47,12 @@ cd collage && python3 -m http.server 8000
      découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut — c'est signalé
      dans le panneau (numéros), sur le cartel et sur la couverture du guide — et un réglage permet de
      les coller en fond ; les pages de fond restent entières ;
+   - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
+     taille physique) montre le dessin posé sur du parquet, du bois, du carrelage ou un plan de
+     travail, la surface est reconnue à la bordure (teinte bois ou neutre, unie ou structurée par des
+     joints), puis retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. C'est
+     signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
+     entière) et sur la fiche de découpe ;
    - chaque dessin découpé apporte son sujet principal, plus un ou deux sujets secondaires seulement
      s'ils sont grands (≥ 7 cm) et colorés ; les découpes gardent une marge de papier généreuse
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile

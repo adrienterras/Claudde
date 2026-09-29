@@ -404,12 +404,139 @@
     return { canvas: c, color, lum: lum(color), colorful: s / (d.length / 4), calm: cells ? flat / cells : 0 };
   }
 
+
+  /*
+   * Photo d'un dessin posé sur un sol ou une table (parquet, carrelage, bois, plan de travail…).
+   * On reconnaît la surface à la bordure de l'image : une couleur de bois (chaude, moyenne) ou
+   * neutre (gris, blanc cassé), puis on isole ce qui s'en détache, en suivant la forme du dessin.
+   * Retourne null si l'image n'est pas une photo sur une surface, sinon la page nettoyée :
+   * le dessin détouré sur un fond blanc, recadré.
+   */
+  function removeSurface(src) {
+    const work = scaleTo(src, WORK_MAX);
+    const w = work.width, h = work.height, n = w * h;
+    const d = ctx2d(work).getImageData(0, 0, w, h).data;
+    const col = estimatePaper(d, w, h);
+    const L = lum(col), S = sat(col);
+    const mx = Math.max(col[0], col[1], col[2]), mn = Math.min(col[0], col[1], col[2]);
+    let hue = 0;
+    if (mx > mn) {
+      if (mx === col[0]) hue = ((col[1] - col[2]) / (mx - mn)) % 6;
+      else if (mx === col[1]) hue = (col[2] - col[0]) / (mx - mn) + 2;
+      else hue = (col[0] - col[1]) / (mx - mn) + 4;
+      hue = (hue * 60 + 360) % 360;
+    }
+    const neutral = S < 0.18 && L < 228;                 // gris, béton, plan de travail
+    const wood = S >= 0.18 && S < 0.75 && hue >= 10 && hue <= 48 && L < 200; // bois, parquet, liège
+    if (!neutral && !wood) return null;
+
+    // chromaticité (indépendante de l'éclairage) et luminance de chaque pixel
+    const chroma = (i) => { const t = d[i] + d[i + 1] + d[i + 2] || 1; return [d[i] / t, d[i + 1] / t]; };
+    const ct = col[0] + col[1] + col[2] || 1, cr = col[0] / ct, cg = col[1] / ct;
+    // tolérances tirées de la bordure elle-même (veines du bois, joints du carrelage)
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
+    const dc = [], dl = [];
+    forEachBorder(w, h, band, (p) => {
+      const i = p * 4, c = chroma(i);
+      dc.push(Math.hypot(c[0] - cr, c[1] - cg));
+      dl.push(Math.abs(lum([d[i], d[i + 1], d[i + 2]]) - L));
+    });
+    dc.sort((a, b) => a - b); dl.sort((a, b) => a - b);
+    const q = (arr, f) => arr[Math.min(arr.length - 1, Math.floor(arr.length * f))];
+    const cTol = Math.min(0.09, Math.max(0.028, q(dc, 0.9) * 1.6));
+    const lTol = Math.min(120, Math.max(48, q(dl, 0.9) * 1.8));
+    const obj = new Uint8Array(n), joint = new Uint8Array(n);
+    let surfCount = 0;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const c = chroma(i);
+      const dch = Math.hypot(c[0] - cr, c[1] - cg);
+      const l = lum([d[i], d[i + 1], d[i + 2]]);
+      const s = sat([d[i], d[i + 1], d[i + 2]]);
+      // même teinte que la surface, pas plus clair que sa tolérance ; en plus foncé on accepte
+      // large (ombres portées, joints, veines) ; les joints très sombres perdent leur teinte
+      const dark = l < L * 0.6 && (s < 0.45 || dch < cTol * 1.5) && dch < cTol * 2.2;
+      const same = dch < cTol && l < L + lTol;
+      if (same || dark) { surfCount++; if (dark || l < L * 0.62) joint[p] = 1; }
+      else obj[p] = 1;
+    }
+    const surfFrac = surfCount / n;
+    if (surfFrac < 0.15 || surfFrac > 0.97) return null;
+    // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
+    if (q(dl, 0.9) > 60 || q(dc, 0.9) > 0.09) return null;
+    // Une vraie surface est soit très unie (plan de travail), soit structurée par de longs traits
+    // sombres (lames de parquet, joints de carrelage). Une page peinte ne l'est pas.
+    const uniform = q(dl, 0.9) < 16 && q(dc, 0.9) < 0.02;
+    let lines = 0;
+    if (!uniform) {
+      const jc = components(joint, w, h).comps;
+      const unit0 = Math.max(w, h);
+      jc.forEach((c) => {
+        const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
+        if (Math.max(bw, bh) >= 0.22 * unit0 && (Math.min(bw, bh) <= 0.04 * unit0 || c.area / (bw * bh) < 0.4) && c.area > 0.0006 * n) lines++;
+      });
+    }
+    removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), surfFrac: +surfFrac.toFixed(2), uniform, lines, dl90: Math.round(q(dl, 0.9)), dc90: +q(dc, 0.9).toFixed(3) };
+    if (!uniform && lines < 1) return null;
+    const unit = Math.max(w, h);
+    // fermeture (relie le dessin), bouchage des trous, ouverture (efface les veines isolées)
+    let mask = dilate(obj, w, h, unit * 0.008);
+    mask = erode(mask, w, h, unit * 0.008);
+    mask = fillHoles(mask, w, h);
+    mask = erode(mask, w, h, unit * 0.012);
+    mask = dilate(mask, w, h, unit * 0.012);
+    const { labels, comps } = components(mask, w, h);
+    const keep = comps.filter((c) => c.area >= 0.03 * n);
+    if (!keep.length) return null;
+    const ids = new Set(keep.map((c) => c.id));
+    let x0 = w, y0 = h, x1 = 0, y1 = 0, area = 0;
+    keep.forEach((c) => { x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); area += c.area; });
+    if (area > 0.92 * n) return null;
+    // le dessin posé est une forme compacte (feuille, découpe) qui ne remplit pas toute la bordure ;
+    // des taches éparses sur un papier kraft ne sont pas un dessin posé sur un sol
+    const touches = [x0 <= 1, y0 <= 1, x1 >= w - 2, y1 >= h - 2].filter(Boolean).length;
+    Object.assign(removeSurface.debug, { touches, fill: +(area / ((x1 - x0 + 1) * (y1 - y0 + 1))).toFixed(2), objFrac: +(area / n).toFixed(2) });
+    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
+    // masque final, légèrement rétréci pour ne pas garder un liseré de surface
+    const fin = erode(new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0))), w, h, unit * 0.004);
+
+    // page nettoyée à la résolution d'origine : hors du dessin, du papier blanc
+    const k = src.width / w;
+    const m = Math.round(0.03 * Math.max(x1 - x0, y1 - y0) * k);
+    const cx0 = Math.max(0, Math.round(x0 * k) - m), cy0 = Math.max(0, Math.round(y0 * k) - m);
+    const cx1 = Math.min(src.width, Math.round((x1 + 1) * k) + m), cy1 = Math.min(src.height, Math.round((y1 + 1) * k) + m);
+    const out = makeCanvas(cx1 - cx0, cy1 - cy0);
+    const ctx = ctx2d(out);
+    ctx.drawImage(src, cx0, cy0, out.width, out.height, 0, 0, out.width, out.height);
+    const img = ctx.getImageData(0, 0, out.width, out.height);
+    const od = img.data;
+    for (let y = 0; y < out.height; y++) {
+      const wy = Math.min(h - 1, Math.floor((y + cy0) / k));
+      for (let x = 0; x < out.width; x++) {
+        const wx = Math.min(w - 1, Math.floor((x + cx0) / k));
+        if (!fin[wy * w + wx]) { const i = (y * out.width + x) * 4; od[i] = 248; od[i + 1] = 246; od[i + 2] = 241; od[i + 3] = 255; }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return { canvas: out, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac } };
+  }
+
   /*
    * Analyse complète d'une page scannée.
    * Retourne { page, kind: 'texture' | 'cutout', texture?, pieces? }.
    */
-  function analyze(src, depth) {
+  function analyze(src, depth, opts) {
     depth = depth || 0;
+    opts = opts || {};
+    if (depth === 0 && opts.photo) {
+      // photo d'un dessin posé sur un sol ou une table : on retire la surface
+      const cleaned = removeSurface(src);
+      if (cleaned) {
+        const r = analyze(cleaned.canvas, 0, {});
+        r.photo = cleaned.surface;
+        r.original = src;
+        return r;
+      }
+    }
     const seg = segment(src);
     const big = seg.comps[0];
     if (depth === 0 && big) {
@@ -438,5 +565,5 @@
     return result;
   }
 
-  window.Extract = { analyze, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, removeSurface, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();

@@ -350,7 +350,7 @@
       text(ctx, `Fiche ${f.n}`, MARGIN, 19, 5, { font: F.display });
       scissors(ctx, MARGIN + 24, 17.5, 5, C.cut);
       const turned = d.orientDeg ? ` · original tourné de ${d.orientDeg}° (le haut du scan est ${d.orientDeg === 90 ? 'à droite' : d.orientDeg === 180 ? 'en bas' : 'à gauche'})` : '';
-      text(ctx, `${opts.nameOf(d)} · dessin ${opts.numberOf(d)} · feuille de ${fmt(pw)} × ${fmt(ph)} cm${turned}`, MARGIN + 30, 19, 2.8, { color: C.muted });
+      text(ctx, `${opts.nameOf(d)} · dessin ${opts.numberOf(d)} · feuille de ${fmt(pw)} × ${fmt(ph)} cm${turned}${d.original && d.photoMode === 'auto' ? ' · photo détourée (sol ou table retiré)' : ''}`, MARGIN + 30, 19, 2.8, { color: C.muted });
       // l'original, ajusté à la page (ce n'est pas à l'échelle : les cotes font foi)
       const top = 26, bottom = h - 34;
       const sc = Math.min((w - 2 * MARGIN - 14) / pw, (bottom - top) / ph); // mm par cm
