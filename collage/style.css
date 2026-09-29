@@ -423,6 +423,17 @@ body.stage-full { overflow: hidden; }
 .thumb:hover .edit-piece, .thumb .edit-piece:focus-visible { opacity: 1; }
 @media (hover: none) { .thumb .edit-piece { opacity: 1; } }
 
+.save-status { margin: 0; padding: 8px 10px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); font-size: 0.82rem; }
+
+/* Aperçu de secours pour enregistrer l'image */
+.preview { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--surface); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.preview-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+.preview-bar h2 { margin: 0 0 4px; font-family: var(--f-display); font-weight: 400; font-size: 1.3rem; }
+.preview-bar .btn { width: auto; flex: none; }
+.preview-stage { min-height: 0; overflow: auto; padding: 16px; display: grid; place-items: center; background: var(--wall); -webkit-touch-callout: default; }
+.preview-stage img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 12px 30px -16px rgba(0, 0, 0, .6); -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+.preview-name { margin: 0; padding: 10px 20px; border-top: 1px solid var(--line); }
+
 /* ---------- Éditeur de découpe ---------- */
 body.editing { overflow: hidden; }
 .editor {

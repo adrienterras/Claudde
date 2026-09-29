@@ -122,6 +122,7 @@
       </div>
       <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <p id="export-info" class="hint mono-note"></p>
+      <p id="save-status" class="save-status" role="status" hidden></p>
       <div class="guide-box">
         <p class="guide-title">Réaliser l’œuvre à la main</p>
         <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
@@ -166,6 +167,19 @@
       </div>
     </div>
   </main>
+
+  <div id="preview" class="preview" role="dialog" aria-modal="true" aria-labelledby="preview-title" hidden>
+    <div class="preview-bar">
+      <div>
+        <p class="ed-kicker">Votre œuvre</p>
+        <h2 id="preview-title">Enregistrer l’image</h2>
+        <p class="hint">Sur téléphone : appuyez longuement sur l’image, puis « Enregistrer l’image ». Sur ordinateur : clic droit → « Enregistrer l’image sous… ».</p>
+      </div>
+      <button id="preview-close" class="btn">Fermer</button>
+    </div>
+    <div class="preview-stage"><img id="preview-img" alt=""></div>
+    <p id="preview-name" class="hint mono-note preview-name"></p>
+  </div>
 
   <div id="editor" class="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title" hidden>
     <div class="ed-bar">

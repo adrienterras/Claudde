@@ -1189,44 +1189,97 @@
 
   // ---------- Export ----------
 
+  // Les navigateurs de téléphone refusent les très grandes images (Safari : ~16 millions de pixels).
+  const phone = () => navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900;
+  const MAX_PIXELS = () => (phone() ? 12e6 : 60e6);
+
   function exportSize() {
     const comp = state.comp;
     const v = $('dpi').value;
+    let w, h;
     if (v === 'screen') {
       const k = 2400 / Math.max(comp.W, comp.H);
-      return { w: Math.round(comp.W * k), h: Math.round(comp.H * k) };
+      w = Math.round(comp.W * k); h = Math.round(comp.H * k);
+    } else {
+      const dpi = Number(v);
+      w = Math.round((comp.W / 2.54) * dpi); h = Math.round((comp.H / 2.54) * dpi);
     }
-    const dpi = Number(v);
-    return { w: Math.round((comp.W / 2.54) * dpi), h: Math.round((comp.H / 2.54) * dpi) };
+    const cap = MAX_PIXELS();
+    let capped = false;
+    if (w * h > cap) { const f = Math.sqrt(cap / (w * h)); w = Math.round(w * f); h = Math.round(h * f); capped = true; }
+    return { w, h, capped };
   }
 
   function updateExportInfo() {
     if (!state.comp) return;
-    const { w, h } = exportSize();
-    $('export-info').textContent = `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm`;
+    const { w, h, capped } = exportSize();
+    $('export-info').textContent = `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
   }
 
   // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
   // en local, par un lien de téléchargement classique.
-  async function saveFile(blob, filename) {
-    const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
-    if (downloads) {
-      try {
-        await downloads.save({ filename, data: blob });
-      } catch (err) {
-        if (err && err.code === 'too_large') notice('Fichier trop lourd pour cet appareil : choisissez une qualité plus faible.');
-        else if (!err || err.code !== 'declined') notice('Enregistrement impossible ici. Réessayez dans un instant.');
-      }
-      return;
-    }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  function saveStatus(text) {
+    const el = $('save-status');
+    el.textContent = text || '';
+    el.hidden = !text;
   }
+
+  // Comment enregistrer un fichier ici : demande du visualiseur Claude, téléchargement direct, ou aperçu.
+  async function saveMode() {
+    if (!(window.claude && window.claude.use)) return { mode: 'anchor' };
+    const dl = await Promise.race([window.claude.use('downloads'), new Promise((r) => setTimeout(() => r(null), 6000))]);
+    return dl ? { mode: 'viewer', dl } : { mode: 'preview' };
+  }
+
+  async function saveFile(blob, filename) {
+    const { mode, dl } = await saveMode();
+    if (mode === 'viewer') {
+      saveStatus('Confirmez l’enregistrement dans la fenêtre qui s’affiche…');
+      try {
+        await dl.save({ filename, data: blob });
+        saveStatus(`Enregistré : ${filename}`);
+        return true;
+      } catch (err) {
+        const code = err && err.code;
+        if (code === 'declined') { saveStatus('Enregistrement annulé.'); return false; }
+        if (code === 'too_large') { notice('Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.'); saveStatus(''); return false; }
+        if (code === 'rate_limited') { notice('Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.'); saveStatus(''); return false; }
+        // indisponible ici : on passe à l'aperçu
+      }
+    }
+    if (mode === 'anchor') {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      saveStatus(`Téléchargement lancé : ${filename}`);
+      return true;
+    }
+    if (blob.type.startsWith('image/')) {
+      showPreview(blob, filename);
+      saveStatus('Aperçu ouvert : enregistrez l’image depuis l’aperçu.');
+      return true;
+    }
+    notice('L’enregistrement de fichiers n’est pas possible dans cette fenêtre. Ouvrez la page dans un navigateur (menu ⋯ ou Partager → Ouvrir dans le navigateur), le téléchargement y fonctionne.');
+    saveStatus('');
+    return false;
+  }
+
+  // Aperçu de secours : l'image en grand, à enregistrer par appui long ou clic droit.
+  function showPreview(blob, filename) {
+    const box = $('preview');
+    const img = $('preview-img');
+    if (img.src) URL.revokeObjectURL(img.src);
+    img.src = URL.createObjectURL(blob);
+    img.alt = filename;
+    $('preview-name').textContent = `${filename} · ${Math.round(blob.size / 1024)} Ko`;
+    box.hidden = false;
+    document.body.classList.add('editing');
+  }
+  $('preview-close').onclick = () => { $('preview').hidden = true; document.body.classList.remove('editing'); };
 
   // Guide de création : planches de découpe à taille réelle et ordre de collage.
   async function exportGuide() {
@@ -1280,12 +1333,19 @@
       Compose.renderItems(x, state.comp, s, shadows);
       Compose.renderFinish(x, state.comp, s);
       const type = $('fmt').value;
-      const blob = await new Promise((r) => c.toBlob(r, type, 0.92));
+      let blob = await new Promise((r) => c.toBlob(r, type, 0.92));
+      if (!blob) {
+        // l'appareil n'a pas pu fabriquer l'image : on réessaie deux fois plus petit
+        const c2 = Extract.makeCanvas(c.width / 2, c.height / 2);
+        c2.getContext('2d').drawImage(c, 0, 0, c2.width, c2.height);
+        blob = await new Promise((r) => c2.toBlob(r, type, 0.92));
+        if (blob) saveStatus(`Image réduite à ${c2.width} × ${c2.height} px : cet appareil ne peut pas en produire une plus grande.`);
+      }
       if (!blob) throw new Error('toBlob');
       await saveFile(blob, `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`);
     } catch (e) {
       console.error(e);
-      notice('Export impossible à cette taille sur cet appareil. Choisissez une qualité plus faible.');
+      notice('Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.');
     } finally {
       btn.disabled = false;
       btn.querySelector('span').textContent = 'Télécharger l’œuvre';
