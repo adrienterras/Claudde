@@ -18,7 +18,10 @@ cd collage && python3 -m http.server 8000
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc.
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré) et **taille réelle** de la feuille
    (A5, A4, A3, A2 ou autre). Sans information dans le fichier, la taille est estimée à partir du scan
-   (le scan médian est supposé A4) : vérifiez-la, c'est elle qui fixe la taille du dessin dans l'œuvre.
+   (le scan médian est supposé A4) ; elle n'est arrondie à un format standard que si la feuille en a
+   les proportions. Un bandeau **« Tailles à vérifier »** liste les feuilles douteuses (bandes, rouleaux,
+   très grands ou très petits formats) avec un champ pour saisir leur plus grand côté : c'est cette
+   taille qui fixe celle du dessin dans l'œuvre.
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    et de TOUS les dessins (chacun apparaît au moins une fois) :
    - **plan de couverture** : l'application choisit les dessins qui font le meilleur fond (pages peintes

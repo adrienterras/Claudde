@@ -28,7 +28,9 @@
   // Formats de feuille (plus grand côté, en cm)
   const SHEETS = [['A5', 21], ['A4', 29.7], ['A3', 42], ['A2', 59.4]];
   // Tailles de page PDF correspondant à un vrai format physique (plus grand côté, en points)
-  const PHYSICAL_PT = [595.3, 841.9, 1190.6, 1683.8, 792, 1008];
+  // Formats physiques (points PDF) : [petit côté, grand côté]. Un scanner à plat produit des pages
+  // à ces dimensions exactes ; un scan de téléphone donne des tailles quelconques.
+  const PHYSICAL_PT = [[419.5, 595.3], [595.3, 841.9], [841.9, 1190.6], [1190.6, 1683.8], [612, 792], [612, 1008]];
 
   // ---------- Import ----------
 
@@ -57,8 +59,9 @@
             await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
             // Un PDF de scanner à plat donne la vraie taille de la feuille ;
             // un scan de téléphone donne seulement une taille en pixels.
-            const physical = PHYSICAL_PT.some((pt) => Math.abs(long / pt - 1) < 0.02);
-            return { canvas: c, origLong: long, physCm: physical ? (long / 72) * 2.54 : null };
+            const short = Math.min(vp0.width, vp0.height);
+            const physical = PHYSICAL_PT.some(([a, b]) => Math.abs(short / a - 1) < 0.012 && Math.abs(long / b - 1) < 0.012);
+            return { canvas: c, origLong: long, origShort: short, physCm: physical ? (long / 72) * 2.54 : null };
           },
         });
       }
@@ -68,9 +71,9 @@
         render: async () => {
           const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
           const c = Extract.scaleTo(bmp, SOURCE_MAX);
-          const origLong = Math.max(bmp.width, bmp.height);
+          const origLong = Math.max(bmp.width, bmp.height), origShort = Math.min(bmp.width, bmp.height);
           bmp.close && bmp.close();
-          return { canvas: c, origLong, physCm: null };
+          return { canvas: c, origLong, origShort, physCm: null };
         },
       });
     }
@@ -102,7 +105,7 @@
         const analysis = Extract.analyze(src.canvas);
         const d = {
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, role: 'auto',
-          srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, physCm: src.physCm,
+          srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm,
           sizeCm: 29.7, sizeMode: 'auto',
         };
         preparePieces(analysis.pieces, d);
@@ -139,11 +142,46 @@
     const longs = unknown.map((d) => d.origLong).sort((a, b) => a - b);
     const median = longs.length ? longs[Math.floor(longs.length / 2)] : 1;
     state.drawings.forEach((d) => {
+      d.uncertain = false;
       if (d.sizeMode !== 'auto') return;
       if (d.physCm) { d.sizeCm = d.physCm; return; }
       const est = (d.origLong / median) * 29.7;
-      const snap = SHEETS.find(([, cm]) => Math.abs(est / cm - 1) < 0.18);
-      d.sizeCm = snap ? snap[1] : Math.round(est);
+      const ratio = d.origLong / Math.max(1, d.origShort);
+      const sheetLike = ratio > 1.15 && ratio < 1.75; // proportions plausibles d'une feuille
+      const snap = SHEETS.find(([, cm]) => Math.abs(est / cm - 1) < 0.15);
+      // on n'arrondit à un format standard que si la feuille en a les proportions ;
+      // un rouleau, une bande ou un très grand format restent à leur estimation, à vérifier
+      d.sizeCm = sheetLike && snap ? snap[1] : Math.round(est);
+      d.uncertain = !(sheetLike && snap) || est > 45 || est < 15;
+    });
+  }
+
+  // Bandeau « tailles à vérifier » : les feuilles dont la taille n'a pas pu être reconnue.
+  function renderUncertain() {
+    const box = $('sizes-check');
+    const list = state.drawings.filter((d) => d.uncertain && d.sizeMode === 'auto');
+    box.hidden = !list.length;
+    if (!list.length) return;
+    box.innerHTML = `<p class="sizes-title">Tailles à vérifier <small>(${list.length})</small></p>
+      <p class="hint">Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.</p>
+      <div class="sizes-list"></div>`;
+    const wrap = box.querySelector('.sizes-list');
+    list.forEach((d) => {
+      const row = document.createElement('label');
+      row.className = 'sizes-row';
+      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">Dessin ${state.drawings.indexOf(d) + 1}<small>estimé ${fmt(d.sizeCm)} cm</small></span>
+        <span class="sizes-input"><input type="number" min="3" max="300" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="Plus grand côté en cm"><em>cm</em></span>`;
+      const input = row.querySelector('input');
+      input.onchange = () => {
+        const cm = Number(input.value);
+        if (!(cm > 0)) return;
+        d.sizeCm = cm;
+        d.sizeMode = 'manual';
+        saveSize(d);
+        refreshLists();
+        regenerate();
+      };
+      wrap.appendChild(row);
     });
   }
 
@@ -292,6 +330,7 @@
   }
 
   function refreshLists() {
+    renderUncertain();
     const dEl = $('drawings');
     dEl.innerHTML = '';
     state.drawings.forEach((d) => {
@@ -299,7 +338,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${ROLE_LABEL[role]}</b><i class="size">${sheetName(d.sizeCm)}</i>`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${ROLE_LABEL[role]}</b><i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
       el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
       dEl.appendChild(el);
     });

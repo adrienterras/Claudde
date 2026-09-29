@@ -263,12 +263,26 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 
 .switch { display: inline-flex; align-items: center; gap: 10px; font-size: 0.86rem; cursor: pointer; font-weight: 400; position: relative; }
 .switch.row { display: flex; }
-.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; margin: 0; }
+.switch.row { margin-top: 2px; }
 .switch span { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--line); transition: background .2s; flex: none; }
 .switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s; }
 .switch input:checked + span { background: var(--accent); }
 .switch input:checked + span::after { transform: translateX(14px); }
 .switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Tailles à vérifier */
+.sizes-check { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--r-md); background: var(--accent-soft); border: 1px solid var(--line); }
+.sizes-title { margin: 0; font-family: var(--f-display); font-style: italic; font-size: 1.02rem; }
+.sizes-list { display: flex; flex-direction: column; gap: 6px; }
+.sizes-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px; border-radius: var(--r-sm); background: var(--surface); }
+.sizes-row img { width: 40px; height: 40px; object-fit: contain; background: var(--surface-2); border-radius: 6px; }
+.sizes-name { font-size: 0.82rem; font-weight: 600; display: flex; flex-direction: column; }
+.sizes-name small { font-weight: 400; }
+.sizes-input { display: inline-flex; align-items: center; gap: 4px; }
+.sizes-input input { width: 74px; padding: 7px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+.sizes-input em { font-style: normal; font-size: 0.8rem; color: var(--muted); }
+.thumb .size.unsure { background: var(--accent); color: var(--on-ink); }
 
 /* Dessins et pièces */
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }

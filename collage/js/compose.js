@@ -158,7 +158,10 @@
    */
   function tearPage(t, R) {
     const pw = t.canvas.width, ph = t.canvas.height, k = pw / t.wcm;
-    const sw = Math.round(pw * (0.7 + 0.18 * R())), sh = Math.round(ph * (0.74 + 0.14 * R()));
+    // une grande page (plus d'un A3) reste presque entière : son dessin doit rester lisible
+    const big = t.wcm * t.hcm > 1300;
+    const sw = Math.round(pw * (big ? 0.88 + 0.08 * R() : 0.7 + 0.18 * R()));
+    const sh = Math.round(ph * (big ? 0.9 + 0.07 * R() : 0.74 + 0.14 * R()));
     const left = R() < 0.5, top = R() < 0.5;
     const panel = { x: left ? 0 : pw - sw, y: top ? 0 : ph - sh, w: sw, h: sh };
     const strips = [];
