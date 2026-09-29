@@ -29,8 +29,12 @@ cd collage && python3 -m http.server 8000
    - **plan de couverture** : l'application choisit les dessins qui font le meilleur fond (pages peintes
      bord à bord, colorées, grandes, sujet peu découpable) et en passe juste assez en fond pour que
      les découpes restent aérées ; la **toile prend la taille du fond** (avec 15 % de recouvrement),
-     dans les proportions choisies (paysage, carré, portrait), et le format du commerce le plus proche
-     est indiqué. On peut aussi imposer un format : l'application dit alors si le papier suffit ;
+     dans les proportions choisies (paysage, carré, portrait), et les trois toiles du commerce les plus
+     proches sont proposées avec leur taux de couverture. La liste des toiles ne contient que des tailles
+     réellement vendues : formats français normalisés Figure / Paysage / Marine (20F 73 × 60 … 120F
+     195 × 130), dont ceux vendus chez Cultura (gamme Monali : 20F, 25F, 30M, 40F, 50F, 50P, 60F),
+     et les toiles 3D carrées et panoramiques Cultura (80 × 80, 100 × 100, 100 × 50, 120 × 40,
+     150 × 50). On peut imposer l'une d'elles : l'application dit alors si le papier suffit ;
    - chaque page de fond est utilisée UNE SEULE FOIS et EN ENTIER : un grand morceau déchiré, et le
      reste de la page déchiré en lambeaux qui bouchent les trous ; le papier peut déborder du bord ;
    - chaque dessin découpé apporte son sujet principal et ses autres sujets colorés ;

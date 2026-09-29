@@ -503,17 +503,52 @@
     return { w, h, auto: false };
   }
 
-  // Formats de toile courants, pour suggérer le plus proche de la taille calculée
-  const STOCK = [[100, 70], [120, 80], [150, 100], [180, 120], [200, 140], [80, 60], [60, 60], [80, 80], [100, 100], [120, 120], [70, 100], [80, 120], [100, 150]];
-  function nearestStock(w, h) {
-    let best = null;
-    STOCK.forEach(([a, b]) => {
-      [[a, b], [b, a]].forEach(([x, y]) => {
-        const d = Math.abs(x - w) / w + Math.abs(y - h) / h;
-        if (!best || d < best.d) best = { w: x, h: y, d };
+  /*
+   * Toiles réellement vendues (châssis entoilés), en cm, grand côté en premier.
+   * - Formats français normalisés Figure / Paysage / Marine (toute enseigne beaux-arts :
+   *   Cultura, Rougier & Plé, Le Géant des Beaux-Arts…). Cultura vend la gamme Monali
+   *   dans ces formats jusqu'au 60F au moins.
+   * - Toiles « 3D » carrées et panoramiques Monali (Cultura).
+   */
+  const STOCK = [
+    ['20F', 73, 60, 'Cultura'], ['20P', 73, 54, 'formats standards'], ['20M', 73, 50, 'formats standards'],
+    ['25F', 81, 65, 'Cultura'], ['25P', 81, 60, 'formats standards'], ['25M', 81, 54, 'formats standards'],
+    ['30F', 92, 73, 'formats standards'], ['30P', 92, 65, 'formats standards'], ['30M', 92, 60, 'Cultura'],
+    ['40F', 100, 81, 'Cultura'], ['40P', 100, 73, 'formats standards'], ['40M', 100, 65, 'formats standards'],
+    ['50F', 116, 89, 'Cultura'], ['50P', 116, 81, 'Cultura'], ['50M', 116, 73, 'formats standards'],
+    ['60F', 130, 97, 'Cultura'], ['60P', 130, 89, 'formats standards'], ['60M', 130, 81, 'formats standards'],
+    ['80F', 146, 114, 'formats standards'], ['80P', 146, 97, 'formats standards'], ['80M', 146, 89, 'formats standards'],
+    ['100F', 162, 130, 'formats standards'], ['100P', 162, 114, 'formats standards'], ['100M', 162, 97, 'formats standards'],
+    ['120F', 195, 130, 'formats standards'], ['120P', 195, 114, 'formats standards'], ['120M', 195, 97, 'formats standards'],
+    ['carré', 80, 80, 'Cultura'], ['carré', 100, 100, 'Cultura'],
+    ['panoramique', 100, 50, 'Cultura'], ['panoramique', 120, 40, 'Cultura'], ['panoramique', 150, 50, 'Cultura'],
+  ];
+  const stockName = (t) => `${t[0]} · ${t[1]} × ${t[2]} cm`;
+
+  // Les toiles du commerce les plus proches d'une taille calculée, dans la même orientation
+  function nearestStock(w, h, n) {
+    const land = w >= h;
+    return STOCK.map((t) => {
+      const [x, y] = land ? [t[1], t[2]] : [t[2], t[1]];
+      return { t, w: x, h: y, d: Math.abs(x - w) / w + Math.abs(y - h) / h, area: x * y };
+    }).sort((a, b) => a.d - b.d).slice(0, n || 1);
+  }
+
+  // Remplit le choix de toile avec les tailles réelles
+  function fillFormats() {
+    const sel = $('format');
+    const groups = [['Cultura (Monali)', STOCK.filter((t) => t[3] === 'Cultura')], ['Formats standards beaux-arts (F / P / M)', STOCK.filter((t) => t[3] !== 'Cultura')]];
+    groups.forEach(([label, list]) => {
+      const g = document.createElement('optgroup');
+      g.label = label;
+      list.forEach((t) => {
+        const o = document.createElement('option');
+        o.value = `${t[1]}x${t[2]}`;
+        o.textContent = stockName(t);
+        g.appendChild(o);
       });
+      sel.appendChild(g);
     });
-    return best;
   }
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
@@ -532,8 +567,8 @@
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
     let txt;
     if (f.auto) {
-      const near = nearestStock(f.w, f.h);
-      txt = `Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages, ${fmt(bgArea / 1e4, 2)} m²) couvre tout avec 15 % de recouvrement et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Format du commerce le plus proche : ${near.w} × ${near.h} cm.`;
+      const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
+      txt = `Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages, ${fmt(bgArea / 1e4, 2)} m²) couvre tout avec 15 % de recouvrement et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
     } else {
       const cov = (state.coverage || 0) * 100;
       txt = cov >= 114
@@ -1282,6 +1317,8 @@ Réponds uniquement avec ce JSON :
       notice('Les dessins d’exemple n’ont pas pu être chargés. Importez vos scans ci-dessus.');
     }
   }
+
+  fillFormats();
 
   // accès pour le débogage depuis la console
   window.AtelierGribouille = { state };
