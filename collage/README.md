@@ -100,3 +100,12 @@ cd collage && python3 -m http.server 8000
   Playfair Display et Montserrat.
 - `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (Apache 2.0) pour lire les PDF,
   [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide.
+
+## Mise en ligne
+
+L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
+workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
+push de la branche de l'application. Adresse : https://adrienterras.github.io/Claudde/
+
+Sans la fenêtre Claude, la direction artistique par Claude n'est pas disponible : l'application
+compose avec ses règles intégrées.
