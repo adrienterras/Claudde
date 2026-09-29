@@ -112,13 +112,73 @@
    * à une distance du centre en √i. Le premier élément est au cœur.
    */
   const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-  function spiralPoint(W, H, i, n) {
-    const t = Math.sqrt((i + 0.5) / Math.max(1, n));
+  function spiralPoint(W, H, i, n, reach) {
+    const t = Math.sqrt((i + 0.5) / Math.max(1, n)) * (reach || 1);
     const a = i * GOLDEN;
     // légère inclinaison dans le sens de la rotation, pour l'effet de tourbillon
     let tan = ((a + Math.PI / 2) % Math.PI) - Math.PI / 2;
     tan = clamp(tan, -1.2, 1.2) * 0.3 * t;
-    return { x: W / 2 + W * 0.47 * t * Math.cos(a), y: H / 2 + H * 0.47 * t * Math.sin(a), rot: tan, r: t };
+    return { x: W / 2 + W * 0.47 * t * Math.cos(a), y: H / 2 + H * 0.47 * t * Math.sin(a), rot: tan, r: t, a };
+  }
+
+  /*
+   * Tournesol : le fond en couronne de pétales. Chaque page de fond est tournée pour pointer vers le
+   * centre (son grand côté dans l'axe du rayon) et posée en anneau, se chevauchant comme des pétales ;
+   * les plus chaudes et saturées près du cœur, les plus claires à l'extérieur, jusqu'à déborder des bords.
+   */
+  function backgroundPetals(W, H, texs, R, out) {
+    const cov = Coverage(W, H);
+    const warmth = (t) => (t.colorful || 0) * 0.7 + (t.color[0] - t.color[2]) / 255 * 0.3 - t.lum / 255 * 0.4;
+    const pages = texs.slice().sort((a, b) => warmth(a) - warmth(b)); // les plus claires d'abord (dessous, dehors)
+    const cx0 = W / 2, cy0 = H / 2;
+    const n = pages.length;
+    const rings = n > 8 ? 2 : 1;
+    const panels = [], scrapPool = [];
+    pages.forEach((t, i) => {
+      const cut = tearPage(t, R);
+      const k = cut.k;
+      const w = cut.panel.w / k, h = cut.panel.h / k;
+      const ring = rings === 2 && i >= Math.ceil(n / 2) ? 1 : 0; // anneau intérieur pour les plus chaudes
+      const idxInRing = ring ? i - Math.ceil(n / 2) : i;
+      const nInRing = ring ? n - Math.ceil(n / 2) : rings === 2 ? Math.ceil(n / 2) : n;
+      const a = (idxInRing / nInRing) * Math.PI * 2 + (ring ? Math.PI / nInRing : 0) + (R() - 0.5) * 0.15;
+      const long = Math.max(w, h);
+      // rayon : le pétale extérieur touche le bord, l'intérieur laisse le cœur
+      // distance du centre au bord dans la direction du pétale : le pétale extérieur dépasse le bord
+      const dEdge = Math.min(W / 2 / Math.max(1e-6, Math.abs(Math.cos(a))), H / 2 / Math.max(1e-6, Math.abs(Math.sin(a))));
+      const dist = ring ? Math.min(W, H) * 0.22 + long * 0.35 : Math.max(dEdge - long * 0.38, Math.min(W, H) * 0.3);
+      const cx = cx0 + Math.cos(a) * dist, cy = cy0 + Math.sin(a) * dist;
+      // le grand côté du pétale suit le rayon
+      const rot = (w >= h ? a : a - Math.PI / 2) + (R() - 0.5) * 0.12;
+      panels.push({
+        kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm,
+        sx: cut.panel.x, sy: cut.panel.y, sw: cut.panel.w, sh: cut.panel.h,
+        x: cx, y: cy, w, h, rot, flip: false, clip: tornPolygon(w, h, R, TEAR),
+      });
+      cov.mark(cx, cy, w, h, rot);
+      cut.scraps.forEach((sc) => scrapPool.push({ t, k, ...sc }));
+    });
+    // lambeaux : ils bouchent les trous, en priorité vers les coins
+    const scrapsOut = [];
+    scrapPool.sort((a, b) => b.w * b.h - a.w * a.h);
+    scrapPool.forEach((sc) => {
+      const fw = sc.w / sc.k, fh = sc.h / sc.k;
+      let best = null;
+      for (let c = 0; c < 70; c++) {
+        const i = Math.floor(R() * cov.cells.length);
+        if (cov.cells[i]) continue;
+        const px = (i % cov.gw) + 0.5, py = Math.floor(i / cov.gw) + 0.5;
+        const a = Math.atan2(py - cy0, px - cx0);
+        const rot = (fw >= fh ? a : a - Math.PI / 2) + (R() - 0.5) * 0.3;
+        const s2 = cov.score(px, py, fw, fh, rot);
+        const score = s2.over + s2.out * 0.4 + R() * 0.02;
+        if (!best || score < best.score) best = { cx: px, cy: py, rot, score };
+      }
+      if (!best) return;
+      scrapsOut.push({ kind: 'bg', scrap: true, src: sc.t.canvas, sx: sc.x, sy: sc.y, sw: sc.w, sh: sc.h, x: best.cx, y: best.cy, w: fw, h: fh, rot: best.rot, flip: false, clip: tornPolygon(fw, fh, R, TEAR) });
+      cov.mark(best.cx, best.cy, fw * 1.05, fh * 1.05, best.rot);
+    });
+    out.push(...scrapsOut, ...panels);
   }
 
   // Grille de couverture au centimètre.
@@ -449,16 +509,17 @@
 
     sorted.forEach((p, idx) => {
       p.placed = false;
-      if (!spiral && covered >= targetCover) return;
+      if (covered >= targetCover) return;
       const grounded = !spiral && !!p.grounded;
       const pHue = hue(p.color);
       const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
       const star = !spiral && stars.has(p);
-      let best = null;
+      let best = null, fallback = null;
       // Tournesol : chaque sujet vise son point de la spirale, les pièces maîtresses au cœur.
-      const target = spiral ? spiralPoint(W, H, idx, sorted.length) : null;
+      // graines : elles restent dans le disque central (70 % du rayon), la couronne de pétales reste visible
+      const target = spiral ? (idx === 0 ? { x: W / 2, y: H / 2, rot: 0, r: 0 } : spiralPoint(W, H, idx, sorted.length, 0.7)) : null;
       for (let c = 0; c < 110 && target; c++) {
-        const k = 0.1 + (c / 110) * 1.2;
+        const k = idx === 0 ? 0.05 : 0.1 + (c / 110) * 1.2;
         const cx = target.x + (R() - 0.5) * p.wcm * k, cy = target.y + (R() - 0.5) * p.hcm * k;
         let cells = 0, over = 0, out = 0;
         footprint(p, cx, cy, (gx, gy) => {
@@ -467,10 +528,11 @@
           else if (occ[gy * gw + gx]) over++;
         });
         if (!cells) continue;
-        const score = (over / cells) * 3 + (out / cells) * 5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.15) + R() * 0.03;
+        const score = (over / cells) * 6 + (out / cells) * 5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.15) + R() * 0.03;
+        if (!fallback || score < fallback.score) fallback = { cx, cy, score, r: target.r, rot: target.rot };
+        if (over / cells > 0.12 || out / cells > 0.15) continue;
         if (!best || score < best.score) best = { cx, cy, score, r: target.r, rot: target.rot };
       }
-      let fallback = null;
       for (let c = 0; c < 170 && !target; c++) {
         // un sujet posé peut aussi se tenir sur le bas du milieu, pas seulement dans la bande du sol
         const band = grounded && c % 2 ? [Z.milieu[0], Z.sol[1]] : Z[p.zone] || [0, H];
@@ -546,7 +608,7 @@
         if (!best || score < best.score) best = { cx, cy, score };
       }
       // pas de place sans empiler : le sujet reste en attente (sauf en spirale, où l'on serre)
-      if (!best) { if (spiral && fallback) best = fallback; else return; }
+      if (!best) { if (spiral && idx === 0 && fallback) best = fallback; else return; }
       footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh && !occ[gy * gw + gx]) { occ[gy * gw + gx] = 1; covered++; } });
       if (star) {
         let bi = -1, bd = Infinity;
@@ -658,7 +720,7 @@
     let Z = zonesFor(W, H, !spiral);
     const bg = [];
     if (o.textures.length) {
-      if (spiral) backgroundFree(W, H, o.textures, Z, R, bg, true);
+      if (spiral) backgroundPetals(W, H, o.textures, R, bg);
       else Z = backgroundBands(W, H, o.textures, R, bg);
     } else bg.push(paperLayer(W, H));
     const maps = backgroundMaps(W, H, bg);

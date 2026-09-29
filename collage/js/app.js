@@ -275,6 +275,8 @@
 
   const ROLES = ['cutout', 'texture', 'off'];
   const ROLE_LABEL = { cutout: 'découpe', texture: 'fond', off: 'ignoré' };
+  const roleLabel = (d) => (roleOf(d) === 'off' && d.role === 'auto' ? 'de côté' : ROLE_LABEL[roleOf(d)]);
+  const asideDrawings = () => state.drawings.filter((d) => d.role === 'auto' && d.auto === 'off');
 
   // Rôle d'un dessin : choix de l'utilisateur, sinon celui du directeur artistique (Claude),
   // sinon celui de l'analyse d'image.
@@ -457,8 +459,21 @@
     return state.drawings.filter((d) => roleOf(d) === 'cutout').flatMap((d) => d.analysis.pieces || []);
   }
 
+  // Bandeau des feuilles mises de côté (pâles : crayon gris, texte), avec leurs numéros.
+  function renderAside() {
+    const box = $('aside-note');
+    if (!box) return;
+    const list = asideDrawings();
+    box.hidden = !list.length;
+    if (!list.length) return;
+    const nums = list.map((d) => state.drawings.indexOf(d) + 1);
+    box.innerHTML = `<b>${list.length} feuille${list.length > 1 ? 's' : ''} mise${list.length > 1 ? 's' : ''} de côté</b> — pâles (crayon gris, texte), comme sur l’œuvre de référence : dessins n° ${nums.join(', ')}.
+      Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour les coller en fond, réglez « Feuilles pâles » ; pour en garder une en découpe, ouvrez-la et choisissez « découpe ».`;
+  }
+
   function refreshLists() {
     renderUncertain();
+    renderAside();
     const dEl = $('drawings');
     dEl.innerHTML = '';
     state.drawings.forEach((d) => {
@@ -466,7 +481,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${ROLE_LABEL[role]}</b><i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b><i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
       el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
       dEl.appendChild(el);
     });
@@ -786,7 +801,9 @@
     $('label-title').textContent = t ? `« ${t} »` : 'Sans titre';
     const c = state.comp;
     const count = c.style === 'cabinet' && c.total ? `${c.kept} des ${c.total} dessins, les plus beaux` : `${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
-    $('label-meta').textContent = `${st.name} · collage de ${count} · ${fmt(c.W)} × ${fmt(c.H)} cm · dessins à taille réelle`;
+    const aside = asideDrawings().length;
+    $('label-meta').textContent = `${st.name} · collage de ${count}${aside ? ` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · dessins à taille réelle`;
+    renderAside();
   }
 
   function titleFor(styleId) {
@@ -1223,7 +1240,7 @@
     try {
       const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
       const res = await Guide.build(state.comp, {
-        drawings: state.drawings,
+        drawings: state.drawings.filter((d) => roleOf(d) !== 'off'),
         numberOf: (d) => state.drawings.indexOf(d) + 1,
         nameOf: (d) => {
           const n = state.drawings.indexOf(d) + 1;
@@ -1231,6 +1248,7 @@
         },
         title: titleFor(st.id),
         styleName: st.name,
+        aside: asideDrawings().map((d) => state.drawings.indexOf(d) + 1),
         onProgress: (t) => { label.textContent = t; },
       });
       label.textContent = 'Enregistrement…';

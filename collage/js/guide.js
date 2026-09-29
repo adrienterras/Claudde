@@ -216,6 +216,7 @@
         `${opts.drawings.length} dessins originaux, à taille réelle · ${nPanels} pages de fond · ${nPieces} découpes${scraps.length ? ` · ${scraps.length} lambeaux` : ''}`,
         `${sheets.length} fiches de découpe · ${steps.length} étapes de collage`,
       ];
+      if (opts.aside && opts.aside.length) facts.push(`${opts.aside.length} feuille${opts.aside.length > 1 ? 's' : ''} pâle${opts.aside.length > 1 ? 's' : ''} mise${opts.aside.length > 1 ? 's' : ''} de côté, non utilisée${opts.aside.length > 1 ? 's' : ''} : dessins n° ${opts.aside.join(', ')}`);
       facts.forEach((f) => { text(ctx, f, mid, yy, 3.1, { font: F.body, color: C.ink, align: 'center' }); yy += 5; });
       yy += 6;
       const colW = (A4[0] - 2 * MARGIN - 10) / 2;

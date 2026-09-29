@@ -271,6 +271,9 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .switch input:checked + span::after { transform: translateX(14px); }
 .switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+.aside-note { margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px dashed var(--line); font-size: 0.82rem; line-height: 1.45; color: var(--ink-2); }
+.aside-note b { color: var(--ink); }
+
 /* Tailles à vérifier */
 .sizes-check { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--r-md); background: var(--accent-soft); border: 1px solid var(--line); }
 .sizes-title { margin: 0; font-family: var(--f-display); font-style: italic; font-size: 1.02rem; }
