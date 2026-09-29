@@ -16,7 +16,9 @@ cd collage && python3 -m http.server 8000
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc.
-   Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré) et **taille réelle** de la feuille
+   Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **orientation** de la feuille
+   (automatique, droite, couchée à droite, tête en bas, couchée à gauche ; en automatique, une page de
+   fond trop haute pour la toile est couchée) et **taille réelle** de la feuille
    (A5, A4, A3, A2 ou autre) — c'est cette taille qui compte, puisque les dessins sont collés à
    taille réelle. Sans information dans le fichier, la taille est estimée à partir du scan
    (le scan médian est supposé A4) ; elle n'est arrondie à un format standard que si la feuille en a

@@ -104,12 +104,14 @@
         const src = await pages[i].render();
         const analysis = Extract.analyze(src.canvas);
         const d = {
-          id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, role: 'auto',
+          id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
+          orient: 'auto', orientDeg: 0,
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm,
           sizeCm: 29.7, sizeMode: 'auto',
         };
         preparePieces(analysis.pieces, d);
         loadSize(d);
+        loadOrient(d);
         if (sizes && sizes[d.name]) { d.sizeCm = sizes[d.name]; d.sizeMode = 'manual'; }
         state.drawings.push(d);
       } catch (e) {
@@ -197,6 +199,69 @@
   }
   function saveSize(d) {
     try { localStorage.setItem(sizeKey(d), String(d.sizeCm)); } catch (e) { /* ignoré */ }
+  }
+
+  // ---------- Orientation des feuilles ----------
+
+  const ORIENTS = [['auto', 'Automatique'], ['0', 'Droite, comme scannée'], ['90', 'Couchée, haut à droite'], ['180', 'Tête en bas'], ['270', 'Couchée, haut à gauche']];
+  const orientKey = (d) => `atelier-gribouille:orientation:${d.name}:${Math.round(d.origLong)}`;
+  function loadOrient(d) {
+    try {
+      const v = localStorage.getItem(orientKey(d));
+      if (v && ORIENTS.some(([k]) => k === v)) d.orient = v;
+    } catch (e) { /* stockage indisponible */ }
+  }
+  function saveOrient(d) {
+    try { localStorage.setItem(orientKey(d), d.orient); } catch (e) { /* ignoré */ }
+  }
+
+  function rotatedPage(page, deg) {
+    if (!deg) return page;
+    const swap = deg === 90 || deg === 270;
+    const c = Extract.makeCanvas(swap ? page.height : page.width, swap ? page.width : page.height);
+    const ctx = c.getContext('2d');
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate((deg * Math.PI) / 180);
+    ctx.drawImage(page, -page.width / 2, -page.height / 2);
+    return c;
+  }
+
+  // Orientation retenue : celle de l'utilisateur, sinon droite, sauf une page de fond trop haute
+  // pour la toile, qu'on couche.
+  function effectiveOrient(d) {
+    if (d.orient !== 'auto') return Number(d.orient);
+    if (roleOf(d) !== 'texture' || !state.canvasSize) return 0;
+    const page = d.base.page;
+    const c = d.sizeCm / Math.max(page.width, page.height);
+    const w = page.width * c, h = page.height * c;
+    const { w: W, h: H } = state.canvasSize;
+    if (h > H && w <= H && h <= W) return 90;
+    return 0;
+  }
+
+  // Applique l'orientation : la page tournée devient la page de travail (découpes, fond, fiches).
+  function applyOrientation(d) {
+    const deg = effectiveOrient(d);
+    if (deg === d.orientDeg) return false;
+    d.orientDeg = deg;
+    if (deg === 0) d.analysis = d.base;
+    else {
+      const a = Extract.analyze(rotatedPage(d.base.page, deg));
+      // la page tournée garde la découpe ou le fond décidés pour la page droite
+      a.kind = d.base.kind;
+      d.analysis = a;
+    }
+    d.thumb = thumbOf(d.analysis.page);
+    preparePieces(d.analysis.pieces, d);
+    if (d.analysis.pieces) curateDrawing(d);
+    ensureMaterial(d);
+    return true;
+  }
+
+  function applyOrientations() {
+    let changed = false;
+    state.drawings.forEach((d) => { if (applyOrientation(d)) changed = true; });
+    if (changed) refreshLists();
   }
 
   function sheetName(cm) {
@@ -335,15 +400,17 @@
    * (sa plus grande pièce), plus ses autres sujets exploitables (colorés, pas des traits fins).
    */
   const EXTRAS_PER_DRAWING = 4;
+  function curateDrawing(d) {
+    const ps = d.analysis.pieces || [];
+    const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
+    ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && eligible(p))
+      .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; p.main = false; });
+    ps.forEach((p) => { if (p !== main && !eligible(p)) { p.enabled = false; p.main = false; } });
+    if (main) { main.enabled = true; main.main = true; }
+  }
+
   function curate() {
-    state.drawings.forEach((d) => {
-      const ps = d.analysis.pieces || [];
-      const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
-      ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && eligible(p))
-        .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; p.main = false; });
-      ps.forEach((p) => { if (p !== main && !eligible(p)) { p.enabled = false; p.main = false; } });
-      if (main) { main.enabled = true; main.main = true; }
-    });
+    state.drawings.forEach(curateDrawing);
   }
 
   // Un bon sujet : assez grand, coloré (les traits de crayon gris et les textes passent après),
@@ -394,6 +461,11 @@
       <div>
         <p class="name">${d.ai ? `${d.ai.sujet} <small>· ${d.ai.zone}</small><br>` : ''}<small>${d.name}</small></p>
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
+        <label class="row">Orientation
+          <select data-orient>
+            ${ORIENTS.map(([k, label]) => `<option value="${k}" ${d.orient === k ? 'selected' : ''}>${label}${k === 'auto' ? ` (${d.orientDeg ? d.orientDeg + '°' : 'droite'})` : ''}</option>`).join('')}
+          </select>
+        </label>
         <label class="row">Taille réelle
           <select data-size>
             ${SHEETS.map(([n, cm]) => `<option value="${cm}" ${Math.abs(cm - d.sizeCm) < 0.05 ? 'selected' : ''}>${n} · ${fmt(cm)}</option>`).join('')}
@@ -415,6 +487,12 @@
       refreshLists();
       regenerate();
     }));
+    box.querySelector('[data-orient]').onchange = (e) => {
+      d.orient = e.target.value;
+      saveOrient(d);
+      regenerate();
+      refreshLists();
+    };
     const sel = box.querySelector('[data-size]');
     const custom = box.querySelector('[data-custom]');
     const setSize = (cm) => {
@@ -650,6 +728,8 @@
   function regenerate() {
     if (!state.drawings.length) return;
     planCoverage();
+    state.canvasSize = formatCm();
+    applyOrientations();
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
     const o = options();
