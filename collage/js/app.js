@@ -302,7 +302,12 @@
     const main = ps.reduce((x, b) => (!x || b.frac > x.frac ? b : x), null);
     const subject = main ? main.frac * (0.3 + main.colorful) : 0; // force du sujet à découper
     const ai = d.ai ? (d.ai.role === 'fond' ? 0.35 : -0.15 * (d.ai.importance || 1)) : 0;
-    return painted * 1.2 + (t.colorful || 0) * 0.6 + Math.min(1, d.sizeCm / 42) * 0.3 - subject * 1.5 + ai;
+    // un bon fond : peint en larges aplats colorés (calme), grand ; une page chargée de petits
+    // motifs reste une découpe, où ses détails sont un atout
+    const calm = t.calm === undefined ? 0.5 : t.calm;
+    // le calme ne compte qu'allié à la couleur : une feuille blanche est calme mais n'est pas un fond
+    const flatColour = painted * (0.4 + 0.6 * calm) * (0.3 + 1.2 * (t.colorful || 0));
+    return flatColour * 1.8 + Math.min(1, d.sizeCm / 42) * 0.3 - subject * 1.5 + ai;
   }
 
   function pageAreaCm2(d) {
@@ -679,8 +684,8 @@
     });
     textures.forEach((t) => {
       if (t.drawing.ai) { t.zone = t.drawing.ai.zone; t.importance = t.drawing.ai.importance; }
-      // une page pâle (crayon gris) reste au milieu, sous les autres
-      if ((t.colorful || 0) < 0.12) { t.zone = 'milieu'; t.importance = 0; }
+      // une page pâle (crayon gris, texte) fait un ciel de papier, tout dessous
+      if ((t.colorful || 0) < 0.12) { t.zone = 'ciel'; t.importance = 0; }
     });
     const ranked = pieces.slice().sort((a, b) => rank(b) - rank(a));
     pieces.forEach((p) => {

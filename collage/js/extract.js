@@ -381,7 +381,25 @@
     const d = ctx2d(small).getImageData(0, 0, small.width, small.height).data;
     let s = 0;
     for (let i = 0; i < d.length; i += 4) s += sat([d[i], d[i + 1], d[i + 2]]);
-    return { canvas: c, color, lum: lum(color), colorful: s / (d.length / 4) };
+    // calme : part de la page couverte de larges aplats (peu de variation locale à l'échelle du cm)
+    const mid = scaleTo(c, 96);
+    const md = ctx2d(mid).getImageData(0, 0, mid.width, mid.height).data;
+    const mw = mid.width, mh = mid.height;
+    let flat = 0, cells = 0;
+    for (let y = 1; y < mh - 1; y++) {
+      for (let x = 1; x < mw - 1; x++) {
+        const i = (y * mw + x) * 4;
+        const l0 = 0.299 * md[i] + 0.587 * md[i + 1] + 0.114 * md[i + 2];
+        let diff = 0;
+        [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => {
+          const j = ((y + dy) * mw + x + dx) * 4;
+          diff += Math.abs(l0 - (0.299 * md[j] + 0.587 * md[j + 1] + 0.114 * md[j + 2]));
+        });
+        if (diff / 4 < 12) flat++;
+        cells++;
+      }
+    }
+    return { canvas: c, color, lum: lum(color), colorful: s / (d.length / 4), calm: cells ? flat / cells : 0 };
   }
 
   /*

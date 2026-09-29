@@ -29,7 +29,9 @@ cd collage && python3 -m http.server 8000
    de TOUS les dessins, et **à leur taille réelle** : rien n'est réduit ni agrandi, puisque l'œuvre
    sera réalisée avec les originaux. C'est la toile qui s'adapte :
    - **plan de couverture** : l'application choisit les dessins qui font le meilleur fond (pages peintes
-     bord à bord, colorées, grandes, sujet peu découpable) et en passe juste assez en fond pour que
+     bord à bord **en larges aplats colorés** — la part peinte, la couleur et le « calme » de la page,
+     mesuré comme la part de surface sans variation locale, se multiplient ; une page chargée de petits
+     motifs reste une découpe —, grandes, sujet peu découpable) et en passe juste assez en fond pour que
      les découpes restent aérées ; la **toile prend la taille du fond** (avec 15 % de recouvrement),
      dans les proportions choisies (paysage, carré, portrait), et les trois toiles du commerce les plus
      proches sont proposées avec leur taux de couverture. La liste des toiles ne contient que des tailles

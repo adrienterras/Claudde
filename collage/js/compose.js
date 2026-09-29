@@ -296,7 +296,8 @@
     const zones = ['ciel', 'milieu', 'sol'].filter((z) => bands[z].length);
     const total = zones.reduce((sum, z) => sum + areaOf(bands[z]), 0) || 1;
     // hauteur de bande proportionnelle à sa surface de papier, bornée
-    let heights = zones.map((z) => clamp((H * areaOf(bands[z])) / total, H * 0.08, H * 0.62));
+    // le ciel, souvent fait de papiers pâles qui se recouvrent, reste une bande modérée
+    let heights = zones.map((z) => clamp((H * areaOf(bands[z])) / total, H * 0.08, z === 'ciel' ? H * 0.34 : H * 0.62));
     const hsum = heights.reduce((a, b) => a + b, 0);
     heights = heights.map((h) => (h * H) / hsum);
     const scrapPool = [];
