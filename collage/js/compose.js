@@ -516,13 +516,21 @@
     const widths = cuts.map(({ cut }) => cut.panel.w / cut.k);
     const rows = Math.max(1, Math.round(widths.reduce((a, b) => a + b, 0) / (W * 1.08)));
     const rowH = H / rows;
+    // répartition en rangées : chaque page va dans la rangée la moins remplie (les larges d'abord),
+    // pour que toutes les rangées couvrent la largeur ; l'alternance clair / foncé se garde dans la rangée
     const rowsList = Array.from({ length: rows }, () => []);
-    cuts.forEach((c, i) => rowsList[i % rows].push({ c, w: widths[i] }));
+    const sums = new Array(rows).fill(0);
+    cuts.map((c, i) => ({ c, w: widths[i] })).sort((a, b) => b.w - a.w).forEach((it) => {
+      let ri = 0;
+      for (let r = 1; r < rows; r++) if (sums[r] < sums[ri]) ri = r;
+      rowsList[ri].push(it); sums[ri] += it.w;
+    });
+    rowsList.forEach((row) => row.sort((a, b) => order.indexOf(a.c.t) - order.indexOf(b.c.t)));
     const panels = [], tiles = [];
     rowsList.forEach((row, ri) => {
       const sumW = row.reduce((a, it) => a + it.w, 0);
-      const gap = clamp((W * 1.04 - sumW) / Math.max(1, row.length), -Math.min(...row.map((it) => it.w)) * 0.35, 1.5);
-      let x = -W * 0.02 + (ri % 2 ? -3 : 0);
+      const gap = clamp((W * 1.04 - sumW) / Math.max(1, row.length), -Math.min(...row.map((it) => it.w)) * 0.45, 1.0);
+      let x = -W * 0.02 + (ri % 2 ? -4 : 0);
       row.forEach(({ c, w }) => {
         const h = c.cut.panel.h / c.cut.k;
         const cx = x + w / 2;
@@ -538,7 +546,7 @@
         x += w + gap;
       });
     });
-    spreadPanels(W, H, panels, 10);
+    spreadPanels(W, H, panels, 22);
     panels.forEach((p) => { cov.mark(p.x, p.y, p.w, p.h, p.rot); tiles.push({ x: p.x, y: p.y, w: p.w, h: p.h, lum: 0 }); });
     out.push(...panels);
     return tiles;
@@ -652,7 +660,7 @@
       // graines : elles restent dans le disque central (70 % du rayon), la couronne de pétales reste visible
       const target = targetsFn ? targetsFn(idx, sorted.length, p) : null;
       for (let c = 0; c < 110 && target; c++) {
-        const k = target.r === 0 ? 0.05 : 0.1 + (c / 110) * (mode.tight === false ? 2.2 : 1.2);
+        const k = target.r === 0 ? 0.05 : 0.1 + (c / 110) * (mode.spread || (mode.tight === false ? 2.2 : 1.2));
         const cx = target.x + (R() - 0.5) * p.wcm * k, cy = target.y + (R() - 0.5) * p.hcm * k;
         let cells = 0, over = 0, out = 0;
         footprint(p, cx, cy, (gx, gy) => {
@@ -840,7 +848,7 @@
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'vitrail' (fragments et plomb), 'cabinet' (rangées alignées).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'cabinet' (rangées alignées).
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
@@ -862,7 +870,7 @@
       const tiles = o.textures.length ? backgroundQuilt(W, H, o.textures, R, bg) : [];
       if (!tiles.length) { bg.push(paperLayer(W, H)); }
       const byArea = tiles.slice().sort((a, b) => b.w * b.h - a.w * a.h);
-      mode = { targets: (idx) => { const t = byArea.length ? byArea[idx % byArea.length] : { x: W / 2, y: H / 2 }; return { x: t.x, y: t.y, rot: 0, r: idx }; }, byRadius: false, tight: false };
+      mode = { targets: (idx) => { const t = byArea.length ? byArea[idx % byArea.length] : { x: W / 2, y: H / 2 }; return { x: t.x, y: t.y, rot: 0, r: idx }; }, byRadius: false, tight: false, spread: 0.9 };
     } else if (style === 'cerfsvolants') {
       // le ciel en bandes, incliné par le vent ; les découpes s'envolent sur une diagonale montante
       if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));

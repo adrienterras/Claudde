@@ -848,7 +848,7 @@
   const STYLES = [
     { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
     { id: 'tournesol', name: 'Tournesol', hint: 'spirale depuis le cœur' },
-    { id: 'vitrail', name: 'Vitrail', hint: 'fragments et plomb noir' },
+    { id: 'courtepointe', name: 'Courtepointe', hint: 'patchwork, un médaillon par carreau' },
     { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
   ];
 
@@ -1515,11 +1515,11 @@ Pour CHAQUE dessin, décide :
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
-L'œuvre sera proposée dans quatre styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « vitrail » (fragments de pages tournés, cernés de plomb noir, avec une rosace de découpes) et « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées).
+L'œuvre sera proposée dans quatre styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « courtepointe » (un patchwork : les pages de fond en carreaux clairs et foncés, une découpe posée en médaillon au centre de chaque carreau) et « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées).
 Propose pour chacun un titre poétique et court (2 à 6 mots, en français), inspiré des dessins.
 
 Réponds uniquement avec ce JSON :
-{"titres": {"paysage": "...", "tournesol": "...", "vitrail": "...", "cabinet": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "importance": 2}, ...]}`;
+{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "importance": 2}, ...]}`;
     try {
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
