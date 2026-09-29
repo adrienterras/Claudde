@@ -46,7 +46,9 @@
   async function pagesFromFile(file) {
     const pages = [];
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
-      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      // Gros scans (100 Mo et plus) : le fichier est lu en une fois, mais chaque page est rendue
+      // à son tour à la résolution de travail, puis libérée, pour que la mémoire reste stable.
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
       for (let i = 1; i <= pdf.numPages; i++) {
         pages.push({
           name: `${file.name} — p.${i}`,
@@ -57,27 +59,51 @@
             const vp = page.getViewport({ scale: SOURCE_MAX / long });
             const c = Extract.makeCanvas(vp.width, vp.height);
             await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+            page.cleanup();
             // Un PDF de scanner à plat donne la vraie taille de la feuille ;
             // un scan de téléphone donne seulement une taille en pixels.
             const short = Math.min(vp0.width, vp0.height);
             const physical = PHYSICAL_PT.some(([a, b]) => Math.abs(short / a - 1) < 0.012 && Math.abs(long / b - 1) < 0.012);
             return { canvas: c, origLong: long, origShort: short, physCm: physical ? (long / 72) * 2.54 : null };
           },
+          release: () => pdf.destroy(),
         });
       }
     } else if (file.type.startsWith('image/')) {
       pages.push({
         name: file.name,
         render: async () => {
-          const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-          const c = Extract.scaleTo(bmp, SOURCE_MAX);
-          const origLong = Math.max(bmp.width, bmp.height), origShort = Math.min(bmp.width, bmp.height);
-          bmp.close && bmp.close();
+          // une image de plusieurs dizaines de Mo est décodée par le navigateur puis réduite
+          // à la résolution de travail ; on ne garde jamais l'image complète en mémoire
+          const src = await decodeImage(file);
+          const c = Extract.scaleTo(src.img, SOURCE_MAX);
+          const origLong = Math.max(src.w, src.h), origShort = Math.min(src.w, src.h);
+          src.close();
           return { canvas: c, origLong, origShort, physCm: null };
         },
       });
     }
     return pages;
+  }
+
+  // Décode une image en respectant l'orientation EXIF. Les très grandes images passent par un
+  // élément <img>, que le navigateur sait décoder sans tout garder en mémoire, sinon par ImageBitmap.
+  async function decodeImage(file) {
+    if (file.size > 12e6) {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        img.decoding = 'async';
+        img.src = url;
+        await img.decode();
+        return { img, w: img.naturalWidth, h: img.naturalHeight, close: () => { img.src = ''; URL.revokeObjectURL(url); } };
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        console.warn('décodage <img> impossible, essai ImageBitmap', e);
+      }
+    }
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    return { img: bmp, w: bmp.width, h: bmp.height, close: () => bmp.close && bmp.close() };
   }
 
   // Vignette ; en PNG pour les pièces découpées, qui ont un fond transparent.
@@ -97,6 +123,7 @@
         notice(`Impossible de lire « ${f.name} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.`);
       }
     }
+    const releases = new Set(pages.map((p) => p.release).filter(Boolean));
     for (let i = 0; i < pages.length; i++) {
       setProgress(i, pages.length, `Analyse du dessin ${i + 1} / ${pages.length}…`);
       await tick();
@@ -116,8 +143,10 @@
         state.drawings.push(d);
       } catch (e) {
         console.error(e);
+        notice(`Le dessin « ${pages[i].name} » n’a pas pu être analysé (image trop grande pour cet appareil ?).`);
       }
     }
+    releases.forEach((release) => { try { release(); } catch (e) { /* déjà libéré */ } });
     setProgress(1, 1);
     estimateSizes();
     state.drawings.forEach(ensureMaterial);
