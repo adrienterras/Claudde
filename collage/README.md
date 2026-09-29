@@ -43,8 +43,9 @@ cd collage && python3 -m http.server 8000
      reste de la page déchiré en lambeaux qui bouchent les trous ; le papier peut déborder du bord ;
    - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
      colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
-     découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut, un réglage permet
-     de les coller en fond ; les pages de fond restent presque entières, avec peu de lambeaux ;
+     découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut — c'est signalé
+     dans le panneau (numéros), sur le cartel et sur la couverture du guide — et un réglage permet de
+     les coller en fond ; les pages de fond restent presque entières, avec peu de lambeaux ;
    - chaque dessin découpé apporte son sujet principal, plus un ou deux sujets secondaires seulement
      s'ils sont grands (≥ 7 cm) et colorés ; les découpes gardent une marge de papier généreuse
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
