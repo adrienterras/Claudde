@@ -339,7 +339,10 @@
     const density = Number($('density').value);
     const cands = state.drawings.filter((d) => d.role === 'auto');
     cands.forEach((d) => { d.auto = null; });
-    const ranked = cands.slice().sort((a, b) => bgMerit(b) - bgMerit(a));
+    // une feuille pâle (crayon gris, texte) ne se découpe pas : elle est toujours un papier de fond
+    const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
+    paleOnes.forEach((d) => { d.auto = 'texture'; ensureMaterial(d); });
+    const ranked = cands.filter((d) => !paleOnes.includes(d)).sort((a, b) => bgMerit(b) - bgMerit(a));
     const forcedBg = state.drawings.filter((d) => d.role === 'texture').reduce((sum, d) => sum + pageAreaCm2(d), 0);
     const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => roleOf(d) === 'texture').length)) : 0;
     let chosen = { nBg: minBg, area: 7000 };
