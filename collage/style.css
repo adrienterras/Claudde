@@ -221,7 +221,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .guide-box .hint:empty { display: none; }
 
 /* Propositions */
-.proposals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.proposals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .proposal {
   display: flex; flex-direction: column; align-items: stretch; gap: 4px;
   padding: 6px 6px 9px;

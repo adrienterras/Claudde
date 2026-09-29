@@ -562,7 +562,7 @@
       const cell = cells[i % cells.length];
       const cut = tearPage(t, R, W, H);
       const w = cut.panel.w / cut.k, h = cut.panel.h / cut.k;
-      const rot = (R() - 0.5) * 0.7 + (i % 2 ? 0.25 : -0.25);
+      const rot = (R() - 0.5) * 0.5 + (i % 2 ? 0.28 : -0.28);
       panels.push({
         kind: 'bg', panel: true, whole: cut.whole, src: t.canvas, pageW: t.wcm, pageH: t.hcm,
         sx: cut.panel.x, sy: cut.panel.y, sw: cut.panel.w, sh: cut.panel.h,
@@ -840,7 +840,7 @@
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'cabinet' (rangées alignées).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'vitrail' (fragments et plomb), 'cabinet' (rangées alignées).
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
@@ -870,6 +870,7 @@
       Z = zonesFor(W, H, false);
       mode = { targets: (idx, n) => { const t = n > 1 ? idx / (n - 1) : 0.5; const side = idx % 2 ? 1 : -1; return { x: W * (0.14 + 0.72 * t) + side * W * 0.06 * (t > 0.2 ? 1 : 0), y: H * (0.8 - 0.62 * t) - side * H * 0.08 * (t > 0.2 ? 1 : 0), rot: -0.3 + (R() - 0.5) * 0.15, r: 1 - t }; }, byRadius: false, tight: false };
     } else if (style === 'vitrail') {
+      // toile peinte en noir, fragments tournés, et un trait de plomb noir peint le long de chaque fragment
       Z = zonesFor(W, H, false);
       ground = '#1c1b15';
       if (o.textures.length) backgroundShards(W, H, o.textures, R, bg);
@@ -893,6 +894,7 @@
     const items = placePieces(W, H, o.pieces, o, Z, R, mode, maps);
     const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
     if (ground) comp.ground = ground;
+    if (style === 'vitrail') comp.lead = 0.5; // largeur du trait de plomb, en cm
     if (lines === 'chain') {
       // la constellation : chaque étoile reliée à sa plus proche voisine non encore reliée
       const pts = items.map((L) => ({ x: L.x, y: L.y }));
@@ -961,6 +963,26 @@
     ctx.fillStyle = comp.ground || '#f8f5ef';
     ctx.fillRect(0, 0, comp.W * s, comp.H * s);
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
+    if (comp.lead) {
+      // vitrail : le plomb, un trait noir peint le long des bords de chaque fragment
+      ctx.save();
+      ctx.strokeStyle = 'rgba(22,20,16,0.92)';
+      ctx.lineWidth = comp.lead * s;
+      ctx.lineJoin = 'round';
+      comp.bg.forEach((L) => {
+        if (!L.panel) return;
+        ctx.save();
+        ctx.translate(L.x * s, L.y * s);
+        ctx.rotate(L.rot);
+        ctx.beginPath();
+        const pts = L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]];
+        pts.forEach(([x, y], i) => (i ? ctx.lineTo(x * s, y * s) : ctx.moveTo(x * s, y * s)));
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      });
+      ctx.restore();
+    }
     if (comp.lines) {
       // traits de crayon reliant les étoiles de la constellation
       ctx.save();

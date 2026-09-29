@@ -67,9 +67,12 @@ cd collage && python3 -m http.server 8000
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
-   - **trois propositions, trois styles**, à chaque fois :
+   - **quatre propositions, quatre styles**, à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
+     *Vitrail* (toile peinte en noir, pages de fond posées en fragments tournés d'un angle franc,
+     cernées d'un trait de plomb noir peint le long de leurs bords ; les découpes en rosace : la
+     pièce maîtresse au centre, puis deux anneaux),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
