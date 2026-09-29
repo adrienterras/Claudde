@@ -147,7 +147,55 @@
    * Rend un élément à taille réelle (sur l'œuvre) avec son trait de coupe :
    * un liseré magenta épais, bordé de blanc, qui suit exactement le contour.
    */
+  /*
+   * Page de fond entière, à l'échelle, avec le trait de coupe du grand morceau :
+   * ce qui reste autour (les chutes) sert aux lambeaux de fond.
+   */
+  function panelPageCanvas(L) {
+    const wmm = L.pageW * 10, hmm = L.pageH * 10, pad = 2.2;
+    const W = Math.round(wmm * PX), H = Math.round(hmm * PX), P = Math.round(pad * PX);
+    const k = W / L.src.width; // pixels de planche par pixel de page
+    const c = Extract.makeCanvas(W + 2 * P, H + 2 * P);
+    const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(L.src, P, P, W, H);
+    x.strokeStyle = C.line;
+    x.lineWidth = 0.25 * PX;
+    x.strokeRect(P, P, W, H);
+    // contour déchiré du morceau, replacé dans la page
+    const cx = P + (L.sx + L.sw / 2) * k, cy = P + (L.sy + L.sh / 2) * k;
+    const drawClip = () => {
+      x.beginPath();
+      (L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]]).forEach(([px, py], i) => {
+        const X = cx + px * 10 * PX, Y = cy + py * 10 * PX;
+        i ? x.lineTo(X, Y) : x.moveTo(X, Y);
+      });
+      x.closePath();
+    };
+    x.lineJoin = 'round';
+    drawClip(); x.strokeStyle = '#ffffff'; x.lineWidth = 3 * PX; x.stroke();
+    drawClip(); x.strokeStyle = C.cut; x.lineWidth = 1.8 * PX; x.stroke();
+    // les chutes, hachurées légèrement
+    x.save();
+    x.beginPath();
+    x.rect(P, P, W, H);
+    // même chemin que le contour, dans le sens inverse : la page moins le morceau
+    const pts = L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]];
+    pts.slice().reverse().forEach(([px, py], i) => {
+      const X = cx + px * 10 * PX, Y = cy + py * 10 * PX;
+      i ? x.lineTo(X, Y) : x.moveTo(X, Y);
+    });
+    x.closePath();
+    x.clip('evenodd');
+    x.strokeStyle = 'rgba(59,58,42,0.35)';
+    x.lineWidth = 0.15 * PX;
+    for (let d = -H; d < W + H; d += 4 * PX) { x.beginPath(); x.moveTo(P + d, P); x.lineTo(P + d + H, P + H); x.stroke(); }
+    x.restore();
+    return { canvas: c, w: wmm + 2 * pad, h: hmm + 2 * pad };
+  }
+
   function elementCanvas(L) {
+    if (L.kind === 'bg' && L.panel && L.pageW) return panelPageCanvas(L);
     const wmm = L.w * 10, hmm = L.h * 10, pad = 2.2;
     const W = Math.max(1, Math.round(wmm * PX)), H = Math.max(1, Math.round(hmm * PX)), P = Math.round(pad * PX);
     const img = Extract.makeCanvas(W, H);
@@ -190,18 +238,6 @@
     return { canvas: c, w: wmm + 2 * pad, h: hmm + 2 * pad };
   }
 
-  // Page entière d'un dessin, pour y déchirer les lambeaux (pas de trait de coupe).
-  function reserveCanvas(tex) {
-    const wmm = tex.wcm * 10, hmm = tex.hcm * 10;
-    const c = Extract.makeCanvas(wmm * PX, hmm * PX);
-    const x = c.getContext('2d');
-    x.drawImage(tex.canvas, 0, 0, c.width, c.height);
-    x.strokeStyle = C.line;
-    x.lineWidth = 0.3 * PX;
-    x.strokeRect(0, 0, c.width, c.height);
-    return { canvas: c, w: wmm, h: hmm };
-  }
-
   function rotate90(el) {
     const c = Extract.makeCanvas(el.canvas.height, el.canvas.width);
     const x = c.getContext('2d');
@@ -237,12 +273,7 @@
     comp.items.forEach((L) => steps.push({ kind: 'piece', layer: L }));
     steps.forEach((st, i) => { st.n = i + 1; });
 
-    // Réserves pour les lambeaux : une page entière de chaque dessin utilisé.
-    const reserveTex = [];
-    scraps.forEach((L) => { const t = [...texOwner.keys()].includes(L.src) && L.src; if (t && !reserveTex.includes(t)) reserveTex.push(t); });
-
     const k = opts.scale; // échelle des dessins sur l'œuvre
-    const texOf = (canvas) => { const d = texOwner.get(canvas); return d ? d.analysis.texture : null; };
 
     // ---- Planches : rangement des éléments (à taille réelle) sur des pages A4 ----
     opts.onProgress && opts.onProgress('Préparation des planches de découpe…');
@@ -252,12 +283,6 @@
       toPack.push({ st, label: String(st.n), el: elementCanvas(st.layer) });
       await tick();
     }
-    reserveTex.forEach((canvas, i) => {
-      const d = texOwner.get(canvas);
-      const t = texOf(canvas);
-      const cm = d.sizeCm / d.srcLong; // cm par pixel de la page
-      toPack.push({ label: `L${i + 1}`, reserve: d, el: reserveCanvas({ canvas: t.canvas, wcm: t.canvas.width * cm * k, hcm: t.canvas.height * cm * k }) });
-    });
 
     const sheets = []; // { size:[w,h], items:[{x,y,it}], shelves, used, tile? }
     const AW = A4[0] - 2 * MARGIN, AH = A4[1] - 22 - 24; // zone utile A4
@@ -462,7 +487,7 @@
           text(ctx, 'Lambeaux de fond', x0 + 13, ty, 3.8, { weight: '600' });
           const srcs = [...new Set(st.layers.map((L) => ownerOf(L)).filter(Boolean))].map((d) => opts.numberOf(d));
           ty += 5;
-          ty = wrap(ctx, `Déchirez à la main de petits morceaux (3 à 7 cm) dans les réserves L1 à L${reserveTex.length} (dessins ${srcs.join(', ')}) et couvrez toute la toile, surtout les zones en couleur ci-dessus. Pas besoin de précision : ce fond sera en partie recouvert.`, x0 + 4, ty, cw - 8, 2.8, 3.8, { color: C.ink });
+          ty = wrap(ctx, `Après avoir découpé les grands morceaux des pages de fond (étapes ${steps.filter((q) => q.kind === 'panel').map((q) => q.n).slice(0, 1)} à ${steps.filter((q) => q.kind === 'panel').map((q) => q.n).slice(-1)}), déchirez leurs chutes hachurées en morceaux de 3 à 7 cm et collez-les dans les zones en couleur ci-dessus (${st.layers.length} lambeaux, dessins ${srcs.join(', ')}). Pas besoin de précision : ce fond sera en partie recouvert.`, x0 + 4, ty, cw - 8, 2.8, 3.8, { color: C.ink });
           return;
         }
         const L = st.layer;
@@ -505,16 +530,15 @@
           ctx.fillStyle = 'rgba(28,26,33,0.08)';
           if (t.i > 0) ctx.fillRect(ix, ly + 2, t.ov, th);
           if (t.j > 0) ctx.fillRect(ix, ly + 2, tw, t.ov);
-          badge(ctx, it.label, ix + 3, iy + 1, 2.8, it.reserve ? C.muted : C.accent);
+          badge(ctx, it.label, ix + 3, iy + 1, 2.8, it.st && it.st.kind === 'panel' ? C.olive : C.accent);
           text(ctx, `partie ${t.j * t.nx + t.i + 1} / ${t.nx * t.ny} · ligne ${t.j + 1}, colonne ${t.i + 1} — superposez les bandes grises de 1 cm`, ix + 8, iy + 2, 2.6, { color: C.muted });
           return;
         }
         ctx.drawImage(el.canvas, ix, ly + 2, el.w, el.h);
-        badge(ctx, it.label, ix + 3, iy + 1, 2.8, it.reserve ? C.muted : C.accent);
-        const d = it.reserve || (it.st && ownerOf(it.st.layer));
-        const cap = it.reserve
-          ? `Réserve à lambeaux · dessin ${opts.numberOf(it.reserve)}`
-          : `${d ? opts.nameOf(d) : ''}${el.rotated ? ' · couché sur la planche' : ''}`;
+        badge(ctx, it.label, ix + 3, iy + 1, 2.8, it.st && it.st.kind === 'panel' ? C.olive : C.accent);
+        const d = it.st && ownerOf(it.st.layer);
+        const isPanel = it.st && it.st.kind === 'panel';
+        const cap = `${d ? opts.nameOf(d) : ''}${isPanel ? ' · page de fond : découpez le morceau, gardez les chutes hachurées pour les lambeaux' : ''}${el.rotated ? ' · couché sur la planche' : ''}`;
         ctx.save();
         ctx.beginPath(); ctx.rect(ix + 7, iy - 3, Math.max(10, el.w - 7), 6); ctx.clip();
         text(ctx, cap, ix + 7, iy + 2, 2.6, { color: C.muted });

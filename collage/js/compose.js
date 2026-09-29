@@ -150,26 +150,41 @@
   }
 
   /*
-   * Fond : UNIQUEMENT les dessins.
-   *  1. chaque page peinte est collée une fois, en grand papier déchiré, dans sa zone ;
-   *  2. les trous restants sont comblés de lambeaux déchirés dans ces mêmes pages
-   *     (des recadrages, jamais d'agrandissement), comme des papiers froissés.
+   * Fond : UNIQUEMENT les dessins, et chaque page UNE SEULE FOIS.
+   *  1. chaque page peinte donne un grand morceau (80 à 95 % de la page), découpé dans un coin ;
+   *  2. les bandes restantes de la page (les chutes) sont déchirées en lambeaux pour boucher
+   *     les trous, jusqu'à épuisement ; ce qui reste vide laisse voir la toile.
    */
+  function panelCut(t, R) {
+    const pw = t.canvas.width, ph = t.canvas.height;
+    const sw = Math.round(pw * (0.8 + 0.12 * R())), sh = Math.round(ph * (0.84 + 0.11 * R()));
+    const left = R() < 0.5, top = R() < 0.5;
+    const sx = left ? 0 : pw - sw, sy = top ? 0 : ph - sh;
+    // chutes : une bande verticale sur toute la hauteur, une bande horizontale sur la largeur du morceau
+    const offcuts = [];
+    if (pw - sw > 0) offcuts.push({ x: left ? sw : 0, y: 0, w: pw - sw, h: ph });
+    if (ph - sh > 0) offcuts.push({ x: sx, y: top ? sh : 0, w: sw, h: ph - sh });
+    return { sx, sy, sw, sh, offcuts };
+  }
+
   function background(W, H, texs, Z, R, out, spiral) {
     const cov = Coverage(W, H);
     const panels = [];
+    const ribbons = []; // chutes disponibles, en pixels de page
     // les pages pâles d'abord (dessous), puis les pages colorées par-dessus
     const imp = (t) => (t.importance === undefined ? 1 : t.importance);
     const order = texs.slice().sort((a, b) => imp(a) - imp(b) || (a.colorful || 0) - (b.colorful || 0));
     order.forEach((t, i) => {
-      const w = t.wcm * (0.88 + 0.12 * R()), h = t.hcm * (0.88 + 0.12 * R());
+      const cut = panelCut(t, R);
+      const k = t.canvas.width / t.wcm; // pixels par cm
+      const w = cut.sw / k, h = cut.sh / k;
       const band = Z[t.zone] || [0, H];
       // en spirale, la page la plus forte (posée en dernier) est au centre
       const target = spiral ? spiralPoint(W, H, order.length - 1 - i, order.length) : null;
       let best = null;
       for (let c = 0; c < 90 && target; c++) {
-        const k = 0.15 + c / 90;
-        const cx = target.x + (R() - 0.5) * w * k, cy = target.y + (R() - 0.5) * h * k;
+        const kk = 0.15 + c / 90;
+        const cx = target.x + (R() - 0.5) * w * kk, cy = target.y + (R() - 0.5) * h * kk;
         const rot = target.rot + (R() - 0.5) * 0.1;
         const sc = cov.score(cx, cy, w, h, rot);
         const score = sc.over + sc.out * 1.5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.3) + R() * 0.03;
@@ -187,23 +202,46 @@
         const score = sc.over + sc.out * 1.5 + off + R() * 0.03;
         if (!best || score < best.score) best = { cx, cy, rot, score };
       }
-      panels.push(Object.assign(tile(t, best.cx - w / 2, best.cy - h / 2, w, h, best.rot, R), { panel: true }));
+      panels.push({
+        kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm,
+        sx: cut.sx, sy: cut.sy, sw: cut.sw, sh: cut.sh,
+        x: best.cx, y: best.cy, w, h, rot: best.rot, flip: false,
+        clip: tornPolygon(w, h, R, TEAR),
+      });
       cov.mark(best.cx, best.cy, w, h, best.rot);
+      cut.offcuts.forEach((o) => ribbons.push({ t, k, ...o, used: 0 }));
     });
 
-    // lambeaux pour combler les trous
+    // lambeaux : déchirés dans les chutes, jamais deux fois le même morceau de papier
     const holes = [];
     for (let i = 0; i < cov.cells.length; i++) if (!cov.cells[i]) holes.push(i);
-    // lambeaux petits et pris dans toutes les pages colorées, pour ne jamais répéter un motif reconnaissable
-    const colorful = texs.filter((t) => (t.colorful || 0) > 0.2);
-    const pool = colorful.length ? colorful : texs;
     const scrapsOut = [];
+    const colorfulFirst = ribbons.slice().sort((a, b) => (b.t.colorful || 0) - (a.t.colorful || 0));
     shuffle(holes, R).forEach((i) => {
-      if (cov.cells[i] || scrapsOut.length > 1500) return;
+      if (cov.cells[i]) return;
       const cx = (i % cov.gw) + 0.5, cy = Math.floor(i / cov.gw) + 0.5;
-      const t = pool[Math.floor(R() * pool.length)];
-      const fw = 3 + R() * 4.5, fh = fw * (0.55 + R() * 0.6), rot = (R() - 0.5) * 1.2;
-      const L = Object.assign(tile(t, cx - fw / 2, cy - fh / 2, fw, fh, rot, R), { scrap: true });
+      // taille du lambeau en cm ; on coupe le long de la bande
+      const len = 3 + R() * 4.5;
+      const rb = colorfulFirst.find((r) => {
+        const along = r.w >= r.h ? r.w : r.h;
+        return (along - r.used) / r.k >= len;
+      });
+      if (!rb) return;
+      const horizontal = rb.w >= rb.h;
+      const lenPx = Math.round(len * rb.k);
+      const thick = horizontal ? rb.h : rb.w;
+      const thickPx = Math.min(thick, Math.round((2.5 + R() * 3) * rb.k));
+      const piece = horizontal
+        ? { x: rb.x + rb.used, y: rb.y + Math.floor(R() * (thick - thickPx + 1)), w: lenPx, h: thickPx }
+        : { x: rb.x + Math.floor(R() * (thick - thickPx + 1)), y: rb.y + rb.used, w: thickPx, h: lenPx };
+      rb.used += lenPx;
+      const fw = piece.w / rb.k, fh = piece.h / rb.k, rot = (R() - 0.5) * 1.2;
+      const L = {
+        kind: 'bg', scrap: true, src: rb.t.canvas,
+        sx: piece.x, sy: piece.y, sw: piece.w, sh: piece.h,
+        x: cx, y: cy, w: fw, h: fh, rot, flip: false,
+        clip: tornPolygon(fw, fh, R, TEAR),
+      };
       scrapsOut.push(L);
       cov.mark(L.x, L.y, L.w * 1.05, L.h * 1.05, rot);
     });
@@ -375,7 +413,7 @@
       r.forEach((it) => {
         const w = it.w * f, h = it.h * f;
         const cx = x + w / 2, cy = y + heights[ri] - h / 2; // posé sur l'étagère
-        if (it.t) bg.push({ kind: 'bg', panel: true, src: it.t.canvas, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w, h, rot: 0, flip: false, clip: null });
+        if (it.t) bg.push({ kind: 'bg', panel: true, src: it.t.canvas, pageW: it.t.wcm, pageH: it.t.hcm, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w, h, rot: 0, flip: false, clip: null });
         else { it.p.placed = true; items.push({ kind: 'piece', piece: it.p, x: cx, y: cy, w, h, rot: 0, flip: false }); }
         x += w + hgap;
       });
@@ -454,7 +492,7 @@
   }
 
   function renderBg(ctx, comp, s, shadows) {
-    ctx.fillStyle = '#f6f1e7';
+    ctx.fillStyle = '#f8f5ef';
     ctx.fillRect(0, 0, comp.W * s, comp.H * s);
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
   }

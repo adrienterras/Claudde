@@ -21,8 +21,9 @@ cd collage && python3 -m http.server 8000
    (le scan médian est supposé A4) : vérifiez-la, c'est elle qui fixe la taille du dessin dans l'œuvre.
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    et de TOUS les dessins (chacun apparaît au moins une fois) :
-   - les pages peintes (et les dessins au crayon gris) sont collées en grands papiers déchirés ;
-     les trous restants sont comblés de petits lambeaux pris dans ces pages ;
+   - chaque page peinte (et chaque dessin au crayon gris) est collée UNE SEULE FOIS : un grand morceau
+     déchiré (80 à 95 % de la page), et ses chutes sont déchirées en lambeaux pour boucher les trous ;
+     aucun morceau de papier n'est réutilisé, et là où les dessins ne suffisent plus, la toile reste nue ;
    - chaque dessin découpé apporte son sujet principal et ses autres sujets colorés ;
    - **une seule échelle** pour tous, calculée pour que tout tienne sur la toile ;
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
