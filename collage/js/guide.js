@@ -232,9 +232,9 @@
         'Vernis mat pour protéger l’œuvre (facultatif)',
       ].forEach((m) => { y1 = wrap(ctx, '·  ' + m, MARGIN, y1, colW, 3, 4.2); y1 += 0.8; });
       [
-        '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile.',
+        '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile. Si un peu de toile reste nue sur le plan, peignez-la d’abord d’une couleur unie.',
         '2. Pour chaque dessin, reportez sur l’original le trait magenta de sa fiche, à l’aide des cotes en cm, puis découpez ; gardez chaque morceau avec son numéro.',
-        '3. Déchirez les chutes des pages de fond en lambeaux, sans rien jeter.',
+        scraps.length ? '3. Déchirez les chutes des pages de fond trop grandes en lambeaux, sans rien jeter.' : '3. Les pages de fond se collent entières, sans découpe : elles se chevauchent, et ce qui dépasse se rogne une fois collé.',
         '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',
         '5. Laissez sécher sous un poids, puis passez une couche de vernis.',
       ].forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
@@ -373,7 +373,12 @@
       f.layers.forEach(({ st, L }) => {
         const isPanel = st.kind === 'panel';
         let path, box;
-        if (isPanel) {
+        if (isPanel && L.whole) {
+          // page collée entière : aucun trait de coupe, juste un liseré olive discret
+          box = { x: L.sx * cmPx, y: L.sy * cmPx, w: L.sw * cmPx, h: L.sh * cmPx };
+          ctx.save(); ctx.setLineDash([2, 2]); ctx.strokeStyle = C.olive; ctx.lineWidth = 0.8;
+          ctx.strokeRect(ox + box.x * sc + 0.6, oy + box.y * sc + 0.6, box.w * sc - 1.2, box.h * sc - 1.2); ctx.restore();
+        } else if (isPanel) {
           const cx = ox + (L.sx + L.sw / 2) * cmPx * sc, cy = oy + (L.sy + L.sh / 2) * cmPx * sc;
           path = (L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]]).map(([px, py]) => [cx + px * sc, cy + py * sc]);
           box = { x: L.sx * cmPx, y: L.sy * cmPx, w: L.sw * cmPx, h: L.sh * cmPx };
@@ -408,7 +413,7 @@
         }
         badge(ctx, st.n, ox + box.x * sc + 3.5, oy + box.y * sc + 3.5, 2.8, isPanel ? C.olive : C.accent);
         const dims = `${fmt(box.w)} × ${fmt(box.h)} cm, à ${fmt(box.x)} cm du bord gauche et ${fmt(box.y)} cm du haut`;
-        notes.push(`${st.n}  ${isPanel ? 'Grand morceau de fond' : 'Découpe'} : ${dims}${isPanel ? ' — le reste de la feuille est déchiré en lambeaux (étape 1)' : ''}.`);
+        notes.push(`${st.n}  ${isPanel ? (L.whole ? 'Page de fond entière, sans découpe' : 'Grand morceau de fond') : 'Découpe'} : ${dims}${isPanel && !L.whole ? ' — le reste de la feuille est déchiré en lambeaux (étape 1)' : ''}.`);
       });
       let ny = bottom + 5;
       notes.forEach((n) => { ny = wrap(ctx, n, MARGIN, ny, w - 2 * MARGIN, 2.7, 3.7); });

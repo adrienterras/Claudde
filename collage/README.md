@@ -39,21 +39,22 @@ cd collage && python3 -m http.server 8000
      195 × 130), dont ceux vendus chez Cultura (gamme Monali : 20F, 25F, 30M, 40F, 50F, 50P, 60F),
      et les toiles 3D carrées et panoramiques Cultura (80 × 80, 100 × 100, 100 × 50, 120 × 40,
      150 × 50). On peut imposer l'une d'elles : l'application dit alors si le papier suffit ;
-   - chaque page de fond est utilisée UNE SEULE FOIS et EN ENTIER : un grand morceau déchiré, et le
-     reste de la page déchiré en lambeaux qui bouchent les trous ; le papier peut déborder du bord ;
+   - chaque page de fond est utilisée UNE SEULE FOIS et EN ENTIER, **sans être découpée** : la feuille
+     est collée telle quelle, les pages se chevauchent et ce qui dépasse de la toile se rogne à la pose ;
+     seule une page plus grande que la toile est réduite, et son surplus déchiré en lambeaux ;
    - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
      colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
      découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut — c'est signalé
      dans le panneau (numéros), sur le cartel et sur la couverture du guide — et un réglage permet de
-     les coller en fond ; les pages de fond restent presque entières, avec peu de lambeaux ;
+     les coller en fond ; les pages de fond restent entières ;
    - chaque dessin découpé apporte son sujet principal, plus un ou deux sujets secondaires seulement
      s'ils sont grands (≥ 7 cm) et colorés ; les découpes gardent une marge de papier généreuse
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
      leur couleur (claires et froides en haut, sombres et chaudes en bas), posées en tuiles presque
-     droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les lambeaux,
-     larges, restent dans la bande de leur page ;
+     droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les éventuels lambeaux
+     restent dans la bande de leur page ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
      constellations près d'une grande pièce, rotation retenue ;

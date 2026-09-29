@@ -371,15 +371,33 @@
     const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => d.auto === 'texture' || d.analysis.kind === 'texture').length)) : 0;
     let chosen = { nBg: minBg, area: 7000 };
     if (auto) {
+      const ratio = Number(v.slice(5)) || 1.4;
+      const r = Math.max(ratio, 1 / ratio);
+      // la plus grande page de fond doit tenir entière sur la toile (on ne la découpe pas) :
+      // surface minimale de toile pour que ses deux côtés y tiennent, au ratio choisi
+      const bgMin = () => {
+        let long = 0, short = 0;
+        state.drawings.forEach((d) => {
+          if (roleOf(d) !== 'texture') return;
+          const a = d.analysis.page, c = cmPerPx(d);
+          long = Math.max(long, Math.max(a.width, a.height) * c + 1);
+          short = Math.max(short, Math.min(a.width, a.height) * c + 1);
+        });
+        return { long, short, area: Math.max((long * long) / r, short * short * r) };
+      };
       for (let nBg = minBg; nBg <= ranked.length; nBg++) {
         ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
         const { bgArea, pieceArea } = paperAreas(state.drawings);
-        const canvasArea = bgArea / 1.3; // 30 % de recouvrement : les pages se chevauchent franchement
-        chosen = { nBg, area: canvasArea };
-        if (pieceArea <= 0.5 * density * canvasArea || nBg >= ranked.length) break;
+        const m = bgMin();
+        const canvasArea = bgArea / 1.5; // les pages entières se chevauchent franchement (≈ 1/3 de recouvrement)
+        chosen = { nBg, area: canvasArea, min: m };
+        // assez de papier pour couvrir aussi la toile élargie par la plus grande page, et de la place pour les découpes
+        if ((canvasArea >= m.area * 0.85 && pieceArea <= 0.5 * density * canvasArea) || nBg >= ranked.length) break;
       }
       state.canvasArea = Math.max(chosen.area, 900);
-      state.coverage = 1.3;
+      state.bgMin = chosen.min;
+      state.paperArea = paperAreas(state.drawings).bgArea;
+      state.coverage = 1.5;
     } else {
       const [w, h] = v.split('x').map(Number);
       const canvasArea = w * h;
@@ -387,7 +405,7 @@
       for (; nBg <= ranked.length; nBg++) {
         ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
         const { bgArea } = paperAreas(state.drawings);
-        if (bgArea >= canvasArea * 1.15) break;
+        if (bgArea >= canvasArea * 1.3) break;
       }
       chosen = { nBg: Math.min(nBg, ranked.length) };
       ranked.forEach((d, i) => { d.auto = i < chosen.nBg ? 'texture' : 'cutout'; });
@@ -619,7 +637,18 @@
     if (v.startsWith('auto:')) {
       const ratio = Number(v.slice(5));
       const A = state.canvasArea || 7000;
-      return { w: Math.round(Math.sqrt(A * ratio)), h: Math.round(Math.sqrt(A / ratio)), auto: true };
+      let w = Math.sqrt(A * ratio), h = Math.sqrt(A / ratio);
+      // agrandie si besoin pour que la plus grande page de fond tienne entière
+      // (le grand côté prend la longueur de la page, l'autre côté garde la surface que le papier
+      // peut couvrir, pour ne pas laisser de toile nue)
+      const m = state.bgMin || { long: 0, short: 0 };
+      const paper = state.paperArea || A;
+      if (m.long > Math.max(w, h) || m.short > Math.min(w, h)) {
+        const land = ratio >= 1;
+        const L = Math.max(m.long, Math.max(w, h)), S = Math.max(m.short, Math.min(paper / 1.5 / L, Math.min(w, h)));
+        w = land ? L : S; h = land ? S : L;
+      }
+      return { w: Math.round(w), h: Math.round(h), auto: true };
     }
     const [w, h] = v.split('x').map(Number);
     return { w, h, auto: false };
@@ -1427,7 +1456,7 @@ La toile est un paysage : « ciel » en haut, « milieu », « sol » en bas.
 
 Pour CHAQUE dessin, décide :
 - "sujet" : ce qu'il représente, en 1 à 4 mots en français (ex. « bougie », « chapiteau de cirque », « montagnes »).
-- "role" : "fond" si c'est une page entièrement peinte ou colorée qui servira de grand papier de fond (on la verra en entier, déchirée sur les bords) ; "decoupe" si c'est un sujet dessiné sur du papier qu'on découpera aux ciseaux autour du dessin.
+- "role" : "fond" si c'est une page entièrement peinte ou colorée qui servira de grand papier de fond (on la collera entière, sans la découper) ; "decoupe" si c'est un sujet dessiné sur du papier qu'on découpera aux ciseaux autour du dessin.
 - "zone" : "ciel", "milieu" ou "sol", là où il a le plus de sens dans la scène (soleil, nuages, oiseaux, cœurs volants → ciel ; terre, herbe, racines, maisons, chapiteau, animaux au sol → sol ; le reste → milieu). Répartis les fonds pour que chaque zone en ait.
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
