@@ -409,7 +409,7 @@
         '1. Imprimez les planches à 100 % et vérifiez la règle de 10 cm.',
         '2. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile.',
         `3. Découpez chaque élément en suivant le trait magenta ; gardez-le avec son numéro.`,
-        '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier.',
+        '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',
         '5. Laissez sécher sous un poids, puis passez une couche de vernis.',
       ].forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
       let y3 = Math.max(y1, y2) + 4;

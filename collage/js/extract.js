@@ -403,7 +403,7 @@
         return analyze(sheet, 1);
       }
     }
-    const result = { page: src, paper: seg.paper, texture: null, pieces: null, kind: 'cutout' };
+    const result = { page: src, paper: seg.paper, texture: null, pieces: null, kind: 'cutout', paperFrac: seg.paperFrac };
     if (seg.paperFrac < TEXTURE_MAX_PAPER) {
       result.kind = 'texture';
       result.texture = textureFrom(src);

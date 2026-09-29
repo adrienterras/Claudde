@@ -117,6 +117,7 @@
     estimateSizes();
     state.drawings.forEach(ensureMaterial);
     curate();
+    planCoverage();
     if (state.drawings.length) {
       ['drawings-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
@@ -176,10 +177,62 @@
   // sinon celui de l'analyse d'image.
   function roleOf(d) {
     if (d.role !== 'auto') return d.role;
+    if (d.auto) return d.auto; // choix du plan de couverture
     if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
     // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
     if (d.analysis.kind === 'cutout' && pale(d)) return 'texture';
     return d.analysis.kind;
+  }
+
+  /*
+   * Plan de couverture : la toile doit être remplie en entier avec le papier disponible.
+   * On note chaque dessin comme fond (page couverte de peinture, colorée, grande, sujet peu lisible)
+   * et on passe en fond, par ordre de mérite, autant de dessins qu'il faut pour que la surface
+   * des pages de fond dépasse la toile à l'échelle choisie.
+   */
+  function bgMerit(d) {
+    const a = d.analysis;
+    const painted = 1 - (a.paperFrac === undefined ? 0.5 : a.paperFrac); // part de la page peinte
+    const t = a.texture || Extract.textureFrom(a.page);
+    a.texture = t;
+    const ps = a.pieces || [];
+    const main = ps.reduce((x, b) => (!x || b.frac > x.frac ? b : x), null);
+    const subject = main ? main.frac * (0.3 + main.colorful) : 0; // force du sujet à découper
+    const ai = d.ai ? (d.ai.role === 'fond' ? 0.35 : -0.15 * (d.ai.importance || 1)) : 0;
+    return painted * 1.2 + (t.colorful || 0) * 0.6 + Math.min(1, d.sizeCm / 42) * 0.3 - subject * 1.5 + ai;
+  }
+
+  function pageAreaCm2(d) {
+    const a = d.analysis.page;
+    const c = cmPerPx(d);
+    return a.width * c * a.height * c;
+  }
+
+  function planCoverage() {
+    const f = formatCm();
+    const canvasArea = f.w * f.h;
+    const cands = state.drawings.filter((d) => d.role === 'auto');
+    cands.forEach((d) => { d.auto = null; });
+    // ce que les découpes couvriront, pièces principales comprises, à l'échelle 1
+    const ranked = cands.slice().sort((a, b) => bgMerit(b) - bgMerit(a));
+    // on itère : plus de pages en fond => l'échelle monte => il faut encore plus de surface
+    // On essaie chaque nombre de pages de fond et on garde le meilleur compromis :
+    // la toile couverte (fond ≥ 108 % de la toile), l'échelle la plus grande possible,
+    // et le plus de dessins gardés en découpe.
+    let best = null;
+    const minBg = Math.min(ranked.length, Math.max(3, ranked.filter((d) => roleOf(d) === 'texture').length));
+    for (let nBg = minBg; nBg <= ranked.length; nBg++) {
+      ranked.forEach((d, i) => { d.auto = i < nBg ? 'texture' : 'cutout'; });
+      const k = autoScaleFor(ranked);
+      const bgArea = ranked.slice(0, nBg).reduce((s, d) => s + pageAreaCm2(d), 0) * k * k;
+      const covered = bgArea >= canvasArea * 1.14;
+      // score : toile couverte avant tout, puis l'échelle la plus grande, puis peu de pages sacrifiées
+      const score = (covered ? 1 : 0) * 10 + k * 4 - nBg / ranked.length;
+      if (!best || score > best.score) best = { nBg, score };
+      if (covered && k >= 0.999) break;
+    }
+    ranked.forEach((d, i) => { d.auto = i < best.nBg ? 'texture' : 'cutout'; });
+    ranked.forEach((d) => ensureMaterial(d));
   }
 
   function pale(d) {
@@ -375,18 +428,32 @@
   // de fond côte à côte sur la largeur de la toile.
   // Échelle automatique : la même pour tous, choisie pour que TOUS les sujets tiennent sur la toile
   // (ils en couvrent environ 60 %, les pages de fond et les lambeaux font le reste).
-  function autoScale() {
-    let area = 0;
-    activePieces().filter((p) => p.enabled).forEach((p) => {
-      const c = cmPerPx(p.drawing);
-      let fill = 0;
-      for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i];
-      area += p.canvas.width * c * p.canvas.height * c * (fill / p.hit.data.length);
-    });
-    if (!area) return 0.6;
+  // Échelle telle que fond + découpes couvrent la toile ; une seule pour tous, jamais plus de 100 %.
+  function autoScaleFor(drawings) {
     const f = formatCm();
-    const k = Math.sqrt((0.55 * Number($('density').value) * f.w * f.h) / area);
-    return Math.max(0.15, Math.min(1, k));
+    let bgArea = 0, pieceArea = 0;
+    drawings.forEach((d) => {
+      if (roleOf(d) === 'texture') { bgArea += pageAreaCm2(d); return; }
+      if (roleOf(d) !== 'cutout') return;
+      (d.analysis.pieces || []).filter((p) => p.enabled).forEach((p) => {
+        const c = cmPerPx(d);
+        let fill = 0;
+        for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i];
+        pieceArea += p.canvas.width * c * p.canvas.height * c * (fill / p.hit.data.length);
+      });
+    });
+    const density = Number($('density').value);
+    // le fond doit couvrir la toile (avec 8 % de recouvrement des déchirures),
+    // et les découpes environ la moitié de la toile
+    const kBg = bgArea ? Math.sqrt((f.w * f.h * 1.15) / bgArea) : 1;
+    const kPieces = pieceArea ? Math.sqrt((0.5 * density * f.w * f.h) / pieceArea) : 1;
+    // le fond fixe la limite haute (il doit couvrir la toile) ; les découpes l'abaissent
+    // si elles couvriraient plus de la moitié de la toile
+    return Math.max(0.15, Math.min(1, kBg, kPieces));
+  }
+
+  function autoScale() {
+    return autoScaleFor(state.drawings);
   }
 
   function scale() {
@@ -397,7 +464,7 @@
     const k = scale();
     if ($('scale-auto').checked) $('scale').value = Math.round(k * 100);
     $('scale').disabled = $('scale-auto').checked;
-    $('scale-info').textContent = `${Math.round(k * 100)} % — une feuille A4 mesure ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre. Tous les dessins sont réduits de la même façon${$('scale-auto').checked ? ', juste assez pour qu’ils tiennent tous' : ''}.`;
+    $('scale-info').textContent = `${Math.round(k * 100)} % — une feuille A4 mesure ${fmt(29.7 * k)} × ${fmt(21 * k)} cm sur l’œuvre. Tous les dessins sont réduits de la même façon${$('scale-auto').checked ? ', choisie pour couvrir toute la toile' : ''}.`;
   }
 
   function sizePiece(p, k) {
@@ -469,6 +536,7 @@
 
   function regenerate() {
     if (!state.drawings.length) return;
+    if ($('scale-auto').checked) planCoverage();
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
     const o = options();
@@ -1091,6 +1159,7 @@ Réponds uniquement avec ce JSON :
       if (res && res.titre) state.title = String(res.titre).slice(0, 80);
       state.drawings.forEach(ensureMaterial);
       curate();
+      planCoverage();
       aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length} et placé chacun dans la scène.`);
       refreshLists();
       regenerate();

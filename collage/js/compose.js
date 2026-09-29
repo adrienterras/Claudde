@@ -150,34 +150,56 @@
   }
 
   /*
-   * Fond : UNIQUEMENT les dessins, et chaque page UNE SEULE FOIS.
-   *  1. chaque page peinte donne un grand morceau (80 à 95 % de la page), découpé dans un coin ;
-   *  2. les bandes restantes de la page (les chutes) sont déchirées en lambeaux pour boucher
-   *     les trous, jusqu'à épuisement ; ce qui reste vide laisse voir la toile.
+   * Fond : UNIQUEMENT les dessins, chaque page UNE SEULE FOIS, et chaque page EN ENTIER.
+   *  1. chaque page de fond est déchirée en un grand morceau (un coin, 70 à 88 % de la page) ;
+   *  2. le reste de la page est déchiré en lambeaux de 4 à 9 cm, sans rien jeter ;
+   *  3. les grands morceaux sont posés d'abord (dans leur zone), puis les lambeaux vont boucher
+   *     les trous, du plus grand au plus petit, jusqu'à ce que tout le papier soit collé.
    */
-  function panelCut(t, R) {
-    const pw = t.canvas.width, ph = t.canvas.height;
-    const sw = Math.round(pw * (0.8 + 0.12 * R())), sh = Math.round(ph * (0.84 + 0.11 * R()));
+  function tearPage(t, R) {
+    const pw = t.canvas.width, ph = t.canvas.height, k = pw / t.wcm;
+    const sw = Math.round(pw * (0.7 + 0.18 * R())), sh = Math.round(ph * (0.74 + 0.14 * R()));
     const left = R() < 0.5, top = R() < 0.5;
-    const sx = left ? 0 : pw - sw, sy = top ? 0 : ph - sh;
-    // chutes : une bande verticale sur toute la hauteur, une bande horizontale sur la largeur du morceau
-    const offcuts = [];
-    if (pw - sw > 0) offcuts.push({ x: left ? sw : 0, y: 0, w: pw - sw, h: ph });
-    if (ph - sh > 0) offcuts.push({ x: sx, y: top ? sh : 0, w: sw, h: ph - sh });
-    return { sx, sy, sw, sh, offcuts };
+    const panel = { x: left ? 0 : pw - sw, y: top ? 0 : ph - sh, w: sw, h: sh };
+    const strips = [];
+    if (pw - sw > 0) strips.push({ x: left ? sw : 0, y: 0, w: pw - sw, h: ph });
+    if (ph - sh > 0) strips.push({ x: panel.x, y: top ? sh : 0, w: sw, h: ph - sh });
+    // lambeaux : on découpe chaque bande en morceaux le long de sa longueur, puis en 1 ou 2 dans l'épaisseur
+    const scraps = [];
+    strips.forEach((st) => {
+      const horizontal = st.w >= st.h;
+      const along = horizontal ? st.w : st.h, thick = horizontal ? st.h : st.w;
+      const nThick = thick / k > 7 ? 2 : 1;
+      const tPx = Math.floor(thick / nThick);
+      let pos = 0;
+      while (pos < along) {
+        const len = Math.min(along - pos, Math.round((4 + R() * 5) * k));
+        if (len < 1.5 * k && scraps.length) { // trop petit : on l'ajoute au précédent
+          const prev = scraps[scraps.length - 1];
+          if (horizontal) prev.w += len; else prev.h += len;
+          pos += len; continue;
+        }
+        for (let j = 0; j < nThick; j++) {
+          scraps.push(horizontal
+            ? { x: st.x + pos, y: st.y + j * tPx, w: len, h: j === nThick - 1 ? thick - j * tPx : tPx }
+            : { x: st.x + j * tPx, y: st.y + pos, w: j === nThick - 1 ? thick - j * tPx : tPx, h: len });
+        }
+        pos += len;
+      }
+    });
+    return { panel, scraps, k };
   }
 
   function background(W, H, texs, Z, R, out, spiral) {
     const cov = Coverage(W, H);
-    const panels = [];
-    const ribbons = []; // chutes disponibles, en pixels de page
+    const panels = [], scrapPool = [];
     // les pages pâles d'abord (dessous), puis les pages colorées par-dessus
     const imp = (t) => (t.importance === undefined ? 1 : t.importance);
     const order = texs.slice().sort((a, b) => imp(a) - imp(b) || (a.colorful || 0) - (b.colorful || 0));
     order.forEach((t, i) => {
-      const cut = panelCut(t, R);
-      const k = t.canvas.width / t.wcm; // pixels par cm
-      const w = cut.sw / k, h = cut.sh / k;
+      const cut = tearPage(t, R);
+      const k = cut.k;
+      const w = cut.panel.w / k, h = cut.panel.h / k;
       const band = Z[t.zone] || [0, H];
       // en spirale, la page la plus forte (posée en dernier) est au centre
       const target = spiral ? spiralPoint(W, H, order.length - 1 - i, order.length) : null;
@@ -191,60 +213,63 @@
         if (!best || score < best.score) best = { cx, cy, rot, score };
       }
       for (let c = 0; c < 90 && !target; c++) {
-        const cx = w * 0.25 + R() * Math.max(1, W - w * 0.5);
+        // le papier peut déborder de la toile (il sera rogné au bord), comme sur un vrai collage
+        const cx = w * 0.3 + R() * Math.max(1, W - w * 0.6);
         // de préférence dans sa zone, mais une page peut déborder pour ne pas laisser de trou
         const inZone = c % 3 !== 2;
-        const lo = inZone ? band[0] + h * 0.25 : h * 0.25, hi = inZone ? band[1] - h * 0.25 : H - h * 0.25;
-        const cy = clamp(lo + R() * Math.max(0, hi - lo), h * 0.25, H - h * 0.25);
+        const lo = inZone ? band[0] + h * 0.3 : h * 0.3, hi = inZone ? band[1] - h * 0.3 : H - h * 0.3;
+        const cy = clamp(lo + R() * Math.max(0, hi - lo), h * 0.3, H - h * 0.3);
         const rot = (R() - 0.5) * 0.08;
         const sc = cov.score(cx, cy, w, h, rot);
         const off = cy < band[0] || cy > band[1] ? 0.35 : 0;
-        const score = sc.over + sc.out * 1.5 + off + R() * 0.03;
+        const score = sc.over + sc.out * 0.8 + off + R() * 0.03;
         if (!best || score < best.score) best = { cx, cy, rot, score };
       }
       panels.push({
         kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm,
-        sx: cut.sx, sy: cut.sy, sw: cut.sw, sh: cut.sh,
+        sx: cut.panel.x, sy: cut.panel.y, sw: cut.panel.w, sh: cut.panel.h,
         x: best.cx, y: best.cy, w, h, rot: best.rot, flip: false,
         clip: tornPolygon(w, h, R, TEAR),
       });
       cov.mark(best.cx, best.cy, w, h, best.rot);
-      cut.offcuts.forEach((o) => ribbons.push({ t, k, ...o, used: 0 }));
+      cut.scraps.forEach((sc) => scrapPool.push({ t, k, ...sc }));
     });
 
-    // lambeaux : déchirés dans les chutes, jamais deux fois le même morceau de papier
-    const holes = [];
-    for (let i = 0; i < cov.cells.length; i++) if (!cov.cells[i]) holes.push(i);
+    // lambeaux : tout le papier restant est collé, les plus grands dans les plus grands trous
     const scrapsOut = [];
-    const colorfulFirst = ribbons.slice().sort((a, b) => (b.t.colorful || 0) - (a.t.colorful || 0));
-    shuffle(holes, R).forEach((i) => {
-      if (cov.cells[i]) return;
-      const cx = (i % cov.gw) + 0.5, cy = Math.floor(i / cov.gw) + 0.5;
-      // taille du lambeau en cm ; on coupe le long de la bande
-      const len = 3 + R() * 4.5;
-      const rb = colorfulFirst.find((r) => {
-        const along = r.w >= r.h ? r.w : r.h;
-        return (along - r.used) / r.k >= len;
-      });
-      if (!rb) return;
-      const horizontal = rb.w >= rb.h;
-      const lenPx = Math.round(len * rb.k);
-      const thick = horizontal ? rb.h : rb.w;
-      const thickPx = Math.min(thick, Math.round((2.5 + R() * 3) * rb.k));
-      const piece = horizontal
-        ? { x: rb.x + rb.used, y: rb.y + Math.floor(R() * (thick - thickPx + 1)), w: lenPx, h: thickPx }
-        : { x: rb.x + Math.floor(R() * (thick - thickPx + 1)), y: rb.y + rb.used, w: thickPx, h: lenPx };
-      rb.used += lenPx;
-      const fw = piece.w / rb.k, fh = piece.h / rb.k, rot = (R() - 0.5) * 1.2;
+    scrapPool.sort((a, b) => b.w * b.h - a.w * a.h);
+    for (const sc of scrapPool) {
+      const fw = sc.w / sc.k, fh = sc.h / sc.k;
+      // on cherche le trou : cellule vide dont le voisinage est le plus vide
+      let best = null;
+      for (let c = 0; c < 60; c++) {
+        const i = Math.floor(R() * cov.cells.length);
+        if (cov.cells[i]) continue;
+        const cx = (i % cov.gw) + 0.5, cy = Math.floor(i / cov.gw) + 0.5;
+        const rot = (R() - 0.5) * (fw > fh ? 0.5 : 0.5) + (c % 2 ? Math.PI / 2 : 0);
+        const s2 = cov.score(cx, cy, fw, fh, rot);
+        const score = s2.over + s2.out * 0.5 + R() * 0.02;
+        if (!best || score < best.score) best = { cx, cy, rot, score };
+      }
+      if (!best) {
+        // plus de cellule vide : on pose quand même le papier, là où il gêne le moins
+        for (let c = 0; c < 30; c++) {
+          const cx = fw / 2 + R() * Math.max(1, W - fw), cy = fh / 2 + R() * Math.max(1, H - fh);
+          const rot = (R() - 0.5) * 1.2;
+          const s2 = cov.score(cx, cy, fw, fh, rot);
+          const score = s2.over + s2.out * 0.5 + R() * 0.02;
+          if (!best || score < best.score) best = { cx, cy, rot, score };
+        }
+      }
       const L = {
-        kind: 'bg', scrap: true, src: rb.t.canvas,
-        sx: piece.x, sy: piece.y, sw: piece.w, sh: piece.h,
-        x: cx, y: cy, w: fw, h: fh, rot, flip: false,
+        kind: 'bg', scrap: true, src: sc.t.canvas,
+        sx: sc.x, sy: sc.y, sw: sc.w, sh: sc.h,
+        x: best.cx, y: best.cy, w: fw, h: fh, rot: best.rot, flip: false,
         clip: tornPolygon(fw, fh, R, TEAR),
       };
       scrapsOut.push(L);
-      cov.mark(L.x, L.y, L.w * 1.05, L.h * 1.05, rot);
-    });
+      cov.mark(L.x, L.y, L.w * 1.05, L.h * 1.05, best.rot);
+    }
     // les lambeaux passent sous les grandes pages
     out.push(...scrapsOut, ...panels);
   }
