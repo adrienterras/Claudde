@@ -63,6 +63,10 @@ cd collage && python3 -m http.server 8000
      leur couleur (claires et froides en haut, sombres et chaudes en bas), posées en tuiles presque
      droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les éventuels lambeaux
      restent dans la bande de leur page ;
+   - **export PDF à l'échelle** : une page de la taille exacte de la toile (1 cm = 1 cm), chaque page
+     de fond posée tournée comme une image JPEG, les découpes et papiers déchirés en PNG avec leur
+     transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 150 dpi
+     au plus. Les scans restent des images : un dessin d'enfant ne se vectorise pas sans le trahir ;
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en

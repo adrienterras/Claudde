@@ -1340,7 +1340,10 @@
   function updateExportInfo() {
     if (!state.comp) return;
     const { w, h, capped } = exportSize();
-    $('export-info').textContent = `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
+    const pdf = $('fmt').value === 'application/pdf';
+    $('export-info').textContent = pdf
+      ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(150, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
+      : `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
   }
 
   // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
@@ -1452,6 +1455,14 @@
     try {
       const { w } = exportSize();
       const s = w / state.comp.W;
+      if ($('fmt').value === 'application/pdf') {
+        saveStatus('Assemblage du PDF…');
+        await tick();
+        // les images du PDF restent à 150 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
+        const blob = await exportPdf(state.comp, Math.min(s, 150 / 2.54));
+        await saveFile(blob, 'oeuvre-atelier-gribouille.pdf');
+        return;
+      }
       const c = Extract.makeCanvas(state.comp.W * s, state.comp.H * s);
       const x = c.getContext('2d');
       x.imageSmoothingQuality = 'high';
@@ -1479,6 +1490,81 @@
     }
   }
 
+  /*
+   * PDF à l'échelle : la page fait exactement la taille de la toile (1 cm = 1 cm). Chaque papier
+   * et chaque découpe est une image posée à sa vraie place et sa vraie taille ; les cadres, le plomb
+   * du vitrail et les traits de la constellation sont dessinés en vecteurs. Les scans restent des
+   * images (on ne peut pas vectoriser un dessin d'enfant sans le trahir).
+   */
+  async function exportPdf(comp, s) {
+    const { jsPDF } = window.jspdf;
+    const W = comp.W, H = comp.H;
+    const doc = new jsPDF({ unit: 'cm', format: [W, H], orientation: W >= H ? 'landscape' : 'portrait', compress: true });
+    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(W)} × ${fmt(H)} cm, dessins à taille réelle` });
+    const ground = comp.ground || '#f8f5ef';
+    doc.setFillColor(ground);
+    doc.rect(0, 0, W, H, 'F');
+    const layers = comp.bg.concat(comp.items);
+    let n = 0;
+    for (const L of layers) {
+      n++;
+      if (n % 3 === 0) { saveStatus(`Assemblage du PDF… ${n} / ${layers.length}`); await tick(); }
+      if (L.kind === 'bg' && L.whole && !L.flip) {
+        // page entière, bords droits : une image JPEG opaque, posée tournée (jsPDF pivote autour du
+        // coin haut-gauche de l'image, dans le même sens que le canvas)
+        const cw = Math.max(1, Math.round(L.w * s)), ch = Math.max(1, Math.round(L.h * s));
+        const c = Extract.makeCanvas(cw, ch);
+        const ctx = c.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(L.src, L.sx, L.sy, L.sw, L.sh, 0, 0, cw, ch);
+        const cs = Math.cos(L.rot), sn = Math.sin(L.rot);
+        const tlx = L.x - (L.w / 2) * cs + (L.h / 2) * sn, tly = L.y - (L.w / 2) * sn - (L.h / 2) * cs;
+        doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx, tly, L.w, L.h, undefined, 'FAST', (L.rot * 180) / Math.PI);
+        continue;
+      }
+      // boîte englobante du calque (tourné), en cm, rognée à la toile
+      const r = L.rot ? Math.hypot(L.w, L.h) / 2 : 0;
+      const bw = L.rot ? 2 * r : L.w, bh = L.rot ? 2 * r : L.h;
+      const x0 = Math.max(0, L.x - bw / 2), y0 = Math.max(0, L.y - bh / 2);
+      const x1 = Math.min(W, L.x + bw / 2), y1 = Math.min(H, L.y + bh / 2);
+      if (x1 - x0 < 0.05 || y1 - y0 < 0.05) continue;
+      const c = Extract.makeCanvas(Math.max(1, Math.round((x1 - x0) * s)), Math.max(1, Math.round((y1 - y0) * s)));
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.translate(-x0 * s, -y0 * s);
+      Compose.drawLayer(ctx, L, s, false);
+      // le papier de fond de la toile est opaque : en JPEG, plus léger ; le reste garde sa transparence
+      const opaque = !!L.paper;
+      const data = opaque ? c.toDataURL('image/jpeg', 0.9) : c.toDataURL('image/png');
+      doc.addImage(data, opaque ? 'JPEG' : 'PNG', x0, y0, x1 - x0, y1 - y0, undefined, 'FAST');
+    }
+    // vecteurs : cadres de la galerie, plomb du vitrail, traits de la constellation
+    doc.setDrawColor(28, 27, 21);
+    if (comp.frames) {
+      doc.setLineWidth(0.3);
+      comp.frames.forEach((f) => doc.rect(f.x, f.y, f.w, f.h, 'S'));
+    }
+    if (comp.lead) {
+      doc.setLineWidth(comp.lead);
+      doc.setLineJoin('round');
+      comp.bg.forEach((L) => {
+        if (!L.panel) return;
+        const c = Math.cos(L.rot), sn = Math.sin(L.rot);
+        const pts = (L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]])
+          .map(([x, y]) => [L.x + x * c - y * sn, L.y + x * sn + y * c]);
+        const segs = pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]]);
+        doc.lines(segs, pts[0][0], pts[0][1], [1, 1], 'S', true);
+      });
+    }
+    if (comp.lines) {
+      doc.setLineWidth(0.18);
+      doc.setLineDashPattern([1.2, 0.8], 0);
+      comp.lines.forEach(([x0, y0, x1, y1]) => doc.line(x0, y0, x1, y1));
+      doc.setLineDashPattern([], 0);
+    }
+    return doc.output('blob');
+  }
+
   // ---------- Branchements ----------
 
   const drop = $('drop');
@@ -1504,6 +1590,7 @@
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
   ['format', 'pale', 'density', 'rotation', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
+  $('fmt').addEventListener('change', updateExportInfo);
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   $('dpi').addEventListener('change', updateExportInfo);
