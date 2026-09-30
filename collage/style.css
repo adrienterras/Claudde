@@ -539,7 +539,8 @@ body.editing { overflow: hidden; }
   .zoom { right: 10px; bottom: auto; top: 62px; flex-direction: column; }
   .zoom-val { min-width: 0; font-size: 0.64rem; }
   .label { bottom: 10px; max-width: calc(100% - 20px); }
-  .zoom { bottom: 68px; }
+  /* le zoom reste une colonne compacte en haut à droite ; « Fond seul » sur deux lignes */
+  .zoom button.mode { width: 40px; padding: 4px 2px; font-size: 0.58rem; line-height: 1.1; white-space: normal; text-align: center; }
   .density-bar { left: 10px; bottom: 68px; padding: 6px 12px; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
