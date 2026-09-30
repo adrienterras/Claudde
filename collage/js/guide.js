@@ -234,10 +234,11 @@
       [
         comp.lead ? '1. Peignez toute la toile en noir (acrylique), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon blanc.' : '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile. Si un peu de toile reste nue sur le plan, peignez-la d’abord d’une couleur unie.',
         '2. Pour chaque dessin, reportez sur l’original le trait magenta de sa fiche, à l’aide des cotes en cm, puis découpez ; gardez chaque morceau avec son numéro.',
-        scraps.length ? '3. Déchirez les chutes des pages de fond trop grandes en lambeaux, sans rien jeter.' : '3. Les pages de fond se collent entières, sans découpe : elles se chevauchent, et ce qui dépasse se rogne une fois collé.',
+        scraps.length ? '3. Déchirez les chutes des pages de fond trop grandes en lambeaux, sans rien jeter.' : panels.length ? '3. Les pages de fond se collent entières, sans découpe : elles se chevauchent, et ce qui dépasse se rogne une fois collé.' : '3. Cette œuvre ne comporte pas de page de fond : la toile reste blanche entre les découpes.',
         '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',
         comp.lead ? `5. Une fois les pages de fond collées et sèches, peignez un trait noir de ${fmt(comp.lead * 10)} mm le long des bords de chaque page (le plomb du vitrail), avant de coller les découpes.` : null,
-        (comp.lead ? '6' : '5') + '. Laissez sécher sous un poids, puis passez une couche de vernis.',
+        comp.frames ? '5. Tracez au feutre noir (ou à la peinture, au pinceau fin) le cadre de chaque case, 3 mm d’épaisseur, d’après le plan de pose, avant de coller les découpes au centre des cases.' : null,
+        (comp.lead || comp.frames ? '6' : '5') + '. Laissez sécher sous un poids, puis passez une couche de vernis.',
       ].filter(Boolean).forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
       let y3 = Math.max(y1, y2) + 4;
       y3 = wrap(ctx, `L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });

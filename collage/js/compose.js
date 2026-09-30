@@ -843,16 +843,74 @@
     return { bg, items, f: 1, W, H, kept: drawingsOf(chosen), total: drawingsOf(texs.map((t) => ({ d: t.drawing })).concat(pieces.map((p) => ({ d: p.drawing })))) };
   }
 
+
+  /*
+   * Galerie : une grille régulière de cases blanches cernées d'un trait noir, un dessin par case,
+   * comme une planche de personnages encadrée. On retient les sujets les plus adaptés (un par
+   * dessin, colorés, plutôt dressés) et le plus grand nombre de cases que la toile permet en
+   * gardant chaque sujet à sa taille réelle ; le nombre de dessins dépend donc de la toile.
+   */
+  function gallery(W, H, pieces, o, R) {
+    const M = 3, gap = 1.6, pad = 1.8;
+    const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0)
+      + (p.hcm / p.wcm >= 0.8 && p.hcm / p.wcm <= 2.4 ? 0.6 : 0) + Math.min(1, (p.wcm * p.hcm) / 600) * 0.5;
+    // un sujet par dessin : le meilleur de chaque
+    const byDrawing = new Map();
+    pieces.forEach((p) => { const d = p.drawing || p; if (!byDrawing.has(d) || beauty(p) > beauty(byDrawing.get(d))) byDrawing.set(d, p); });
+    const cands = [...byDrawing.values()].sort((a, b) => beauty(b) - beauty(a));
+    let best = null;
+    for (let cols = 1; cols <= 8; cols++) {
+      for (let rows = 1; rows <= 8; rows++) {
+        const cw = (W - 2 * M - (cols - 1) * gap) / cols, ch = (H - 2 * M - (rows - 1) * gap) / rows;
+        const ar = cw / ch;
+        if (ar < 0.55 || ar > 1.5 || cw < 8 || ch < 8) continue;
+        // chaque sujet doit tenir dans sa case, et la remplir raisonnablement (comme un portrait dans son cadre)
+        const fillOf = (p) => Math.max(p.wcm / (cw - 2 * pad), p.hcm / (ch - 2 * pad));
+        const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0); };
+        const fit = cands.filter((p) => fillOf(p) <= 1).sort((a, b) => cellScore(b) - cellScore(a));
+        const cells = cols * rows;
+        if (fit.length < cells) continue; // toutes les cases doivent être remplies
+        const chosen = fit.slice(0, cells);
+        // la qualité des cases compte plus que leur nombre : mieux vaut trois beaux portraits que six cases mal remplies
+        const score = cells * 1.5 + chosen.reduce((a, p) => a + cellScore(p), 0) - Math.abs(ar - 0.8) * 4;
+        if (!best || score > best.score) best = { cols, rows, cw, ch, fit: chosen, score };
+      }
+    }
+    if (!best) {
+      // pas assez de sujets pour une grille pleine : une seule rangée des sujets qui tiennent
+      const fit = cands.filter((p) => p.hcm <= H - 2 * M - 2 * pad);
+      const cols = Math.max(1, Math.min(fit.length, Math.floor((W - 2 * M + gap) / (Math.max(...fit.map((p) => p.wcm), 10) + 2 * pad + gap))));
+      if (!cols || !fit.length) return { items: [], frames: [], kept: 0 };
+      best = { cols, rows: 1, cw: (W - 2 * M - (cols - 1) * gap) / cols, ch: H - 2 * M, fit: fit.slice(0, cols) };
+    }
+    // ordre : les plus forts en haut à gauche et en bas à droite, comme une planche équilibrée
+    const order = shuffle(best.fit, R);
+    const items = [], frames = [];
+    order.forEach((p, i) => {
+      const c = i % best.cols, r = Math.floor(i / best.cols);
+      const x0 = M + c * (best.cw + gap), y0 = M + r * (best.ch + gap);
+      frames.push({ x: x0, y: y0, w: best.cw, h: best.ch });
+      p.placed = true;
+      items.push({ kind: 'piece', piece: p, x: x0 + best.cw / 2, y: y0 + best.ch / 2, w: p.wcm, h: p.hcm, rot: 0, flip: false });
+    });
+    return { items, frames, kept: items.length, cols: best.cols, rows: best.rows };
+  }
+
   function paperLayer(W, H) {
     const c = paperTexture();
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'cabinet' (rangées alignées).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées).
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
     const style = o.style || 'paysage';
+    if (style === 'galerie') {
+      const g = gallery(W, H, o.pieces, o, R);
+      const total = new Set(o.textures.map((t) => t.drawing).concat(o.pieces.map((p) => p.drawing)).filter(Boolean)).size;
+      return { W, H, bg: [], items: g.items, frames: g.frames, ground: '#fbfaf6', grain: o.grain, style, f: 1, scale: 1, kept: g.kept, total };
+    }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
       return { W, H, bg: [paperLayer(W, H), ...cab.bg], items: cab.items, grain: o.grain, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
@@ -971,6 +1029,14 @@
     ctx.fillStyle = comp.ground || '#f8f5ef';
     ctx.fillRect(0, 0, comp.W * s, comp.H * s);
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
+    if (comp.frames) {
+      // galerie : le cadre noir de chaque case, peint au trait
+      ctx.save();
+      ctx.strokeStyle = '#1c1b15';
+      ctx.lineWidth = 0.3 * s;
+      comp.frames.forEach((f) => ctx.strokeRect(f.x * s, f.y * s, f.w * s, f.h * s));
+      ctx.restore();
+    }
     if (comp.lead) {
       // vitrail : le plomb, un trait noir peint le long des bords de chaque fragment
       ctx.save();

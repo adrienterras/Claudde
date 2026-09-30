@@ -69,12 +69,16 @@ cd collage && python3 -m http.server 8000
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **quatre propositions, quatre styles**, à chaque fois :
+   - **cinq propositions, cinq styles**, à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
      alternant claires et foncées comme un damier cousu ; une découpe posée en médaillon au centre
      de chaque carreau, les plus grandes sur les plus grands carreaux),
+     *Galerie* (une grille régulière de cases blanches cernées d'un trait noir, un sujet par case,
+     comme une planche de personnages encadrée : l'app retient les sujets les plus adaptés, un par
+     dessin, et le plus grand nombre de cases que la toile permet à taille réelle — le nombre de
+     dessins dépend donc de la toile),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
