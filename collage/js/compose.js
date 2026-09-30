@@ -910,11 +910,12 @@
       const g = gallery(W, H, o.pieces, o, R);
       const total = new Set(o.textures.map((t) => t.drawing).concat(o.pieces.map((p) => p.drawing)).filter(Boolean)).size;
       // fond blanc, sans finition toile : une planche encadrée, pas une toile peinte
-      return { W, H, bg: [], items: g.items, frames: g.frames, ground: '#fbfaf6', grain: false, style, f: 1, scale: 1, kept: g.kept, total };
+      return { W, H, bg: [], items: g.items, frames: g.frames, ground: o.ground || '#fbfaf6', groundName: o.groundName || null, grain: false, style, f: 1, scale: 1, kept: g.kept, total };
     }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
-      return { W, H, bg: [paperLayer(W, H), ...cab.bg], items: cab.items, grain: o.grain, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
+      // toile nue (papier) ou aplat de peinture choisi
+      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...cab.bg], items: cab.items, ground: o.ground || null, groundName: o.groundName || null, grain: o.grain, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
     }
     const bg = [];
     let Z = zonesFor(W, H, true);
@@ -959,8 +960,11 @@
     }
     const maps = backgroundMaps(W, H, bg);
     const items = placePieces(W, H, o.pieces, o, Z, R, mode, maps);
+    // sans fond de peinture, la toile nue (papier) apparaît là où il n'y a pas de page
+    if (o.ground) { for (let i = bg.length - 1; i >= 0; i--) if (bg[i].paper) bg.splice(i, 1); }
     const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
     if (ground) comp.ground = ground;
+    else if (o.ground) { comp.ground = o.ground; comp.groundName = o.groundName || null; }
     if (style === 'vitrail') comp.lead = 0.5; // largeur du trait de plomb, en cm
     if (lines === 'chain') {
       // la constellation : chaque étoile reliée à sa plus proche voisine non encore reliée

@@ -232,7 +232,9 @@
         'Vernis mat pour protéger l’œuvre (facultatif)',
       ].forEach((m) => { y1 = wrap(ctx, '·  ' + m, MARGIN, y1, colW, 3, 4.2); y1 += 0.8; });
       [
-        comp.lead ? '1. Peignez toute la toile en noir (acrylique), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon blanc.' : '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile. Si un peu de toile reste nue sur le plan, peignez-la d’abord d’une couleur unie.',
+        comp.lead ? '1. Peignez toute la toile en noir (acrylique), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon blanc.'
+          : comp.groundName ? `1. Peignez toute la toile en aplat, acrylique « ${comp.groundName} » (deux couches, rouleau mousse ou brosse large), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon.`
+          : '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile. Si un peu de toile reste nue sur le plan, peignez-la d’abord d’une couleur unie.',
         '2. Pour chaque dessin, reportez sur l’original le trait magenta de sa fiche, à l’aide des cotes en cm, puis découpez ; gardez chaque morceau avec son numéro.',
         scraps.length ? '3. Déchirez les chutes des pages de fond trop grandes en lambeaux, sans rien jeter.' : panels.length ? '3. Les pages de fond se collent entières, sans découpe : elles se chevauchent, et ce qui dépasse se rogne une fois collé.' : '3. Cette œuvre ne comporte pas de page de fond : la toile reste blanche entre les découpes.',
         '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',

@@ -684,6 +684,49 @@
 
   // Toile : soit un format imposé, soit une taille calculée d'après le papier disponible
   // (les dessins sont toujours à leur taille réelle : c'est la toile qui s'adapte).
+  /*
+   * Fond de toile : un aplat de peinture acrylique, dans les teintes classiques du commerce
+   * (gammes Pébéo, Lefranc Bourgeois, Liquitex…). Il couvre toute la toile, ce qui permet une œuvre
+   * aérée quand il n'y a pas assez de dessins pour tout recouvrir.
+   */
+  const PAINTS = [
+    ['Blanc de titane', '#f4f2ec'], ['Jaune de Naples', '#f2dc9a'], ['Jaune primaire', '#f6cf1e'], ['Ocre jaune', '#c8933a'],
+    ['Orange de cadmium', '#e8722a'], ['Rouge de cadmium', '#c9322b'], ['Magenta primaire', '#c8367d'], ['Rose', '#e9a3b6'],
+    ['Terre de Sienne brûlée', '#8a4b2c'], ['Terre d’ombre brûlée', '#5b3d2a'], ['Vert de vessie', '#4f6a2a'], ['Vert émeraude', '#1f8a5a'],
+    ['Vert olive', '#7a7b3f'], ['Bleu turquoise', '#2e9fb5'], ['Bleu céruléum', '#3f8fce'], ['Bleu primaire cyan', '#1b7bc0'],
+    ['Bleu outremer', '#2a3d8f'], ['Bleu de Prusse', '#1c2d4a'], ['Violet dioxazine', '#4a2a6a'], ['Gris de Payne', '#4b5561'],
+    ['Noir de Mars', '#1f1e1c'],
+  ];
+  function groundPaint() {
+    return state.ground ? PAINTS.find((c) => c[1] === state.ground) || null : null;
+  }
+  function setGround(hex) {
+    state.ground = hex || null;
+    try { if (hex) localStorage.setItem('atelier.ground', hex); else localStorage.removeItem('atelier.ground'); } catch (e) { /* ignoré */ }
+    document.querySelectorAll('#ground button').forEach((b) => {
+      const on = (b.dataset.hex || '') === (hex || '');
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    const paint = groundPaint();
+    $('ground-name').textContent = paint ? paint[0] : 'toile nue';
+  }
+  function fillGround() {
+    const box = $('ground');
+    const mk = (name, hex) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('role', 'radio'); b.title = name; b.setAttribute('aria-label', name);
+      b.dataset.hex = hex || '';
+      if (hex) b.style.setProperty('--sw', hex); else b.className = 'none';
+      b.onclick = () => { setGround(hex); regenerate(); };
+      box.appendChild(b);
+    };
+    mk('Toile nue (lin, sans peinture)', '');
+    PAINTS.forEach(([name, hex]) => mk(name, hex));
+    let saved = null;
+    try { saved = localStorage.getItem('atelier.ground'); } catch (e) { /* ignoré */ }
+    setGround(saved && PAINTS.some((c) => c[1] === saved) ? saved : null);
+  }
+
   // Orientation de la toile choisie par l'utilisateur : 'land' (paysage) ou 'port' (portrait).
   function canvasOrient() {
     return state.canvasOrient || 'land';
@@ -867,6 +910,8 @@
       density: Number($('density').value),
       rotation: Number($('rotation').value),
       grain: $('grain').checked,
+      ground: state.ground || null,
+      groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,
       textures,
       pieces,
@@ -1727,6 +1772,7 @@ Réponds uniquement avec ce JSON :
   }
 
   fillFormats();
+  fillGround();
 
   // accès pour le débogage depuis la console
   window.AtelierGribouille = { state, options, selectProposal };
