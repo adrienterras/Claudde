@@ -1609,6 +1609,13 @@
     const ground = comp.ground || '#f8f5ef';
     doc.setFillColor(ground);
     doc.rect(0, 0, W, H, 'F');
+    if (comp.ground) {
+      // l'aplat de peinture avec ses coups de brosse, en une image pleine page (100 dpi suffisent)
+      const gs = Math.min(s, 100 / 2.54);
+      const gc = Extract.makeCanvas(Math.round(W * gs), Math.round(H * gs));
+      Compose.renderGround(gc.getContext('2d'), comp, gs);
+      doc.addImage(gc.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, W, H, undefined, 'FAST');
+    }
     const layers = comp.bg.concat(comp.items);
     let n = 0;
     for (const L of layers) {

@@ -1030,9 +1030,91 @@
     ctx.restore();
   }
 
-  function renderBg(ctx, comp, s, shadows) {
+
+  /*
+   * Aplat de peinture acrylique : un carreau de texture (sans raccord visible) fait de coups de
+   * brosse larges, légèrement plus clairs ou plus foncés que la teinte, en deux couches — une
+   * première en biais, une seconde horizontale — avec les traces fines des poils. Le carreau
+   * couvre 24 cm et se répète ; il est calculé à la résolution du rendu, puis mis en cache.
+   */
+  const paintCache = new Map();
+  function paintTile(color, s) {
+    const key = `${color}|${Math.round(s * 4)}`;
+    if (paintCache.has(key)) return paintCache.get(key);
+    const T = Math.max(64, Math.round(24 * s)); // 24 cm
+    const c = Extract.makeCanvas(T, T);
+    const ctx = c.getContext('2d');
+    const rgb = [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16)];
+    const shade = (k) => `rgb(${rgb.map((v) => clamp(Math.round(v * k + (k > 1 ? (255 - v) * (k - 1) * 0.6 : 0)), 0, 255)).join(',')})`;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, T, T);
+    const R = rng(7 + rgb[0] + rgb[1] * 3 + rgb[2] * 7);
+    // un coup de brosse : un ruban légèrement courbe, dessiné 9 fois pour boucler le carreau
+    const stroke = (x, y, len, ang, width, k, alpha, bristles) => {
+      const dx = Math.cos(ang), dy = Math.sin(ang);
+      const bend = (R() - 0.5) * len * 0.12;
+      for (let oy = -T; oy <= T; oy += T) {
+        for (let ox = -T; ox <= T; ox += T) {
+          ctx.save();
+          ctx.translate(x + ox, y + oy);
+          ctx.rotate(ang);
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = shade(k);
+          ctx.lineCap = 'round';
+          ctx.lineWidth = width;
+          ctx.beginPath();
+          ctx.moveTo(-len / 2, 0);
+          ctx.quadraticCurveTo(0, bend, len / 2, 0);
+          ctx.stroke();
+          // traces des poils : quelques lignes fines, un peu plus claires et plus foncées
+          ctx.globalAlpha = alpha * 0.9;
+          for (let i = 0; i < bristles; i++) {
+            const off = (R() - 0.5) * width * 0.9;
+            ctx.strokeStyle = shade(i % 2 ? k * 1.06 : k * 0.94);
+            ctx.lineWidth = Math.max(0.6, width * 0.07);
+            ctx.beginPath();
+            ctx.moveTo(-len / 2 + R() * len * 0.2, off);
+            ctx.quadraticCurveTo(0, bend + off, len / 2 - R() * len * 0.2, off);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      void dx; void dy;
+    };
+    // première couche : en biais, larges, très transparentes
+    for (let i = 0; i < 70; i++) stroke(R() * T, R() * T, T * (0.35 + R() * 0.45), -0.9 + (R() - 0.5) * 0.5, s * (1.4 + R() * 1.6), 0.84 + R() * 0.34, 0.12 + R() * 0.1, 6);
+    // seconde couche : presque horizontale, plus marquée
+    for (let i = 0; i < 90; i++) stroke(R() * T, R() * T, T * (0.3 + R() * 0.5), (R() - 0.5) * 0.28, s * (0.9 + R() * 1.4), 0.86 + R() * 0.3, 0.14 + R() * 0.12, 8);
+    // légère variation d'ensemble, comme une couche inégale
+    for (let i = 0; i < 8; i++) {
+      const g = ctx.createRadialGradient(R() * T, R() * T, 0, R() * T, R() * T, T * (0.3 + R() * 0.3));
+      g.addColorStop(0, shade(R() < 0.5 ? 0.94 : 1.06)); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.24;
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, T, T);
+    }
+    ctx.globalAlpha = 1;
+    paintCache.set(key, c);
+    return c;
+  }
+
+  // Le fond de la toile : toile nue (papier) ou aplat de peinture avec ses coups de brosse.
+  function renderGround(ctx, comp, s) {
     ctx.fillStyle = comp.ground || '#f8f5ef';
     ctx.fillRect(0, 0, comp.W * s, comp.H * s);
+    if (comp.ground && comp.paint !== false) {
+      const tile = paintTile(comp.ground, s);
+      const pat = ctx.createPattern(tile, 'repeat');
+      ctx.save();
+      ctx.fillStyle = pat;
+      ctx.fillRect(0, 0, comp.W * s, comp.H * s);
+      ctx.restore();
+    }
+  }
+
+  function renderBg(ctx, comp, s, shadows) {
+    renderGround(ctx, comp, s);
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
     if (comp.frames) {
       // galerie : le cadre noir de chaque case, peint au trait
@@ -1131,5 +1213,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { generate, addPiece, renderBg, renderItems, renderFinish, drawLayer, hitItem, rng };
+  window.Compose = { generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng };
 })();
