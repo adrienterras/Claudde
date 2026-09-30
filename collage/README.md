@@ -38,7 +38,9 @@ cd collage && python3 -m http.server 8000
      réellement vendues : formats français normalisés Figure / Paysage / Marine (20F 73 × 60 … 120F
      195 × 130), dont ceux vendus chez Cultura (gamme Monali : 20F, 25F, 30M, 40F, 50F, 50P, 60F),
      et les toiles 3D carrées et panoramiques Cultura (80 × 80, 100 × 100, 100 × 50, 120 × 40,
-     150 × 50). On peut imposer l'une d'elles : l'application dit alors si le papier suffit ;
+     150 × 50), et les cadres IKEA aux formats photo standard (30 × 40, 40 × 50, 50 × 70, 61 × 91,
+     70 × 100, carré 50 × 50 ; l'œuvre se fait alors sur un carton à la taille de la vitre). On peut
+     imposer l'une d'elles : l'application dit alors si le papier suffit ;
    - chaque page de fond est utilisée UNE SEULE FOIS et EN ENTIER, **sans être découpée** : la feuille
      est collée telle quelle, les pages se chevauchent et ce qui dépasse de la toile se rogne à la pose ;
      seule une page plus grande que la toile est réduite, et son surplus déchiré en lambeaux ;

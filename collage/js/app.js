@@ -743,6 +743,10 @@
     ['120F', 195, 130, 'formats standards'], ['120P', 195, 114, 'formats standards'], ['120M', 195, 97, 'formats standards'],
     ['carré', 80, 80, 'Cultura'], ['carré', 100, 100, 'Cultura'],
     ['panoramique', 100, 50, 'Cultura'], ['panoramique', 120, 40, 'Cultura'], ['panoramique', 150, 50, 'Cultura'],
+    // Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN, FISKBO…) : formats photo standard ; l'œuvre se fait
+    // alors sur un carton ou un papier fort à la taille de la vitre, puis se glisse dans le cadre.
+    ['cadre', 40, 30, 'IKEA'], ['cadre', 50, 40, 'IKEA'], ['cadre', 70, 50, 'IKEA'],
+    ['cadre', 91, 61, 'IKEA'], ['cadre', 100, 70, 'IKEA'], ['cadre carré', 50, 50, 'IKEA'],
   ];
   const stockName = (t) => (canvasOrient() === 'port' ? `${t[0]} · ${t[2]} × ${t[1]} cm` : `${t[0]} · ${t[1]} × ${t[2]} cm`);
 
@@ -760,7 +764,11 @@
     const sel = $('format');
     const current = sel.value;
     sel.querySelectorAll('optgroup').forEach((g) => g.remove());
-    const groups = [['Cultura (Monali)', STOCK.filter((t) => t[3] === 'Cultura')], ['Formats standards beaux-arts (F / P / M)', STOCK.filter((t) => t[3] !== 'Cultura')]];
+    const groups = [
+      ['Cultura (Monali)', STOCK.filter((t) => t[3] === 'Cultura')],
+      ['Formats standards beaux-arts (F / P / M)', STOCK.filter((t) => t[3] === 'formats standards')],
+      ['Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…)', STOCK.filter((t) => t[3] === 'IKEA')],
+    ];
     groups.forEach(([label, list]) => {
       const g = document.createElement('optgroup');
       g.label = label;
