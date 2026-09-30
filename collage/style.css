@@ -345,6 +345,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .swatches button.auto { background: var(--ink); color: var(--on-ink); font: 700 0.7rem var(--f-body); }
 .swatches button.none { background: repeating-linear-gradient(45deg, #efe9dd 0 3px, #e3dccd 3px 6px); }
 .swatches button.on { box-shadow: 0 0 0 2px var(--ink); }
+.swatches.off { opacity: .35; pointer-events: none; }
 .swatches button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- Mur de galerie (scène) ---------- */

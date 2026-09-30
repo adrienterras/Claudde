@@ -910,7 +910,8 @@
       const g = gallery(W, H, o.pieces, o, R);
       const total = new Set(o.textures.map((t) => t.drawing).concat(o.pieces.map((p) => p.drawing)).filter(Boolean)).size;
       // fond blanc, sans finition toile : une planche encadrée, pas une toile peinte
-      return { W, H, bg: [], items: g.items, frames: g.frames, ground: o.ground || '#fbfaf6', groundName: o.groundName || null, grain: false, style, f: 1, scale: 1, kept: g.kept, total };
+      // fond blanc, fixe : ni couleur ni effet peinture, ni finition toile — une planche encadrée
+      return { W, H, bg: [], items: g.items, frames: g.frames, ground: '#fbfaf6', paint: false, grain: false, style, f: 1, scale: 1, kept: g.kept, total };
     }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);

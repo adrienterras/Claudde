@@ -713,7 +713,7 @@
    * On regarde la couleur d'ensemble des éléments (pondérée par leur surface) : le fond doit
    * contraster en clarté (fond sombre sous des papiers clairs, clair sous des papiers sombres),
    * se placer plutôt en face de la teinte dominante sur le cercle chromatique, et rester une
-   * teinte calme. La Galerie suit la même règle : ses cadres noirs se posent sur l'aplat.
+   * teinte calme. La Galerie n'est pas concernée : son fond reste blanc, fixe.
    */
   function pickGround(o, style) {
     let wsum = 0, r = 0, g = 0, b = 0, hx = 0, hy = 0, satW = 0;
@@ -758,6 +758,7 @@
   }
   function updateGroundName() {
     const el = $('ground-name');
+    if (state.comp && state.comp.style === 'galerie') { el.textContent = 'blanc, fixe en Galerie'; return; }
     if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? `conseillé · ${state.comp.groundName}` : 'conseillé selon la composition';
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : 'toile nue'; }
   }
@@ -991,7 +992,7 @@
     const o = options();
     state.proposals = STYLES.map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
-      if (state.ground === 'auto') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
+      if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
     });
     state.active = Math.min(state.active || 0, STYLES.length - 1);
@@ -1009,6 +1010,9 @@
   // Réglages sans objet pour le style actif : la Galerie a un fond blanc, sans finition toile.
   function updateSettingsFor(comp) {
     const white = !!(comp && comp.style === 'galerie');
+    // fond de toile : sans objet en Galerie (blanc, fixe)
+    document.querySelectorAll('#ground button').forEach((b) => { b.disabled = white; });
+    $('ground').classList.toggle('off', white);
     const g = $('grain');
     g.disabled = white;
     const lab = g.closest('label');
