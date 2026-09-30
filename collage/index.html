@@ -91,7 +91,6 @@
         <div class="field">Fond de toile <small id="ground-name">toile nue</small>
           <div class="swatches" id="ground" role="radiogroup" aria-label="Couleur de fond de la toile"></div>
         </div>
-        <label class="field">Densité <small id="density-note">au maximum, tous les dessins entrent dans l’œuvre</small><input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1"></label>
         <label class="switch row"><input id="grain" type="checkbox" checked><span></span>Finition toile</label>
       </details>
     </section>
@@ -163,6 +162,11 @@
       <button id="zoom-fit" title="Voir toute l’œuvre" aria-label="Voir toute l’œuvre"><svg class="ico"><use href="#i-fit"/></svg></button>
       <button id="zoom-full" title="Plein écran" aria-label="Plein écran" aria-pressed="false"><svg class="ico"><use href="#i-expand"/></svg></button>
       <button id="bg-mode" class="mode" title="Ne voir que le fond et déplacer ses pages" aria-pressed="false">Fond seul</button>
+    </div>
+    <div id="density-bar" class="density-bar" hidden>
+      <label for="density">Densité</label>
+      <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1" aria-describedby="density-note">
+      <small id="density-note">16 dessins</small>
     </div>
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <div id="empty" class="empty">

@@ -55,6 +55,8 @@ cd collage && python3 -m http.server 8000
      joints), puis retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. C'est
      signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ;
+   - **densité** (curseur sous l'aperçu de l'œuvre, avec le nombre de dessins utilisés) : le curseur
+     règle le nombre de sujets posés, des plus forts aux plus faibles, de 20 % au minimum jusqu'à tous ;
    - **densité au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
      rejoignent le fond ; la rotation des découpes est fixe (réglage retiré) ;

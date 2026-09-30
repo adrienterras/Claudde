@@ -630,8 +630,14 @@
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
     if (!stars.size) sorted.slice(0, 3).forEach((p) => stars.add(p));
     // les découpes couvrent au plus ~45 % de la toile (× densité) : au-delà, les sujets restent en attente
-    // densité au maximum (« tout ») : plus de plafond, et un sujet sans place libre se pose quand même
-    const targetCover = o.everything ? Infinity : 0.45 * (o.density || 1) * W * H;
+    // densité : le curseur règle directement le nombre de sujets posés, des plus forts aux plus faibles
+    // (de 20 % au minimum jusqu'à tous au maximum), avec un plafond de couverture qui suit ;
+    // au maximum (« tout »), plus de plafond et un sujet sans place libre se pose quand même
+    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
+    const maxCount = o.everything ? sorted.length : Math.max(1, Math.round(sorted.length * (0.2 + 0.8 * t)));
+    // tolérance de chevauchement entre découpes : nulle à faible densité, franche vers le maximum
+    const overMax = 0.12 + 0.55 * t;
+    const targetCover = o.everything ? Infinity : (0.3 + 0.55 * t) * W * H;
     let covered = 0;
 
     function footprint(p, cx, cy, fn) {
@@ -651,7 +657,7 @@
 
     sorted.forEach((p, idx) => {
       p.placed = false;
-      if (covered >= targetCover) return;
+      if (idx >= maxCount || covered >= targetCover) return;
       const grounded = !spiral && !!p.grounded;
       const pHue = hue(p.color);
       const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
@@ -672,7 +678,7 @@
         if (!cells) continue;
         const score = (over / cells) * 6 + (out / cells) * 5 + Math.hypot(cx - target.x, cy - target.y) / (W * 0.15) + R() * 0.03;
         if (!fallback || score < fallback.score) fallback = { cx, cy, score, r: target.r, rot: target.rot };
-        if (over / cells > 0.12 || out / cells > 0.15) continue;
+        if (over / cells > overMax || out / cells > 0.15) continue;
         if (!best || score < best.score) best = { cx, cy, score, r: target.r, rot: target.rot };
       }
       for (let c = 0; c < 170 && !target; c++) {
@@ -746,11 +752,11 @@
         }
         score += R() * 0.04;
         if (!fallback || score < fallback.score) fallback = { cx, cy, score };
-        if (over / cells > 0.12 || out / cells > 0.15) continue; // pas de vrai chevauchement
+        if (over / cells > overMax || out / cells > 0.15) continue; // pas de vrai chevauchement
         if (!best || score < best.score) best = { cx, cy, score };
       }
       // pas de place sans empiler : le sujet reste en attente (sauf en spirale, où l'on serre)
-      if (!best) { if ((spiral && idx === 0 && mode.tight !== false) || o.everything) best = fallback; if (!best) return; }
+      if (!best) { if ((spiral && idx === 0 && mode.tight !== false) || o.everything || t > 0.85) best = fallback; if (!best) return; }
       footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh && !occ[gy * gw + gx]) { occ[gy * gw + gx] = 1; covered++; } });
       if (star) {
         let bi = -1, bd = Infinity;

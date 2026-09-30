@@ -388,6 +388,7 @@
    *    le fond suffise aux découpes, et la toile prend la taille du fond ;
    *  - toile imposée : on passe en fond juste assez de pages pour la couvrir, et on dit s'il manque du papier.
    */
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   // Densité au maximum : tous les dessins chargés doivent être pris en compte.
   const allIn = () => Number($('density').value) >= 1.79;
 
@@ -401,9 +402,14 @@
     // Sur l'exemple de référence, le fond n'est fait que de pages colorées : les feuilles pâles
     // (crayon gris, texte) sont mises de côté par défaut ; un réglage permet de les coller en fond.
     const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
-    // densité au maximum : tout ce qui a été chargé entre dans l'œuvre, feuilles pâles comprises (en fond)
+    // feuilles pâles : mises de côté par défaut ; au-delà de la mi-course du curseur de densité, elles
+    // rejoignent le fond progressivement (les plus colorées d'abord), toutes au maximum
     const paleMode = allIn() ? 'fond' : $('pale') ? $('pale').value : 'aside';
-    paleOnes.forEach((d) => { d.auto = paleMode === 'fond' ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
+    const t = (Number($('density').value) - 0.5) / 1.3;
+    const share = paleMode === 'fond' ? 1 : paleMode === 'aside' ? clamp((t - 0.5) / 0.5, 0, 1) : 0;
+    const nPale = Math.round(paleOnes.length * share);
+    paleOnes.slice().sort((a, b) => (b.analysis.texture ? b.analysis.texture.colorful : 0) - (a.analysis.texture ? a.analysis.texture.colorful : 0))
+      .forEach((d, i) => { d.auto = i < nPale ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
     state.paleCount = paleOnes.length;
     // seules les pages franchement peintes ou colorées peuvent faire le fond (comme sur l'exemple) ;
     // une feuille blanche avec un petit dessin reste une découpe
@@ -969,6 +975,7 @@
       density: Number($('density').value),
       rotation: 8, // rotation retenue des découpes (degrés) : réglage retiré, valeur fixe
       everything: allIn(), // densité au maximum : tous les dessins entrent dans l'œuvre
+      densityT: (Number($('density').value) - 0.5) / 1.3, // position du curseur, de 0 à 1
       grain: $('grain').checked,
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
@@ -1033,6 +1040,14 @@
     const el = $('label');
     updateSettingsFor(state.comp);
     updateGroundName();
+    $('density-bar').hidden = !state.comp;
+    if (state.comp) {
+      const c = state.comp;
+      const used = new Set();
+      c.items.forEach((L) => used.add(L.piece.drawing));
+      state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
+      $('density-note').textContent = `${used.size} dessin${used.size > 1 ? 's' : ''} sur ${state.drawings.length}${allIn() ? ' · tout' : ''}`;
+    }
     if (!state.comp) { el.hidden = true; return; }
     el.hidden = false;
     const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
