@@ -99,7 +99,8 @@ cd collage && python3 -m http.server 8000
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
      alternant claires et foncées comme un damier cousu ; une découpe posée en médaillon au centre
      de chaque carreau, les plus grandes sur les plus grands carreaux),
-     *Galerie* (une grille régulière de cases blanches cernées d'un trait noir, un sujet par case,
+     *Galerie* (une grille régulière de cases carrées cernées d'un trait noir fin de 1,5 mm, un sujet
+     par case, le nombre de cases suivant le curseur de densité,
      comme une planche de personnages encadrée : l'app retient les sujets les plus adaptés, un par
      dessin, et le plus grand nombre de cases que la toile permet à taille réelle — le nombre de
      dessins dépend donc de la toile),

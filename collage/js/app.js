@@ -1738,7 +1738,7 @@
     // vecteurs : cadres de la galerie, plomb du vitrail, traits de la constellation
     doc.setDrawColor(28, 27, 21);
     if (comp.frames) {
-      doc.setLineWidth(0.3);
+      doc.setLineWidth(comp.frameWidth || 0.3);
       comp.frames.forEach((f) => doc.rect(f.x, f.y, f.w, f.h, 'S'));
     }
     if (comp.lead) {
