@@ -903,9 +903,23 @@
     updateLabel();
   }
 
+  // Réglages sans objet pour le style actif : la Galerie a un fond blanc, sans finition toile.
+  function updateSettingsFor(comp) {
+    const white = !!(comp && comp.style === 'galerie');
+    const g = $('grain');
+    g.disabled = white;
+    const lab = g.closest('label');
+    lab.classList.toggle('off', white);
+    lab.title = white ? 'Fond blanc en Galerie : pas de finition toile' : '';
+    let note = lab.querySelector('small');
+    if (white && !note) { note = document.createElement('small'); note.textContent = ' — fond blanc'; lab.appendChild(note); }
+    if (!white && note) note.remove();
+  }
+
   // Cartel sous l'œuvre, comme au musée.
   function updateLabel() {
     const el = $('label');
+    updateSettingsFor(state.comp);
     if (!state.comp) { el.hidden = true; return; }
     el.hidden = false;
     const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];

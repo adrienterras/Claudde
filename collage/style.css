@@ -266,6 +266,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .switch.row { display: flex; }
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; margin: 0; }
 .switch.row { margin-top: 2px; }
+.switch.off { opacity: .45; cursor: default; }
+.switch small { color: var(--muted); font-size: 0.74rem; }
 .switch span { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--line); transition: background .2s; flex: none; }
 .switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s; }
 .switch input:checked + span { background: var(--accent); }
