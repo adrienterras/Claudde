@@ -67,6 +67,9 @@ cd collage && python3 -m http.server 8000
      de fond posée tournée comme une image JPEG, les découpes et papiers déchirés en PNG avec leur
      transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 150 dpi
      au plus. Les scans restent des images : un dessin d'enfant ne se vectorise pas sans le trahir ;
+   - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
+     que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
+     ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en

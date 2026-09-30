@@ -1127,6 +1127,19 @@
     const shadows = false; // pas d'ombre portée : papier collé à plat
     $('zoom-val').textContent = `${Math.round(Z.z * 100)} %`;
 
+    if (state.bgMode) {
+      // mode « fond seul » : les pages de fond se déplacent, on les dessine en direct, sans les découpes
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(ox, oy, comp.W * s, comp.H * s);
+      ctx.clip();
+      ctx.translate(ox, oy);
+      Compose.renderBg(ctx, comp, s, false);
+      Compose.renderFinish(ctx, comp, s);
+      ctx.restore();
+      drawSelection(ox, oy, s, dpr);
+      return;
+    }
     // fond mis en cache (il ne change pas pendant qu'on déplace les découpes),
     // à une résolution plafonnée pour rester léger quand on zoome fort
     const bs = Math.min(s, 4096 / comp.W, Math.sqrt(16e6 / (comp.W * comp.H)));
@@ -1155,6 +1168,10 @@
     Compose.renderFinish(ctx, comp, s);
     ctx.restore();
 
+    drawSelection(ox, oy, s, dpr);
+  }
+
+  function drawSelection(ox, oy, s, dpr) {
     const L = state.selected;
     if (L) {
       ctx.save();
@@ -1223,10 +1240,37 @@
   }
 
   function hitAt(p) {
+    if (state.bgMode) {
+      const bg = state.comp.bg;
+      for (let i = bg.length - 1; i >= 0; i--) {
+        const L = bg[i];
+        if (L.paper) continue;
+        const dx = p.X - L.x, dy = p.Y - L.y, c = Math.cos(L.rot), sn = Math.sin(L.rot);
+        const lx = dx * c + dy * sn, ly = -dx * sn + dy * c;
+        if (Math.abs(lx) <= L.w / 2 && Math.abs(ly) <= L.h / 2) return L;
+      }
+      return null;
+    }
     const items = state.comp.items;
     for (let i = items.length - 1; i >= 0; i--) if (Compose.hitItem(items[i], p.X, p.Y)) return items[i];
     return null;
   }
+
+  // Mode « fond seul » : on ne voit que les pages de fond, et on les déplace à sa guise.
+  function setBgMode(on) {
+    state.bgMode = !!on;
+    state.selected = null;
+    state.bgCache = null;
+    document.body.classList.toggle('bg-mode', state.bgMode);
+    const b = $('bg-mode');
+    b.setAttribute('aria-pressed', state.bgMode ? 'true' : 'false');
+    b.textContent = state.bgMode ? 'Tout voir' : 'Fond seul';
+    $('stage-tip').textContent = state.bgMode
+      ? 'Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes'
+      : 'Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer';
+    render();
+  }
+  $('bg-mode').addEventListener('click', () => setBgMode(!state.bgMode));
 
   canvas.addEventListener('pointerdown', (e) => {
     if (!state.comp) return;
@@ -1301,7 +1345,7 @@
   const endDrag = (e) => {
     touches.delete(e.pointerId);
     if (touches.size < 2) pinch = null;
-    if (drag && drag.mode !== 'pan') refreshActiveThumb();
+    if (drag && drag.mode !== 'pan') { if (drag.L && drag.L.kind === 'bg') state.bgCache = null; refreshActiveThumb(); }
     if (drag && drag.mode === 'pan') canvas.style.cursor = '';
     drag = null;
   };
@@ -1326,7 +1370,7 @@
   canvas.addEventListener('dblclick', (e) => {
     if (!state.comp) return;
     const hit = hitAt(toComp(e));
-    if (hit) { state.selected = hit; editPiece(hit.piece); return; }
+    if (hit) { state.selected = hit; if (hit.kind === 'piece') editPiece(hit.piece); render(); return; }
     if (state.zoom.z > 1.05) resetZoom();
     else { const d = devicePoint(e); zoomAt(2.5, d.px, d.py); }
   });
@@ -1383,6 +1427,18 @@
   function act(name) {
     const comp = state.comp, L = state.selected;
     if (!comp || !L) return;
+    if (L.kind === 'bg') {
+      // page de fond : on la met devant ou derrière les autres pages, on la retourne, on la retire
+      const i = comp.bg.indexOf(L);
+      if (name === 'front') { comp.bg.splice(i, 1); comp.bg.push(L); }
+      if (name === 'back') { comp.bg.splice(i, 1); comp.bg.splice(comp.bg.findIndex((q) => !q.paper), 0, L); }
+      if (name === 'flip') L.flip = !L.flip;
+      if (name === 'del') { comp.bg.splice(i, 1); state.selected = null; }
+      state.bgCache = null;
+      refreshActiveThumb();
+      render();
+      return;
+    }
     if (name === 'edit') { editPiece(L.piece); return; }
     const i = comp.items.indexOf(L);
     if (name === 'front') { comp.items.splice(i, 1); comp.items.push(L); }
@@ -1404,7 +1460,11 @@
   }
 
   function updateToolbar() {
-    document.querySelectorAll('#toolbar button').forEach((b) => (b.disabled = !state.selected));
+    const L = state.selected;
+    document.querySelectorAll('#toolbar button').forEach((b) => {
+      // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
+      b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
+    });
   }
 
   document.querySelectorAll('#toolbar button').forEach((b) => (b.onclick = () => act(b.dataset.act)));
