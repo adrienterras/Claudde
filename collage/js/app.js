@@ -713,7 +713,7 @@
    * On regarde la couleur d'ensemble des éléments (pondérée par leur surface) : le fond doit
    * contraster en clarté (fond sombre sous des papiers clairs, clair sous des papiers sombres),
    * se placer plutôt en face de la teinte dominante sur le cercle chromatique, et rester une
-   * teinte calme. La Galerie préfère un fond clair, comme une planche encadrée.
+   * teinte calme. La Galerie suit la même règle : ses cadres noirs se posent sur l'aplat.
    */
   function pickGround(o, style) {
     let wsum = 0, r = 0, g = 0, b = 0, hx = 0, hy = 0, satW = 0;
@@ -738,7 +738,6 @@
         const d = ((c.h - domHue) * Math.PI) / 180;
         score += ((1 - Math.cos(d)) / 2) * 1.2 * domStrength;
       }
-      if (style === 'galerie') score += c.l > 200 ? 1.5 : 0;
       if (!best || score > best.score) best = { paint, score };
     });
     return best.paint;

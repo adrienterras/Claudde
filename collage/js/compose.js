@@ -1045,7 +1045,9 @@
     const c = Extract.makeCanvas(T, T);
     const ctx = c.getContext('2d');
     const rgb = [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16)];
-    const shade = (k) => `rgb(${rgb.map((v) => clamp(Math.round(v * k + (k > 1 ? (255 - v) * (k - 1) * 0.6 : 0)), 0, 255)).join(',')})`;
+    const light = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] > 200;
+    // sur une teinte très claire, on ne peut pas éclaircir : les coups de brosse se lisent en plus foncé
+    const shade = (k0) => { const k = light ? Math.min(k0, 1) - 0.05 : k0; return `rgb(${rgb.map((v) => clamp(Math.round(v * k + (k > 1 ? (255 - v) * (k - 1) * 0.6 : 0)), 0, 255)).join(',')})`; };
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, T, T);
     const R = rng(7 + rgb[0] + rgb[1] * 3 + rgb[2] * 7);
