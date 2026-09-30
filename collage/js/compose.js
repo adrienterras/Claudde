@@ -630,7 +630,8 @@
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
     if (!stars.size) sorted.slice(0, 3).forEach((p) => stars.add(p));
     // les découpes couvrent au plus ~45 % de la toile (× densité) : au-delà, les sujets restent en attente
-    const targetCover = 0.45 * (o.density || 1) * W * H;
+    // densité au maximum (« tout ») : plus de plafond, et un sujet sans place libre se pose quand même
+    const targetCover = o.everything ? Infinity : 0.45 * (o.density || 1) * W * H;
     let covered = 0;
 
     function footprint(p, cx, cy, fn) {
@@ -749,7 +750,7 @@
         if (!best || score < best.score) best = { cx, cy, score };
       }
       // pas de place sans empiler : le sujet reste en attente (sauf en spirale, où l'on serre)
-      if (!best) { if (spiral && idx === 0 && fallback && mode.tight !== false) best = fallback; else return; }
+      if (!best) { if ((spiral && idx === 0 && mode.tight !== false) || o.everything) best = fallback; if (!best) return; }
       footprint(p, best.cx, best.cy, (gx, gy) => { if (gx >= 0 && gy >= 0 && gx < gw && gy < gh && !occ[gy * gw + gx]) { occ[gy * gw + gx] = 1; covered++; } });
       if (star) {
         let bi = -1, bd = Infinity;

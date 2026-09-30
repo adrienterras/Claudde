@@ -339,6 +339,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .seg button.on.off { background: var(--muted); }
 .seg button.on.ink { background: var(--ink); }
 .field > .seg { margin-top: 4px; }
+.field small#density-note { display: block; color: var(--muted); font-size: 0.72rem; margin: 2px 0 4px; }
 .field small#ground-name { color: var(--muted); font-size: 0.74rem; margin-left: 6px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; background: var(--sw); }

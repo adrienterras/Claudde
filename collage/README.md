@@ -55,6 +55,9 @@ cd collage && python3 -m http.server 8000
      joints), puis retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. C'est
      signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ;
+   - **densité au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
+     couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
+     rejoignent le fond ; la rotation des découpes est fixe (réglage retiré) ;
    - chaque dessin découpé apporte son sujet principal, plus un ou deux sujets secondaires seulement
      s'ils sont grands (≥ 7 cm) et colorés ; les découpes gardent une marge de papier généreuse
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile

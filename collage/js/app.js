@@ -388,6 +388,9 @@
    *    le fond suffise aux découpes, et la toile prend la taille du fond ;
    *  - toile imposée : on passe en fond juste assez de pages pour la couvrir, et on dit s'il manque du papier.
    */
+  // Densité au maximum : tous les dessins chargés doivent être pris en compte.
+  const allIn = () => Number($('density').value) >= 1.79;
+
   function planCoverage() {
     const v = $('format').value;
     const auto = v.startsWith('auto:');
@@ -398,7 +401,8 @@
     // Sur l'exemple de référence, le fond n'est fait que de pages colorées : les feuilles pâles
     // (crayon gris, texte) sont mises de côté par défaut ; un réglage permet de les coller en fond.
     const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
-    const paleMode = $('pale') ? $('pale').value : 'aside';
+    // densité au maximum : tout ce qui a été chargé entre dans l'œuvre, feuilles pâles comprises (en fond)
+    const paleMode = allIn() ? 'fond' : $('pale') ? $('pale').value : 'aside';
     paleOnes.forEach((d) => { d.auto = paleMode === 'fond' ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
     state.paleCount = paleOnes.length;
     // seules les pages franchement peintes ou colorées peuvent faire le fond (comme sur l'exemple) ;
@@ -895,7 +899,7 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
-    const aside = state.paleCount && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté, comme sur l’exemple.` : '';
+    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté, comme sur l’exemple.` : '';
     let txt;
     if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
@@ -963,7 +967,8 @@
       format: formatCm(),
       scale: k,
       density: Number($('density').value),
-      rotation: Number($('rotation').value),
+      rotation: 8, // rotation retenue des découpes (degrés) : réglage retiré, valeur fixe
+      everything: allIn(), // densité au maximum : tous les dessins entrent dans l'œuvre
       grain: $('grain').checked,
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
@@ -1766,7 +1771,7 @@
   });
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
-  ['format', 'pale', 'density', 'rotation', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
+  ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
   $('fmt').addEventListener('change', updateExportInfo);
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
