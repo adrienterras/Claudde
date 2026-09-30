@@ -1519,7 +1519,9 @@
         ctx.drawImage(L.src, L.sx, L.sy, L.sw, L.sh, 0, 0, cw, ch);
         const cs = Math.cos(L.rot), sn = Math.sin(L.rot);
         const tlx = L.x - (L.w / 2) * cs + (L.h / 2) * sn, tly = L.y - (L.w / 2) * sn - (L.h / 2) * cs;
-        doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx, tly, L.w, L.h, undefined, 'FAST', (L.rot * 180) / Math.PI);
+        // jsPDF place une image tournée à partir de l'ordonnée « retournée » (H − y − h) : vérifié
+        // en comparant les positions dans le PDF produit avec celles de la composition
+        doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx, H - tly - L.h, L.w, L.h, undefined, 'FAST', (L.rot * 180) / Math.PI);
         continue;
       }
       // boîte englobante du calque (tourné), en cm, rognée à la toile
