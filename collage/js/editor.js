@@ -40,11 +40,8 @@
     const page = d.analysis.page;
     const src = piece.src;
     if (!src) return;
-    // zone de travail : la découpe plus une marge, pour pouvoir restaurer autour
-    const m = Math.round(Math.max(src.w, src.h) * 0.3) + 24;
-    const x0 = Math.max(0, Math.floor(src.x - m)), y0 = Math.max(0, Math.floor(src.y - m));
-    const x1 = Math.min(page.width, Math.ceil(src.x + src.w + m)), y1 = Math.min(page.height, Math.ceil(src.y + src.h + m));
-    const R = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    // zone de travail : le dessin complet (toute la page scannée), pour pouvoir restaurer n'importe où
+    const R = { x: 0, y: 0, w: page.width, h: page.height };
     const crop = Extract.makeCanvas(R.w, R.h);
     crop.getContext('2d').drawImage(page, R.x, R.y, R.w, R.h, 0, 0, R.w, R.h);
     const img = Extract.enhance(crop, src.paper);
@@ -144,7 +141,7 @@
     // le dessin entier, estompé : ce qu'on peut restaurer
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, S.R.w, S.R.h);
-    ctx.globalAlpha = 0.28;
+    ctx.globalAlpha = 0.4;
     ctx.drawImage(S.img, 0, 0);
     ctx.globalAlpha = 1;
     // trait de coupe magenta, d'épaisseur constante à l'écran
