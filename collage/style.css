@@ -419,7 +419,7 @@ body.stage-full .density-bar { display: none; }
   margin: 0; padding: 9px 18px;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   width: max-content;
-  max-width: calc(100% - 32px);
+  max-width: calc(100% - 620px); /* entre la barre de densité (à gauche) et le zoom (à droite) */
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -539,6 +539,7 @@ body.editing { overflow: hidden; }
   .zoom { right: 10px; bottom: auto; top: 62px; flex-direction: column; }
   .zoom-val { min-width: 0; font-size: 0.64rem; }
   .label { bottom: 10px; max-width: calc(100% - 20px); }
+  .zoom { bottom: 68px; }
   .density-bar { left: 10px; bottom: 68px; padding: 6px 12px; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
