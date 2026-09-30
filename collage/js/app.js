@@ -1016,7 +1016,7 @@
     Z.py = Math.max(-my, Math.min(my, Z.py));
     const ox = (cw - comp.W * s) / 2 + Z.px, oy = (ch - comp.H * s) / 2 + Z.py;
     view = { s, ox, oy, dpr, fitS };
-    const shadows = true; // relief du papier collé, toujours rendu
+    const shadows = false; // pas d'ombre portée : papier collé à plat
     $('zoom-val').textContent = `${Math.round(Z.z * 100)} %`;
 
     // fond mis en cache (il ne change pas pendant qu'on déplace les découpes),
@@ -1455,7 +1455,7 @@
       const c = Extract.makeCanvas(state.comp.W * s, state.comp.H * s);
       const x = c.getContext('2d');
       x.imageSmoothingQuality = 'high';
-      const shadows = true;
+      const shadows = false; // pas d'ombre portée
       Compose.renderBg(x, state.comp, s, shadows);
       Compose.renderItems(x, state.comp, s, shadows);
       Compose.renderFinish(x, state.comp, s);
