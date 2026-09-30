@@ -77,7 +77,10 @@ cd collage && python3 -m http.server 8000
    - **fond de toile** : au choix, la toile nue (lin) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand
-     il n'y a pas assez de dessins ; le guide indique la couleur à peindre ; le choix est mémorisé ;
+     il n'y a pas assez de dessins ; par défaut, l'app conseille pour chaque proposition la teinte
+     qui fait le mieux ressortir les dessins (contraste de clarté avec la couleur d'ensemble des
+     éléments, teinte plutôt opposée à la dominante, teintes calmes favorisées, fond clair pour la
+     Galerie) ; le guide indique la couleur à peindre ; le choix est mémorisé ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
    - **cinq propositions, cinq styles**, à chaque fois :

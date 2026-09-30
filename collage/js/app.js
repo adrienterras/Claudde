@@ -689,26 +689,78 @@
    * (gammes Pébéo, Lefranc Bourgeois, Liquitex…). Il couvre toute la toile, ce qui permet une œuvre
    * aérée quand il n'y a pas assez de dessins pour tout recouvrir.
    */
-  const PAINTS = [
-    ['Blanc de titane', '#f4f2ec'], ['Jaune de Naples', '#f2dc9a'], ['Jaune primaire', '#f6cf1e'], ['Ocre jaune', '#c8933a'],
-    ['Orange de cadmium', '#e8722a'], ['Rouge de cadmium', '#c9322b'], ['Magenta primaire', '#c8367d'], ['Rose', '#e9a3b6'],
-    ['Terre de Sienne brûlée', '#8a4b2c'], ['Terre d’ombre brûlée', '#5b3d2a'], ['Vert de vessie', '#4f6a2a'], ['Vert émeraude', '#1f8a5a'],
-    ['Vert olive', '#7a7b3f'], ['Bleu turquoise', '#2e9fb5'], ['Bleu céruléum', '#3f8fce'], ['Bleu primaire cyan', '#1b7bc0'],
-    ['Bleu outremer', '#2a3d8f'], ['Bleu de Prusse', '#1c2d4a'], ['Violet dioxazine', '#4a2a6a'], ['Gris de Payne', '#4b5561'],
-    ['Noir de Mars', '#1f1e1c'],
+  const PAINTS = [ // [nom, teinte, aptitude comme fond (les teintes calmes portent mieux les dessins)]
+    ['Blanc de titane', '#f4f2ec', 0.9], ['Jaune de Naples', '#f2dc9a', 1.0], ['Jaune primaire', '#f6cf1e', 0.4], ['Ocre jaune', '#c8933a', 0.9],
+    ['Orange de cadmium', '#e8722a', 0.4], ['Rouge de cadmium', '#c9322b', 0.5], ['Magenta primaire', '#c8367d', 0.4], ['Rose', '#e9a3b6', 0.6],
+    ['Terre de Sienne brûlée', '#8a4b2c', 0.8], ['Terre d’ombre brûlée', '#5b3d2a', 0.9], ['Vert de vessie', '#4f6a2a', 0.9], ['Vert émeraude', '#1f8a5a', 0.6],
+    ['Vert olive', '#7a7b3f', 1.0], ['Bleu turquoise', '#2e9fb5', 0.6], ['Bleu céruléum', '#3f8fce', 0.7], ['Bleu primaire cyan', '#1b7bc0', 0.5],
+    ['Bleu outremer', '#2a3d8f', 0.8], ['Bleu de Prusse', '#1c2d4a', 1.0], ['Violet dioxazine', '#4a2a6a', 0.7], ['Gris de Payne', '#4b5561', 1.0],
+    ['Noir de Mars', '#1f1e1c', 0.8],
   ];
-  function groundPaint() {
-    return state.ground ? PAINTS.find((c) => c[1] === state.ground) || null : null;
+  const hexRgb = (hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+  const hsl = (rgb) => {
+    const [r, g, b] = rgb.map((v) => v / 255);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+    if (mx === mn) return { h: 0, s: 0, l: l * 255 };
+    const d = mx - mn;
+    const s2 = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+    let h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return { h: h * 60, s: s2, l: l * 255 };
+  };
+
+  /*
+   * Couleur de fond conseillée pour une composition : celle qui fait ressortir les dessins.
+   * On regarde la couleur d'ensemble des éléments (pondérée par leur surface) : le fond doit
+   * contraster en clarté (fond sombre sous des papiers clairs, clair sous des papiers sombres),
+   * se placer plutôt en face de la teinte dominante sur le cercle chromatique, et rester une
+   * teinte calme. La Galerie préfère un fond clair, comme une planche encadrée.
+   */
+  function pickGround(o, style) {
+    let wsum = 0, r = 0, g = 0, b = 0, hx = 0, hy = 0, satW = 0;
+    const add = (color, area, colorful) => {
+      if (!color || !(area > 0)) return;
+      const c = hsl(color);
+      wsum += area; r += color[0] * area; g += color[1] * area; b += color[2] * area;
+      const w = area * c.s * (colorful === undefined ? 1 : 0.5 + colorful);
+      hx += Math.cos((c.h * Math.PI) / 180) * w; hy += Math.sin((c.h * Math.PI) / 180) * w; satW += w;
+    };
+    o.pieces.forEach((p) => add(p.color, p.wcm * p.hcm, p.colorful));
+    o.textures.forEach((t) => add(t.color, t.wcm * t.hcm * 0.6, t.colorful));
+    if (!wsum) return PAINTS[1];
+    const L = (0.299 * r + 0.587 * g + 0.114 * b) / wsum;
+    const domHue = (Math.atan2(hy, hx) * 180) / Math.PI;
+    const domStrength = Math.min(1, satW / wsum);
+    let best = null;
+    PAINTS.forEach((paint) => {
+      const c = hsl(hexRgb(paint[1]));
+      let score = Math.min(1, Math.abs(c.l - L) / 110) * 2 + paint[2] * 1.5;
+      if (c.s > 0.25) {
+        const d = ((c.h - domHue) * Math.PI) / 180;
+        score += ((1 - Math.cos(d)) / 2) * 1.2 * domStrength;
+      }
+      if (style === 'galerie') score += c.l > 200 ? 1.5 : 0;
+      if (!best || score > best.score) best = { paint, score };
+    });
+    return best.paint;
   }
+
+  function groundPaint() {
+    return state.ground && state.ground !== 'auto' ? PAINTS.find((c) => c[1] === state.ground) || null : null;
+  }
+  // 'auto' : la couleur conseillée pour chaque proposition ; '' : toile nue ; sinon une teinte
   function setGround(hex) {
-    state.ground = hex || null;
-    try { if (hex) localStorage.setItem('atelier.ground', hex); else localStorage.removeItem('atelier.ground'); } catch (e) { /* ignoré */ }
+    state.ground = hex === undefined ? 'auto' : hex;
+    try { localStorage.setItem('atelier.ground', state.ground || 'none'); } catch (e) { /* ignoré */ }
     document.querySelectorAll('#ground button').forEach((b) => {
-      const on = (b.dataset.hex || '') === (hex || '');
+      const on = (b.dataset.hex || '') === (state.ground || '');
       b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
-    const paint = groundPaint();
-    $('ground-name').textContent = paint ? paint[0] : 'toile nue';
+    updateGroundName();
+  }
+  function updateGroundName() {
+    const el = $('ground-name');
+    if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? `conseillé · ${state.comp.groundName}` : 'conseillé selon la composition';
+    else { const paint = groundPaint(); el.textContent = paint ? paint[0] : 'toile nue'; }
   }
   function fillGround() {
     const box = $('ground');
@@ -720,11 +772,14 @@
       b.onclick = () => { setGround(hex); regenerate(); };
       box.appendChild(b);
     };
+    mk('Couleur conseillée selon la composition', 'auto');
     mk('Toile nue (lin, sans peinture)', '');
     PAINTS.forEach(([name, hex]) => mk(name, hex));
+    box.querySelector('[data-hex="auto"]').className = 'auto';
+    box.querySelector('[data-hex="auto"]').textContent = 'A';
     let saved = null;
     try { saved = localStorage.getItem('atelier.ground'); } catch (e) { /* ignoré */ }
-    setGround(saved && PAINTS.some((c) => c[1] === saved) ? saved : null);
+    setGround(saved === 'none' ? '' : saved && PAINTS.some((c) => c[1] === saved) ? saved : 'auto');
   }
 
   // Orientation de la toile choisie par l'utilisateur : 'land' (paysage) ou 'port' (portrait).
@@ -910,7 +965,7 @@
       density: Number($('density').value),
       rotation: Number($('rotation').value),
       grain: $('grain').checked,
-      ground: state.ground || null,
+      ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,
       textures,
@@ -935,7 +990,11 @@
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
     const o = options();
-    state.proposals = STYLES.map((st, i) => ({ style: st, comp: Compose.generate(Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 })) }));
+    state.proposals = STYLES.map((st, i) => {
+      const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
+      if (state.ground === 'auto') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
+      return { style: st, comp: Compose.generate(so) };
+    });
     state.active = Math.min(state.active || 0, STYLES.length - 1);
     state.comp = state.proposals[state.active].comp;
     renderProposals();
@@ -965,6 +1024,7 @@
   function updateLabel() {
     const el = $('label');
     updateSettingsFor(state.comp);
+    updateGroundName();
     if (!state.comp) { el.hidden = true; return; }
     el.hidden = false;
     const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
