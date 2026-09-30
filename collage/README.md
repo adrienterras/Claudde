@@ -67,6 +67,8 @@ cd collage && python3 -m http.server 8000
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
+   - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
+     les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
    - **quatre propositions, quatre styles**, à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),

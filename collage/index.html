@@ -68,11 +68,17 @@
 
       <details class="settings" open>
         <summary>Réglages</summary>
+        <div class="field">Orientation de la toile
+          <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
+            <button type="button" data-orient="land" class="on ink">Paysage</button>
+            <button type="button" data-orient="port">Portrait</button>
+          </div>
+        </div>
         <label class="field">Toile
           <select id="format">
-            <option value="auto:1.4286" selected>Taille adaptée aux dessins · paysage</option>
-            <option value="auto:1">Taille adaptée aux dessins · carré</option>
-            <option value="auto:0.7">Taille adaptée aux dessins · portrait</option>
+            <option value="auto:1.4286" selected>Taille adaptée aux dessins · proportion classique</option>
+            <option value="auto:1.8">Taille adaptée aux dessins · allongée</option>
+            <option value="auto:1">Taille adaptée aux dessins · carrée</option>
           </select>
         </label>
         <p id="scale-info" class="hint mono-note"></p>

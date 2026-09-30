@@ -234,7 +234,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
   transition: border-color .2s, box-shadow .2s, transform .2s;
 }
 .proposal:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -14px rgba(0, 0, 0, .45); }
-.proposal img { width: 100%; aspect-ratio: 10 / 7; object-fit: cover; border-radius: 7px; display: block; margin-bottom: 3px; }
+.proposal img { width: 100%; aspect-ratio: 10 / 7; object-fit: contain; background: var(--surface-2); border-radius: 7px; display: block; margin-bottom: 3px; }
 .proposal b { font-size: 0.8rem; font-weight: 600; line-height: 1.2; padding-inline: 2px; }
 .proposal small { font-family: var(--f-display); font-style: italic; font-size: 0.76rem; line-height: 1.25; color: var(--muted); padding-inline: 2px; overflow-wrap: anywhere; }
 .proposal.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -335,6 +335,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .seg button.on.cutout { background: var(--accent); }
 .seg button.on.texture { background: var(--texture); }
 .seg button.on.off { background: var(--muted); }
+.seg button.on.ink { background: var(--ink); }
+.field > .seg { margin-top: 4px; }
 
 /* ---------- Mur de galerie (scène) ---------- */
 

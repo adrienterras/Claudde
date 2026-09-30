@@ -420,7 +420,7 @@
     let chosen = { nBg: minBg, area: 7000 };
     if (auto) {
       const ratio = Number(v.slice(5)) || 1.4;
-      const r = Math.max(ratio, 1 / ratio);
+      const r = Math.max(ratio, 1 / ratio); // indépendant de l'orientation
       // la plus grande page de fond doit tenir entière sur la toile (on ne la découpe pas) :
       // surface minimale de toile pour que ses deux côtés y tiennent, au ratio choisi
       const bgMin = () => {
@@ -684,10 +684,27 @@
 
   // Toile : soit un format imposé, soit une taille calculée d'après le papier disponible
   // (les dessins sont toujours à leur taille réelle : c'est la toile qui s'adapte).
+  // Orientation de la toile choisie par l'utilisateur : 'land' (paysage) ou 'port' (portrait).
+  function canvasOrient() {
+    return state.canvasOrient || 'land';
+  }
+  function setCanvasOrient(o) {
+    state.canvasOrient = o;
+    try { localStorage.setItem('atelier.canvasOrient', o); } catch (e) { /* ignoré */ }
+    document.querySelectorAll('#canvas-orient button').forEach((b) => {
+      const on = b.dataset.orient === o;
+      b.classList.toggle('on', on); b.classList.toggle('ink', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    fillFormats();
+  }
+
   function formatCm() {
     const v = $('format').value;
+    const portrait = canvasOrient() === 'port';
     if (v.startsWith('auto:')) {
-      const ratio = Number(v.slice(5));
+      const r0 = Number(v.slice(5));
+      const ratio = portrait ? 1 / r0 : r0;
       const A = state.canvasArea || 7000;
       let w = Math.sqrt(A * ratio), h = Math.sqrt(A / ratio);
       // agrandie si besoin pour que la plus grande page de fond tienne entière
@@ -702,7 +719,8 @@
       }
       return { w: Math.round(w), h: Math.round(h), auto: true };
     }
-    const [w, h] = v.split('x').map(Number);
+    const [a, b] = v.split('x').map(Number);
+    const w = portrait ? Math.min(a, b) : Math.max(a, b), h = portrait ? Math.max(a, b) : Math.min(a, b);
     return { w, h, auto: false };
   }
 
@@ -726,7 +744,7 @@
     ['carré', 80, 80, 'Cultura'], ['carré', 100, 100, 'Cultura'],
     ['panoramique', 100, 50, 'Cultura'], ['panoramique', 120, 40, 'Cultura'], ['panoramique', 150, 50, 'Cultura'],
   ];
-  const stockName = (t) => `${t[0]} · ${t[1]} × ${t[2]} cm`;
+  const stockName = (t) => (canvasOrient() === 'port' ? `${t[0]} · ${t[2]} × ${t[1]} cm` : `${t[0]} · ${t[1]} × ${t[2]} cm`);
 
   // Les toiles du commerce les plus proches d'une taille calculée, dans la même orientation
   function nearestStock(w, h, n) {
@@ -740,6 +758,8 @@
   // Remplit le choix de toile avec les tailles réelles
   function fillFormats() {
     const sel = $('format');
+    const current = sel.value;
+    sel.querySelectorAll('optgroup').forEach((g) => g.remove());
     const groups = [['Cultura (Monali)', STOCK.filter((t) => t[3] === 'Cultura')], ['Formats standards beaux-arts (F / P / M)', STOCK.filter((t) => t[3] !== 'Cultura')]];
     groups.forEach(([label, list]) => {
       const g = document.createElement('optgroup');
@@ -752,6 +772,7 @@
       });
       sel.appendChild(g);
     });
+    if (current) sel.value = current;
   }
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
@@ -1460,6 +1481,8 @@
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
   ['format', 'pale', 'density', 'rotation', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
+  document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); regenerate(); }));
+  try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;
   $('guide').onclick = exportGuide;
