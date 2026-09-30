@@ -532,15 +532,17 @@ body.editing { overflow: hidden; }
   .mobile-brand-name small { font-family: var(--f-body); font-size: 0.56rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink); margin-right: 4px; vertical-align: middle; }
   .stage { order: 1; height: min(80vh, calc(100vw * 0.78 + 150px)); }
   .panel { order: 2; height: auto; border-right: 0; border-top: 1px solid var(--line); padding: 24px 16px 40px; }
-  .stage canvas { inset: 60px 0 70px 0; height: calc(100% - 130px); }
+  /* sur téléphone, le zoom est une rangée sous la barre d'outils : l'œuvre garde toute la largeur */
+  .stage canvas { inset: 104px 0 70px 0; height: calc(100% - 174px); }
   .stage-tip { display: none; }
   .toolbar { top: 10px; }
   .toolbar button span { display: none; }
-  .zoom { right: 10px; bottom: auto; top: 62px; flex-direction: column; }
+  .zoom { right: 10px; bottom: auto; top: 60px; flex-direction: row; padding: 3px; }
+  .zoom button { width: 32px; height: 32px; }
   .zoom-val { min-width: 0; font-size: 0.64rem; }
   .label { bottom: 10px; max-width: calc(100% - 20px); }
   /* le zoom reste une colonne compacte en haut à droite ; « Fond seul » sur deux lignes */
-  .zoom button.mode { width: 40px; padding: 4px 2px; font-size: 0.58rem; line-height: 1.1; white-space: normal; text-align: center; }
+  .zoom button.mode { width: auto; padding: 0 9px; font-size: 0.68rem; }
   .density-bar { left: 10px; bottom: 68px; padding: 6px 12px; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
