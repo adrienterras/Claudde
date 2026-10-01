@@ -816,15 +816,11 @@
       const A = state.canvasArea || 7000;
       let w = Math.sqrt(A * ratio), h = Math.sqrt(A / ratio);
       // agrandie si besoin pour que la plus grande page de fond tienne entière
-      // (le grand côté prend la longueur de la page, l'autre côté garde la surface que le papier
-      // peut couvrir, pour ne pas laisser de toile nue)
+      // en gardant la proportion demandée (classique, allongée ou carrée) : la toile est agrandie
+      // d'un même facteur dans les deux sens ; le fond peint couvre ce que le papier ne couvre pas
       const m = state.bgMin || { long: 0, short: 0 };
-      const paper = state.paperArea || A;
-      if (m.long > Math.max(w, h) || m.short > Math.min(w, h)) {
-        const land = ratio >= 1;
-        const L = Math.max(m.long, Math.max(w, h)), S = Math.max(m.short, Math.min(paper / 1.5 / L, Math.min(w, h)));
-        w = land ? L : S; h = land ? S : L;
-      }
+      const k = Math.max(1, m.long / Math.max(w, h), m.short / Math.min(w, h));
+      w *= k; h *= k;
       return { w: Math.round(w), h: Math.round(h), auto: true };
     }
     const [a, b] = v.split('x').map(Number);
