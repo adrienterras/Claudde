@@ -155,7 +155,7 @@
     curate();
     planCoverage();
     if (state.drawings.length) {
-      ['drawings-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
+      ['drawings-section', 'compose-section', 'export-section', 'room-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
     }
     refreshLists();
@@ -1758,6 +1758,41 @@
     return doc.output('blob');
   }
 
+  // ---------- Mise en scène ----------
+
+  // L'œuvre rendue pour la mise en scène (1600 px de côté, sans ombre), telle qu'elle est à l'instant
+  function roomArtwork() {
+    const comp = state.comp;
+    const s = 1600 / Math.max(comp.W, comp.H);
+    const c = Extract.makeCanvas(comp.W * s, comp.H * s);
+    const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    Compose.renderBg(x, comp, s, false);
+    Compose.renderItems(x, comp, s, false);
+    Compose.renderFinish(x, comp, s);
+    return c;
+  }
+  function openRoom(file) {
+    if (!state.comp || !window.Room) return;
+    $('room-info').textContent = 'Préparation de la mise en scène…';
+    Room.open({
+      file,
+      artwork: roomArtwork,
+      title: `${(STYLES.find((x) => x.id === state.comp.style) || STYLES[0]).name} · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm`,
+      onSave: (blob, name) => saveFile(blob, name),
+      onError: () => notice('Impossible de lire cette photo. Choisissez un JPG ou un PNG.'),
+    });
+    $('room-info').textContent = `Photo chargée. L’œuvre affichée est la proposition active (${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm) ; changez de proposition puis rouvrez la photo pour en voir une autre.`;
+  }
+  $('room-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) openRoom(f);
+  });
+  ['dragenter', 'dragover'].forEach((t) => $('room-drop').addEventListener(t, (e) => { e.preventDefault(); $('room-drop').classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((t) => $('room-drop').addEventListener(t, (e) => { e.preventDefault(); $('room-drop').classList.remove('over'); }));
+  $('room-drop').addEventListener('drop', (e) => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) openRoom(f); });
+
   // ---------- Branchements ----------
 
   const drop = $('drop');
@@ -1891,7 +1926,7 @@ Réponds uniquement avec ce JSON :
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'compose-section', 'export-section', 'sample-note', 'label'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
     refreshLists();
     render();

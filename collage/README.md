@@ -75,6 +75,10 @@ cd collage && python3 -m http.server 8000
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
+   - **mise en scène** (section 05) : une photo de la pièce (salon, chambre…), et l'œuvre active
+     apparaît sur le mur, avec une ombre douce et sa tranche ; on la déplace, on la redimensionne
+     (molette ou pincement) et on tire ses quatre coins pour suivre la perspective du mur
+     (homographie) ; export en JPEG à la résolution de la photo ; la photo reste sur l'appareil ;
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
