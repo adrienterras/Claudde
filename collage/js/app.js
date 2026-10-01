@@ -1783,6 +1783,32 @@
       onError: () => notice('Impossible de lire cette photo. Choisissez un JPG ou un PNG.'),
     });
     $('room-info').textContent = `Photo chargée. L’œuvre affichée est la proposition active (${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm) ; changez de proposition puis rouvrez la photo pour en voir une autre.`;
+    roomDirect();
+  }
+
+  // Dans la page publiée, Claude regarde la photo et place l'œuvre au milieu du mur dégagé, dans
+  // la perspective du mur ; sinon, le placement automatique intégré (mur uni, lignes du sol et du plafond).
+  async function roomDirect() {
+    if (!(window.claude && window.claude.use)) return;
+    try {
+      await new Promise((r) => setTimeout(r, 400));
+      const data = Room.photoDataUrl();
+      if (!data) return;
+      const sample = await window.claude.use('sample');
+      const prompt = `Voici la photo d'une pièce. On veut y accrocher une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm (largeur × hauteur).
+Trouve le mur dégagé le plus adapté (grande surface libre, au-dessus d'un canapé, d'un lit, d'une commode… ou simplement vide) et place la toile en son milieu, à hauteur de regard, dans la perspective du mur : si le mur est vu de biais, le côté le plus proche de l'appareil est plus haut que le côté éloigné, et les bords haut et bas de la toile suivent les lignes du plafond et du sol.
+Taille plausible pour la pièce (une toile de ${fmt(state.comp.W)} cm de large est en général plus petite que le canapé ou le lit sous elle).
+Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rapport à la photo (x vers la droite, y vers le bas), dans l'ordre haut-gauche, haut-droit, bas-droit, bas-gauche :
+{"oeuvre": [[x,y],[x,y],[x,y],[x,y]]}`;
+      const res = await sample.json(prompt, { images: [data], modelTier: 'default' });
+      const q = res && res.oeuvre;
+      if (Array.isArray(q) && q.length === 4 && q.every((pt) => Array.isArray(pt) && pt.length === 2 && pt.every((v) => typeof v === 'number' && v >= -0.2 && v <= 1.2))) {
+        Room.setCorners(q);
+        $('room-info').textContent += ' Placement proposé par Claude : ajustez les coins si besoin.';
+      }
+    } catch (e) {
+      console.warn('placement par Claude indisponible', e);
+    }
   }
   $('room-file').addEventListener('change', (e) => {
     const f = e.target.files && e.target.files[0];

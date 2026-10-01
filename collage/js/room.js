@@ -122,12 +122,123 @@
   }
   function render() { if (S && !S.raf) S.raf = requestAnimationFrame(draw); }
 
-  // Placement par défaut : au centre, dans le tiers haut, 45 % de la largeur de la photo
-  function resetCorners() {
+  /*
+   * Placement automatique : on cherche le mur dégagé (la plus grande zone unie et claire, de la
+   * couleur dominante des surfaces planes), on pose l'œuvre au milieu de cette zone, et on l'incline
+   * pour suivre la perspective du mur : ses bords haut et bas suivent la ligne du plafond et celle
+   * du sol (ou de la plinthe) mesurées sur la photo.
+   */
+  function findWall(photo) {
+    const gw = 96, gh = Math.max(24, Math.round((gw * photo.height) / photo.width));
+    const small = Extract.makeCanvas(gw * 4, gh * 4);
+    small.getContext('2d').drawImage(photo, 0, 0, gw * 4, gh * 4);
+    const d = small.getContext('2d').getImageData(0, 0, gw * 4, gh * 4).data;
+    const mean = new Float32Array(gw * gh * 3), sd = new Float32Array(gw * gh), lum = new Float32Array(gw * gh);
+    for (let cy = 0; cy < gh; cy++) {
+      for (let cx = 0; cx < gw; cx++) {
+        let r = 0, g = 0, b = 0, l2 = 0, l1 = 0;
+        for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+          const i = ((cy * 4 + y) * gw * 4 + cx * 4 + x) * 4;
+          const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+          r += d[i]; g += d[i + 1]; b += d[i + 2]; l1 += l; l2 += l * l;
+        }
+        const k = cy * gw + cx;
+        mean[k * 3] = r / 16; mean[k * 3 + 1] = g / 16; mean[k * 3 + 2] = b / 16;
+        lum[k] = l1 / 16; sd[k] = Math.sqrt(Math.max(0, l2 / 16 - (l1 / 16) ** 2));
+      }
+    }
+    // cellules planes et claires, dans les trois quarts supérieurs : candidates au mur
+    const flat = new Uint8Array(gw * gh);
+    const hist = new Map();
+    for (let k = 0; k < gw * gh; k++) {
+      const cy = Math.floor(k / gw);
+      if (sd[k] < 9 && lum[k] > 80 && cy < gh * 0.78) {
+        flat[k] = 1;
+        const key = `${mean[k * 3] >> 4},${mean[k * 3 + 1] >> 4},${mean[k * 3 + 2] >> 4}`;
+        hist.set(key, (hist.get(key) || 0) + 1);
+      }
+    }
+    let wallKey = null, wallN = 0;
+    hist.forEach((n, key) => { if (n > wallN) { wallN = n; wallKey = key; } });
+    if (!wallKey) return null;
+    const wc = wallKey.split(',').map((v) => Number(v) * 16 + 8);
+    const wall = new Uint8Array(gw * gh);
+    for (let k = 0; k < gw * gh; k++) {
+      if (!flat[k]) continue;
+      const dr = mean[k * 3] - wc[0], dg = mean[k * 3 + 1] - wc[1], db = mean[k * 3 + 2] - wc[2];
+      if (dr * dr + dg * dg + db * db < 42 * 42) wall[k] = 1;
+    }
+    // plus grand rectangle inscrit dans le mur (histogrammes par ligne)
+    const hgt = new Int32Array(gw);
+    let best = { area: 0, x0: 0, y0: 0, x1: 0, y1: 0 };
+    for (let y = 0; y < gh; y++) {
+      for (let x = 0; x < gw; x++) hgt[x] = wall[y * gw + x] ? hgt[x] + 1 : 0;
+      const stack = [];
+      for (let x = 0; x <= gw; x++) {
+        const h = x < gw ? hgt[x] : 0;
+        let start = x;
+        while (stack.length && stack[stack.length - 1][1] > h) {
+          const [sx, sh] = stack.pop();
+          const area = sh * (x - sx);
+          if (area > best.area) best = { area, x0: sx, y0: y - sh + 1, x1: x, y1: y + 1 };
+          start = sx;
+        }
+        stack.push([start, h]);
+      }
+    }
+    if (best.area < gw * gh * 0.04) return null;
+    // lignes du sol et du plafond : pour chaque colonne du rectangle, où le mur s'arrête en bas et en haut
+    const xs = [], floor = [], ceil = [];
+    for (let x = best.x0; x < best.x1; x++) {
+      let yb = best.y1; while (yb < gh && wall[yb * gw + x]) yb++;
+      let yt = best.y0 - 1; while (yt >= 0 && wall[yt * gw + x]) yt--;
+      xs.push(x + 0.5); floor.push(yb); ceil.push(yt + 1);
+    }
+    const fit = (ys) => { // droite y = a x + b par moindres carrés
+      const n = xs.length; let sx = 0, sy = 0, sxx = 0, sxy = 0;
+      for (let i = 0; i < n; i++) { sx += xs[i]; sy += ys[i]; sxx += xs[i] * xs[i]; sxy += xs[i] * ys[i]; }
+      const a = (n * sxy - sx * sy) / Math.max(1e-6, n * sxx - sx * sx);
+      return { a, b: (sy - a * sx) / n };
+    };
+    const k = photo.width / gw;
+    const scaleLine = (L) => ({ a: L.a, b: L.b * k });
+    return { rect: { x0: best.x0 * k, y0: best.y0 * k, x1: best.x1 * k, y1: best.y1 * k }, floor: scaleLine(fit(floor)), ceil: scaleLine(fit(ceil)) };
+  }
+
+  function autoPlace() {
     const { photo, art } = S;
-    const w = photo.width * 0.45, h = (w * art.height) / art.width;
-    const x = (photo.width - w) / 2, y = Math.max(photo.height * 0.08, photo.height * 0.42 - h / 2);
-    S.corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+    const wall = findWall(photo);
+    const ar = art.height / art.width;
+    if (!wall) {
+      const w = photo.width * 0.45, h = w * ar;
+      const x = (photo.width - w) / 2, y = Math.max(photo.height * 0.08, photo.height * 0.42 - h / 2);
+      S.corners = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+      return;
+    }
+    const { rect, floor, ceil } = wall;
+    const rw = rect.x1 - rect.x0, rh = rect.y1 - rect.y0;
+    // largeur : 62 % du mur dégagé, bornée par la hauteur disponible
+    let w = rw * 0.62;
+    if (w * ar > rh * 0.8) w = (rh * 0.8) / ar;
+    const xm = (rect.x0 + rect.x1) / 2, xa = xm - w / 2, xb = xm + w / 2;
+    const yc = (x) => ceil.a * x + ceil.b, yf = (x) => floor.a * x + floor.b;
+    // au centre de la zone dégagée, à hauteur de regard : 45 % entre plafond et sol
+    const span = (x) => Math.max(1, yf(x) - yc(x));
+    const r = Math.min(0.6, Math.max(0.3, ((rect.y0 + rect.y1) / 2 - yc(xm)) / span(xm)));
+    const h0 = w * ar;
+    const hAt = (x) => h0 * (span(x) / span(xm));
+    const yAt = (x) => yc(x) + span(x) * r;
+    S.corners = [[xa, yAt(xa) - hAt(xa) / 2], [xb, yAt(xb) - hAt(xb) / 2], [xb, yAt(xb) + hAt(xb) / 2], [xa, yAt(xa) + hAt(xa) / 2]];
+  }
+
+  function resetCorners() {
+    autoPlace();
+    render();
+  }
+  // placement fourni de l'extérieur (direction artistique), en coordonnées normalisées 0..1
+  function setCorners(norm) {
+    if (!S || !Array.isArray(norm) || norm.length !== 4) return;
+    S.corners = norm.map(([u, v]) => [u * S.photo.width, v * S.photo.height]);
     render();
   }
 
@@ -252,5 +363,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
-  window.Room = { open, close, refreshArt, isOpen: () => !!S };
+  window.Room = { open, close, refreshArt, setCorners, photoDataUrl: () => (S ? Extract.scaleTo(S.photo, 1000).toDataURL('image/jpeg', 0.8) : null), isOpen: () => !!S };
 })();

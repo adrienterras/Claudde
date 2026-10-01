@@ -78,7 +78,11 @@ cd collage && python3 -m http.server 8000
    - **mise en scène** (section 05) : une photo de la pièce (salon, chambre…), et l'œuvre active
      apparaît sur le mur, avec une ombre douce et sa tranche ; on la déplace, on la redimensionne
      (molette ou pincement) et on tire ses quatre coins pour suivre la perspective du mur
-     (homographie) ; export en JPEG à la résolution de la photo ; la photo reste sur l'appareil ;
+     (homographie) ; **placement automatique** : l'app repère le mur dégagé (plus grande zone unie et
+     claire, de la couleur dominante des surfaces planes), pose l'œuvre en son milieu à hauteur de
+     regard et l'incline selon les lignes du plafond et du sol mesurées sur la photo ; dans la page
+     publiée, Claude regarde la photo et propose le placement ; export en JPEG à la résolution de la
+     photo ; la photo reste sur l'appareil ;
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
