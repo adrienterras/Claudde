@@ -186,8 +186,8 @@ L'application est un site statique (aucun serveur, les scans restent dans le nav
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Adresse : https://adrienterras.github.io/Claudde/
 Réglages GitHub nécessaires une fois : Settings → Pages → Source « GitHub Actions », et la
-branche de l'application comme branche par défaut du dépôt (ou autorisée dans l'environnement
-github-pages) ; sinon chaque exécution échoue en quelques secondes.
+branche de l'application autorisée dans l'environnement github-pages (« Deployment branches » sans
+restriction) ; sinon chaque exécution échoue en quelques secondes, sans journal.
 
 Sans la fenêtre Claude, la direction artistique par Claude n'est pas disponible : l'application
 compose avec ses règles intégrées.
