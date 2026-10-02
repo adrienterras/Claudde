@@ -46,9 +46,10 @@ cd collage && python3 -m http.server 8000
      seule une page plus grande que la toile est réduite, et son surplus déchiré en lambeaux ;
    - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
      colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
-     découpe) ; les feuilles pâles (crayon gris : nuages, bonshommes) sont découpées comme les
-     autres par défaut, leur contour faisant le sujet, sauf les pages d'écriture seule (lignes de
-     texte régulières, ou « texte seul » selon Claude), mises de côté ; un réglage permet de les mettre toutes de côté (c'est
+     découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut, sauf celles
+     où Claude reconnaît un vrai sujet (nuage, bonhomme au crayon), découpées comme les autres ; un
+     réglage permet de toutes les découper (les pages d'écriture seule, aux lignes de texte
+     régulières, restant de côté) ou de les coller en fond (c'est
      alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
      fond ; les pages de fond restent entières ;
    - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
@@ -127,7 +128,10 @@ cd collage && python3 -m http.server 8000
      dessins dépend donc de la toile),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
-     *Scène* (une vraie scène d'après ce que Claude a vu dans chaque dessin, sa « place » : les pages
+     *Scène* (une scène est une sélection : au plus 18 sujets, les plus nets et colorés, un sujet
+     reconnu par Claude passant devant, sans feuilles de texte ni fragments ; le reste attend dans le
+     panneau, à ajouter d'un clic ; la toile automatique se calcule sur cette sélection ; une vraie
+     scène d'après ce que Claude a vu dans chaque dessin, sa « place » : les pages
      de ciel à plat le long du bord haut avec ce qui vole posé dessus, les pages d'horizon entre ciel
      et sol, une ligne de sol où tout ce qui est debout pose les pieds, arbres et décors derrière,
      personnages devant, le premier plan (herbe, prairies) couché sur le bord bas, le sous-sol et les
@@ -137,8 +141,10 @@ cd collage && python3 -m http.server 8000
      la forme servent, tout se tenant au sol sauf les nuages ; choisir la Scène déclenche le regard
      de Claude sur chaque élément découpé pas encore vu, puis Claude compose lui-même la scène : il
      reçoit chaque élément avec sa taille réelle et la toile en cm, et rend la position, l'inclinaison
-     et le plan de chacun, avec un titre, comme une illustration de livre pour enfants ; cette mise en
-     place est gardée jusqu'au prochain import ou aux « nouvelles propositions ») ;
+     et le plan de chacun, avec un titre, comme une illustration de livre pour enfants, d'après un
+     croquis de la toile (ciel, horizon, ligne de sol, premier plan) et en gardant 10 à 18 éléments ;
+     l'app vérifie ensuite que les pieds restent sur le sol et que seul ce qui vole est au ciel ; cette
+     mise en place est gardée jusqu'au prochain import ou aux « nouvelles propositions ») ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du

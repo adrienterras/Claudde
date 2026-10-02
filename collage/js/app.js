@@ -337,7 +337,7 @@
     if (d.auto) return d.auto; // choix du plan de couverture
     if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
     // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
-    if (d.analysis.kind === 'cutout' && pale(d)) return ($('pale') ? $('pale').value : 'decoupe') === 'decoupe' ? 'cutout' : 'texture';
+    if (d.analysis.kind === 'cutout' && pale(d)) return ($('pale') ? $('pale').value : 'aside') === 'decoupe' ? 'cutout' : 'texture';
     return d.analysis.kind;
   }
 
@@ -408,13 +408,17 @@
     const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
     // feuilles pâles : mises de côté par défaut ; au-delà de la mi-course du curseur de densité, elles
     // rejoignent le fond progressivement (les plus colorées d'abord), toutes au maximum
-    const paleMode = $('pale') ? $('pale').value : 'decoupe';
+    const paleMode = $('pale') ? $('pale').value : 'aside';
     const t = (Number($('density').value) - 0.5) / 1.3;
+    // une feuille pâle où Claude reconnaît un vrai sujet (nuage, bonhomme au crayon) se découpe
+    // comme les autres ; les autres suivent le réglage
+    const recognised = (d) => d.ai && d.ai.role === 'decoupe' && !d.ai.texte && d.ai.sujet;
+    paleOnes.filter(recognised).forEach((d) => { d.auto = 'cutout'; ensureMaterial(d); });
+    const paleLeft = paleOnes.filter((d) => !recognised(d));
     if (paleMode === 'decoupe') {
-      // un dessin au crayon (nuage, bonhomme) se découpe comme les autres : son contour est le sujet ;
-      // une page qui ne contient que de l'écriture (lignes de texte) est mise de côté
+      // tout au crayon se découpe, sauf une page qui ne contient que de l'écriture (lignes de texte)
       let aside = 0;
-      paleOnes.forEach((d) => {
+      paleLeft.forEach((d) => {
         if (d.textOnly === undefined) d.textOnly = Extract.textOnly(d.analysis.page);
         const text = d.ai && d.ai.texte !== undefined ? d.ai.texte : d.textOnly;
         if (text && !allIn()) { d.auto = 'off'; aside++; } else { d.auto = 'cutout'; ensureMaterial(d); }
@@ -423,10 +427,10 @@
     } else {
       const mode = allIn() ? 'fond' : paleMode;
       const share = mode === 'fond' ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
-      const nPale = Math.round(paleOnes.length * share);
-      paleOnes.slice().sort((a, b) => (b.analysis.texture ? b.analysis.texture.colorful : 0) - (a.analysis.texture ? a.analysis.texture.colorful : 0))
-        .forEach((d, i) => { d.auto = i < nPale ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
-      state.paleCount = paleOnes.length;
+      const nPaleLeft = Math.round(paleLeft.length * share);
+      paleLeft.slice().sort((a, b) => (b.analysis.texture ? b.analysis.texture.colorful : 0) - (a.analysis.texture ? a.analysis.texture.colorful : 0))
+        .forEach((d, i) => { d.auto = i < nPaleLeft ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
+      state.paleCount = paleLeft.length;
     }
     // seules les pages franchement peintes ou colorées peuvent faire le fond (comme sur l'exemple) ;
     // une feuille blanche avec un petit dessin reste une découpe
@@ -927,7 +931,7 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
-    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'decoupe') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (écriture seule) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
+    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
@@ -1024,12 +1028,21 @@
 
   // Scène : la toile automatique grandit (même proportion) pour que tout ce qui se tient au sol
   // tienne en deux rangées au plus, et que ce qui vole ait sa place dans le ciel.
+  // Une scène est une sélection : au plus une vingtaine d'éléments, les plus nets et colorés (un
+  // sujet reconnu par Claude passe devant), sans feuilles de texte ni fragments.
+  const SCENE_MAX = 18;
+  function sceneSelection(o) {
+    const score = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.ai ? 1.5 : 0) + (p.main ? 0.5 : 0) + Math.min(1, (p.wcm * p.hcm) / 500) * 0.5;
+    const ok = (p) => (p.ai ? p.ai.garder : (p.colorful || 0) >= 0.12 && !(p.drawing.textOnly));
+    return o.pieces.filter(ok).sort((a, b) => score(b) - score(a)).slice(0, SCENE_MAX);
+  }
   function sceneFormat(o) {
     const f = o.format;
     const place = (p) => p.place || (p.grounded ? 'sol' : 'ciel');
-    const standing = o.pieces.filter((p) => ['sol', 'arriere'].includes(place(p)));
-    const flying = o.pieces.filter((p) => place(p) === 'ciel');
-    const needW = standing.reduce((a, p) => a + p.wcm, 0) / 2 * 0.92 + 4;
+    const sel = sceneSelection(o);
+    const standing = sel.filter((p) => ['sol', 'arriere'].includes(place(p)));
+    const flying = sel.filter((p) => place(p) === 'ciel');
+    const needW = standing.reduce((a, p) => a + p.wcm, 0) / 2.5 * 0.92 + 4;
     const skyArea = flying.reduce((a, p) => a + p.wcm * p.hcm, 0) * 1.6;
     const needH = Math.sqrt(skyArea / 0.55 / (f.w / f.h));
     const k = Math.min(2.2, Math.max(1, needW / f.w, needH / f.h));
@@ -1056,7 +1069,7 @@
     const o = options();
     state.proposals = STYLES.map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
-      if (st.id === 'scene' && o.format.auto) so.format = sceneFormat(o);
+      if (st.id === 'scene') { so.pieces = sceneSelection(o); if (o.format.auto) so.format = sceneFormat(o); }
       if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto) so.format = state.sceneLayout.format; }
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
@@ -1186,7 +1199,9 @@
     const W = fmt.w, H = fmt.h;
     const els = [];
     o.textures.forEach((t) => { if (t.wcm <= W * 0.6 && t.hcm <= H * 0.7) els.push({ kind: 'page', t, w: t.wcm, h: t.hcm, src: t.canvas, label: t.drawing.ai ? t.drawing.ai.sujet : 'page peinte' }); });
-    o.pieces.forEach((p) => els.push({ kind: 'decoupe', p, w: p.wcm, h: p.hcm, src: p.canvas, label: p.ai ? p.ai.sujet : (p.drawing.ai ? p.drawing.ai.sujet : 'sujet') }));
+    // on propose à Claude un peu plus que la sélection automatique : il choisit lui-même
+    const cand = sceneSelection(Object.assign({}, o, { pieces: o.pieces })).concat(o.pieces.filter((p) => !sceneSelection(o).includes(p)).slice(0, 12));
+    cand.forEach((p) => els.push({ kind: 'decoupe', p, w: p.wcm, h: p.hcm, src: p.canvas, label: p.ai ? p.ai.sujet : (p.drawing.ai ? p.drawing.ai.sujet : 'sujet') }));
     if (!els.length) return 0;
     const cap = Math.min(els.length, limits.images.maxCount * 30);
     const list = els.slice(0, cap);
@@ -1201,13 +1216,21 @@ Voici les ${list.length} éléments (planches contact : le numéro est en haut �
 ${inv}
 
 Compose une BELLE scène cohérente, comme une illustration de livre pour enfants : un vrai paysage avec un ciel, un horizon, un sol, et des personnages et des animaux qui y vivent.
+
+Croquis de la toile (y en cm, de haut en bas) :
+- de 0 à ${Math.round(H * 0.35)} : le CIEL (pages de fond claires ou bleues à plat le long du bord haut, puis soleil, nuages, oiseaux)
+- de ${Math.round(H * 0.35)} à ${Math.round(H * 0.6)} : l'HORIZON (collines, montagnes, mer, maisons au loin, arbres)
+- vers ${Math.round(H * 0.78)} : la LIGNE DE SOL où les personnages et animaux posent les pieds (le bas de l'élément)
+- de ${Math.round(H * 0.85)} à ${H} : le PREMIER PLAN (herbe, prairies, fleurs, eau et poissons), pages de fond brunes ou vertes en terre, enfoncées dans le bord bas
+
 Règles :
+- Une scène est une SÉLECTION : garde entre 10 et 18 éléments, les plus beaux et ceux qui font le paysage et ses habitants. Mets tous les autres dans "exclus" (pages de texte, feuilles au crayon sans sujet net, fragments, doublons).
 - Les PAGES DE FOND sont des papiers peints entiers : elles font le décor (ciel, collines, terre, eau) et vont derrière tout le reste (plans 0 à 2). Elles peuvent dépasser des bords de la toile (ce qui dépasse sera rogné) et se chevaucher.
 - Le ciel occupe le haut (environ le tiers supérieur), le sol le bas. Soleil, nuages, oiseaux, étoiles, arcs-en-ciel vont dans le ciel.
 - Personnages, animaux, maisons, arbres, fleurs, véhicules se tiennent DEBOUT sur le sol : leurs pieds (bas de l'élément) posés sur une ligne de sol ou un peu au-dessus/au-dessous pour la profondeur. Les plus grands plutôt devant, les petits plus loin (plus haut, derrière). Un personnage ne flotte jamais dans le ciel.
 - Poissons, bateaux et tout ce qui vit dans l'eau vont en bas, dans une zone d'eau. Herbe, prairies, bandes de fleurs se couchent au premier plan, en bas, devant.
 - Rien n'est agrandi ni réduit. Les éléments peuvent se chevaucher un peu, mais ne cache jamais le visage ou le corps d'un personnage ou d'un animal ; répartis les sujets sur toute la largeur, en groupes qui racontent quelque chose (une famille devant la maison, les animaux près de l'arbre…).
-- Utilise TOUS les éléments. Si un élément gâche vraiment la scène (fragment, tache, texte), mets-le dans "exclus".
+- Les pages de fond retenues couvrent le ciel sur toute la largeur et la terre en bas ; pas de petite page isolée dans un coin.
 - Coordonnées : x et y sont le CENTRE de l'élément en cm (0,0 en haut à gauche, x vers la droite, y vers le bas). rot : inclinaison en degrés (-20 à 20, 0 le plus souvent). plan : 0 (tout au fond) à 9 (tout devant).
 
 Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JSON :

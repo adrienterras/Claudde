@@ -920,11 +920,18 @@
       if (!pos || L.excluded.has(t.canvas)) return;
       bg.push({ kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm, sx: 0, sy: 0, sw: t.canvas.width, sh: t.canvas.height, x: pos.x * ks, y: pos.y * ks, w: t.wcm, h: t.hcm, rot: pos.rot, flip: false, clip: null, whole: true, plan: pos.plan });
     });
+    const yHor = H * 0.55, yG = H * 0.78;
     pieces.forEach((p) => {
       const pos = L.pieces.get(p);
       if (!pos || L.excluded.has(p)) { p.placed = false; return; }
       p.placed = true;
-      items.push({ kind: 'piece', piece: p, x: pos.x * ks, y: pos.y * ks, w: p.wcm, h: p.hcm, rot: pos.rot, flip: false, plan: pos.plan });
+      let x = clamp(pos.x * ks, p.wcm * 0.3, W - p.wcm * 0.3), y = pos.y * ks;
+      // garde-fous d'après la place connue : les pieds sur le sol, rien d'autre que ce qui vole au ciel
+      const pl = p.place;
+      if (pl === 'sol' || pl === 'arriere') y = clamp(y, yHor + 2 - p.hcm / 2, H - 1 - p.hcm / 2);
+      else if (pl === 'avant' || pl === 'soussol') y = Math.max(y, yG - p.hcm / 2);
+      else if (pl === 'ciel') y = Math.min(y, yHor - p.hcm * 0.3);
+      items.push({ kind: 'piece', piece: p, x, y, w: p.wcm, h: p.hcm, rot: pos.rot, flip: false, plan: pos.plan });
     });
     bg.sort((a, b) => a.plan - b.plan);
     items.sort((a, b) => a.plan - b.plan || b.y - a.y);
@@ -963,8 +970,15 @@
     hor.forEach((t, i) => bg.push(page(t, hx(i), yG - 9 - t.hcm / 2, (R() - 0.5) * 0.06)));
     // --- terre : pages enfoncées dans le bord bas
     const earth = T.filter((t) => tplace(t) === 'terre');
-    const ex = spreadX(earth.length, 0.2, 0.8);
-    earth.forEach((t, i) => bg.push(page(t, ex(i), H - t.hcm * 0.3, (R() - 0.5) * 0.06)));
+    const esum = earth.reduce((a, t) => a + t.wcm, 0);
+    if (esum < W) {
+      const gap = (W - esum) / (earth.length + 1);
+      let x = gap;
+      earth.forEach((t) => { bg.push(page(t, x + t.wcm / 2, H - t.hcm * 0.3, (R() - 0.5) * 0.06)); x += t.wcm + gap; });
+    } else {
+      const step = earth.length > 1 ? (W - earth[0].wcm / 2 - earth[earth.length - 1].wcm / 2) / (earth.length - 1) : 0;
+      earth.forEach((t, i) => bg.push(page(t, earth[0].wcm / 2 + i * step, H - t.hcm * 0.3, (R() - 0.5) * 0.06)));
+    }
     // tous les sujets entrent dans la scène, des plus importants aux moins (le curseur de densité ne retire rien ici)
     const chosen = pieces.slice().sort((a, b) => imp(b) - imp(a));
     const by = (k) => chosen.filter((p) => place(p) === k);
