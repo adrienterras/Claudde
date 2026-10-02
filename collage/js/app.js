@@ -113,6 +113,7 @@
 
   async function importFiles(files, sizes) {
     let pages = [];
+    state.sceneLayout = null;
     notice('');
     setProgress(0, 1, 'Lecture des fichiers…');
     for (const f of files) {
@@ -1056,6 +1057,7 @@
     state.proposals = STYLES.map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
       if (st.id === 'scene' && o.format.auto) so.format = sceneFormat(o);
+      if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto) so.format = state.sceneLayout.format; }
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
     });
@@ -1148,7 +1150,7 @@
    */
   async function analyseForScene() {
     if (state.sceneBusy) return;
-    const need = activePieces().some((p) => p.enabled && !p.ai);
+    const need = activePieces().some((p) => p.enabled && !p.ai) || !state.sceneLayout;
     if (!need) return;
     const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
     if (!sample) { aiStatus('Scène : sans Claude, les sujets sont placés d’après leur forme (tout au sol, nuages au ciel).'); return; }
@@ -1159,14 +1161,74 @@
       const n = await directPieces(sample, limits);
       curate();
       planCoverage();
-      aiStatus(`Scène : Claude a regardé ${n} éléments découpés et placé chacun (ciel, sol, premier plan…).`);
       const keep = state.active;
-      regenerate();
-      if (state.active !== keep) selectProposal(keep);
+      if (n) { regenerate(); if (state.active !== keep) selectProposal(keep); }
+      // puis Claude compose la scène lui-même : où va chaque élément, sur la toile
+      const laid = await composeScene(sample, limits);
+      if (laid) {
+        aiStatus(`Scène composée par Claude : ${laid} éléments placés${state.sceneLayout.titre ? ` · « ${state.sceneLayout.titre} »` : ''}.`);
+        regenerate();
+        if (state.active !== keep) selectProposal(keep);
+      } else aiStatus(`Scène : Claude a regardé ${n} éléments découpés et placé chacun (ciel, sol, premier plan…).`);
     } catch (e) {
       const why = { not_granted: 'autorisation refusée', rate_limited: 'trop de demandes, réessayez plus tard', refused: 'demande refusée' }[e && e.code];
       aiStatus(`Scène : Claude n’a pas pu regarder les éléments${why ? ` (${why})` : ''} ; placement d’après la forme.`);
     } finally { state.sceneBusy = false; }
+  }
+
+  /*
+   * Claude compose la scène : il reçoit chaque élément (découpe ou page de fond) avec sa taille
+   * réelle, la toile en cm, et rend la position, l'inclinaison et le plan de chacun.
+   */
+  async function composeScene(sample, limits) {
+    const o = options();
+    const fmt = o.format.auto ? sceneFormat(o) : o.format;
+    const W = fmt.w, H = fmt.h;
+    const els = [];
+    o.textures.forEach((t) => { if (t.wcm <= W * 0.6 && t.hcm <= H * 0.7) els.push({ kind: 'page', t, w: t.wcm, h: t.hcm, src: t.canvas, label: t.drawing.ai ? t.drawing.ai.sujet : 'page peinte' }); });
+    o.pieces.forEach((p) => els.push({ kind: 'decoupe', p, w: p.wcm, h: p.hcm, src: p.canvas, label: p.ai ? p.ai.sujet : (p.drawing.ai ? p.drawing.ai.sujet : 'sujet') }));
+    if (!els.length) return 0;
+    const cap = Math.min(els.length, limits.images.maxCount * 30);
+    const list = els.slice(0, cap);
+    const nSheets = Math.min(limits.images.maxCount, Math.ceil(list.length / 24));
+    const per = Math.ceil(list.length / nSheets);
+    const sheets = [];
+    for (let i = 0; i < list.length; i += per) sheets.push(await pieceSheet(list.map((e) => ({ p: { canvas: e.src } })).slice(i, i + per), i));
+    aiStatus(`Claude compose la scène avec ${list.length} éléments…`);
+    const inv = list.map((e, i) => `${i + 1}. ${e.kind === 'page' ? 'PAGE DE FOND' : 'découpe'} « ${e.label} » ${e.w.toFixed(0)}×${e.h.toFixed(0)} cm`).join('\n');
+    const prompt = `Tu es un artiste qui compose un collage : une scène de paysage faite UNIQUEMENT de dessins d'enfants, collés à leur taille réelle sur une toile de ${W} × ${H} cm (largeur × hauteur), fond peint uni.
+Voici les ${list.length} éléments (planches contact : le numéro est en haut à gauche de chaque case), avec leur taille réelle en cm :
+${inv}
+
+Compose une BELLE scène cohérente, comme une illustration de livre pour enfants : un vrai paysage avec un ciel, un horizon, un sol, et des personnages et des animaux qui y vivent.
+Règles :
+- Les PAGES DE FOND sont des papiers peints entiers : elles font le décor (ciel, collines, terre, eau) et vont derrière tout le reste (plans 0 à 2). Elles peuvent dépasser des bords de la toile (ce qui dépasse sera rogné) et se chevaucher.
+- Le ciel occupe le haut (environ le tiers supérieur), le sol le bas. Soleil, nuages, oiseaux, étoiles, arcs-en-ciel vont dans le ciel.
+- Personnages, animaux, maisons, arbres, fleurs, véhicules se tiennent DEBOUT sur le sol : leurs pieds (bas de l'élément) posés sur une ligne de sol ou un peu au-dessus/au-dessous pour la profondeur. Les plus grands plutôt devant, les petits plus loin (plus haut, derrière). Un personnage ne flotte jamais dans le ciel.
+- Poissons, bateaux et tout ce qui vit dans l'eau vont en bas, dans une zone d'eau. Herbe, prairies, bandes de fleurs se couchent au premier plan, en bas, devant.
+- Rien n'est agrandi ni réduit. Les éléments peuvent se chevaucher un peu, mais ne cache jamais le visage ou le corps d'un personnage ou d'un animal ; répartis les sujets sur toute la largeur, en groupes qui racontent quelque chose (une famille devant la maison, les animaux près de l'arbre…).
+- Utilise TOUS les éléments. Si un élément gâche vraiment la scène (fragment, tache, texte), mets-le dans "exclus".
+- Coordonnées : x et y sont le CENTRE de l'élément en cm (0,0 en haut à gauche, x vers la droite, y vers le bas). rot : inclinaison en degrés (-20 à 20, 0 le plus souvent). plan : 0 (tout au fond) à 9 (tout devant).
+
+Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JSON :
+{"titre": "titre poétique court", "elements": [{"n": 1, "x": 45.0, "y": 60.0, "rot": 0, "plan": 5}, ...], "exclus": [numéros]}`;
+    const res = await sample.json(prompt, { images: sheets, modelTier: 'default' });
+    const items = Array.isArray(res && res.elements) ? res.elements : [];
+    const excl = new Set((Array.isArray(res && res.exclus) ? res.exclus : []).map(Number));
+    const num = (v, a, b, dflt) => (Number.isFinite(Number(v)) ? Math.max(a, Math.min(b, Number(v))) : dflt);
+    let n = 0;
+    const layout = { format: { w: W, h: H, auto: !!o.format.auto }, titre: String((res && res.titre) || '').slice(0, 80), pages: new Map(), pieces: new Map(), excluded: new Set() };
+    items.forEach((it) => {
+      const e = list[Number(it.n) - 1];
+      if (!e || excl.has(Number(it.n))) return;
+      const pos = { x: num(it.x, -e.w / 2, W + e.w / 2, W / 2), y: num(it.y, -e.h / 2, H + e.h / 2, H / 2), rot: (num(it.rot, -25, 25, 0) * Math.PI) / 180, plan: num(it.plan, 0, 9, e.kind === 'page' ? 1 : 5) };
+      if (e.kind === 'page') layout.pages.set(e.t.canvas, pos); else layout.pieces.set(e.p, pos);
+      n++;
+    });
+    list.forEach((e, i) => { if (excl.has(i + 1)) layout.excluded.add(e.kind === 'page' ? e.t.canvas : e.p); });
+    if (!n) return 0;
+    state.sceneLayout = layout;
+    return n;
   }
 
   function selectProposal(i) {
@@ -1928,7 +1990,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     if (files.length) importFiles(files);
   });
 
-  $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; regenerate(); };
+  $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
   $('fmt').addEventListener('change', updateExportInfo);
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); regenerate(); }));
@@ -2139,6 +2201,7 @@ Réponds uniquement avec ce JSON :
     state.drawings = [];
     state.title = '';
     state.titles = null;
+    state.sceneLayout = null;
     state.proposals = null;
     $('proposals').innerHTML = '';
     aiStatus('');

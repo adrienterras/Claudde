@@ -911,7 +911,29 @@
    * et décors derrière, personnages devant), le premier plan (herbe, prairies) couché sur le bord
    * bas, et ce qui vit sous terre enfoncé dans le bord bas. Sans place connue, les zones servent.
    */
+  // Scène composée par Claude : chaque élément à la place qu'il a choisie (en cm), par plan.
+  function sceneFromLayout(W, H, texs, pieces, L) {
+    const bg = [], items = [];
+    const ks = (W + H) / (L.format.w + L.format.h); // si la toile a changé de taille, on suit
+    texs.forEach((t) => {
+      const pos = L.pages.get(t.canvas);
+      if (!pos || L.excluded.has(t.canvas)) return;
+      bg.push({ kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm, sx: 0, sy: 0, sw: t.canvas.width, sh: t.canvas.height, x: pos.x * ks, y: pos.y * ks, w: t.wcm, h: t.hcm, rot: pos.rot, flip: false, clip: null, whole: true, plan: pos.plan });
+    });
+    pieces.forEach((p) => {
+      const pos = L.pieces.get(p);
+      if (!pos || L.excluded.has(p)) { p.placed = false; return; }
+      p.placed = true;
+      items.push({ kind: 'piece', piece: p, x: pos.x * ks, y: pos.y * ks, w: p.wcm, h: p.hcm, rot: pos.rot, flip: false, plan: pos.plan });
+    });
+    bg.sort((a, b) => a.plan - b.plan);
+    items.sort((a, b) => a.plan - b.plan || b.y - a.y);
+    const drawingsOf = (l) => new Set(l.map((e) => e.drawing).filter(Boolean)).size;
+    return { bg, items, kept: drawingsOf(bg.map((Lb) => texs.find((t) => t.canvas === Lb.src)).concat(items.map((Li) => Li.piece))), total: drawingsOf(texs.concat(pieces)) };
+  }
+
   function scene(W, H, texs, pieces, o, R) {
+    if (o.sceneLayout) return sceneFromLayout(W, H, texs, pieces, o.sceneLayout);
     const imp = (p) => (p.importance === undefined ? 1 : p.importance) * 2 + (p.colorful || 0) + (p.main ? 0.5 : 0);
     const place = (p) => p.place || (p.grounded ? 'sol' : p.zone === 'ciel' ? 'ciel' : p.zone === 'sol' ? 'avant' : 'ciel');
     const tplace = (t) => t.place || (t.zone === 'ciel' ? 'ciel' : t.zone === 'sol' ? 'terre' : 'horizon');

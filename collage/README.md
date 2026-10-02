@@ -135,7 +135,10 @@ cd collage && python3 -m http.server 8000
      horizon et sol quand la largeur manque ; en format automatique, la toile grandit (même
      proportion, jusqu'à 2,2 fois) pour que le sol tienne en deux rangées ; sans Claude, la pose et
      la forme servent, tout se tenant au sol sauf les nuages ; choisir la Scène déclenche le regard
-     de Claude sur chaque élément découpé pas encore vu, puis refait la composition) ;
+     de Claude sur chaque élément découpé pas encore vu, puis Claude compose lui-même la scène : il
+     reçoit chaque élément avec sa taille réelle et la toile en cm, et rend la position, l'inclinaison
+     et le plan de chacun, avec un titre, comme une illustration de livre pour enfants ; cette mise en
+     place est gardée jusqu'au prochain import ou aux « nouvelles propositions ») ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
