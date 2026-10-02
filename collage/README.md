@@ -185,6 +185,9 @@ cd collage && python3 -m http.server 8000
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Adresse : https://adrienterras.github.io/Claudde/
+Réglages GitHub nécessaires une fois : Settings → Pages → Source « GitHub Actions », et
+Settings → Environments → github-pages → branches de déploiement sans restriction (ou la branche
+de l'application) ; sinon chaque exécution échoue en quelques secondes.
 
 Sans la fenêtre Claude, la direction artistique par Claude n'est pas disponible : l'application
 compose avec ses règles intégrées.
