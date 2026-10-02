@@ -131,11 +131,13 @@
       try {
         const src = await pages[i].render();
         // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
+        Extract.removeSurface.debug = null;
         const analysis = Extract.analyze(src.canvas, 0, { photo: true });
+        const photoDebug = Extract.removeSurface.debug;
         const d = {
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
           orient: 'auto', orientDeg: 0,
-          original: src.canvas, photo: analysis.photo || null, photoMode: 'auto',
+          original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm,
           sizeCm: 29.7, sizeMode: 'auto',
         };
@@ -295,7 +297,7 @@
   function setPhotoMode(d, mode) {
     if (!d.original || d.photoMode === mode) return;
     const a = Extract.analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' });
-    if (mode !== 'keep' && !a.photo) { notice('Aucun sol ni table reconnu sur cette image : la bordure doit montrer la surface tout autour du dessin.'); return; }
+    if (mode !== 'keep' && !a.photo) { notice('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.'); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
     d.photoMode = mode;
     d.base = a; d.analysis = a; d.orientDeg = 0;
     d.photo = a.photo || null;
@@ -631,6 +633,7 @@
           : d.photoMode === 'keep'
             ? 'Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>'
             : 'Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>'}</p>
+        ${!d.photo && d.photoMode !== 'keep' && d.photoDebug ? `<p class="hint mono-note" title="Mesures de la détection de sol, à transmettre si un parquet n’est pas reconnu">détection : ${Object.entries(d.photoDebug).filter(([k]) => k !== 'maskPng').map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}`).join(' · ')}</p>` : ''}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? 'Taille lue dans le PDF.' : 'Taille estimée d’après le scan — corrigez-la si besoin.') : 'Taille saisie.'}
           Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.${mainPiece(d) ? ` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
       </div>`;

@@ -492,7 +492,7 @@
     }
     removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), gate: 'couleur' };
     const neutral = S < 0.18 && L < 228;                 // gris, béton, plan de travail
-    const wood = S >= 0.15 && S < 0.88 && hue >= 8 && hue <= 52 && L < 225; // bois, parquet, liège, chêne verni (la structure en lames tranche ensuite)
+    const wood = S >= 0.15 && S < 0.96 && hue >= 5 && hue <= 55 && L < 230; // bois, parquet, liège, chêne verni (la structure en lames tranche ensuite)
     // forcé par l'utilisateur : on fait confiance à la couleur de bordure, quelle qu'elle soit
     if (!neutral && !wood && !force) return null;
 
@@ -531,7 +531,8 @@
     const paperFrac = paperCount / Math.max(1, n - surfCount);
     const surfFrac = surfCount / n;
     Object.assign(removeSurface.debug, { surfFrac: +surfFrac.toFixed(2), gate: 'surface' });
-    if (surfFrac < 0.05 || surfFrac > 0.97) return null;
+    if (!force && (surfFrac < 0.05 || surfFrac > 0.97)) return null;
+    if (force && (surfFrac < 0.02 || surfFrac > 0.99)) return null;
     // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
     // une bordure disparate (lames sombres, veines marquées) n'est acceptée que si elle est structurée
     // par de vrais joints (voir plus bas) ; au-delà, c'est une page peinte jusqu'aux bords
@@ -579,7 +580,7 @@
     if (solid < 0.6 && !force) return null;
     let x0 = w, y0 = h, x1 = 0, y1 = 0, area = 0;
     keep.forEach((c) => { x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); area += c.area; });
-    if (area > 0.92 * n) return null;
+    if (area > (force ? 0.985 : 0.92) * n) return null;
     // le dessin posé est une forme compacte (feuille, découpe) qui ne remplit pas toute la bordure ;
     // des taches éparses sur un papier kraft ne sont pas un dessin posé sur un sol
     const touches = [x0 <= 1, y0 <= 1, x1 >= w - 2, y1 >= h - 2].filter(Boolean).length;
@@ -603,8 +604,8 @@
       edgeSurf = Math.max(edgeSurf, c / Math.max(1, k));
     });
     Object.assign(removeSurface.debug, { edgeSurf: +edgeSurf.toFixed(2) });
-    if (touches >= 3 && !(paperFrac >= 0.35 && solid >= 0.8 && surfFrac >= 0.12 && edgeSurf >= 0.92)) return null;
-    if (area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
+    if (!force && touches >= 3 && !(paperFrac >= 0.35 && solid >= 0.8 && surfFrac >= 0.12 && edgeSurf >= 0.92)) return null;
+    if (!force && area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const finMask = new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0)));
     if (wood) {
