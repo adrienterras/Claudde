@@ -46,8 +46,9 @@ cd collage && python3 -m http.server 8000
      seule une page plus grande que la toile est réduite, et son surplus déchiré en lambeaux ;
    - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
      colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
-     découpe) ; les feuilles pâles (crayon gris : nuages, bonshommes, texte) sont découpées comme les
-     autres par défaut, leur contour faisant le sujet ; un réglage permet de les mettre de côté (c'est
+     découpe) ; les feuilles pâles (crayon gris : nuages, bonshommes) sont découpées comme les
+     autres par défaut, leur contour faisant le sujet, sauf les pages d'écriture seule (lignes de
+     texte régulières, ou « texte seul » selon Claude), mises de côté ; un réglage permet de les mettre toutes de côté (c'est
      alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
      fond ; les pages de fond restent entières ;
    - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
@@ -126,8 +127,10 @@ cd collage && python3 -m http.server 8000
      de ciel à plat le long du bord haut avec ce qui vole posé dessus, les pages d'horizon entre ciel
      et sol, une ligne de sol où tout ce qui est debout pose les pieds, arbres et décors derrière,
      personnages devant, le premier plan (herbe, prairies) couché sur le bord bas, le sous-sol et les
-     pages de terre enfoncés dans le bord bas ; quand la largeur manque, les sujets les moins
-     importants s'écartent, sauf au maximum de densité ; sans Claude, les zones et la pose servent) ;
+     pages de terre enfoncés dans le bord bas ; tous les sujets entrent, en rangées serrées entre
+     horizon et sol quand la largeur manque ; en format automatique, la toile grandit (même
+     proportion, jusqu'à 2,2 fois) pour que le sol tienne en deux rangées ; sans Claude, la pose et
+     la forme servent, tout se tenant au sol sauf les nuages) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du

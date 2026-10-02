@@ -561,6 +561,40 @@
   }
 
   /*
+   * Page d'écriture seule ? L'encre y forme des lignes horizontales régulières (bandes d'encre
+   * séparées par des interlignes, de hauteur voisine, qui courent sur une bonne part de la largeur).
+   * Un dessin, même au crayon, n'a pas cette régularité.
+   */
+  function textOnly(src) {
+    const work = scaleTo(src, 320);
+    const w = work.width, h = work.height;
+    const d = ctx2d(work).getImageData(0, 0, w, h).data;
+    const rows = new Float32Array(h);
+    const cols = new Float32Array(w);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (lum([d[i], d[i + 1], d[i + 2]]) < 150) { rows[y]++; cols[x]++; }
+    }
+    const bands = [];
+    let start = -1;
+    for (let y = 0; y <= h; y++) {
+      const ink = y < h && rows[y] > w * 0.015;
+      if (ink && start < 0) start = y;
+      if (!ink && start >= 0) { bands.push([start, y]); start = -1; }
+    }
+    const inked = cols.filter((c) => c > 0).length / w;
+    if (bands.length < 5 || inked < 0.4) return false;
+    const heights = bands.map(([a, b]) => b - a).sort((a, b) => a - b);
+    const med = heights[Math.floor(heights.length / 2)];
+    if (med < h * 0.012 || med > h * 0.07) return false;
+    const regular = heights.filter((v) => v > med * 0.4 && v < med * 2.2).length / heights.length;
+    const gaps = bands.slice(1).map((b, i) => b[0] - bands[i][1]);
+    const gmed = gaps.slice().sort((a, b) => a - b)[Math.floor(gaps.length / 2)];
+    // bandes régulières, interlignes réguliers, et peu d'encre dans les interlignes
+    return regular >= 0.7 && gmed > 0 && gmed < med * 2.5;
+  }
+
+  /*
    * Analyse complète d'une page scannée.
    * Retourne { page, kind: 'texture' | 'cutout', texture?, pieces? }.
    */
@@ -605,5 +639,5 @@
     return result;
   }
 
-  window.Extract = { analyze, removeSurface, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, removeSurface, textOnly, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();

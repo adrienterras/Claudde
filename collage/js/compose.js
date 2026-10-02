@@ -925,9 +925,16 @@
     // --- ciel : pages à plat le long du bord haut, en partie hors toile
     const sky = T.filter((t) => tplace(t) === 'ciel');
     const sum = sky.reduce((a, t) => a + t.wcm, 0);
-    const x0 = (W - Math.min(W, sum * 0.9)) / 2;
-    const step = sky.length > 1 ? (W - x0 * 2 - sky[sky.length - 1].wcm) / (sky.length - 1) : 0;
-    sky.forEach((t, i) => bg.push(page(t, x0 + t.wcm / 2 + i * step, t.hcm * 0.3 + (R() - 0.5) * 2, (R() - 0.5) * 0.1)));
+    if (sum < W) {
+      // elles tiennent : réparties sur toute la largeur, à égale distance
+      const gap = (W - sum) / (sky.length + 1);
+      let x = gap;
+      sky.forEach((t) => { bg.push(page(t, x + t.wcm / 2, t.hcm * 0.3 + (R() - 0.5) * 2, (R() - 0.5) * 0.1)); x += t.wcm + gap; });
+    } else {
+      // trop larges : elles se chevauchent, bord à bord sur la largeur
+      const step = sky.length > 1 ? (W - sky[0].wcm / 2 - sky[sky.length - 1].wcm / 2) / (sky.length - 1) : 0;
+      sky.forEach((t, i) => bg.push(page(t, sky[0].wcm / 2 + i * step, t.hcm * 0.3 + (R() - 0.5) * 2, (R() - 0.5) * 0.1)));
+    }
     // --- horizon : pages de paysage entre ciel et sol
     const hor = T.filter((t) => tplace(t) === 'horizon');
     const hx = spreadX(hor.length, 0.22, 0.78);

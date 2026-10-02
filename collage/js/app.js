@@ -410,9 +410,15 @@
     const paleMode = $('pale') ? $('pale').value : 'decoupe';
     const t = (Number($('density').value) - 0.5) / 1.3;
     if (paleMode === 'decoupe') {
-      // un dessin au crayon (nuage, bonhomme) se découpe comme les autres : son contour est le sujet
-      paleOnes.forEach((d) => { d.auto = 'cutout'; ensureMaterial(d); });
-      state.paleCount = 0;
+      // un dessin au crayon (nuage, bonhomme) se découpe comme les autres : son contour est le sujet ;
+      // une page qui ne contient que de l'écriture (lignes de texte) est mise de côté
+      let aside = 0;
+      paleOnes.forEach((d) => {
+        if (d.textOnly === undefined) d.textOnly = Extract.textOnly(d.analysis.page);
+        const text = d.ai && d.ai.texte !== undefined ? d.ai.texte : d.textOnly;
+        if (text && !allIn()) { d.auto = 'off'; aside++; } else { d.auto = 'cutout'; ensureMaterial(d); }
+      });
+      state.paleCount = aside;
     } else {
       const mode = allIn() ? 'fond' : paleMode;
       const share = mode === 'fond' ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
@@ -920,7 +926,7 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
-    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'decoupe') === 'aside' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté, comme sur l’exemple.` : '';
+    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'decoupe') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (écriture seule) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
@@ -1015,7 +1021,21 @@
     };
   }
 
-  // Trois styles proposés à chaque fois, avec tous les dessins.
+  // Scène : la toile automatique grandit (même proportion) pour que tout ce qui se tient au sol
+  // tienne en deux rangées au plus, et que ce qui vole ait sa place dans le ciel.
+  function sceneFormat(o) {
+    const f = o.format;
+    const place = (p) => p.place || (p.grounded ? 'sol' : 'ciel');
+    const standing = o.pieces.filter((p) => ['sol', 'arriere'].includes(place(p)));
+    const flying = o.pieces.filter((p) => place(p) === 'ciel');
+    const needW = standing.reduce((a, p) => a + p.wcm, 0) / 2 * 0.92 + 4;
+    const skyArea = flying.reduce((a, p) => a + p.wcm * p.hcm, 0) * 1.6;
+    const needH = Math.sqrt(skyArea / 0.55 / (f.w / f.h));
+    const k = Math.min(2.2, Math.max(1, needW / f.w, needH / f.h));
+    return { w: Math.round(f.w * k), h: Math.round(f.h * k), auto: true };
+  }
+
+  // Les styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
     { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
     { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
@@ -1035,6 +1055,7 @@
     const o = options();
     state.proposals = STYLES.map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
+      if (st.id === 'scene' && o.format.auto) so.format = sceneFormat(o);
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
     });
@@ -2021,6 +2042,7 @@ Pour CHAQUE dessin, décide :
 - "zone" : "ciel", "milieu" ou "sol", là où il a le plus de sens dans la scène (soleil, nuages, oiseaux, cœurs volants → ciel ; terre, herbe, racines, maisons, chapiteau, animaux au sol → sol ; le reste → milieu). Répartis les fonds pour que chaque zone en ait.
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
 - "place" : sa place dans une scène de paysage : "ciel" (UNIQUEMENT ce qui vole ou brille : soleil, nuage, oiseau, avion, étoiles, feu d'artifice, cœur volant, arc-en-ciel, et les pages de fond bleues ou claires), "horizon" (un paysage lointain : montagnes, mer, page de paysage avec un horizon), "sol" (debout sur le sol : personnage, enfant, famille, animal, maison, chapiteau, véhicule, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson, grand feuillage), "avant" (premier plan couché au bas de la toile : herbe, prairie, bande de fleurs, eau, poissons, bateaux, tout ce qui vit dans l'eau), "soussol" (sous la terre : racines, galeries, taupes), "terre" (pour une page de fond brune, rouge ou sombre qui fera la terre). Un personnage ou un poisson ne va JAMAIS au ciel.
+- "texte_seul" : true si la page ne contient que de l'écriture (un texte, une liste, un poème sans dessin), false dès qu'il y a un dessin, même petit ou au crayon.
 - "photo_sol" : true si l'image est une PHOTO du dessin posé sur un sol, une table, du parquet, du carrelage, du bois (on voit la surface autour du dessin), false si c'est un scan ou une feuille vue seule.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
@@ -2028,7 +2050,7 @@ L'œuvre sera proposée dans six styles : « paysage » (ciel, milieu, sol), « 
 Propose pour chacun un titre poétique et court (2 à 6 mots, en français), inspiré des dessins.
 
 Réponds uniquement avec ce JSON :
-{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "...", "scene": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "place": "sol", "photo_sol": false, "importance": 2}, ...]}`;
+{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "...", "scene": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "place": "sol", "texte_seul": false, "photo_sol": false, "importance": 2}, ...]}`;
     try {
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
@@ -2041,6 +2063,7 @@ Réponds uniquement avec ce JSON :
           role: it.role === 'fond' ? 'fond' : 'decoupe',
           zone: ZONES.includes(it.zone) ? it.zone : 'milieu',
           pose: it.pose === true,
+          texte: it.texte_seul === true,
           place: ['ciel', 'horizon', 'sol', 'arriere', 'avant', 'soussol', 'terre'].includes(it.place) ? it.place : null,
           importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
         };
