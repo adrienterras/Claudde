@@ -432,7 +432,49 @@
    * Retourne null si l'image n'est pas une photo sur une surface, sinon la page nettoyée :
    * le dessin détouré sur un fond blanc, recadré.
    */
+  /*
+   * Une photo posée sur une page blanche (PDF d'un scanner de téléphone, page A4 avec marges) :
+   * on rogne les marges claires et uniformes pour analyser la photo elle-même.
+   */
+  function trimMargins(src) {
+    const work = scaleTo(src, 400);
+    const w = work.width, h = work.height;
+    const d = ctx2d(work).getImageData(0, 0, w, h).data;
+    const rows = new Uint16Array(h), cols = new Uint16Array(w);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, c = [d[i], d[i + 1], d[i + 2]];
+      if (lum(c) < 225 || sat(c) > 0.12) { rows[y]++; cols[x]++; }
+    }
+    const first = (arr, n, lim) => { for (let k = 0; k < arr.length; k++) if (arr[k] > n * lim) return k; return -1; };
+    const last = (arr, n, lim) => { for (let k = arr.length - 1; k >= 0; k--) if (arr[k] > n * lim) return k; return -1; };
+    const y0 = first(rows, w, 0.15), y1 = last(rows, w, 0.15), x0 = first(cols, h, 0.15), x1 = last(cols, h, 0.15);
+    trimMargins.debug = { y0, y1, x0, x1 };
+    if (y0 < 0 || x0 < 0) return null;
+    const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+    const insets = [y0 / h, (h - 1 - y1) / h, x0 / w, (w - 1 - x1) / w];
+    const sides = insets.filter((v) => v >= 0.03).length;
+    const areaFrac = (bw * bh) / (w * h);
+    // la zone rognée doit être dense (une photo), pas un dessin épars sur la feuille,
+    // et cernée d'un vrai cadre : ses quatre bords sont presque entièrement non blancs
+    let inside = 0;
+    for (let y = y0; y <= y1; y++) inside += rows[y];
+    const dense = inside / (bw * bh);
+    const edgeFill = (fx) => { let c = 0, k = 0; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (fx(x, y)) { k++; const i = (y * w + x) * 4, cc = [d[i], d[i + 1], d[i + 2]]; if (lum(cc) < 225 || sat(cc) > 0.12) c++; } return c / Math.max(1, k); };
+    // (un dessin posé sur le bord de la photo peut entamer un ou deux bords du cadre)
+    const edges = [edgeFill((x, y) => y <= y0 + 1), edgeFill((x, y) => y >= y1 - 1), edgeFill((x, y) => x <= x0 + 1), edgeFill((x, y) => x >= x1 - 1)];
+    const frame = Math.min(...edges), full = edges.filter((v) => v >= 0.85).length;
+    Object.assign(trimMargins.debug, { sides, areaFrac: +areaFrac.toFixed(2), dense: +dense.toFixed(2), frame: +frame.toFixed(2), full });
+    if (sides < 2 || areaFrac < 0.08 || areaFrac > 0.9) return null;
+    if (dense < 0.6 || full < 2 || frame < 0.5) return null;
+    const k = src.width / w, m = 0.012;
+    const cx0 = Math.round((x0 + (x1 - x0) * m) * k), cy0 = Math.round((y0 + (y1 - y0) * m) * k);
+    const cx1 = Math.round((x1 + 1 - (x1 - x0) * m) * k), cy1 = Math.round((y1 + 1 - (y1 - y0) * m) * k);
+    return crop(src, cx0, cy0, cx1 - cx0, cy1 - cy0);
+  }
+
   function removeSurface(src, force) {
+    const inset = trimMargins(src);
+    if (inset) src = inset;
     const work = scaleTo(src, WORK_MAX);
     const w = work.width, h = work.height, n = w * h;
     const d = ctx2d(work).getImageData(0, 0, w, h).data;
@@ -545,7 +587,8 @@
     Object.assign(removeSurface.debug, { linesOut, touches, fill: +(area / ((x1 - x0 + 1) * (y1 - y0 + 1))).toFixed(2), objFrac: +(area / n).toFixed(2) });
     if (!force) {
       // une surface texturée doit montrer au moins un joint hors du dessin, ou un objet franchement papier
-      if (!uniform && linesOut < 1 && paperFrac < 0.45) return null;
+      // (un sujet plein et compact posé sur un bois à joints visibles passe même si les joints restent sous lui)
+      if (!uniform && linesOut < 1 && paperFrac < 0.45 && !(lines >= 1 && solid >= 0.9)) return null;
       // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
       if (area < 0.06 * n) return null;
     }
@@ -692,5 +735,5 @@
     return result;
   }
 
-  window.Extract = { analyze, removeSurface, textOnly, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();

@@ -53,7 +53,9 @@ cd collage && python3 -m http.server 8000
      fond ; les pages de fond restent entières ;
    - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
      taille physique) montre le dessin posé sur du parquet, du bois, du carrelage ou un plan de
-     travail, la surface est reconnue à la bordure (teinte bois, même très saturée comme un chêne
+     travail, une photo posée sur une page blanche (PDF d'un scanner de téléphone, marges A4) est
+     d'abord rognée à la photo elle-même (cadre dense, bords non blancs), puis la surface est
+     reconnue à la bordure (teinte bois, même très saturée comme un chêne
      verni, ou neutre ; unie, ou structurée par des joints qui se prolongent au-delà du dessin), et le
      dessin doit être une forme pleine qui occupe au moins 6 % de la photo (des traits sur une feuille
      de couleur ne le sont pas) ; une feuille photographiée de près, qui touche les bords, est
