@@ -544,7 +544,9 @@
     let lines = 0;
     const lineComps = [];
     if (!uniform) {
-      const jc = components(joint, w, h).comps;
+      // les joints sont souvent coupés par les reflets : on relie les fragments proches avant de mesurer
+      const jl = erode(dilate(joint, w, h, Math.max(w, h) * 0.006), w, h, Math.max(w, h) * 0.004);
+      const jc = components(jl, w, h).comps;
       const unit0 = Math.max(w, h);
       jc.forEach((c) => {
         const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
@@ -588,7 +590,7 @@
     if (!force) {
       // une surface texturée doit montrer au moins un joint hors du dessin, ou un objet franchement papier
       // (un sujet plein et compact posé sur un bois à joints visibles passe même si les joints restent sous lui)
-      if (!uniform && linesOut < 1 && paperFrac < 0.45 && !(lines >= 1 && solid >= 0.9)) return null;
+      if (!uniform && linesOut < 1 && paperFrac < 0.45 && !(lines >= 1 && solid >= 0.6)) return null;
       // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
       if (area < 0.06 * n) return null;
     }
