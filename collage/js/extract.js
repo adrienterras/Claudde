@@ -9,6 +9,7 @@
   'use strict';
 
   const WORK_MAX = 640;          // taille de travail pour l'analyse
+  const FINE_MAX = 1800;         // taille de travail pour le contour fin des découpes
   const INK_DIST = 55;           // écart au papier au-delà duquel un pixel est « dessiné »
   const PAPER_DIST = 42;         // écart en deçà duquel un pixel est considéré comme papier
   const TEXTURE_MAX_PAPER = 0.38; // moins de 38 % de papier visible => page peinte => fond
@@ -244,15 +245,14 @@
     const w = work.width, h = work.height, n = w * h;
     const data = ctx2d(work).getImageData(0, 0, w, h).data;
     const paper = estimatePaper(data, w, h);
-    const ink = new Uint8Array(n);
     let paperCount = 0;
-    const T2 = INK_DIST * INK_DIST, U2 = PAPER_DIST * PAPER_DIST;
+    const U2 = PAPER_DIST * PAPER_DIST;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = data[i] - paper[0], dg = data[i + 1] - paper[1], db = data[i + 2] - paper[2];
-      const q = dr * dr + dg * dg + db * db;
-      if (q < U2) paperCount++;
-      if (q > T2) ink[p] = 1;
+      if (dr * dr + dg * dg + db * db < U2) paperCount++;
     }
+    const weakT = weakThreshold(data, w, h, paper);
+    const ink = inkMask(data, w, h, paper, INK_DIST, weakT);
     // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
     for (let y = 0; y < h; y++) {
@@ -261,14 +261,49 @@
       }
     }
     const unit = Math.max(w, h);
-    // regroupe les traits, puis garde une marge de papier généreuse (≈ 0,6 cm sur un A4) :
-    // la découpe ressort comme un autocollant, comme sur un collage fait main
-    let mask = dilate(ink, w, h, unit * 0.026);
+    // regroupe les traits d'un même sujet, puis ne garde qu'une marge de papier de quelques millimètres
+    // (≈ 3 mm sur un A4), comme une découpe aux ciseaux qui suit le dessin
+    let mask = dilate(ink, w, h, unit * 0.014);
     mask = fillHoles(mask, w, h);
     mask = erode(mask, w, h, unit * 0.005);
     const { labels, comps } = components(mask, w, h);
     comps.sort((a, b) => b.area - a.area);
-    return { work, data, w, h, paper, paperFrac: paperCount / n, labels, comps };
+    return { work, data, w, h, paper, weakT, paperFrac: paperCount / n, labels, comps };
+  }
+
+  /*
+   * Encre à deux seuils (hystérésis) : un pixel franchement différent du papier est dessiné ; un pixel
+   * seulement un peu différent (couleur pâle, crayon léger, dégradé) l'est aussi s'il touche, de
+   * proche en proche, un pixel franc. Le bruit du papier, isolé, ne passe pas.
+   */
+  function weakThreshold(d, w, h, paper) {
+    // écart typique du papier lui-même (grain, ombres légères), mesuré sur la bordure
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
+    const dist = [];
+    forEachBorder(w, h, band, (p) => { const i = p * 4; dist.push(Math.hypot(d[i] - paper[0], d[i + 1] - paper[1], d[i + 2] - paper[2])); });
+    dist.sort((a, b) => a - b);
+    const q90 = dist[Math.min(dist.length - 1, Math.floor(dist.length * 0.9))] || 0;
+    return Math.max(24, Math.min(INK_DIST - 5, q90 * 1.6 + 8));
+  }
+  function inkMask(d, w, h, paper, strongT, weakT) {
+    const n = w * h;
+    const weak = new Uint8Array(n);
+    const ink = new Uint8Array(n);
+    const stack = [];
+    const S2 = strongT * strongT, W2 = weakT * weakT;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const dr = d[i] - paper[0], dg = d[i + 1] - paper[1], db = d[i + 2] - paper[2];
+      const q = dr * dr + dg * dg + db * db;
+      if (q > W2) weak[p] = 1;
+      if (q > S2) { ink[p] = 1; stack.push(p); }
+    }
+    while (stack.length) {
+      const p = stack.pop();
+      const x = p % w;
+      const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p >= w ? p - w : -1, p < n - w ? p + w : -1];
+      for (let k = 0; k < 4; k++) { const q = nb[k]; if (q >= 0 && weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
+    }
+    return ink;
   }
 
   // Blanchit le papier et ravive les couleurs, comme une photo bien exposée.
@@ -317,7 +352,7 @@
     return widths[y] / max;
   }
 
-  function makePiece(page, seg, comp) {
+  function makePiece(page, seg, comp, orig) {
     const { w, h, labels, data } = seg;
     const k = page.width / w;
     const pad = 2;
@@ -340,33 +375,64 @@
       }
     }
     const base = baseRatio(a, bw, bh);
-    a = boxBlur(boxBlur(a, bw, bh), bw, bh);
 
-    // Masque lissé, agrandi à la résolution de la page, puis contour net (effet ciseaux).
-    const mc = makeCanvas(bw, bh);
+    // Contour fin : on reprend la détection d'encre dans la page à haute résolution, limitée à la zone
+    // de cette découpe, pour que la coupe suive le dessin au millimètre (la grille d'analyse de 640 px
+    // ne sert qu'à trouver les sujets)
+    const pw = Math.max(1, Math.round(bw * k)), ph = Math.max(1, Math.round(bh * k));
+    const fk = Math.min(1, FINE_MAX / Math.max(page.width, page.height)); // page → fine
+    const fw = Math.max(1, Math.round(pw * fk)), fh = Math.max(1, Math.round(ph * fk));
+    const fine = makeCanvas(fw, fh);
+    const fctx = ctx2d(fine);
+    fctx.imageSmoothingQuality = 'high';
+    // la détection d'encre se fait sur la page d'origine (le papier y a sa vraie couleur)
+    fctx.drawImage(orig || page, x0 * k, y0 * k, bw * k, bh * k, 0, 0, fw, fh);
+    const fd = fctx.getImageData(0, 0, fw, fh).data;
+    // zone autorisée : le sujet trouvé, un peu élargi (le reste de la page appartient à d'autres sujets)
+    const kf = fw / bw;
+    const region = new Uint8Array(fw * fh);
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) { const p = Math.min(bh - 1, Math.floor(y / kf)) * bw + Math.min(bw - 1, Math.floor(x / kf)); region[y * fw + x] = a[p]; }
+    const funit = Math.max(fw, fh) / Math.max(bw, bh) * Math.max(seg.w, seg.h); // taille de la page entière, en pixels fins
+    const allowed = dilate(region, fw, fh, funit * 0.012);
+    const inkF = inkMask(fd, fw, fh, seg.paper, INK_DIST, seg.weakT || 30);
+    for (let p = 0; p < inkF.length; p++) if (!allowed[p]) inkF[p] = 0;
+    // marge de quelques millimètres autour de l'encre, trous bouchés, puis coupe nette
+    let fm = dilate(inkF, fw, fh, funit * 0.011);
+    fm = fillHoles(fm, fw, fh);
+    fm = erode(fm, fw, fh, funit * 0.003);
+    // si la détection fine n'a presque rien trouvé (sujet très pâle), on garde la forme grossière
+    let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
+    let regCount = 0; for (let p = 0; p < region.length; p++) regCount += region[p];
+    const useFine = fmCount > regCount * 0.12;
+    const alpha = useFine ? fm : region;
+    // bord légèrement adouci (anti-crénelage), sans halo
+    const soft = new Float32Array(alpha.length);
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
+      let sum = 0, cnt = 0;
+      for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= fh) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= fw) continue; sum += alpha[yy * fw + xx]; cnt++; } }
+      soft[y * fw + x] = sum / cnt;
+    }
+    const mc = makeCanvas(fw, fh);
     const mctx = ctx2d(mc);
-    const mimg = mctx.createImageData(bw, bh);
-    for (let p = 0; p < a.length; p++) mimg.data[p * 4 + 3] = Math.round(a[p] * 255);
+    const mimg = mctx.createImageData(fw, fh);
+    for (let p = 0; p < soft.length; p++) mimg.data[p * 4 + 3] = Math.round(soft[p] * 255);
     mctx.putImageData(mimg, 0, 0);
 
-    const pw = Math.max(1, Math.round(bw * k)), ph = Math.max(1, Math.round(bh * k));
     const pc = makeCanvas(pw, ph);
     const ctx = ctx2d(pc);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(mc, 0, 0, pw, ph);
-    const al = ctx.getImageData(0, 0, pw, ph);
-    for (let i = 3; i < al.data.length; i += 4) {
-      const v = (al.data[i] / 255 - 0.5) * 4 + 0.5;
-      al.data[i] = Math.max(0, Math.min(1, v)) * 255;
-    }
-    ctx.putImageData(al, 0, 0);
     ctx.globalCompositeOperation = 'source-in';
     ctx.drawImage(page, x0 * k, y0 * k, bw * k, bh * k, 0, 0, pw, ph);
     ctx.globalCompositeOperation = 'source-over';
 
+    // carte de clic à la résolution d'analyse, d'après le contour fin
     const hit = new Uint8Array(bw * bh);
-    for (let p = 0; p < a.length; p++) hit[p] = a[p] > 0.5 ? 1 : 0;
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+      const fx = Math.min(fw - 1, Math.floor((x + 0.5) * kf)), fy = Math.min(fh - 1, Math.floor((y + 0.5) * kf));
+      hit[y * bw + x] = alpha[fy * fw + fx] ? 1 : 0;
+    }
     const color = satSum > 0 ? [r / satSum, g / satSum, b / satSum] : [200, 200, 200];
     return {
       canvas: pc,
@@ -388,7 +454,7 @@
       .filter((c) => c.area >= minArea && c.x1 - c.x0 > 10 && c.y1 - c.y0 > 10)
       .slice(0, MAX_PIECES_PER_PAGE)
       .map((c) => {
-        const piece = makePiece(enhanced, seg, c);
+        const piece = makePiece(enhanced, seg, c, page);
         piece.src.paper = seg.paper;
         return piece;
       });

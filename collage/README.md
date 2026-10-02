@@ -75,7 +75,10 @@ cd collage && python3 -m http.server 8000
    - chaque dessin découpé apporte son sujet principal et tous ses autres éléments qui ressemblent
      à un sujet (au moins 3 cm, même peu colorés : nuages au crayon, petits personnages) ; Claude,
      s'il est disponible, regarde ensuite chaque élément un par un et écarte les fragments (taches,
-     bords de feuille, texte seul) ; les découpes gardent une marge de papier généreuse
+     bords de feuille, texte seul) ; le contour de chaque découpe est calculé en haute résolution
+     (jusqu'à 1800 px de côté) avec un seuil d'encre à deux niveaux : les zones pâles (crayon léger,
+     couleurs claires, dégradés) reliées à un trait net restent dans le dessin, le grain du papier non ;
+     la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4)
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
