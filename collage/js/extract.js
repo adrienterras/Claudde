@@ -95,11 +95,23 @@
   }
 
   // Médiane par canal des pixels de bordure.
-  function borderMedian(d, w, h) {
+  function borderMedian(d, w, h, keep) {
     const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
     const ch = [[], [], []];
-    forEachBorder(w, h, band, (p) => { const i = p * 4; ch[0].push(d[i]); ch[1].push(d[i + 1]); ch[2].push(d[i + 2]); });
+    forEachBorder(w, h, band, (p) => { if (keep && !keep(p)) return; const i = p * 4; ch[0].push(d[i]); ch[1].push(d[i + 1]); ch[2].push(d[i + 2]); });
     return ch.map((arr) => { arr.sort((a, b) => a - b); return arr[arr.length >> 1] || 0; });
+  }
+  // Pixels de bordure qui ne sont pas du papier blanc : une feuille photographiée de près touche
+  // les bords, et la surface (sol, table) n'occupe alors qu'une partie de la bordure.
+  function surfaceBorder(d, w, h) {
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
+    const paperLike = (p) => { const i = p * 4, c = [d[i], d[i + 1], d[i + 2]]; return lum(c) > 205 && sat(c) < 0.16; };
+    let n = 0, paper = 0;
+    forEachBorder(w, h, band, (p) => { n++; if (paperLike(p)) paper++; });
+    const share = paper / Math.max(1, n);
+    // la surface doit rester visible sur au moins 10 % de la bordure
+    if (share < 0.25 || share > 0.9) return null;
+    return (p) => !paperLike(p);
   }
 
   // Distance (chanfrein) de chaque pixel au plus proche pixel à 1.
@@ -425,7 +437,8 @@
     const w = work.width, h = work.height, n = w * h;
     const d = ctx2d(work).getImageData(0, 0, w, h).data;
     // couleur de la surface : médiane des pixels de bordure (robuste aux reflets du bois et aux joints)
-    const col = borderMedian(d, w, h);
+    const onSurf = surfaceBorder(d, w, h);
+    const col = borderMedian(d, w, h, onSurf);
     const L = lum(col), S = sat(col);
     const mx = Math.max(col[0], col[1], col[2]), mn = Math.min(col[0], col[1], col[2]);
     let hue = 0;
@@ -448,6 +461,7 @@
     const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
     const dc = [], dl = [];
     forEachBorder(w, h, band, (p) => {
+      if (onSurf && !onSurf(p)) return;
       const i = p * 4, c = chroma(i);
       dc.push(Math.hypot(c[0] - cr, c[1] - cg));
       dl.push(Math.abs(lum([d[i], d[i + 1], d[i + 2]]) - L));
@@ -475,13 +489,13 @@
     const paperFrac = paperCount / Math.max(1, n - surfCount);
     const surfFrac = surfCount / n;
     Object.assign(removeSurface.debug, { surfFrac: +surfFrac.toFixed(2), gate: 'surface' });
-    if (surfFrac < 0.08 || surfFrac > 0.97) return null;
+    if (surfFrac < 0.05 || surfFrac > 0.97) return null;
     // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
     // une bordure disparate (lames sombres, veines marquées) n'est acceptée que si elle est structurée
     // par de vrais joints (voir plus bas) ; au-delà, c'est une page peinte jusqu'aux bords
     const noisy = q(dl, 0.9) > 60 || q(dc, 0.9) > 0.09;
     // (un parquet verni avec reflets et joints noirs a une bordure très contrastée : on laisse les joints trancher)
-    if (!force && q(dc, 0.9) > 0.2) return null;
+    if (!force && q(dc, 0.9) > (wood ? 0.28 : 0.2)) return null;
     // Une vraie surface est soit très unie (plan de travail), soit structurée par de longs traits
     // sombres (lames de parquet, joints de carrelage). Une page peinte ne l'est pas.
     const uniform = q(dl, 0.9) < 16 && q(dc, 0.9) < 0.02;
@@ -535,9 +549,48 @@
       // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
       if (area < 0.06 * n) return null;
     }
-    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
+    // une feuille photographiée de près peut toucher trois bords : on l'accepte si elle est bien du papier
+    // ... et qu'un bord entier de la photo montre la surface (le sol file sous la feuille)
+    let edgeSurf = 0;
+    [[0, 1, 0, w, 1], [h - 1, h, 0, w, 1], [0, h, 0, 1, 2], [0, h, w - 1, w, 2]].forEach(([y0e, y1e, x0e, x1e]) => {
+      let c = 0, k = 0;
+      for (let y = y0e; y < y1e; y++) for (let x = x0e; x < x1e; x++) { k++; if (!obj[y * w + x]) c++; }
+      edgeSurf = Math.max(edgeSurf, c / Math.max(1, k));
+    });
+    Object.assign(removeSurface.debug, { edgeSurf: +edgeSurf.toFixed(2) });
+    if (touches >= 3 && !(paperFrac >= 0.35 && solid >= 0.8 && surfFrac >= 0.12 && edgeSurf >= 0.92)) return null;
+    if (area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
-    const fin = erode(new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0))), w, h, unit * 0.004);
+    const finMask = new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0)));
+    if (wood) {
+      // du bois clair pris pour du papier : tout ce qui a la teinte du bois et touche le bord de la photo
+      // par une chaîne de pixels de bois est rendu à la surface (un trait orange sur la feuille, isolé
+      // dans le blanc, n'est pas touché)
+      const woodish = new Uint8Array(n);
+      for (let p = 0, i = 0; p < n; p++, i += 4) {
+        const c = [d[i], d[i + 1], d[i + 2]];
+        const mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
+        if (mx === mn || sat(c) < 0.28 || lum(c) > 235) continue;
+        let hh = mx === c[0] ? ((c[1] - c[2]) / (mx - mn)) % 6 : mx === c[1] ? (c[2] - c[0]) / (mx - mn) + 2 : (c[0] - c[1]) / (mx - mn) + 4;
+        hh = (hh * 60 + 360) % 360;
+        if (hh >= 8 && hh <= 52) woodish[p] = 1;
+      }
+      const seen = new Uint8Array(n);
+      const stack = [];
+      forEachBorder(w, h, 1, (p) => { if (woodish[p] && !seen[p]) { seen[p] = 1; stack.push(p); } });
+      while (stack.length) {
+        const p = stack.pop();
+        const x = p % w, y = (p - x) / w;
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+          const q = ny * w + nx;
+          if (woodish[q] && !seen[q]) { seen[q] = 1; stack.push(q); }
+        });
+      }
+      for (let p = 0; p < n; p++) if (seen[p]) finMask[p] = 0;
+    }
+    const fin = erode(finMask, w, h, unit * 0.004);
 
     // page nettoyée à la résolution d'origine : hors du dessin, du papier blanc
     const k = src.width / w;

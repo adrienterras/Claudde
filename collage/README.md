@@ -56,8 +56,10 @@ cd collage && python3 -m http.server 8000
      travail, la surface est reconnue à la bordure (teinte bois, même très saturée comme un chêne
      verni, ou neutre ; unie, ou structurée par des joints qui se prolongent au-delà du dessin), et le
      dessin doit être une forme pleine qui occupe au moins 6 % de la photo (des traits sur une feuille
-     de couleur ne le sont pas) ; la surface est alors retirée : le dessin est détouré en suivant sa
-     forme, sur un fond blanc. C'est
+     de couleur ne le sont pas) ; une feuille photographiée de près, qui touche les bords, est
+     acceptée si un bord entier montre encore la surface, dont la couleur est alors lue hors du
+     papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface ; la surface
+     est alors retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. C'est
      signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
      une bordure blanche et n'est pas concerné) ; si elle ne reconnaît pas la surface, le bouton
@@ -110,7 +112,7 @@ cd collage && python3 -m http.server 8000
      la couleur à peindre ; le choix est mémorisé ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **six propositions, six styles** (Scène en premier, sélectionnée par défaut), à chaque fois :
+   - **six propositions, six styles** (Paysage sélectionné par défaut), à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
@@ -130,7 +132,8 @@ cd collage && python3 -m http.server 8000
      pages de terre enfoncés dans le bord bas ; tous les sujets entrent, en rangées serrées entre
      horizon et sol quand la largeur manque ; en format automatique, la toile grandit (même
      proportion, jusqu'à 2,2 fois) pour que le sol tienne en deux rangées ; sans Claude, la pose et
-     la forme servent, tout se tenant au sol sauf les nuages) ;
+     la forme servent, tout se tenant au sol sauf les nuages ; choisir la Scène déclenche le regard
+     de Claude sur chaque élément découpé pas encore vu, puis refait la composition) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du

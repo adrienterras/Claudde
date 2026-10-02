@@ -580,7 +580,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.original && d.photoMode === 'auto' ? '<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>' : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? '<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>' : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
       el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
       dEl.appendChild(el);
     });
@@ -1037,8 +1037,8 @@
 
   // Les styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
-    { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
     { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
+    { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
     { id: 'tournesol', name: 'Tournesol', hint: 'spirale depuis le cœur' },
     { id: 'courtepointe', name: 'Courtepointe', hint: 'patchwork, un médaillon par carreau' },
     { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
@@ -1142,8 +1142,36 @@
     });
   }
 
+  /*
+   * Scène : au moment où on la choisit, Claude regarde chaque élément découpé qu'il n'a pas encore vu
+   * (sujet, à garder, place), puis la composition est refaite. Sans Claude, la forme décide.
+   */
+  async function analyseForScene() {
+    if (state.sceneBusy) return;
+    const need = activePieces().some((p) => p.enabled && !p.ai);
+    if (!need) return;
+    const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
+    if (!sample) { aiStatus('Scène : sans Claude, les sujets sont placés d’après leur forme (tout au sol, nuages au ciel).'); return; }
+    const limits = await sample.limits().catch(() => null);
+    if (!limits || !limits.images) return;
+    state.sceneBusy = true;
+    try {
+      const n = await directPieces(sample, limits);
+      curate();
+      planCoverage();
+      aiStatus(`Scène : Claude a regardé ${n} éléments découpés et placé chacun (ciel, sol, premier plan…).`);
+      const keep = state.active;
+      regenerate();
+      if (state.active !== keep) selectProposal(keep);
+    } catch (e) {
+      const why = { not_granted: 'autorisation refusée', rate_limited: 'trop de demandes, réessayez plus tard', refused: 'demande refusée' }[e && e.code];
+      aiStatus(`Scène : Claude n’a pas pu regarder les éléments${why ? ` (${why})` : ''} ; placement d’après la forme.`);
+    } finally { state.sceneBusy = false; }
+  }
+
   function selectProposal(i) {
     state.active = i;
+    if (state.proposals[i] && state.proposals[i].style.id === 'scene') analyseForScene();
     state.zoom = { z: 1, px: 0, py: 0 };
     state.comp = state.proposals[i].comp;
     state.selected = null;
@@ -1974,7 +2002,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
       const c = cmPerPx(d);
       (d.analysis.pieces || []).forEach((p) => {
         const ar = p.canvas.width / p.canvas.height;
-        if (p.frac > 0.003 && Math.max(p.canvas.width, p.canvas.height) * c >= 3.5 && p.colorful >= 0.08 && Math.min(ar, 1 / ar) > 0.1) list.push({ p, d });
+        if (!p.ai && p.frac > 0.002 && Math.max(p.canvas.width, p.canvas.height) * c >= 3 && p.colorful >= 0.04 && Math.min(ar, 1 / ar) > 0.1) list.push({ p, d });
       });
     });
     if (!list.length) return 0;

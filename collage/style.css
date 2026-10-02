@@ -311,7 +311,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 
 .tag { display: inline-block; font-size: 0.64rem; font-weight: 600; padding: 1px 6px; border-radius: 999px; letter-spacing: .01em; }
 .tag.cutout { background: var(--accent); color: var(--on-ink); }
-.tag.photo { background: var(--ink); color: var(--on-ink); left: auto; right: 6px; }
+.tag.photo { background: var(--ink); color: var(--on-ink); }
+.thumb .tag.photo { left: 4px; bottom: 24px; }
 .hint.photo { padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2); }
 .tag.texture { background: var(--texture); color: var(--on-ink); }
 .tag.off { background: var(--muted); color: var(--on-ink); }
