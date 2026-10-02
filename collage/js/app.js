@@ -1903,13 +1903,14 @@ Pour CHAQUE dessin, décide :
 - "role" : "fond" si c'est une page entièrement peinte ou colorée qui servira de grand papier de fond (on la collera entière, sans la découper) ; "decoupe" si c'est un sujet dessiné sur du papier qu'on découpera aux ciseaux autour du dessin.
 - "zone" : "ciel", "milieu" ou "sol", là où il a le plus de sens dans la scène (soleil, nuages, oiseaux, cœurs volants → ciel ; terre, herbe, racines, maisons, chapiteau, animaux au sol → sol ; le reste → milieu). Répartis les fonds pour que chaque zone en ait.
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
+- "photo_sol" : true si l'image est une PHOTO du dessin posé sur un sol, une table, du parquet, du carrelage, du bois (on voit la surface autour du dessin), false si c'est un scan ou une feuille vue seule.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
 L'œuvre sera proposée dans quatre styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « courtepointe » (un patchwork : les pages de fond en carreaux clairs et foncés, une découpe posée en médaillon au centre de chaque carreau) « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées) et « galerie » (une grille régulière de cases blanches cernées de noir, un personnage ou un sujet par case, comme une planche encadrée).
 Propose pour chacun un titre poétique et court (2 à 6 mots, en français), inspiré des dessins.
 
 Réponds uniquement avec ce JSON :
-{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "importance": 2}, ...]}`;
+{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "photo_sol": false, "importance": 2}, ...]}`;
     try {
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
@@ -1924,6 +1925,18 @@ Réponds uniquement avec ce JSON :
           pose: it.pose === true,
           importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
         };
+        // Claude a vu un dessin photographié sur un sol ou une table que la détection a manqué : on force le détourage
+        if (it.photo_sol === true && !d.photo && d.photoMode !== 'keep') {
+          const a = Extract.analyze(d.original, 0, { photo: true, force: true });
+          if (a.photo) {
+            d.photoMode = 'force';
+            d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo;
+            d.thumb = thumbOf(a.page);
+            preparePieces(a.pieces, d);
+            if (a.pieces) curateDrawing(d);
+            ensureMaterial(d);
+          }
+        }
         n++;
       });
       if (res && res.titres && typeof res.titres === 'object') {

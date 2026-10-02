@@ -94,6 +94,14 @@
     return m ? [r / m, g / m, b / m] : guess;
   }
 
+  // Médiane par canal des pixels de bordure.
+  function borderMedian(d, w, h) {
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
+    const ch = [[], [], []];
+    forEachBorder(w, h, band, (p) => { const i = p * 4; ch[0].push(d[i]); ch[1].push(d[i + 1]); ch[2].push(d[i + 2]); });
+    return ch.map((arr) => { arr.sort((a, b) => a - b); return arr[arr.length >> 1] || 0; });
+  }
+
   // Distance (chanfrein) de chaque pixel au plus proche pixel à 1.
   function distanceField(src, w, h) {
     const INF = 1e9;
@@ -416,7 +424,8 @@
     const work = scaleTo(src, WORK_MAX);
     const w = work.width, h = work.height, n = w * h;
     const d = ctx2d(work).getImageData(0, 0, w, h).data;
-    const col = estimatePaper(d, w, h);
+    // couleur de la surface : médiane des pixels de bordure (robuste aux reflets du bois et aux joints)
+    const col = borderMedian(d, w, h);
     const L = lum(col), S = sat(col);
     const mx = Math.max(col[0], col[1], col[2]), mn = Math.min(col[0], col[1], col[2]);
     let hue = 0;
@@ -426,8 +435,9 @@
       else hue = (col[0] - col[1]) / (mx - mn) + 4;
       hue = (hue * 60 + 360) % 360;
     }
+    removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), gate: 'couleur' };
     const neutral = S < 0.18 && L < 228;                 // gris, béton, plan de travail
-    const wood = S >= 0.15 && S < 0.72 && hue >= 8 && hue <= 50 && L < 215; // bois, parquet, liège, chêne clair (une feuille jaune vif est plus saturée)
+    const wood = S >= 0.15 && S < 0.66 && hue >= 8 && hue <= 50 && L < 215; // bois, parquet, liège, chêne clair (une feuille jaune vif est plus saturée)
     // forcé par l'utilisateur : on fait confiance à la couleur de bordure, quelle qu'elle soit
     if (!neutral && !wood && !force) return null;
 
@@ -461,9 +471,14 @@
       else obj[p] = 1;
     }
     const surfFrac = surfCount / n;
+    Object.assign(removeSurface.debug, { surfFrac: +surfFrac.toFixed(2), gate: 'surface' });
     if (surfFrac < 0.15 || surfFrac > 0.97) return null;
     // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
-    if (!force && (q(dl, 0.9) > (wood ? 85 : 60) || q(dc, 0.9) > (wood ? 0.12 : 0.09))) return null;
+    // une bordure disparate (lames sombres, veines marquées) n'est acceptée que si elle est structurée
+    // par de vrais joints (voir plus bas) ; au-delà, c'est une page peinte jusqu'aux bords
+    const noisy = q(dl, 0.9) > 60 || q(dc, 0.9) > 0.09;
+    // (un parquet verni avec reflets et joints noirs a une bordure très contrastée : on laisse les joints trancher)
+    if (!force && q(dc, 0.9) > 0.2) return null;
     // Une vraie surface est soit très unie (plan de travail), soit structurée par de longs traits
     // sombres (lames de parquet, joints de carrelage). Une page peinte ne l'est pas.
     const uniform = q(dl, 0.9) < 16 && q(dc, 0.9) < 0.02;
@@ -477,7 +492,7 @@
       });
     }
     removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), surfFrac: +surfFrac.toFixed(2), uniform, lines, dl90: Math.round(q(dl, 0.9)), dc90: +q(dc, 0.9).toFixed(3) };
-    if (!uniform && lines < 1 && !force) return null;
+    if (!uniform && lines < (noisy ? 2 : 1) && !force) return null;
     const unit = Math.max(w, h);
     // fermeture (relie le dessin), bouchage des trous, ouverture (efface les veines isolées)
     let mask = dilate(obj, w, h, unit * 0.008);
@@ -497,7 +512,7 @@
     const touches = [x0 <= 1, y0 <= 1, x1 >= w - 2, y1 >= h - 2].filter(Boolean).length;
     Object.assign(removeSurface.debug, { touches, fill: +(area / ((x1 - x0 + 1) * (y1 - y0 + 1))).toFixed(2), objFrac: +(area / n).toFixed(2) });
     // et il occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
-    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4 || (area < 0.1 * n && !force)) return null;
+    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4 || (area < 0.025 * n && !force)) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const fin = erode(new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0))), w, h, unit * 0.004);
 
