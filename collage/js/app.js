@@ -515,6 +515,13 @@
     ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && strong(p))
       .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; });
     if (main) { main.enabled = true; main.main = true; }
+    // Claude a regardé chaque élément découpé : on garde tout ce qu'il reconnaît comme un vrai sujet
+    // (personnage, nuage, soleil, animal…), même petit, et on écarte les fragments ; le sujet principal
+    // reste si rien d'autre ne tient
+    if (ps.some((p) => p.ai)) {
+      ps.forEach((p) => { if (p.ai) p.enabled = p.ai.garder; });
+      if (main && !ps.some((p) => p.enabled)) main.enabled = true;
+    }
   }
 
   function curate() {
@@ -948,7 +955,13 @@
     const ranked = pieces.slice().sort((a, b) => rank(b) - rank(a));
     pieces.forEach((p) => {
       const ai = p.drawing.ai;
-      if (ai) {
+      if (p.ai) {
+        // Claude a vu cet élément découpé lui-même : sa place, son importance
+        p.place = p.ai.place;
+        p.importance = p.ai.importance;
+        p.grounded = p.place === 'sol' || p.place === 'arriere';
+        p.zone = p.place === 'ciel' ? 'ciel' : p.place === 'horizon' ? 'milieu' : 'sol';
+      } else if (ai) {
         p.zone = ai.zone;
         p.grounded = p.main ? ai.pose : false;
         p.importance = p.main ? ai.importance : 1;
@@ -1893,6 +1906,82 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     return new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
   }
 
+  // Planche contact des éléments découpés (sur fond blanc), numérotés.
+  async function pieceSheet(list, offset) {
+    const cols = Math.ceil(Math.sqrt(list.length * 1.3));
+    const rows = Math.ceil(list.length / cols);
+    const cell = Math.floor(Math.min(1280 / cols, 1000 / rows));
+    const c = Extract.makeCanvas(cols * cell, rows * cell);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    list.forEach((e, i) => {
+      const x = (i % cols) * cell, y = Math.floor(i / cols) * cell;
+      const src = e.p.canvas;
+      const k = Math.min((cell - 10) / src.width, (cell - 10) / src.height);
+      ctx.drawImage(src, x + (cell - src.width * k) / 2, y + (cell - src.height * k) / 2, src.width * k, src.height * k);
+      ctx.strokeStyle = '#ccc'; ctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x + 2, y + 2, 34, 24);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(String(offset + i + 1), x + 6, y + 21);
+    });
+    return new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+  }
+
+  /*
+   * Second regard de Claude, élément par élément : chaque morceau découpé automatiquement dans les
+   * dessins (même petit : un nuage, un soleil, un personnage secondaire) est reconnu, gardé ou
+   * écarté, et placé dans la scène. Sans ce passage, seuls le sujet principal et deux extras
+   * d'au moins 7 cm sont retenus par dessin.
+   */
+  async function directPieces(sample, limits) {
+    const list = [];
+    state.drawings.forEach((d) => {
+      if (roleOf(d) !== 'cutout') return;
+      const c = cmPerPx(d);
+      (d.analysis.pieces || []).forEach((p) => {
+        const ar = p.canvas.width / p.canvas.height;
+        if (p.frac > 0.003 && Math.max(p.canvas.width, p.canvas.height) * c >= 3.5 && p.colorful >= 0.08 && Math.min(ar, 1 / ar) > 0.1) list.push({ p, d });
+      });
+    });
+    if (!list.length) return 0;
+    const cap = Math.min(list.length, limits.images.maxCount * 24);
+    const chosen = list.slice().sort((a, b) => rank(b.p) - rank(a.p)).slice(0, cap);
+    const nSheets = Math.min(limits.images.maxCount, Math.ceil(chosen.length / 20));
+    const per = Math.ceil(chosen.length / nSheets);
+    const sheets = [];
+    for (let i = 0; i < chosen.length; i += per) sheets.push(await pieceSheet(chosen.slice(i, i + per), i));
+    aiStatus(`Claude regarde les ${chosen.length} éléments découpés un par un…`);
+    const prompt = `Voici ${chosen.length} éléments découpés automatiquement aux ciseaux dans des dessins d'enfants (planches contact, le numéro est en haut à gauche de chaque case ; le blanc autour est le fond de la case, pas le dessin).
+Ils serviront à composer une scène de paysage collée sur une toile : ciel en haut, horizon, une ligne de sol où les personnages se tiennent debout, premier plan en bas.
+
+Pour CHAQUE élément, décide :
+- "sujet" : ce qu'il représente, en 1 à 3 mots en français (ex. « nuage », « bonhomme », « soleil », « maison », « chat », « fleur », « arbre »).
+- "garder" : true si c'est un vrai sujet reconnaissable, même petit (personnage, animal, nuage, soleil, étoile, maison, arbre, fleur, véhicule, objet, cœur, arc-en-ciel…) ; false si c'est un fragment sans sens (tache, bord de feuille, trait isolé, morceau de décor coupé, texte seul, gribouillis d'essai).
+- "place" : "ciel" (vole ou brille : soleil, nuage, oiseau, étoiles, cœur volant, arc-en-ciel), "horizon" (montagnes, mer, paysage lointain), "sol" (debout sur le sol : personnage, animal, maison, véhicule, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson), "avant" (couché au bas : herbe, prairie, bande de fleurs, eau), "soussol" (sous la terre : racines, taupe).
+- "importance" : 3 pour les éléments les plus forts (grands personnages, pièces maîtresses), 2 pour les beaux sujets, 1 pour les petits éléments d'ambiance.
+
+Réponds uniquement avec ce JSON :
+{"elements": [{"n": 1, "sujet": "...", "garder": true, "place": "sol", "importance": 2}, ...]}`;
+    const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
+    const items = Array.isArray(res && res.elements) ? res.elements : [];
+    let n = 0;
+    items.forEach((it) => {
+      const e = chosen[Number(it.n) - 1];
+      if (!e) return;
+      e.p.ai = {
+        sujet: String(it.sujet || '').slice(0, 40),
+        garder: it.garder !== false,
+        place: PLACES.includes(it.place) ? it.place : 'sol',
+        importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
+      };
+      n++;
+    });
+    return n;
+  }
+
   async function artDirect() {
     const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
     if (!sample) { aiStatus('Composition automatique avec les règles intégrées.'); return; }
@@ -1959,7 +2048,14 @@ Réponds uniquement avec ce JSON :
       state.drawings.forEach(ensureMaterial);
       curate();
       planCoverage();
-      aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length} et placé chacun dans la scène.`);
+      refreshLists();
+      regenerate();
+      // second passage : chaque élément découpé, un par un
+      let np = 0;
+      try { np = await directPieces(sample, limits); } catch (e) { np = 0; }
+      curate();
+      planCoverage();
+      aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length}${np ? ` et ${np} éléments découpés` : ''}, et placé chacun dans la scène.`);
       refreshLists();
       regenerate();
     } catch (e) {
@@ -2010,7 +2106,7 @@ Réponds uniquement avec ce JSON :
   fillGround();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate };
   if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
 
   render();

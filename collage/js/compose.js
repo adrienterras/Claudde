@@ -920,7 +920,7 @@
     const bg = [], items = [];
     const yHor = H * 0.55, yG = H * 0.78;
     // pages plus grandes que la toile : écartées (elles ne se collent pas entières)
-    const T = texs.filter((t) => t.wcm <= W && t.hcm <= H * 0.7);
+    const T = texs.filter((t) => t.wcm <= W * 0.6 && t.hcm <= H * 0.7);
     const spreadX = (n, a, b) => (i) => (n > 1 ? W * (a + (b - a) * (i / (n - 1))) : W / 2);
     // --- ciel : pages à plat le long du bord haut, en partie hors toile
     const sky = T.filter((t) => tplace(t) === 'ciel');
@@ -936,10 +936,8 @@
     const earth = T.filter((t) => tplace(t) === 'terre');
     const ex = spreadX(earth.length, 0.2, 0.8);
     earth.forEach((t, i) => bg.push(page(t, ex(i), H - t.hcm * 0.3, (R() - 0.5) * 0.06)));
-    // --- densité : le curseur règle le nombre de découpes, des plus importantes aux moins
-    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
-    const count = o.everything ? pieces.length : Math.max(1, Math.round(pieces.length * (0.2 + 0.8 * t)));
-    const chosen = pieces.slice().sort((a, b) => imp(b) - imp(a)).slice(0, count);
+    // tous les sujets entrent dans la scène, des plus importants aux moins (le curseur de densité ne retire rien ici)
+    const chosen = pieces.slice().sort((a, b) => imp(b) - imp(a));
     const by = (k) => chosen.filter((p) => place(p) === k);
     // --- sous-sol : enfoncé dans le bord bas, sous le premier plan
     const under = by('soussol');
@@ -953,18 +951,25 @@
       let cx = 2 + list[0].wcm / 2;
       list.forEach((p, i) => { items.push(item(p, cx, y0 - p.hcm / 2, (R() - 0.5) * 0.05)); cx += p.wcm / 2 + gap + (list[i + 1] ? list[i + 1].wcm / 2 : 0); });
     };
-    const fit = (list, maxW) => { // on retire les moins importants tant que ça se chevauche trop
-      let keep = list.slice();
-      while (keep.length > 2 && keep.reduce((a, p) => a + p.wcm, 0) > maxW) { const weakest = keep.reduce((m, p) => (imp(p) < imp(m) ? p : m), keep[0]); keep = keep.filter((p) => p !== weakest); }
-      return keep;
+    // quand la largeur manque, on ouvre des rangées en profondeur : les plus importants devant,
+    // les autres un peu plus haut et derrière (rien n'est écarté)
+    const rowsOf = (list, maxW) => {
+      const rows = [];
+      list.forEach((p) => { let r = rows.find((row) => row.w + p.wcm <= maxW); if (!r) { r = { w: 0, list: [] }; rows.push(r); } r.list.push(p); r.w += p.wcm; });
+      return rows;
     };
     const mix = (list) => { // grands et petits alternés depuis le centre
       const byH = list.slice().sort((a, b) => b.hcm - a.hcm); const seq = [];
       byH.forEach((p, i) => (i % 2 ? seq.push(p) : seq.unshift(p)));
       return seq;
     };
-    spread(mix(fit(by('arriere'), W * (o.everything ? 1.6 : 1.15))), yG - 2);
-    spread(mix(fit(by('sol'), W * (o.everything ? 1.6 : 1.12))), yG);
+    const stand = (list, y0, maxW) => {
+      const rows = rowsOf(list, maxW);
+      // rangées du fond d'abord (dessinées derrière), la première rangée en dernier (devant)
+      rows.slice().reverse().forEach((row, k) => spread(mix(row.list), y0 - (rows.length - 1 - k) * Math.min(8, H * 0.09)));
+    };
+    stand(by('arriere'), yG - 2, W * 1.15);
+    stand(by('sol'), yG, W * 1.12);
     // --- premier plan : couché sur le bord bas
     const fg = by('avant');
     const fx = spreadX(fg.length, 0.12, 0.88);
