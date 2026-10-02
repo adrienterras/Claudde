@@ -118,7 +118,7 @@ button, select, input { font: inherit; color: inherit; }
 
 .brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0; padding-bottom: 4px; }
 .brand-mark {
-  width: 78px; aspect-ratio: 1; margin-bottom: 10px;
+  width: 56px; aspect-ratio: 1; margin-bottom: 8px;
   background: var(--ink);
   -webkit-mask: url(assets/logo-mark.svg) center / contain no-repeat;
   mask: url(assets/logo-mark.svg) center / contain no-repeat;
@@ -531,7 +531,7 @@ body.editing { overflow: hidden; }
     order: 0; display: flex; align-items: center; justify-content: center; gap: 10px;
     padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line);
   }
-  .mobile-brand .brand-mark { width: 38px; margin: 0; }
+  .mobile-brand .brand-mark { width: 30px; margin: 0; }
   .mobile-brand-name { font-family: var(--f-display); font-size: 1.25rem; line-height: 1; }
   .mobile-brand-name small { font-family: var(--f-body); font-size: 0.56rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink); margin-right: 4px; vertical-align: middle; }
   .stage { order: 1; height: min(80vh, calc(100vw * 0.78 + 150px)); }
