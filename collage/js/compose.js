@@ -902,12 +902,179 @@
     return { items, frames, kept: items.length, cols, rows };
   }
 
+
+  /* ---------- Trois styles « dessinés » : des traits peints portent les dessins ---------- */
+
+  // Un trait peint (branche, fil) ou une petite forme pleine (pince) : points en cm.
+  function stroke(pts, width, color, extra) {
+    return Object.assign({ pts, width, color }, extra || {});
+  }
+  // courbe quadratique échantillonnée
+  function quad(x0, y0, cx, cy, x1, y1, n) {
+    const pts = [];
+    for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; pts.push([u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]); }
+    return pts;
+  }
+  const countFor = (o, n) => { const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1); return o.everything ? n : Math.max(1, Math.round(n * (0.2 + 0.8 * t))); };
+  const beautyOf = (p) => (p.importance === undefined ? 1 : p.importance) * 2 + (p.colorful || 0) * 1.5 + Math.min(1, (p.wcm * p.hcm) / 900) * 0.6 + (p.main ? 0.8 : 0);
+
+  /*
+   * Arbre : un tronc et des branches peints en brun foncé montent depuis le sol ; chaque dessin est
+   * posé au bout d'une branche, comme un fruit. Les pages de fond font la terre, entières, en bas.
+   */
+  function treeSoil(W, H, texs, R, bg) {
+    const cands = texs.slice().sort((a, b) => (a.lum || 0) - (b.lum || 0)); // les plus sombres pour la terre
+    let x = 0, top = H;
+    for (const t of cands) {
+      const w = t.wcm, h = t.hcm;
+      if (x >= W) break;
+      // la page, droite, s'enfonce dans le bord bas (ce qui dépasse se rogne) : la terre reste une bande basse
+      const sink = Math.max(0, h - Math.min(h, H * 0.22));
+      bg.push({ kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm, sx: 0, sy: 0, sw: t.canvas.width, sh: t.canvas.height, x: x + w / 2, y: H - h / 2 + sink, w, h, rot: 0, flip: false, clip: null, whole: true });
+      top = Math.min(top, H - h + sink);
+      x += w - 1.5;
+    }
+    return top;
+  }
+  function crownPoints(W, H, top, R, dmin) {
+    const cx = W / 2, cy = top * 0.45, rx = W * 0.46, ry = top * 0.33;
+    const pts = [{ x: cx, y: cy - ry * 0.25 }];
+    const n = Math.max(3, Math.floor((Math.PI * rx * ry) / (dmin * dmin)) + 2);
+    // le tronc reste visible : pas de fruit dans la colonne centrale, sous le cœur du houppier
+    const trunkFree = (q) => Math.abs(q.x - cx) < dmin * 0.55 && q.y > cy;
+    for (let tries = 0; tries < 6000 && pts.length < n; tries++) {
+      const a = R() * Math.PI * 2, r = Math.sqrt(R());
+      const q = { x: cx + Math.cos(a) * rx * r, y: cy + Math.sin(a) * ry * r };
+      if (!trunkFree(q) && pts.every((p) => Math.hypot(p.x - q.x, p.y - q.y) > dmin)) pts.push(q);
+    }
+    // du centre vers l'extérieur : les pièces maîtresses au cœur du houppier
+    return pts.sort((a, b) => Math.hypot(a.x - cx, (a.y - cy) * 1.4) - Math.hypot(b.x - cx, (b.y - cy) * 1.4));
+  }
+  function treeBranches(W, H, top, items) {
+    const brown = '#4a3524';
+    const root = { x: W / 2, y: H + 1, depth: 0 };
+    const fork = { x: W / 2 + (W * 0.02), y: top - Math.max(4, top * 0.16), depth: 1 };
+    const strokes = [stroke(quad(root.x, root.y, W / 2 - W * 0.02, (root.y + fork.y) / 2, fork.x, fork.y, 12), 3.2, brown, { taper: 1.3 })];
+    const nodes = [root, fork];
+    // du bas vers le haut : chaque dessin se raccorde au nœud le plus proche situé en dessous
+    items.slice().sort((a, b) => b.y - a.y).forEach((L) => {
+      // la branche arrive sous le bas du dessin, pour rester visible
+      const ex = L.x, ey = L.y + L.h * 0.3;
+      let best = null, bd = Infinity;
+      nodes.forEach((nd) => {
+        const d = Math.hypot(nd.x - ex, nd.y - ey) + (nd.y < ey - 2 ? W * 0.6 : 0) + nd.depth * 1.5;
+        if (d < bd) { bd = d; best = nd; }
+      });
+      const depth = best.depth + 1;
+      const w = Math.max(0.9, 2.6 - depth * 0.4);
+      const mx = (best.x + ex) / 2, my = (best.y + ey) / 2;
+      // la branche s'incurve vers l'extérieur
+      const side = ex >= W / 2 ? 1 : -1;
+      const ctrl = [mx + side * Math.abs(best.y - ey) * 0.25, my + Math.abs(best.x - ex) * 0.2];
+      strokes.push(stroke(quad(best.x, best.y, ctrl[0], ctrl[1], ex, ey, 14), w, brown, { taper: 0.7 }));
+      nodes.push({ x: ex, y: ey, depth });
+    });
+    return strokes;
+  }
+
+  /*
+   * Guirlande : des fils tendus en travers de la toile, légèrement détendus ; les dessins et les pages
+   * de fond entières y sont suspendus par de petites pinces, comme du linge au soleil.
+   */
+  function garland(W, H, texs, pieces, o, R) {
+    const margin = 2.5, gap = 1.6, pegH = 1.4, sag = Math.min(3, H * 0.035);
+    const count = countFor(o, pieces.length);
+    const list = texs.map((t) => ({ t, w: t.wcm, h: t.hcm, d: t.drawing, b: beautyOf(t) + 1 }))
+      .concat(pieces.map((p) => ({ p, w: p.wcm, h: p.hcm, d: p.drawing, b: beautyOf(p) })))
+      .filter((it) => it.w <= W - 2 * margin && it.h <= H - 2 * margin - pegH)
+      .sort((a, b) => b.b - a.b);
+    // rangées de fils : on accroche, du plus beau au moins beau, tant que la hauteur le permet ;
+    // les rangées regroupent les hauteurs voisines pour que les fils soient à peu près réguliers
+    const layout = (items) => {
+      const rows = [];
+      for (const it of items.slice().sort((a, b) => b.h - a.h)) {
+        let r = rows.find((row) => row.x + it.w + gap <= W - margin);
+        if (!r) { r = { x: margin, items: [], h: 0 }; rows.push(r); }
+        r.items.push(it); r.x += it.w + gap; r.h = Math.max(r.h, it.h);
+      }
+      const need = rows.reduce((a, r) => a + r.h + pegH + sag, 0) + gap * (rows.length - 1) + 2 * margin;
+      return need <= H ? rows : null;
+    };
+    let chosen = [], rows = [], npcs = 0;
+    for (const it of list) {
+      if (it.p && npcs >= count) continue;
+      const r = layout(chosen.concat([it]));
+      if (r) { chosen.push(it); rows = r; if (it.p) npcs++; }
+    }
+    const used = rows.reduce((a, r) => a + r.h + pegH + sag, 0);
+    const free = H - 2 * margin - used;
+    const vgap = rows.length > 1 ? free / (rows.length - 1) : 0;
+    const bg = [], items = [], strokes = [];
+    const dark = '#2b2a22', wood = '#c9a46d';
+    let y = margin + (rows.length > 1 ? 0 : free / 2);
+    rows.forEach((row) => {
+      const yl = (x) => y + sag * 4 * (x / W) * (1 - x / W);
+      strokes.push(stroke(Array.from({ length: 41 }, (_, i) => { const x = -1 + (W + 2) * (i / 40); return [x, yl(x)]; }), 0.14, dark));
+      const its = shuffle(row.items, R);
+      const rowW = its.reduce((a, it) => a + it.w, 0);
+      const hg = Math.min((W - 2 * margin - rowW) / Math.max(1, its.length - 1), 9);
+      let x = (W - rowW - hg * (its.length - 1)) / 2;
+      its.forEach((it) => {
+        const cx = x + it.w / 2;
+        const top = yl(cx) + pegH * 0.45;
+        const cy = top + it.h / 2;
+        const rot = (R() - 0.5) * 0.04;
+        if (it.t) bg.push({ kind: 'bg', panel: true, src: it.t.canvas, pageW: it.t.wcm, pageH: it.t.hcm, sx: 0, sy: 0, sw: it.t.canvas.width, sh: it.t.canvas.height, x: cx, y: cy, w: it.w, h: it.h, rot, flip: false, clip: null, whole: true });
+        else { it.p.placed = true; items.push({ kind: 'piece', piece: it.p, x: cx, y: cy, w: it.w, h: it.h, rot, flip: false }); }
+        // deux pinces en bois, par-dessus
+        [cx - it.w * 0.3, cx + it.w * 0.3].forEach((px) => {
+          const py = yl(px);
+          strokes.push(stroke([[px - 0.3, py - 0.5], [px + 0.3, py - 0.5], [px + 0.3, py + pegH], [px - 0.3, py + pegH]], 0.08, dark, { fill: wood, above: true, closed: true }));
+        });
+        x += it.w + hg;
+      });
+      y += row.h + pegH + sag + vgap;
+    });
+    const drawingsOf = (l) => new Set(l.map((it) => it.d).filter(Boolean)).size;
+    return { bg, items, strokes, kept: drawingsOf(chosen), total: drawingsOf(texs.map((t) => ({ d: t.drawing })).concat(pieces.map((p) => ({ d: p.drawing })))) };
+  }
+
+  /*
+   * Ronde : les dessins se tiennent en anneau autour du centre, légèrement penchés dans le sens de
+   * la ronde ; au milieu, la plus belle page de fond, entière, en médaillon.
+   */
+  function rondeTargets(W, H, pieces, o) {
+    const n = pieces.length;
+    const count = countFor(o, n);
+    const sorted = pieces.slice().sort((a, b) => b.wcm * b.hcm - a.wcm * a.hcm);
+    const avg = sorted.slice(0, count).reduce((a, p) => a + Math.max(p.wcm, p.hcm), 0) / Math.max(1, count);
+    const rx = W / 2 - avg * 0.45 - 1, ry = H / 2 - avg * 0.45 - 1;
+    const per = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+    const n1 = Math.max(3, Math.min(count, Math.floor(per / (avg * 0.72 + 1))));
+    // un seul anneau, sauf si l'on veut tout poser : alors un second anneau, plus serré, à l'intérieur
+    const n2 = o.everything ? Math.max(0, count - n1) : 0;
+    const rings = [{ n: n1, rx, ry, a0: -Math.PI / 2 }];
+    if (n2) rings.push({ n: n2, rx: rx * 0.5, ry: ry * 0.5, a0: -Math.PI / 2 + Math.PI / Math.max(1, n2) });
+    return {
+      count: n1 + n2,
+      inner: { rx: (n2 ? rx * 0.5 : rx) - avg * 0.6, ry: (n2 ? ry * 0.5 : ry) - avg * 0.6 },
+      targets: (idx) => {
+        let k = idx, ring = rings[0];
+        if (k >= rings[0].n && rings[1]) { ring = rings[1]; k -= rings[0].n; }
+        k %= ring.n;
+        const a = ring.a0 + (k / ring.n) * Math.PI * 2;
+        return { x: W / 2 + Math.cos(a) * ring.rx, y: H / 2 + Math.sin(a) * ring.ry, rot: Math.sin(a) * 0.35, r: ring === rings[0] ? 2 : 1 };
+      },
+    };
+  }
+
   function paperLayer(W, H) {
     const c = paperTexture();
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées),
+  // 'arbre' (branches peintes), 'guirlande' (fils et pinces), 'ronde' (anneau autour d'un médaillon).
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
@@ -919,6 +1086,10 @@
       // fond blanc, fixe : ni couleur ni effet peinture, ni finition toile — une planche encadrée
       return { W, H, bg: [], items: g.items, frames: g.frames, frameWidth: 0.08, ground: '#fbfaf6', paint: false, grain: false, style, f: 1, scale: 1, kept: g.kept, total };
     }
+    if (style === 'guirlande') {
+      const g = garland(W, H, o.textures, o.pieces, o, R);
+      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...g.bg], items: g.items, strokes: g.strokes, strokesName: 'les fils de la guirlande (gris foncé, trait fin), puis les pinces en bois (ocre clair cerné de gris) une fois les dessins collés', ground: o.ground || null, groundName: o.groundName || null, grain: o.grain, style, f: 1, scale: 1, kept: g.kept, total: g.total };
+    }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
       // toile nue (papier) ou aplat de peinture choisi
@@ -926,7 +1097,7 @@
     }
     const bg = [];
     let Z = zonesFor(W, H, true);
-    let mode = null, ground = null, lines = null;
+    let mode = null, ground = null, lines = null, post = null, po = o;
     if (style === 'tournesol') {
       Z = zonesFor(W, H, false);
       if (o.textures.length) backgroundPetals(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
@@ -951,6 +1122,27 @@
       if (o.textures.length) backgroundShards(W, H, o.textures, R, bg);
       // rosace : la pièce maîtresse au centre, puis deux anneaux
       mode = { targets: (idx, n) => { if (idx === 0) return { x: W / 2, y: H / 2, rot: 0, r: 0 }; const ring = idx <= 6 ? 1 : 2; const k = ring === 1 ? idx - 1 : idx - 7; const m = ring === 1 ? 6 : Math.max(1, n - 7); const a = (k / m) * Math.PI * 2 + (ring === 2 ? Math.PI / m : -Math.PI / 2); const rad = ring === 1 ? Math.min(W, H) * 0.27 : Math.min(W, H) * 0.44; return { x: W / 2 + Math.cos(a) * rad * (W / Math.min(W, H)) * 0.85, y: H / 2 + Math.sin(a) * rad, rot: 0, r: ring }; }, byRadius: true, tight: false };
+    } else if (style === 'arbre') {
+      Z = zonesFor(W, H, false);
+      bg.push(paperLayer(W, H));
+      const top = o.textures.length ? treeSoil(W, H, o.textures, R, bg) : H - 2;
+      // autant de fruits que le houppier en porte sans qu'ils se cachent : l'espacement suit la taille des sujets
+      const cnt = countFor(o, o.pieces.length);
+      const big = o.pieces.slice().sort((a, b) => b.wcm * b.hcm - a.wcm * a.hcm).slice(0, cnt);
+      const avg = big.reduce((a, p) => a + Math.max(p.wcm, p.hcm), 0) / Math.max(1, big.length);
+      const pts = crownPoints(W, H, top, R, avg * 0.72);
+      if (!o.everything && cnt > pts.length) po = Object.assign({}, o, { densityT: clamp((pts.length / o.pieces.length - 0.2) / 0.8, 0, 1) });
+      mode = { targets: (idx) => ({ x: pts[idx % pts.length].x, y: pts[idx % pts.length].y, rot: 0, r: idx }), byRadius: false, tight: false, spread: 0.5 };
+      post = (items) => ({ strokes: treeBranches(W, H, top, items), strokesName: 'le tronc et les branches de l’arbre (brun foncé, brosse plate pour le tronc, pinceau fin pour les rameaux), avant de coller les dessins' });
+    } else if (style === 'ronde') {
+      Z = zonesFor(W, H, false);
+      bg.push(paperLayer(W, H));
+      const rt = rondeTargets(W, H, o.pieces, o);
+      if (!o.everything) po = Object.assign({}, o, { densityT: clamp((rt.count / o.pieces.length - 0.2) / 0.8, 0, 1) });
+      // médaillon : la plus belle page de fond, entière, si elle tient dans l'anneau
+      const med = o.textures.slice().sort((a, b) => beautyOf(b) - beautyOf(a)).find((t) => t.wcm <= rt.inner.rx * 2 && t.hcm <= rt.inner.ry * 2);
+      if (med) bg.push({ kind: 'bg', panel: true, src: med.canvas, pageW: med.wcm, pageH: med.hcm, sx: 0, sy: 0, sw: med.canvas.width, sh: med.canvas.height, x: W / 2, y: H / 2, w: med.wcm, h: med.hcm, rot: 0, flip: false, clip: null, whole: true });
+      mode = { targets: rt.targets, byRadius: true, tight: false, spread: 0.5 };
     } else if (style === 'constellation') {
       if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
       Z = zonesFor(W, H, false);
@@ -966,13 +1158,14 @@
       if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
     }
     const maps = backgroundMaps(W, H, bg);
-    const items = placePieces(W, H, o.pieces, o, Z, R, mode, maps);
+    const items = placePieces(W, H, o.pieces, po, Z, R, mode, maps);
     // sans fond de peinture, la toile nue (papier) apparaît là où il n'y a pas de page
     if (o.ground) { for (let i = bg.length - 1; i >= 0; i--) if (bg[i].paper) bg.splice(i, 1); }
     const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
     if (ground) comp.ground = ground;
     else if (o.ground) { comp.ground = o.ground; comp.groundName = o.groundName || null; }
     if (style === 'vitrail') comp.lead = 0.5; // largeur du trait de plomb, en cm
+    if (post) Object.assign(comp, post(items));
     if (lines === 'chain') {
       // la constellation : chaque étoile reliée à sa plus proche voisine non encore reliée
       const pts = items.map((L) => ({ x: L.x, y: L.y }));
@@ -1144,6 +1337,7 @@
       });
       ctx.restore();
     }
+    if (comp.strokes) drawStrokes(ctx, comp.strokes.filter((st) => !st.above), s);
     if (comp.lines) {
       // traits de crayon reliant les étoiles de la constellation
       ctx.save();
@@ -1159,6 +1353,32 @@
 
   function renderItems(ctx, comp, s, shadows) {
     comp.items.forEach((L) => drawLayer(ctx, L, s, shadows));
+    if (comp.strokes) drawStrokes(ctx, comp.strokes.filter((st) => st.above), s);
+  }
+
+  // Traits peints (branches, fils) et petites formes pleines (pinces), en cm → pixels.
+  function drawStrokes(ctx, strokes, s) {
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    strokes.forEach((st) => {
+      const pts = st.pts;
+      if (st.taper) {
+        // branche qui s'affine : une suite de segments de largeur décroissante
+        ctx.strokeStyle = st.color;
+        for (let i = 1; i < pts.length; i++) {
+          const t = i / (pts.length - 1);
+          ctx.lineWidth = Math.max(0.3, st.width * (1 - t) + st.width / st.taper * t * 0.5) * s;
+          ctx.beginPath(); ctx.moveTo(pts[i - 1][0] * s, pts[i - 1][1] * s); ctx.lineTo(pts[i][0] * s, pts[i][1] * s); ctx.stroke();
+        }
+        return;
+      }
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x * s, y * s) : ctx.moveTo(x * s, y * s)));
+      if (st.closed) ctx.closePath();
+      if (st.fill) { ctx.fillStyle = st.fill; ctx.fill(); }
+      ctx.strokeStyle = st.color; ctx.lineWidth = st.width * s; ctx.stroke();
+    });
+    ctx.restore();
   }
 
   // Finition : grain de toile et léger vignettage, pour unifier le tout comme une œuvre.
@@ -1213,5 +1433,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng };
+  window.Compose = { generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, drawStrokes, hitItem, rng };
 })();
