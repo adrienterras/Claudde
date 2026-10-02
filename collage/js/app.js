@@ -972,13 +972,15 @@
         p.zone = ai.zone;
         p.grounded = p.main ? ai.pose : false;
         p.importance = p.main ? ai.importance : 1;
-        // place dans la scène (décision de Claude pour le sujet principal ; un second sujet vole ou pose selon sa zone)
-        p.place = p.main && PLACES.includes(ai.place) ? ai.place : (ai.pose && p.main ? 'sol' : ai.zone === 'sol' ? 'avant' : 'ciel');
+        // place dans la scène : décision de Claude pour le sujet principal ; un second sujet de la même
+        // page va au ciel seulement si la page est un ciel, sinon il se tient sur le sol
+        p.place = p.main && PLACES.includes(ai.place) ? ai.place : p.main ? (ai.pose ? 'sol' : ai.zone === 'ciel' ? 'ciel' : ai.zone === 'sol' ? 'avant' : 'sol') : (ai.zone === 'ciel' ? 'ciel' : 'sol');
       } else {
         p.grounded = p.base > 0.55 && p.frac > 0.05;
         p.zone = p.grounded ? (p.frac > 0.3 ? 'sol' : 'milieu') : (p.frac < 0.06 ? 'ciel' : 'milieu');
         p.importance = ranked.indexOf(p) < 3 ? 3 : 1;
-        p.place = p.grounded ? 'sol' : p.zone === 'sol' ? 'avant' : 'ciel';
+        // sans analyse : tout se tient sur le sol, sauf ce qui est franchement un ciel (petit, pâle, large)
+        p.place = p.grounded ? 'sol' : (p.frac < 0.06 && p.colorful < 0.25 && p.canvas.width > p.canvas.height * 1.3) ? 'ciel' : 'sol';
       }
     });
   }
@@ -1957,34 +1959,42 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     const chosen = list.slice().sort((a, b) => rank(b.p) - rank(a.p)).slice(0, cap);
     const nSheets = Math.min(limits.images.maxCount, Math.ceil(chosen.length / 20));
     const per = Math.ceil(chosen.length / nSheets);
-    const sheets = [];
-    for (let i = 0; i < chosen.length; i += per) sheets.push(await pieceSheet(chosen.slice(i, i + per), i));
     aiStatus(`Claude regarde les ${chosen.length} éléments découpés un par un…`);
-    const prompt = `Voici ${chosen.length} éléments découpés automatiquement aux ciseaux dans des dessins d'enfants (planches contact, le numéro est en haut à gauche de chaque case ; le blanc autour est le fond de la case, pas le dessin).
+    let n = 0;
+    // une planche par appel (charge légère), avec une seconde chance par planche
+    for (let i = 0; i < chosen.length; i += per) {
+      const batch = chosen.slice(i, i + per);
+      const sheet = await pieceSheet(batch, 0);
+      const prompt = `Voici ${batch.length} éléments découpés automatiquement aux ciseaux dans des dessins d'enfants (planche contact, le numéro est en haut à gauche de chaque case, de 1 à ${batch.length} ; le blanc autour est le fond de la case, pas le dessin).
 Ils serviront à composer une scène de paysage collée sur une toile : ciel en haut, horizon, une ligne de sol où les personnages se tiennent debout, premier plan en bas.
 
 Pour CHAQUE élément, décide :
 - "sujet" : ce qu'il représente, en 1 à 3 mots en français (ex. « nuage », « bonhomme », « soleil », « maison », « chat », « fleur », « arbre »).
 - "garder" : true si c'est un vrai sujet reconnaissable, même petit (personnage, animal, nuage, soleil, étoile, maison, arbre, fleur, véhicule, objet, cœur, arc-en-ciel…) ; false si c'est un fragment sans sens (tache, bord de feuille, trait isolé, morceau de décor coupé, texte seul, gribouillis d'essai).
-- "place" : "ciel" (vole ou brille : soleil, nuage, oiseau, étoiles, cœur volant, arc-en-ciel), "horizon" (montagnes, mer, paysage lointain), "sol" (debout sur le sol : personnage, animal, maison, véhicule, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson), "avant" (couché au bas : herbe, prairie, bande de fleurs, eau), "soussol" (sous la terre : racines, taupe).
+- "place" : "ciel" (UNIQUEMENT ce qui vole ou brille : soleil, nuage, oiseau, avion, étoiles, cœur volant, arc-en-ciel), "horizon" (montagnes, mer, paysage lointain), "sol" (debout sur le sol : personnage, enfant, animal, maison, véhicule, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson), "avant" (couché au bas : herbe, prairie, bande de fleurs, eau, poissons, bateaux, tout ce qui vit dans l'eau), "soussol" (sous la terre : racines, taupe). Un personnage, un animal ou un poisson ne va JAMAIS au ciel ; dans le doute, "sol".
 - "importance" : 3 pour les éléments les plus forts (grands personnages, pièces maîtresses), 2 pour les beaux sujets, 1 pour les petits éléments d'ambiance.
 
 Réponds uniquement avec ce JSON :
 {"elements": [{"n": 1, "sujet": "...", "garder": true, "place": "sol", "importance": 2}, ...]}`;
-    const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
-    const items = Array.isArray(res && res.elements) ? res.elements : [];
-    let n = 0;
-    items.forEach((it) => {
-      const e = chosen[Number(it.n) - 1];
-      if (!e) return;
-      e.p.ai = {
-        sujet: String(it.sujet || '').slice(0, 40),
-        garder: it.garder !== false,
-        place: PLACES.includes(it.place) ? it.place : 'sol',
-        importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
-      };
-      n++;
-    });
+      let res = null;
+      for (let attempt = 0; attempt < 2 && !res; attempt++) {
+        try { res = await sample.json(prompt, { images: [sheet], modelTier: 'default', cache: { gcTime: 86400000 } }); }
+        catch (e) { if (attempt || (e && e.code === 'not_granted')) throw e; await new Promise((r) => setTimeout(r, 3000)); }
+      }
+      const items = Array.isArray(res && res.elements) ? res.elements : [];
+      items.forEach((it) => {
+        const e = batch[Number(it.n) - 1];
+        if (!e) return;
+        e.p.ai = {
+          sujet: String(it.sujet || '').slice(0, 40),
+          garder: it.garder !== false,
+          place: PLACES.includes(it.place) ? it.place : 'sol',
+          importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
+        };
+        n++;
+      });
+      aiStatus(`Claude regarde les éléments découpés… ${Math.min(i + per, chosen.length)} / ${chosen.length}`);
+    }
     return n;
   }
 
@@ -2008,7 +2018,7 @@ Pour CHAQUE dessin, décide :
 - "role" : "fond" si c'est une page entièrement peinte ou colorée qui servira de grand papier de fond (on la collera entière, sans la découper) ; "decoupe" si c'est un sujet dessiné sur du papier qu'on découpera aux ciseaux autour du dessin.
 - "zone" : "ciel", "milieu" ou "sol", là où il a le plus de sens dans la scène (soleil, nuages, oiseaux, cœurs volants → ciel ; terre, herbe, racines, maisons, chapiteau, animaux au sol → sol ; le reste → milieu). Répartis les fonds pour que chaque zone en ait.
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
-- "place" : sa place dans une scène de paysage : "ciel" (ce qui vole ou brille : soleil, nuage, oiseau, étoiles, feu d'artifice, cœur volant, et les pages de fond bleues ou claires), "horizon" (un paysage lointain : montagnes, mer, page de paysage avec un horizon), "sol" (debout sur le sol : personnage, animal, maison, chapiteau, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson, grand feuillage), "avant" (premier plan couché au bas de la toile : herbe, prairie, bande de fleurs, eau), "soussol" (sous la terre : racines, galeries, taupes), "terre" (pour une page de fond brune, rouge ou sombre qui fera la terre).
+- "place" : sa place dans une scène de paysage : "ciel" (UNIQUEMENT ce qui vole ou brille : soleil, nuage, oiseau, avion, étoiles, feu d'artifice, cœur volant, arc-en-ciel, et les pages de fond bleues ou claires), "horizon" (un paysage lointain : montagnes, mer, page de paysage avec un horizon), "sol" (debout sur le sol : personnage, enfant, famille, animal, maison, chapiteau, véhicule, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson, grand feuillage), "avant" (premier plan couché au bas de la toile : herbe, prairie, bande de fleurs, eau, poissons, bateaux, tout ce qui vit dans l'eau), "soussol" (sous la terre : racines, galeries, taupes), "terre" (pour une page de fond brune, rouge ou sombre qui fera la terre). Un personnage ou un poisson ne va JAMAIS au ciel.
 - "photo_sol" : true si l'image est une PHOTO du dessin posé sur un sol, une table, du parquet, du carrelage, du bois (on voit la surface autour du dessin), false si c'est un scan ou une feuille vue seule.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
