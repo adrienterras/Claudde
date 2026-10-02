@@ -1266,6 +1266,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     state.bgCache = null;
     renderProposals();
     refreshPieces();
+    updateToolbar();
     render();
     updateExportInfo();
     updateLabel();
@@ -1617,6 +1618,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!comp || !L) return;
     if (L.kind === 'bg') {
       // page de fond : on la met devant ou derrière les autres pages, on la retourne, on la retire
+      if (name === 'bigger' || name === 'smaller') {
+        if (comp.style !== 'galerie') return;
+        const k = name === 'bigger' ? 1.1 : 1 / 1.1;
+        const f = clamp((L.scale || 1) * k, 0.1, 4);
+        L.scale = f; L.w = L.pageW * f; L.h = L.pageH * f;
+        comp.reduced = true;
+        state.bgCache = null; updateLabel(); render();
+        return;
+      }
       const i = comp.bg.indexOf(L);
       if (name === 'front') { comp.bg.splice(i, 1); comp.bg.push(L); }
       if (name === 'back') { comp.bg.splice(i, 1); comp.bg.splice(comp.bg.findIndex((q) => !q.paper), 0, L); }
@@ -1628,6 +1638,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       return;
     }
     if (name === 'edit') { editPiece(L.piece); return; }
+    // Galerie (impression) : la taille d'un dessin se règle à la main, par pas de 10 %
+    if (name === 'bigger' || name === 'smaller') {
+      if (comp.style !== 'galerie') return;
+      const k = name === 'bigger' ? 1.1 : 1 / 1.1;
+      const f = clamp((L.scale || 1) * k, 0.1, 4);
+      L.scale = f; L.w = L.piece.wcm * f; L.h = L.piece.hcm * f;
+      comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => (q.scale || 1) !== 1);
+      updateLabel();
+      render();
+      return;
+    }
     const i = comp.items.indexOf(L);
     if (name === 'front') { comp.items.splice(i, 1); comp.items.push(L); }
     if (name === 'back') { comp.items.splice(i, 1); comp.items.unshift(L); }
@@ -1649,9 +1670,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   function updateToolbar() {
     const L = state.selected;
+    const gallery = !!(state.comp && state.comp.style === 'galerie');
     document.querySelectorAll('#toolbar button').forEach((b) => {
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
+      // agrandir / réduire : seulement en Galerie, faite pour l'impression
+      if (b.classList.contains('gallery-only')) b.hidden = !gallery;
     });
   }
 
