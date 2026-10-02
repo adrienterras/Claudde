@@ -331,6 +331,8 @@
   // sinon celui de l'analyse d'image.
   function roleOf(d) {
     if (d.role !== 'auto') return d.role;
+    // un dessin photographié sur un sol et détouré est toujours une découpe (jamais une page entière)
+    if (d.photo && d.photoMode !== 'keep') return 'cutout';
     if (d.auto) return d.auto; // choix du plan de couverture
     if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
     // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
@@ -431,7 +433,7 @@
       return painted >= 0.5 || (painted >= 0.33 && (t.colorful || 0) >= 0.3);
     };
     const rest = cands.filter((d) => !paleOnes.includes(d));
-    rest.forEach((d) => { if (!bgEligible(d)) d.auto = 'cutout'; });
+    rest.forEach((d) => { if (!bgEligible(d) || (d.photo && d.photoMode !== 'keep')) d.auto = 'cutout'; });
     const ranked = rest.filter(bgEligible).sort((a, b) => bgMerit(b) - bgMerit(a));
     const forcedBg = state.drawings.filter((d) => d.role === 'texture').reduce((sum, d) => sum + pageAreaCm2(d), 0);
     const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => d.auto === 'texture' || d.analysis.kind === 'texture').length)) : 0;

@@ -964,9 +964,15 @@
       return seq;
     };
     const stand = (list, y0, maxW) => {
-      const rows = rowsOf(list, maxW);
+      if (!list.length) return;
+      // les rangées restent entre l'horizon et le sol : au-delà, elles se serrent au lieu de monter au ciel
+      const band = Math.max(4, y0 - yHor - 2);
+      const maxRows = Math.max(1, Math.floor(band / 6) + 1);
+      const total = list.reduce((a, p) => a + p.wcm, 0);
+      const rows = rowsOf(list, Math.max(maxW, total / maxRows + 1));
+      const step = rows.length > 1 ? Math.min(8, band / (rows.length - 1)) : 0;
       // rangées du fond d'abord (dessinées derrière), la première rangée en dernier (devant)
-      rows.slice().reverse().forEach((row, k) => spread(mix(row.list), y0 - (rows.length - 1 - k) * Math.min(8, H * 0.09)));
+      rows.slice().reverse().forEach((row, k) => spread(mix(row.list), y0 - (rows.length - 1 - k) * step));
     };
     stand(by('arriere'), yG - 2, W * 1.15);
     stand(by('sol'), yG, W * 1.12);
