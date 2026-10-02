@@ -46,9 +46,10 @@ cd collage && python3 -m http.server 8000
      seule une page plus grande que la toile est réduite, et son surplus déchiré en lambeaux ;
    - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
      colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
-     découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut — c'est signalé
-     dans le panneau (numéros), sur le cartel et sur la couverture du guide — et un réglage permet de
-     les coller en fond ; les pages de fond restent entières ;
+     découpe) ; les feuilles pâles (crayon gris : nuages, bonshommes, texte) sont découpées comme les
+     autres par défaut, leur contour faisant le sujet ; un réglage permet de les mettre de côté (c'est
+     alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
+     fond ; les pages de fond restent entières ;
    - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
      taille physique) montre le dessin posé sur du parquet, du bois, du carrelage ou un plan de
      travail, la surface est reconnue à la bordure (teinte bois, même très saturée comme un chêne
@@ -65,8 +66,10 @@ cd collage && python3 -m http.server 8000
    - **densité au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
      rejoignent le fond ; la rotation des découpes est fixe (réglage retiré) ;
-   - chaque dessin découpé apporte son sujet principal, plus un ou deux sujets secondaires seulement
-     s'ils sont grands (≥ 7 cm) et colorés ; les découpes gardent une marge de papier généreuse
+   - chaque dessin découpé apporte son sujet principal et tous ses autres éléments qui ressemblent
+     à un sujet (au moins 3 cm, même peu colorés : nuages au crayon, petits personnages) ; Claude,
+     s'il est disponible, regarde ensuite chaque élément un par un et écarte les fragments (taches,
+     bords de feuille, texte seul) ; les découpes gardent une marge de papier généreuse
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
@@ -106,7 +109,7 @@ cd collage && python3 -m http.server 8000
      la couleur à peindre ; le choix est mémorisé ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **six propositions, six styles**, à chaque fois :
+   - **six propositions, six styles** (Scène en premier, sélectionnée par défaut), à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en

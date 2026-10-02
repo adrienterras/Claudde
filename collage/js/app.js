@@ -334,7 +334,7 @@
     if (d.auto) return d.auto; // choix du plan de couverture
     if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
     // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
-    if (d.analysis.kind === 'cutout' && pale(d)) return 'texture';
+    if (d.analysis.kind === 'cutout' && pale(d)) return ($('pale') ? $('pale').value : 'decoupe') === 'decoupe' ? 'cutout' : 'texture';
     return d.analysis.kind;
   }
 
@@ -405,13 +405,20 @@
     const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
     // feuilles pâles : mises de côté par défaut ; au-delà de la mi-course du curseur de densité, elles
     // rejoignent le fond progressivement (les plus colorées d'abord), toutes au maximum
-    const paleMode = allIn() ? 'fond' : $('pale') ? $('pale').value : 'aside';
+    const paleMode = $('pale') ? $('pale').value : 'decoupe';
     const t = (Number($('density').value) - 0.5) / 1.3;
-    const share = paleMode === 'fond' ? 1 : paleMode === 'aside' ? clamp((t - 0.5) / 0.5, 0, 1) : 0;
-    const nPale = Math.round(paleOnes.length * share);
-    paleOnes.slice().sort((a, b) => (b.analysis.texture ? b.analysis.texture.colorful : 0) - (a.analysis.texture ? a.analysis.texture.colorful : 0))
-      .forEach((d, i) => { d.auto = i < nPale ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
-    state.paleCount = paleOnes.length;
+    if (paleMode === 'decoupe') {
+      // un dessin au crayon (nuage, bonhomme) se découpe comme les autres : son contour est le sujet
+      paleOnes.forEach((d) => { d.auto = 'cutout'; ensureMaterial(d); });
+      state.paleCount = 0;
+    } else {
+      const mode = allIn() ? 'fond' : paleMode;
+      const share = mode === 'fond' ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
+      const nPale = Math.round(paleOnes.length * share);
+      paleOnes.slice().sort((a, b) => (b.analysis.texture ? b.analysis.texture.colorful : 0) - (a.analysis.texture ? a.analysis.texture.colorful : 0))
+        .forEach((d, i) => { d.auto = i < nPale ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
+      state.paleCount = paleOnes.length;
+    }
     // seules les pages franchement peintes ou colorées peuvent faire le fond (comme sur l'exemple) ;
     // une feuille blanche avec un petit dessin reste une découpe
     const bgEligible = (d) => {
@@ -503,17 +510,17 @@
    * Tous les dessins entrent dans l'œuvre : chaque dessin découpé apporte son sujet principal
    * (sa plus grande pièce), plus ses autres sujets exploitables (colorés, pas des traits fins).
    */
-  const EXTRAS_PER_DRAWING = 2;
-  // Un sujet par dessin ; un second ou un troisième seulement s'il est grand (≥ 7 cm) et coloré,
-  // pour que chaque découpe reste lisible et que l'œuvre ne se couvre pas de confettis.
+  // Tous les sujets d'un dessin entrent par défaut : le principal (sa plus grande pièce) et chaque
+  // autre élément qui ressemble à un sujet (coloré, au moins 4 cm) : personnages, nuages, soleils…
+  // L'utilisateur peut en désactiver, et Claude écarte les fragments s'il a pu les regarder.
   function curateDrawing(d) {
     const ps = d.analysis.pieces || [];
     const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
     const c = cmPerPx(d);
-    const strong = (p) => eligible(p) && Math.max(p.canvas.width, p.canvas.height) * c >= 7 && p.colorful >= 0.3;
-    ps.forEach((p) => { p.enabled = false; p.main = false; });
-    ps.slice().sort((a, b) => rank(b) - rank(a)).filter((p) => p !== main && strong(p))
-      .forEach((p, i) => { p.enabled = i < EXTRAS_PER_DRAWING; });
+    // (seuil large : un nuage au crayon gris ou un petit bonhomme sont peu colorés mais sont des sujets)
+    const ar = (p) => p.canvas.width / p.canvas.height;
+    const subject = (p) => p.frac > 0.002 && p.colorful >= 0.04 && Math.min(ar(p), 1 / ar(p)) > 0.12 && Math.max(p.canvas.width, p.canvas.height) * c >= 3;
+    ps.forEach((p) => { p.enabled = subject(p); p.main = false; });
     if (main) { main.enabled = true; main.main = true; }
     // Claude a regardé chaque élément découpé : on garde tout ce qu'il reconnaît comme un vrai sujet
     // (personnage, nuage, soleil, animal…), même petit, et on écarte les fragments ; le sujet principal
@@ -911,7 +918,7 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
-    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté, comme sur l’exemple.` : '';
+    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'decoupe') === 'aside' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté, comme sur l’exemple.` : '';
     let txt;
     if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
@@ -1006,12 +1013,12 @@
 
   // Trois styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
+    { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
     { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
     { id: 'tournesol', name: 'Tournesol', hint: 'spirale depuis le cœur' },
     { id: 'courtepointe', name: 'Courtepointe', hint: 'patchwork, un médaillon par carreau' },
     { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
     { id: 'galerie', name: 'Galerie', hint: 'grille de cadres, un dessin par case' },
-    { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
   ];
 
   function regenerate() {
@@ -1933,8 +1940,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   /*
    * Second regard de Claude, élément par élément : chaque morceau découpé automatiquement dans les
    * dessins (même petit : un nuage, un soleil, un personnage secondaire) est reconnu, gardé ou
-   * écarté, et placé dans la scène. Sans ce passage, seuls le sujet principal et deux extras
-   * d'au moins 7 cm sont retenus par dessin.
+   * écarté, et placé dans la scène. Sans ce passage, tout élément qui ressemble à un sujet reste actif.
    */
   async function directPieces(sample, limits) {
     const list = [];
@@ -2052,10 +2058,11 @@ Réponds uniquement avec ce JSON :
       regenerate();
       // second passage : chaque élément découpé, un par un
       let np = 0;
-      try { np = await directPieces(sample, limits); } catch (e) { np = 0; }
+      let pieceErr = '';
+      try { np = await directPieces(sample, limits); } catch (e) { np = 0; pieceErr = (e && (e.code || e.message)) || 'erreur'; }
       curate();
       planCoverage();
-      aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length}${np ? ` et ${np} éléments découpés` : ''}, et placé chacun dans la scène.`);
+      aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length}${np ? ` et ${np} éléments découpés` : pieceErr ? ` (éléments découpés non regardés : ${pieceErr})` : ''}, et placé chacun dans la scène.`);
       refreshLists();
       regenerate();
     } catch (e) {
