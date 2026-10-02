@@ -1127,7 +1127,7 @@
     const c = state.comp;
     const count = c.total ? `${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? 'adaptés' : 'beaux'}` : `${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
     const aside = asideDrawings().length;
-    $('label-meta').textContent = `${st.name} · collage de ${count}${aside ? ` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · dessins à taille réelle`;
+    $('label-meta').textContent = `${st.name} · collage de ${count}${aside ? ` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${c.reduced ? 'dessins réduits pour tenir dans les cases (pour l’impression)' : 'dessins à taille réelle'}`;
     renderAside();
   }
 
@@ -1856,7 +1856,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const { jsPDF } = window.jspdf;
     const W = comp.W, H = comp.H;
     const doc = new jsPDF({ unit: 'cm', format: [W, H], orientation: W >= H ? 'landscape' : 'portrait', compress: true });
-    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(W)} × ${fmt(H)} cm, dessins à taille réelle` });
+    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(W)} × ${fmt(H)} cm, ${comp.reduced ? 'dessins réduits (impression)' : 'dessins à taille réelle'}` });
     const ground = comp.ground || '#f8f5ef';
     doc.setFillColor(ground);
     doc.rect(0, 0, W, H, 'F');

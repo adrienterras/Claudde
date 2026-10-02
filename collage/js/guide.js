@@ -243,7 +243,9 @@
         (comp.lead || comp.frames ? '6' : '5') + '. Laissez sécher sous un poids, puis passez une couche de vernis.',
       ].filter(Boolean).forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
       let y3 = Math.max(y1, y2) + 4;
-      y3 = wrap(ctx, `L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
+      y3 = wrap(ctx, comp.reduced
+        ? `Galerie : cette œuvre est destinée à l’impression. Les dessins sont réduits pour tenir dans leurs cases (jamais agrandis) ; les cotes des fiches de découpe correspondent aux originaux, pas à l’impression. Imprimez l’œuvre (PDF ou image) à ${fmt(comp.W)} × ${fmt(comp.H)} cm.`
+        : `L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
       pages.push({ pg, section: 'Couverture' });
     }
 

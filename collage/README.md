@@ -122,10 +122,11 @@ cd collage && python3 -m http.server 8000
      alternant claires et foncées comme un damier cousu ; une découpe posée en médaillon au centre
      de chaque carreau, les plus grandes sur les plus grands carreaux),
      *Galerie* (une grille régulière de cases carrées cernées d'un trait noir fin de 0,8 mm, un sujet
-     par case, le nombre de cases suivant le curseur de densité,
-     comme une planche de personnages encadrée : l'app retient les sujets les plus adaptés, un par
-     dessin, et le plus grand nombre de cases que la toile permet à taille réelle — le nombre de
-     dessins dépend donc de la toile),
+     par case, le nombre de cases suivant le curseur de densité, comme une planche de personnages
+     encadrée ; ce style est fait pour l'impression : un dessin trop grand pour sa case est réduit,
+     jamais agrandi, si bien qu'au maximum du curseur tous les dessins tiennent, quelle que soit la
+     toile ; le cartel et le guide le signalent, c'est le seul style qui ne respecte pas la taille
+     réelle),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
      *Scène* (une scène est une sélection : au plus 18 sujets, les plus nets et colorés, un sujet

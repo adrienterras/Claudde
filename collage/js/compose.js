@@ -857,30 +857,33 @@
    * dessin, colorés, plutôt dressés) et le plus grand nombre de cases que la toile permet en
    * gardant chaque sujet à sa taille réelle ; le nombre de dessins dépend donc de la toile.
    */
-  function gallery(W, H, pieces, o, R) {
+  function gallery(W, H, pieces, o, R, texs) {
     const M = 3, gap = 1.6, pad = 1.6;
     const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0)
       + (p.hcm / p.wcm >= 0.8 && p.hcm / p.wcm <= 2.4 ? 0.6 : 0) + Math.min(1, (p.wcm * p.hcm) / 600) * 0.5;
-    // un sujet par dessin : le meilleur de chaque
+    // un sujet par dessin : le meilleur de chaque ; les pages de fond entrent aussi, entières, dans leur case
     const byDrawing = new Map();
     pieces.forEach((p) => { const d = p.drawing || p; if (!byDrawing.has(d) || beauty(p) > beauty(byDrawing.get(d))) byDrawing.set(d, p); });
+    (texs || []).forEach((t) => { const d = t.drawing || t; if (!byDrawing.has(d)) byDrawing.set(d, Object.assign({ page: true }, t, { importance: t.importance === undefined ? 1 : t.importance, main: true })); });
     const cands = [...byDrawing.values()].sort((a, b) => beauty(b) - beauty(a));
     if (!cands.length) return { items: [], frames: [], kept: 0 };
-    // le curseur de densité règle le nombre de cases visées (toutes au maximum)
+    // le curseur de densité règle le nombre de cases visées (toutes au maximum). La Galerie est faite
+    // pour l'impression : un dessin trop grand pour sa case est réduit (jamais agrandi), si bien que
+    // tous les dessins tiennent, quelle que soit la toile.
     const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
     const target = o.everything ? cands.length : Math.max(1, Math.round(cands.length * (0.2 + 0.8 * t)));
     // cases carrées : pour N cases, la grille la plus proche des proportions de la toile, et le plus
-    // grand côté de case qui tient ; si les sujets ne tiennent pas à taille réelle, on vise moins de cases
+    // grand côté de case qui tient ; on préfère les sujets qui tiennent à taille réelle
     let best = null;
     for (let N = target; N >= 1 && !best; N--) {
       const cols = Math.max(1, Math.round(Math.sqrt((N * W) / H)));
       const rows = Math.ceil(N / cols);
       const side = Math.min((W - 2 * M - (cols - 1) * gap) / cols, (H - 2 * M - (rows - 1) * gap) / rows);
-      if (side < 6) continue;
+      if (side < 2.5) continue;
       const fillOf = (p) => Math.max(p.wcm, p.hcm) / (side - 2 * pad);
-      const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0); };
-      const fit = cands.filter((p) => fillOf(p) <= 1).sort((a, b) => cellScore(b) - cellScore(a));
-      if (fit.length >= N) best = { N, cols, rows, side, fit: fit.slice(0, N) };
+      const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0) + (f <= 1 ? 1 : 0); };
+      const fit = cands.slice().sort((a, b) => cellScore(b) - cellScore(a));
+      best = { N, cols, rows, side, fit: fit.slice(0, N), inner: side - 2 * pad };
     }
     if (!best) return { items: [], frames: [], kept: 0 };
     // grille centrée sur la toile ; la dernière rangée, si elle est incomplète, est centrée aussi
@@ -889,17 +892,25 @@
     const gridW = cols * side + (cols - 1) * gap, gridH = rows * side + (rows - 1) * gap;
     const x0g = (W - gridW) / 2, y0g = (H - gridH) / 2;
     const order = shuffle(best.fit, R);
-    const items = [], frames = [];
+    const items = [], frames = [], bg = [];
+    let reduced = false;
     order.forEach((p, i) => {
       const r = Math.floor(i / cols);
       const inRow = r === rows - 1 ? N - r * cols : cols;
       const c = i - r * cols;
       const x0 = x0g + (cols - inRow) * (side + gap) / 2 + c * (side + gap), y0 = y0g + r * (side + gap);
       frames.push({ x: x0, y: y0, w: side, h: side });
+      // réduit pour tenir dans la case (jamais agrandi)
+      const f = Math.min(1, best.inner / Math.max(p.wcm, p.hcm));
+      if (f < 1) reduced = true;
+      if (p.page) {
+        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f });
+        return;
+      }
       p.placed = true;
-      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm, h: p.hcm, rot: 0, flip: false });
+      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f });
     });
-    return { items, frames, kept: items.length, cols, rows };
+    return { items, bg, frames, kept: items.length + bg.length, cols, rows, reduced };
   }
 
 
@@ -1050,11 +1061,10 @@
     const R = rng(o.seed);
     const style = o.style || 'paysage';
     if (style === 'galerie') {
-      const g = gallery(W, H, o.pieces, o, R);
+      const g = gallery(W, H, o.pieces, o, R, o.textures);
       const total = new Set(o.textures.map((t) => t.drawing).concat(o.pieces.map((p) => p.drawing)).filter(Boolean)).size;
-      // fond blanc, sans finition toile : une planche encadrée, pas une toile peinte
       // fond blanc, fixe : ni couleur ni effet peinture, ni finition toile — une planche encadrée
-      return { W, H, bg: [], items: g.items, frames: g.frames, frameWidth: 0.08, ground: '#fbfaf6', paint: false, grain: false, style, f: 1, scale: 1, kept: g.kept, total };
+      return { W, H, bg: g.bg || [], items: g.items, frames: g.frames, frameWidth: 0.08, ground: '#fbfaf6', paint: false, grain: false, style, f: 1, scale: 1, kept: g.kept, total, reduced: !!g.reduced };
     }
     if (style === 'scene') {
       const sc = scene(W, H, o.textures, o.pieces, o, R);
