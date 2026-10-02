@@ -903,12 +903,94 @@
   }
 
 
+
+  /*
+   * Scène : une vraie scène de paysage d'après ce que Claude a vu dans chaque dessin (place) :
+   * le ciel en haut (pages de ciel à plat le long du bord haut, ce qui vole posé dessus), les pages
+   * d'horizon entre ciel et sol, une ligne de sol où tout ce qui est debout pose les pieds (arbres
+   * et décors derrière, personnages devant), le premier plan (herbe, prairies) couché sur le bord
+   * bas, et ce qui vit sous terre enfoncé dans le bord bas. Sans place connue, les zones servent.
+   */
+  function scene(W, H, texs, pieces, o, R) {
+    const imp = (p) => (p.importance === undefined ? 1 : p.importance) * 2 + (p.colorful || 0) + (p.main ? 0.5 : 0);
+    const place = (p) => p.place || (p.grounded ? 'sol' : p.zone === 'ciel' ? 'ciel' : p.zone === 'sol' ? 'avant' : 'ciel');
+    const tplace = (t) => t.place || (t.zone === 'ciel' ? 'ciel' : t.zone === 'sol' ? 'terre' : 'horizon');
+    const page = (t, x, y, rot) => ({ kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm, sx: 0, sy: 0, sw: t.canvas.width, sh: t.canvas.height, x, y, w: t.wcm, h: t.hcm, rot: rot || 0, flip: false, clip: null, whole: true });
+    const item = (p, x, y, rot) => { p.placed = true; return { kind: 'piece', piece: p, x, y, w: p.wcm, h: p.hcm, rot: rot || 0, flip: false }; };
+    const bg = [], items = [];
+    const yHor = H * 0.55, yG = H * 0.78;
+    // pages plus grandes que la toile : écartées (elles ne se collent pas entières)
+    const T = texs.filter((t) => t.wcm <= W && t.hcm <= H * 0.7);
+    const spreadX = (n, a, b) => (i) => (n > 1 ? W * (a + (b - a) * (i / (n - 1))) : W / 2);
+    // --- ciel : pages à plat le long du bord haut, en partie hors toile
+    const sky = T.filter((t) => tplace(t) === 'ciel');
+    const sum = sky.reduce((a, t) => a + t.wcm, 0);
+    const x0 = (W - Math.min(W, sum * 0.9)) / 2;
+    const step = sky.length > 1 ? (W - x0 * 2 - sky[sky.length - 1].wcm) / (sky.length - 1) : 0;
+    sky.forEach((t, i) => bg.push(page(t, x0 + t.wcm / 2 + i * step, t.hcm * 0.3 + (R() - 0.5) * 2, (R() - 0.5) * 0.1)));
+    // --- horizon : pages de paysage entre ciel et sol
+    const hor = T.filter((t) => tplace(t) === 'horizon');
+    const hx = spreadX(hor.length, 0.22, 0.78);
+    hor.forEach((t, i) => bg.push(page(t, hx(i), yG - 9 - t.hcm / 2, (R() - 0.5) * 0.06)));
+    // --- terre : pages enfoncées dans le bord bas
+    const earth = T.filter((t) => tplace(t) === 'terre');
+    const ex = spreadX(earth.length, 0.2, 0.8);
+    earth.forEach((t, i) => bg.push(page(t, ex(i), H - t.hcm * 0.3, (R() - 0.5) * 0.06)));
+    // --- densité : le curseur règle le nombre de découpes, des plus importantes aux moins
+    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
+    const count = o.everything ? pieces.length : Math.max(1, Math.round(pieces.length * (0.2 + 0.8 * t)));
+    const chosen = pieces.slice().sort((a, b) => imp(b) - imp(a)).slice(0, count);
+    const by = (k) => chosen.filter((p) => place(p) === k);
+    // --- sous-sol : enfoncé dans le bord bas, sous le premier plan
+    const under = by('soussol');
+    const ux = spreadX(under.length, 0.25, 0.75);
+    under.forEach((p, i) => items.push(item(p, ux(i), H - p.hcm * 0.35, (R() - 0.5) * 0.04)));
+    // --- sol : debout, pieds sur la ligne de sol ; décors derrière, personnages devant
+    const spread = (list, y0) => {
+      if (!list.length) return;
+      const tw = list.reduce((a, p) => a + p.wcm, 0);
+      const gap = (W - 4 - tw) / Math.max(1, list.length - 1); // négatif : chevauchement
+      let cx = 2 + list[0].wcm / 2;
+      list.forEach((p, i) => { items.push(item(p, cx, y0 - p.hcm / 2, (R() - 0.5) * 0.05)); cx += p.wcm / 2 + gap + (list[i + 1] ? list[i + 1].wcm / 2 : 0); });
+    };
+    const fit = (list, maxW) => { // on retire les moins importants tant que ça se chevauche trop
+      let keep = list.slice();
+      while (keep.length > 2 && keep.reduce((a, p) => a + p.wcm, 0) > maxW) { const weakest = keep.reduce((m, p) => (imp(p) < imp(m) ? p : m), keep[0]); keep = keep.filter((p) => p !== weakest); }
+      return keep;
+    };
+    const mix = (list) => { // grands et petits alternés depuis le centre
+      const byH = list.slice().sort((a, b) => b.hcm - a.hcm); const seq = [];
+      byH.forEach((p, i) => (i % 2 ? seq.push(p) : seq.unshift(p)));
+      return seq;
+    };
+    spread(mix(fit(by('arriere'), W * (o.everything ? 1.6 : 1.15))), yG - 2);
+    spread(mix(fit(by('sol'), W * (o.everything ? 1.6 : 1.12))), yG);
+    // --- premier plan : couché sur le bord bas
+    const fg = by('avant');
+    const fx = spreadX(fg.length, 0.12, 0.88);
+    fg.forEach((p, i) => items.push(item(p, fx(i), H - p.hcm * 0.42, (R() - 0.5) * 0.04)));
+    // --- ciel : ce qui vole, sans se recouvrir
+    const placed = [];
+    by('ciel').forEach((p) => {
+      let best = null;
+      for (let k = 0; k < 300; k++) {
+        const c = { x: p.wcm / 2 + 2 + R() * Math.max(1, W - p.wcm - 4), y: p.hcm / 2 + 1 + R() * Math.max(1, yHor - p.hcm - 2), w: p.wcm, h: p.hcm };
+        const over = placed.reduce((a, q) => a + (Math.abs(c.x - q.x) < (c.w + q.w) / 2 && Math.abs(c.y - q.y) < (c.h + q.h) / 2 ? 1 : 0), 0);
+        const score = over * 5 + R();
+        if (!best || score < best.score) best = Object.assign(c, { score });
+      }
+      placed.push(best); items.push(item(p, best.x, best.y, (R() - 0.5) * 0.2));
+    });
+    const drawingsOf = (l) => new Set(l.map((e) => e.drawing).filter(Boolean)).size;
+    return { bg, items, kept: drawingsOf(T.concat(items.map((L) => L.piece))), total: drawingsOf(texs.concat(pieces)) };
+  }
+
   function paperLayer(W, H) {
     const c = paperTexture();
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan).
   function generate(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
@@ -919,6 +1001,10 @@
       // fond blanc, sans finition toile : une planche encadrée, pas une toile peinte
       // fond blanc, fixe : ni couleur ni effet peinture, ni finition toile — une planche encadrée
       return { W, H, bg: [], items: g.items, frames: g.frames, frameWidth: 0.08, ground: '#fbfaf6', paint: false, grain: false, style, f: 1, scale: 1, kept: g.kept, total };
+    }
+    if (style === 'scene') {
+      const sc = scene(W, H, o.textures, o.pieces, o, R);
+      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...sc.bg], items: sc.items, ground: o.ground || null, groundName: o.groundName || null, grain: o.grain, style, f: 1, scale: 1, kept: sc.kept, total: sc.total };
     }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);

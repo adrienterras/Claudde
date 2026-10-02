@@ -930,6 +930,7 @@
 
   // Où va chaque élément dans la scène : décision de Claude si disponible, sinon règles simples.
   const ZONES = ['ciel', 'milieu', 'sol'];
+  const PLACES = ['ciel', 'horizon', 'sol', 'arriere', 'avant', 'soussol'];
   function direct(textures, pieces) {
     const noAi = textures.filter((t) => !t.drawing.ai);
     const sky = (t) => t.lum / 255 + (t.color[2] - t.color[0]) / 255;
@@ -940,6 +941,9 @@
       if (t.drawing.ai) { t.zone = t.drawing.ai.zone; t.importance = t.drawing.ai.importance; }
       // une page pâle (crayon gris, texte) fait un ciel de papier, tout dessous
       if ((t.colorful || 0) < 0.12) { t.zone = 'ciel'; t.importance = 0; }
+      // place dans la scène : ciel, horizon ou terre
+      const ap = t.drawing.ai && t.drawing.ai.place;
+      t.place = ap === 'ciel' || ap === 'horizon' ? ap : ap === 'terre' || ap === 'sol' || ap === 'avant' || ap === 'soussol' ? 'terre' : (t.zone === 'ciel' ? 'ciel' : t.zone === 'sol' ? 'terre' : 'horizon');
     });
     const ranked = pieces.slice().sort((a, b) => rank(b) - rank(a));
     pieces.forEach((p) => {
@@ -948,10 +952,13 @@
         p.zone = ai.zone;
         p.grounded = p.main ? ai.pose : false;
         p.importance = p.main ? ai.importance : 1;
+        // place dans la scène (décision de Claude pour le sujet principal ; un second sujet vole ou pose selon sa zone)
+        p.place = p.main && PLACES.includes(ai.place) ? ai.place : (ai.pose && p.main ? 'sol' : ai.zone === 'sol' ? 'avant' : 'ciel');
       } else {
         p.grounded = p.base > 0.55 && p.frac > 0.05;
         p.zone = p.grounded ? (p.frac > 0.3 ? 'sol' : 'milieu') : (p.frac < 0.06 ? 'ciel' : 'milieu');
         p.importance = ranked.indexOf(p) < 3 ? 3 : 1;
+        p.place = p.grounded ? 'sol' : p.zone === 'sol' ? 'avant' : 'ciel';
       }
     });
   }
@@ -991,6 +998,7 @@
     { id: 'courtepointe', name: 'Courtepointe', hint: 'patchwork, un médaillon par carreau' },
     { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
     { id: 'galerie', name: 'Galerie', hint: 'grille de cadres, un dessin par case' },
+    { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
   ];
 
   function regenerate() {
@@ -1905,14 +1913,15 @@ Pour CHAQUE dessin, décide :
 - "role" : "fond" si c'est une page entièrement peinte ou colorée qui servira de grand papier de fond (on la collera entière, sans la découper) ; "decoupe" si c'est un sujet dessiné sur du papier qu'on découpera aux ciseaux autour du dessin.
 - "zone" : "ciel", "milieu" ou "sol", là où il a le plus de sens dans la scène (soleil, nuages, oiseaux, cœurs volants → ciel ; terre, herbe, racines, maisons, chapiteau, animaux au sol → sol ; le reste → milieu). Répartis les fonds pour que chaque zone en ait.
 - "pose" : true si le sujet repose naturellement sur le sol (maison, arbre, personnage debout, bougie), false s'il flotte.
+- "place" : sa place dans une scène de paysage : "ciel" (ce qui vole ou brille : soleil, nuage, oiseau, étoiles, feu d'artifice, cœur volant, et les pages de fond bleues ou claires), "horizon" (un paysage lointain : montagnes, mer, page de paysage avec un horizon), "sol" (debout sur le sol : personnage, animal, maison, chapiteau, bougie, fleur dressée), "arriere" (décor derrière les personnages : arbre, buisson, grand feuillage), "avant" (premier plan couché au bas de la toile : herbe, prairie, bande de fleurs, eau), "soussol" (sous la terre : racines, galeries, taupes), "terre" (pour une page de fond brune, rouge ou sombre qui fera la terre).
 - "photo_sol" : true si l'image est une PHOTO du dessin posé sur un sol, une table, du parquet, du carrelage, du bois (on voit la surface autour du dessin), false si c'est un scan ou une feuille vue seule.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
-L'œuvre sera proposée dans cinq styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « courtepointe » (un patchwork : les pages de fond en carreaux clairs et foncés, une découpe posée en médaillon au centre de chaque carreau), « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées) et « galerie » (une grille régulière de cases blanches cernées de noir, un personnage ou un sujet par case, comme une planche encadrée).
+L'œuvre sera proposée dans six styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « courtepointe » (un patchwork : les pages de fond en carreaux clairs et foncés, une découpe posée en médaillon au centre de chaque carreau), « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées), « galerie » (une grille régulière de cases blanches cernées de noir, un personnage ou un sujet par case, comme une planche encadrée) et « scene » (une vraie scène : les pages de ciel en haut avec ce qui vole, les pages d'horizon, tout ce qui est debout les pieds sur une même ligne de sol, le premier plan en bas).
 Propose pour chacun un titre poétique et court (2 à 6 mots, en français), inspiré des dessins.
 
 Réponds uniquement avec ce JSON :
-{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "photo_sol": false, "importance": 2}, ...]}`;
+{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "...", "scene": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "place": "sol", "photo_sol": false, "importance": 2}, ...]}`;
     try {
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
@@ -1925,6 +1934,7 @@ Réponds uniquement avec ce JSON :
           role: it.role === 'fond' ? 'fond' : 'decoupe',
           zone: ZONES.includes(it.zone) ? it.zone : 'milieu',
           pose: it.pose === true,
+          place: ['ciel', 'horizon', 'sol', 'arriere', 'avant', 'soussol', 'terre'].includes(it.place) ? it.place : null,
           importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
         };
         // Claude a vu un dessin photographié sur un sol ou une table que la détection a manqué : on force le détourage

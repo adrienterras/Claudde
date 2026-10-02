@@ -106,7 +106,7 @@ cd collage && python3 -m http.server 8000
      la couleur à peindre ; le choix est mémorisé ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **cinq propositions, cinq styles**, à chaque fois :
+   - **six propositions, six styles**, à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
@@ -118,7 +118,13 @@ cd collage && python3 -m http.server 8000
      dessin, et le plus grand nombre de cases que la toile permet à taille réelle — le nombre de
      dessins dépend donc de la toile),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
-     sans chevauchement : ceux qui n'y tiennent pas restent disponibles) ;
+     sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
+     *Scène* (une vraie scène d'après ce que Claude a vu dans chaque dessin, sa « place » : les pages
+     de ciel à plat le long du bord haut avec ce qui vole posé dessus, les pages d'horizon entre ciel
+     et sol, une ligne de sol où tout ce qui est debout pose les pieds, arbres et décors derrière,
+     personnages devant, le premier plan (herbe, prairies) couché sur le bord bas, le sous-sol et les
+     pages de terre enfoncés dans le bord bas ; quand la largeur manque, les sujets les moins
+     importants s'écartent, sauf au maximum de densité ; sans Claude, les zones et la pose servent) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
