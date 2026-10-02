@@ -54,7 +54,9 @@ cd collage && python3 -m http.server 8000
      travail, la surface est reconnue à la bordure (teinte bois ou neutre, unie ou structurée par des
      joints), puis retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. C'est
      signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
-     entière) et sur la fiche de découpe ;
+     entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
+     une bordure blanche et n'est pas concerné) ; si elle ne reconnaît pas la surface, le bouton
+     « Retirer le fond autour du dessin » force le détourage d'après la couleur de bordure ;
    - **densité** (curseur sous l'aperçu de l'œuvre, avec le nombre de dessins utilisés) : le curseur
      règle le nombre de sujets posés, des plus forts aux plus faibles, de 20 % au minimum jusqu'à tous ;
    - **densité au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de

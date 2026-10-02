@@ -412,7 +412,7 @@
    * Retourne null si l'image n'est pas une photo sur une surface, sinon la page nettoyée :
    * le dessin détouré sur un fond blanc, recadré.
    */
-  function removeSurface(src) {
+  function removeSurface(src, force) {
     const work = scaleTo(src, WORK_MAX);
     const w = work.width, h = work.height, n = w * h;
     const d = ctx2d(work).getImageData(0, 0, w, h).data;
@@ -427,8 +427,9 @@
       hue = (hue * 60 + 360) % 360;
     }
     const neutral = S < 0.18 && L < 228;                 // gris, béton, plan de travail
-    const wood = S >= 0.18 && S < 0.75 && hue >= 10 && hue <= 48 && L < 200; // bois, parquet, liège
-    if (!neutral && !wood) return null;
+    const wood = S >= 0.15 && S < 0.72 && hue >= 8 && hue <= 50 && L < 215; // bois, parquet, liège, chêne clair (une feuille jaune vif est plus saturée)
+    // forcé par l'utilisateur : on fait confiance à la couleur de bordure, quelle qu'elle soit
+    if (!neutral && !wood && !force) return null;
 
     // chromaticité (indépendante de l'éclairage) et luminance de chaque pixel
     const chroma = (i) => { const t = d[i] + d[i + 1] + d[i + 2] || 1; return [d[i] / t, d[i + 1] / t]; };
@@ -462,7 +463,7 @@
     const surfFrac = surfCount / n;
     if (surfFrac < 0.15 || surfFrac > 0.97) return null;
     // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
-    if (q(dl, 0.9) > 60 || q(dc, 0.9) > 0.09) return null;
+    if (!force && (q(dl, 0.9) > (wood ? 85 : 60) || q(dc, 0.9) > (wood ? 0.12 : 0.09))) return null;
     // Une vraie surface est soit très unie (plan de travail), soit structurée par de longs traits
     // sombres (lames de parquet, joints de carrelage). Une page peinte ne l'est pas.
     const uniform = q(dl, 0.9) < 16 && q(dc, 0.9) < 0.02;
@@ -476,7 +477,7 @@
       });
     }
     removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), surfFrac: +surfFrac.toFixed(2), uniform, lines, dl90: Math.round(q(dl, 0.9)), dc90: +q(dc, 0.9).toFixed(3) };
-    if (!uniform && lines < 1) return null;
+    if (!uniform && lines < 1 && !force) return null;
     const unit = Math.max(w, h);
     // fermeture (relie le dessin), bouchage des trous, ouverture (efface les veines isolées)
     let mask = dilate(obj, w, h, unit * 0.008);
@@ -495,7 +496,8 @@
     // des taches éparses sur un papier kraft ne sont pas un dessin posé sur un sol
     const touches = [x0 <= 1, y0 <= 1, x1 >= w - 2, y1 >= h - 2].filter(Boolean).length;
     Object.assign(removeSurface.debug, { touches, fill: +(area / ((x1 - x0 + 1) * (y1 - y0 + 1))).toFixed(2), objFrac: +(area / n).toFixed(2) });
-    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
+    // et il occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
+    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4 || (area < 0.1 * n && !force)) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const fin = erode(new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0))), w, h, unit * 0.004);
 
@@ -529,7 +531,7 @@
     opts = opts || {};
     if (depth === 0 && opts.photo) {
       // photo d'un dessin posé sur un sol ou une table : on retire la surface
-      const cleaned = removeSurface(src);
+      const cleaned = removeSurface(src, !!opts.force);
       if (cleaned) {
         const r = analyze(cleaned.canvas, 0, {});
         r.photo = cleaned.surface;
