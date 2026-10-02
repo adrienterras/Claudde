@@ -510,7 +510,7 @@
     });
     dc.sort((a, b) => a - b); dl.sort((a, b) => a - b);
     const q = (arr, f) => arr[Math.min(arr.length - 1, Math.floor(arr.length * f))];
-    const cTol = Math.min(0.09, Math.max(0.028, q(dc, 0.9) * 1.6));
+    const cTol = Math.min(0.12, Math.max(0.028, q(dc, 0.9) * 1.6));
     const lTol = Math.min(120, Math.max(48, q(dl, 0.9) * 1.8));
     const obj = new Uint8Array(n), joint = new Uint8Array(n);
     let surfCount = 0, paperCount = 0;
@@ -568,7 +568,11 @@
     mask = erode(mask, w, h, unit * 0.012);
     mask = dilate(mask, w, h, unit * 0.012);
     const { labels, comps } = components(mask, w, h);
-    const keep = comps.filter((c) => c.area >= 0.03 * n);
+    // le dessin : la plus grande forme, et celles qui en sont proches en taille ; des reflets ou des
+    // taches claires du sol, petits et isolés, ne comptent pas
+    const biggest = comps.reduce((m, c) => (!m || c.area > m.area ? c : m), null);
+    const ownFill = (c) => c.area / ((c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1));
+    const keep = comps.filter((c) => c.area >= 0.03 * n && (c === biggest || (c.area >= 0.3 * biggest.area && ownFill(c) >= 0.35)));
     if (!keep.length) return null;
     const ids = new Set(keep.map((c) => c.id));
     // un dessin posé sur un sol est une forme pleine (feuille ou découpe) ; des traits sur une feuille
@@ -605,7 +609,9 @@
     });
     Object.assign(removeSurface.debug, { edgeSurf: +edgeSurf.toFixed(2) });
     if (!force && touches >= 3 && !(paperFrac >= 0.35 && solid >= 0.8 && surfFrac >= 0.12 && edgeSurf >= 0.92)) return null;
-    if (!force && area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
+    // une forme fine et oblique (une fleur avec sa tige) remplit peu sa boîte : on l'accepte si elle est pleine et posée sur un sol à joints
+    const fillBox = area / ((x1 - x0 + 1) * (y1 - y0 + 1));
+    if (!force && fillBox < 0.4 && !(fillBox >= 0.2 && solid >= 0.85 && lines >= 1)) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const finMask = new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0)));
     if (wood) {
