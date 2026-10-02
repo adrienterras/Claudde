@@ -437,7 +437,7 @@
     }
     removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), gate: 'couleur' };
     const neutral = S < 0.18 && L < 228;                 // gris, béton, plan de travail
-    const wood = S >= 0.15 && S < 0.66 && hue >= 8 && hue <= 50 && L < 215; // bois, parquet, liège, chêne clair (une feuille jaune vif est plus saturée)
+    const wood = S >= 0.15 && S < 0.88 && hue >= 8 && hue <= 52 && L < 225; // bois, parquet, liège, chêne verni (la structure en lames tranche ensuite)
     // forcé par l'utilisateur : on fait confiance à la couleur de bordure, quelle qu'elle soit
     if (!neutral && !wood && !force) return null;
 
@@ -457,7 +457,7 @@
     const cTol = Math.min(0.09, Math.max(0.028, q(dc, 0.9) * 1.6));
     const lTol = Math.min(120, Math.max(48, q(dl, 0.9) * 1.8));
     const obj = new Uint8Array(n), joint = new Uint8Array(n);
-    let surfCount = 0;
+    let surfCount = 0, paperCount = 0;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const c = chroma(i);
       const dch = Math.hypot(c[0] - cr, c[1] - cg);
@@ -468,11 +468,14 @@
       const dark = l < L * 0.6 && (s < 0.45 || dch < cTol * 1.5) && dch < cTol * 2.2;
       const same = dch < cTol && l < L + lTol;
       if (same || dark) { surfCount++; if (dark || l < L * 0.62) joint[p] = 1; }
-      else obj[p] = 1;
+      else { obj[p] = 1; if (s < 0.22 && l > Math.max(165, L + 12)) paperCount++; }
     }
+    // part de papier (clair, peu saturé) dans ce qui n'est pas la surface : un dessin posé sur un sol
+    // est une feuille blanche ; des traits sur une feuille de couleur n'en contiennent pas
+    const paperFrac = paperCount / Math.max(1, n - surfCount);
     const surfFrac = surfCount / n;
     Object.assign(removeSurface.debug, { surfFrac: +surfFrac.toFixed(2), gate: 'surface' });
-    if (surfFrac < 0.15 || surfFrac > 0.97) return null;
+    if (surfFrac < 0.08 || surfFrac > 0.97) return null;
     // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
     // une bordure disparate (lames sombres, veines marquées) n'est acceptée que si elle est structurée
     // par de vrais joints (voir plus bas) ; au-delà, c'est une page peinte jusqu'aux bords
@@ -483,16 +486,21 @@
     // sombres (lames de parquet, joints de carrelage). Une page peinte ne l'est pas.
     const uniform = q(dl, 0.9) < 16 && q(dc, 0.9) < 0.02;
     let lines = 0;
+    const lineComps = [];
     if (!uniform) {
       const jc = components(joint, w, h).comps;
       const unit0 = Math.max(w, h);
       jc.forEach((c) => {
         const bw = c.x1 - c.x0 + 1, bh = c.y1 - c.y0 + 1;
-        if (Math.max(bw, bh) >= 0.22 * unit0 && (Math.min(bw, bh) <= 0.04 * unit0 || c.area / (bw * bh) < 0.4) && c.area > 0.0006 * n) lines++;
+        if (Math.max(bw, bh) >= 0.22 * unit0 && (Math.min(bw, bh) <= 0.04 * unit0 || c.area / (bw * bh) < 0.4) && c.area > 0.0006 * n) { lines++; lineComps.push(c); }
       });
     }
-    removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), surfFrac: +surfFrac.toFixed(2), uniform, lines, dl90: Math.round(q(dl, 0.9)), dc90: +q(dc, 0.9).toFixed(3) };
-    if (!uniform && lines < (noisy ? 2 : 1) && !force) return null;
+    removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), surfFrac: +surfFrac.toFixed(2), paper: +paperFrac.toFixed(2), uniform, lines, dl90: Math.round(q(dl, 0.9)), dc90: +q(dc, 0.9).toFixed(3) };
+    if (removeSurface.wantMasks) {
+      const mc = makeCanvas(w, h), mi = ctx2d(mc).createImageData(w, h);
+      for (let p = 0; p < n; p++) { const i = p * 4; mi.data[i] = obj[p] ? 255 : 0; mi.data[i + 1] = joint[p] ? 255 : 0; mi.data[i + 2] = 0; mi.data[i + 3] = 255; }
+      ctx2d(mc).putImageData(mi, 0, 0); removeSurface.debug.maskPng = mc.toDataURL('image/png');
+    }
     const unit = Math.max(w, h);
     // fermeture (relie le dessin), bouchage des trous, ouverture (efface les veines isolées)
     let mask = dilate(obj, w, h, unit * 0.008);
@@ -504,15 +512,30 @@
     const keep = comps.filter((c) => c.area >= 0.03 * n);
     if (!keep.length) return null;
     const ids = new Set(keep.map((c) => c.id));
+    // un dessin posé sur un sol est une forme pleine (feuille ou découpe) ; des traits sur une feuille
+    // de couleur ne remplissent qu'une petite part de la forme que la fermeture leur donne
+    let raw = 0, closed = 0;
+    for (let p = 0; p < n; p++) if (mask[p] && ids.has(labels[p])) { closed++; if (obj[p]) raw++; }
+    const solid = raw / Math.max(1, closed);
+    Object.assign(removeSurface.debug, { solid: +solid.toFixed(2) });
+    if (solid < 0.6 && !force) return null;
     let x0 = w, y0 = h, x1 = 0, y1 = 0, area = 0;
     keep.forEach((c) => { x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); area += c.area; });
     if (area > 0.92 * n) return null;
     // le dessin posé est une forme compacte (feuille, découpe) qui ne remplit pas toute la bordure ;
     // des taches éparses sur un papier kraft ne sont pas un dessin posé sur un sol
     const touches = [x0 <= 1, y0 <= 1, x1 >= w - 2, y1 >= h - 2].filter(Boolean).length;
-    Object.assign(removeSurface.debug, { touches, fill: +(area / ((x1 - x0 + 1) * (y1 - y0 + 1))).toFixed(2), objFrac: +(area / n).toFixed(2) });
-    // et il occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
-    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4 || (area < 0.025 * n && !force)) return null;
+    // les joints d'un sol se prolongent au-delà du dessin ; des traits de crayon restent dans la feuille
+    const mg = 0.02 * Math.max(w, h);
+    const linesOut = lineComps.filter((c) => !(c.x0 >= x0 - mg && c.y0 >= y0 - mg && c.x1 <= x1 + mg && c.y1 <= y1 + mg)).length;
+    Object.assign(removeSurface.debug, { linesOut, touches, fill: +(area / ((x1 - x0 + 1) * (y1 - y0 + 1))).toFixed(2), objFrac: +(area / n).toFixed(2) });
+    if (!force) {
+      // une surface texturée doit montrer au moins un joint hors du dessin, ou un objet franchement papier
+      if (!uniform && linesOut < 1 && paperFrac < 0.45) return null;
+      // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
+      if (area < 0.06 * n) return null;
+    }
+    if (touches >= 3 || area / ((x1 - x0 + 1) * (y1 - y0 + 1)) < 0.4) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const fin = erode(new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0))), w, h, unit * 0.004);
 
