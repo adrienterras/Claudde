@@ -904,11 +904,11 @@
       const f = Math.min(1, best.inner / Math.max(p.wcm, p.hcm));
       if (f < 1) reduced = true;
       if (p.page) {
-        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f });
+        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f, clean: true });
         return;
       }
       p.placed = true;
-      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f });
+      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, clean: true });
     });
     return { items, bg, frames, kept: items.length + bg.length, cols, rows, reduced };
   }
@@ -1181,9 +1181,14 @@
         ctx.shadowOffsetX = 0.08 * s;
         ctx.shadowOffsetY = 0.18 * s;
       }
-      ctx.drawImage(L.piece.canvas, -w / 2, -h / 2, w, h);
+      // Galerie (impression) : version nettoyée du dessin, papier invisible, traits nets
+      let src = L.piece.canvas;
+      if (L.clean) { if (!L.piece.cleanCanvas || L.piece.cleanFrom !== L.piece.canvas) { L.piece.cleanCanvas = Extract.printClean(L.piece.canvas); L.piece.cleanFrom = L.piece.canvas; } src = L.piece.cleanCanvas; }
+      ctx.drawImage(src, -w / 2, -h / 2, w, h);
     } else {
-      ctx.drawImage(L.src, L.sx, L.sy, L.sw, L.sh, -w / 2, -h / 2, w, h);
+      let src = L.src;
+      if (L.clean) { if (!L.src.cleanCanvas) L.src.cleanCanvas = Extract.printClean(L.src); src = L.src.cleanCanvas; }
+      ctx.drawImage(src, L.sx, L.sy, L.sw, L.sh, -w / 2, -h / 2, w, h);
     }
     ctx.restore();
   }

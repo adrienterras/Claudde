@@ -129,8 +129,10 @@ cd collage && python3 -m http.server 8000
      encadrée ; ce style est fait pour l'impression : un dessin trop grand pour sa case est réduit,
      jamais agrandi, si bien qu'au maximum du curseur tous les dessins tiennent, quelle que soit la
      toile ; un dessin sélectionné s'agrandit ou se réduit par pas de 10 % avec deux boutons de la
-     barre d'outils, visibles seulement en Galerie ; le cartel et le guide le signalent, c'est le seul
-     style qui ne respecte pas la taille réelle),
+     barre d'outils, visibles seulement en Galerie ; chaque dessin y est nettoyé pour l'impression :
+     correction de fond locale (ombres, voile et plis du scan effacés), papier rendu invisible, traits
+     plus nets et couleurs un peu plus vives, sans rien redessiner ; le cartel et le guide signalent la
+     réduction, c'est le seul style qui ne respecte pas la taille réelle),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
      *Scène* (une scène est une sélection : au plus 18 sujets, les plus nets et colorés, un sujet
