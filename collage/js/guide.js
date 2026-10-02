@@ -240,8 +240,7 @@
         '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',
         comp.lead ? `5. Une fois les pages de fond collées et sèches, peignez un trait noir de ${fmt(comp.lead * 10)} mm le long des bords de chaque page (le plomb du vitrail), avant de coller les découpes.` : null,
         comp.frames ? `5. Tracez au feutre noir fin (ou à la peinture, au pinceau fin) le cadre carré de chaque case, ${fmt((comp.frameWidth || 0.3) * 10)} mm d’épaisseur, d’après le plan de pose, avant de coller les découpes au centre des cases.` : null,
-        comp.strokes ? `5. Peignez à l’acrylique, d’après le plan de pose, ${comp.strokesName || 'les traits peints'}.` : null,
-        (comp.lead || comp.frames || comp.strokes ? '6' : '5') + '. Laissez sécher sous un poids, puis passez une couche de vernis.',
+        (comp.lead || comp.frames ? '6' : '5') + '. Laissez sécher sous un poids, puis passez une couche de vernis.',
       ].filter(Boolean).forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
       let y3 = Math.max(y1, y2) + 4;
       y3 = wrap(ctx, `L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });

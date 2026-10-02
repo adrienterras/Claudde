@@ -106,7 +106,7 @@ cd collage && python3 -m http.server 8000
      la couleur à peindre ; le choix est mémorisé ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **huit propositions, huit styles**, à chaque fois :
+   - **cinq propositions, cinq styles**, à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
@@ -118,17 +118,7 @@ cd collage && python3 -m http.server 8000
      dessin, et le plus grand nombre de cases que la toile permet à taille réelle — le nombre de
      dessins dépend donc de la toile),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
-     sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
-     *Arbre* (un tronc et des branches peints en brun foncé montent du bord bas ; chaque dessin est
-     posé au bout d'une branche, comme un fruit, avec l'espacement que sa taille demande, la colonne
-     du tronc restant libre ; les pages de fond font la terre, entières, enfoncées dans le bord bas),
-     *Guirlande* (des fils tendus en travers de la toile, légèrement détendus ; les dessins et les
-     pages de fond entières y sont suspendus par deux pinces en bois, en rangées de hauteurs voisines,
-     comme du linge au soleil),
-     *Ronde* (les dessins en anneau autour du centre, penchés dans le sens de la ronde, un seul
-     anneau sauf au maximum de densité ; au milieu, la plus belle page de fond en médaillon si elle
-     y tient) ; les traits peints (branches, fils, pinces) sont des vecteurs dans le PDF et une étape
-     du guide ;
+     sans chevauchement : ceux qui n'y tiennent pas restent disponibles) ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du

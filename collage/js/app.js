@@ -991,9 +991,6 @@
     { id: 'courtepointe', name: 'Courtepointe', hint: 'patchwork, un médaillon par carreau' },
     { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
     { id: 'galerie', name: 'Galerie', hint: 'grille de cadres, un dessin par case' },
-    { id: 'arbre', name: 'Arbre', hint: 'branches peintes, un dessin au bout de chaque' },
-    { id: 'guirlande', name: 'Guirlande', hint: 'suspendus à des fils, avec des pinces' },
-    { id: 'ronde', name: 'Ronde', hint: 'en anneau autour d’un médaillon' },
   ];
 
   function regenerate() {
@@ -1702,27 +1699,8 @@
       doc.addImage(gc.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, W, H, undefined, 'FAST');
     }
     const layers = comp.bg.concat(comp.items);
-    const strokesPdf = (list) => list.forEach((st) => {
-      const rgb = hexRgb(st.color);
-      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
-      doc.setLineCap('round'); doc.setLineJoin('round');
-      const pts = st.pts;
-      if (st.taper) {
-        for (let i = 1; i < pts.length; i++) {
-          const t = i / (pts.length - 1);
-          doc.setLineWidth(Math.max(0.3, st.width * (1 - t) + st.width / st.taper * t * 0.5));
-          doc.line(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]);
-        }
-        return;
-      }
-      doc.setLineWidth(st.width);
-      if (st.fill) { const f = hexRgb(st.fill); doc.setFillColor(f[0], f[1], f[2]); }
-      const segs = pts.slice(1).map((q, i) => [q[0] - pts[i][0], q[1] - pts[i][1]]);
-      doc.lines(segs, pts[0][0], pts[0][1], [1, 1], st.fill ? 'FD' : 'S', !!st.closed);
-    });
     let n = 0;
     for (const L of layers) {
-      if (n === comp.bg.length && comp.strokes) strokesPdf(comp.strokes.filter((st) => !st.above));
       n++;
       if (n % 3 === 0) { saveStatus(`Assemblage du PDF… ${n} / ${layers.length}`); await tick(); }
       if (L.kind === 'bg' && L.whole && !L.flip) {
@@ -1758,8 +1736,6 @@
       const data = opaque ? c.toDataURL('image/jpeg', 0.9) : c.toDataURL('image/png');
       doc.addImage(data, opaque ? 'JPEG' : 'PNG', x0, y0, x1 - x0, y1 - y0, undefined, 'FAST');
     }
-    if (comp.strokes && !comp.items.length) strokesPdf(comp.strokes.filter((st) => !st.above));
-    if (comp.strokes) strokesPdf(comp.strokes.filter((st) => st.above));
     // vecteurs : cadres de la galerie, plomb du vitrail, traits de la constellation
     doc.setDrawColor(28, 27, 21);
     if (comp.frames) {
@@ -1932,11 +1908,11 @@ Pour CHAQUE dessin, décide :
 - "photo_sol" : true si l'image est une PHOTO du dessin posé sur un sol, une table, du parquet, du carrelage, du bois (on voit la surface autour du dessin), false si c'est un scan ou une feuille vue seule.
 - "importance" : 3 pour les 3 ou 4 pièces maîtresses les plus fortes visuellement, 2 pour les belles pièces, 1 sinon.
 
-L'œuvre sera proposée dans huit styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « courtepointe » (un patchwork : les pages de fond en carreaux clairs et foncés, une découpe posée en médaillon au centre de chaque carreau), « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées), « galerie » (une grille régulière de cases blanches cernées de noir, un personnage ou un sujet par case, comme une planche encadrée), « arbre » (un tronc et des branches peints en brun, un dessin au bout de chaque branche, les pages de fond en terre au pied), « guirlande » (dessins et pages suspendus par des pinces à des fils tendus, comme du linge) et « ronde » (les dessins en anneau autour d'une page de fond en médaillon).
+L'œuvre sera proposée dans cinq styles : « paysage » (ciel, milieu, sol), « tournesol » (tout tourne en spirale autour d'un cœur), « courtepointe » (un patchwork : les pages de fond en carreaux clairs et foncés, une découpe posée en médaillon au centre de chaque carreau), « cabinet » (un cabinet de curiosités : chaque dessin exposé droit, en rangées) et « galerie » (une grille régulière de cases blanches cernées de noir, un personnage ou un sujet par case, comme une planche encadrée).
 Propose pour chacun un titre poétique et court (2 à 6 mots, en français), inspiré des dessins.
 
 Réponds uniquement avec ce JSON :
-{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "...", "arbre": "...", "guirlande": "...", "ronde": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "photo_sol": false, "importance": 2}, ...]}`;
+{"titres": {"paysage": "...", "tournesol": "...", "courtepointe": "...", "cabinet": "...", "galerie": "..."}, "dessins": [{"n": 1, "sujet": "...", "role": "fond", "zone": "sol", "pose": false, "photo_sol": false, "importance": 2}, ...]}`;
     try {
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
