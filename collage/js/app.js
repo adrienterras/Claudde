@@ -1274,6 +1274,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // après une retouche, la vignette de la proposition active suit
   let thumbTimer = 0;
+  // Ouvre le panneau du dessin dont vient une pièce ou une page de l'œuvre.
+  function showDrawingOf(L) {
+    const d = L.kind === 'piece' ? L.piece.drawing : state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src);
+    if (!d || state.current === d) return;
+    state.current = d;
+    const sec = $('drawings-section');
+    if (sec && sec.classList.contains('collapsed')) sec.querySelector(':scope > h2').click();
+    refreshLists();
+    const box = $('detail');
+    if (box && !box.hidden && window.matchMedia('(min-width: 861px)').matches) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
   function refreshActiveThumb() {
     clearTimeout(thumbTimer);
     thumbTimer = setTimeout(() => {
@@ -1492,6 +1504,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (hit) {
       state.selected = hit;
       drag = { mode: 'move', L: hit, dx: p.X - hit.x, dy: p.Y - hit.y, x0: hit.x, y0: hit.y };
+      // le panneau du dessin correspondant s'ouvre (taille, fond ou découpe, photo…)
+      showDrawingOf(hit);
     } else {
       state.selected = null;
       // zone vide : on fait glisser la vue quand l'œuvre est zoomée
