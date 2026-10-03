@@ -1,5 +1,5 @@
 /*
- * Atelier Gribouille — charte : craie, lin, blush, argile, olive ; Playfair Display et Montserrat.
+ * Atelier Gribouille — charte : ivoire, lin, encre, vert sapin ; Playfair Display et Montserrat.
  * Un carnet d'atelier à gauche, l'œuvre accrochée sur un mur de galerie à droite.
  */
 :root {
@@ -10,15 +10,17 @@
   --argile: #c26f56;
   --olive: #6b6f4e;
 
-  --wall: #ece5da;
-  --surface: #f8f5ef;
-  --surface-2: #f1ebe1;
-  --ink: #3b3a2a;
-  --ink-2: #57553f;
-  --muted: #847e6e;
-  --line: #e3d9ca;
-  --accent: #c26f56;
-  --accent-soft: rgba(194, 111, 86, 0.13);
+  /* mur de galerie plus profond, carnet ivoire, accent vert sapin (plus d'orange) */
+  --wall: #ddd3c4;
+  --wall-2: #efe8dc;
+  --surface: #faf7f1;
+  --surface-2: #f0e9dd;
+  --ink: #2b2a22;
+  --ink-2: #4e4c3e;
+  --muted: #7f7868;
+  --line: #ded3c2;
+  --accent: #3e5a4c;
+  --accent-soft: rgba(62, 90, 76, 0.12);
   --primary: #1c1b15;
   --on-primary: #f8f5ef;
   --on-ink: #f8f5ef;
@@ -46,8 +48,9 @@
     --ink-2: #ddd5c6;
     --muted: #a8a08f;
     --line: #3b392e;
-    --accent: #dd8e74;
-    --accent-soft: rgba(221, 142, 116, 0.16);
+    --accent: #9fbcab;
+    --accent-soft: rgba(159, 188, 171, 0.16);
+    --wall-2: #27261f;
     --primary: #f3eee4;
     --on-primary: #1c1b15;
     --on-ink: #1c1b15;
@@ -66,8 +69,9 @@
   --ink-2: #ddd5c6;
   --muted: #a8a08f;
   --line: #3b392e;
-  --accent: #dd8e74;
-  --accent-soft: rgba(221, 142, 116, 0.16);
+  --accent: #9fbcab;
+  --accent-soft: rgba(159, 188, 171, 0.16);
+  --wall-2: #27261f;
   --primary: #f3eee4;
   --on-primary: #1c1b15;
   --on-ink: #1c1b15;
@@ -106,7 +110,10 @@ button, select, input { font: inherit; color: inherit; }
 /* ---------- Carnet (panneau) ---------- */
 
 .panel {
-  background: var(--surface);
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .018) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .012) 0 1px, transparent 1px 3px),
+    var(--surface);
   border-right: 1px solid var(--line);
   overflow-y: auto;
   height: 100%;
@@ -358,7 +365,12 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 
 /* ---------- Mur de galerie (scène) ---------- */
 
-.stage { position: relative; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, var(--surface-2), var(--wall) 70%); }
+.stage {
+  position: relative; height: 100%; overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 30%, var(--wall-2) 0%, transparent 62%),
+    linear-gradient(180deg, var(--wall) 0%, color-mix(in srgb, var(--wall) 86%, #000) 100%);
+}
 .stage canvas { position: absolute; inset: 64px 0 64px 0; width: 100%; height: calc(100% - 128px); touch-action: none; }
 
 .toolbar {
