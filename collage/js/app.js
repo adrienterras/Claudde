@@ -1896,7 +1896,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     for (const L of layers) {
       n++;
       if (n % 3 === 0) { saveStatus(`Assemblage du PDF… ${n} / ${layers.length}`); await tick(); }
-      if (L.kind === 'bg' && L.whole && !L.flip && !L.clean) {
+      if (L.kind === 'bg' && L.whole && !L.flip) {
         // page entière, bords droits : une image JPEG opaque, posée tournée (jsPDF pivote autour du
         // coin haut-gauche de l'image, dans le même sens que le canvas)
         const cw = Math.max(1, Math.round(L.w * s)), ch = Math.max(1, Math.round(L.h * s));

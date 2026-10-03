@@ -766,85 +766,6 @@
   }
 
   /*
-   * Nettoyage pour l'impression (Galerie) : le papier devient invisible, les ombres et le voile du
-   * scan disparaissent (correction de fond locale), les traits ressortent plus nets et un peu plus
-   * vifs. Le dessin lui-même n'est pas redessiné : ce sont les vrais traits de l'enfant.
-   */
-  function printClean(src) {
-    const w = src.width, h = src.height;
-    const c = makeCanvas(w, h);
-    const ctx = ctx2d(c);
-    ctx.drawImage(src, 0, 0);
-    const img = ctx.getImageData(0, 0, w, h);
-    const d = img.data;
-    // 1. fond local : la couleur « papier » autour de chaque point, estimée sur une version réduite
-    //    où l'on garde, par cellule, la couleur la plus claire (les traits sont plus sombres que le papier)
-    const sw = Math.max(4, Math.min(48, Math.round(w / 24))), sh = Math.max(4, Math.round((h * sw) / w));
-    const cell = Math.ceil(w / sw), cellH = Math.ceil(h / sh);
-    const bgR = new Float32Array(sw * sh), bgG = new Float32Array(sw * sh), bgB = new Float32Array(sw * sh);
-    for (let cy = 0; cy < sh; cy++) for (let cx = 0; cx < sw; cx++) {
-      const lums = [];
-      for (let y = cy * cellH; y < Math.min(h, (cy + 1) * cellH); y += 2) for (let x = cx * cell; x < Math.min(w, (cx + 1) * cell); x += 2) {
-        const i = (y * w + x) * 4;
-        if (d[i + 3] < 200) continue;
-        lums.push([0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], i]);
-      }
-      let r = 255, g = 255, b = 255;
-      if (lums.length) {
-        lums.sort((p, q) => q[0] - p[0]);
-        // moyenne des 15 % les plus clairs : le papier de la cellule
-        const top = lums.slice(0, Math.max(1, Math.round(lums.length * 0.15)));
-        r = 0; g = 0; b = 0;
-        top.forEach(([, i]) => { r += d[i]; g += d[i + 1]; b += d[i + 2]; });
-        r /= top.length; g /= top.length; b /= top.length;
-      }
-      bgR[cy * sw + cx] = r; bgG[cy * sw + cx] = g; bgB[cy * sw + cx] = b;
-    }
-    // lissage du fond (3 passes) pour éviter les marches entre cellules
-    const blur = (a) => { const o = new Float32Array(a.length); for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) { let s2 = 0, n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= sw || yy >= sh) continue; s2 += a[yy * sw + xx]; n++; } o[y * sw + x] = s2 / n; } return o; };
-    let R = bgR, G = bgG, B = bgB;
-    for (let k = 0; k < 3; k++) { R = blur(R); G = blur(G); B = blur(B); }
-    const bgAt = (arr, x, y) => {
-      // interpolation bilinéaire dans la grille réduite
-      const fx = Math.min(sw - 1, Math.max(0, (x + 0.5) / cell - 0.5)), fy = Math.min(sh - 1, Math.max(0, (y + 0.5) / cellH - 0.5));
-      const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(sw - 1, x0 + 1), y1 = Math.min(sh - 1, y0 + 1);
-      const tx = fx - x0, ty = fy - y0;
-      return (arr[y0 * sw + x0] * (1 - tx) + arr[y0 * sw + x1] * tx) * (1 - ty) + (arr[y1 * sw + x0] * (1 - tx) + arr[y1 * sw + x1] * tx) * ty;
-    };
-    // 2. correction de fond : chaque canal est ramené à un papier blanc pur
-    const norm = new Float32Array(w * h * 3);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4, j = (y * w + x) * 3;
-      const br = Math.max(96, bgAt(R, x, y)), bg2 = Math.max(96, bgAt(G, x, y)), bb = Math.max(96, bgAt(B, x, y));
-      norm[j] = Math.min(255, (d[i] * 255) / br);
-      norm[j + 1] = Math.min(255, (d[i + 1] * 255) / bg2);
-      norm[j + 2] = Math.min(255, (d[i + 2] * 255) / bb);
-    }
-    // 3. netteté (masque flou léger) et couleurs un peu plus vives ; 4. le papier devient transparent
-    const lumAt = (x, y) => { const j = (y * w + x) * 3; return 0.299 * norm[j] + 0.587 * norm[j + 1] + 0.114 * norm[j + 2]; };
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4, j = (y * w + x) * 3;
-      let s2 = 0, n = 0;
-      for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= h) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= w) continue; s2 += lumAt(xx, yy); n++; } }
-      const l = lumAt(x, y), lb = s2 / n;
-      const sharp = clampN(l + 0.7 * (l - lb), 0, 255);
-      const gain = l > 0 ? sharp / l : 1;
-      let r = clampN(norm[j] * gain, 0, 255), g = clampN(norm[j + 1] * gain, 0, 255), b = clampN(norm[j + 2] * gain, 0, 255);
-      // saturation +15 %
-      const m = (r + g + b) / 3;
-      r = clampN(m + (r - m) * 1.15, 0, 255); g = clampN(m + (g - m) * 1.15, 0, 255); b = clampN(m + (b - m) * 1.15, 0, 255);
-      // distance au blanc : le papier (proche du blanc) devient transparent, le trait reste opaque
-      const dist = Math.hypot(255 - r, 255 - g, 255 - b);
-      const a = clampN((dist - 18) / 40, 0, 1);
-      d[i] = r; d[i + 1] = g; d[i + 2] = b;
-      d[i + 3] = Math.round(Math.min(d[i + 3], 255 * a));
-    }
-    ctx.putImageData(img, 0, 0);
-    return c;
-  }
-  const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-
-  /*
    * Analyse complète d'une page scannée.
    * Retourne { page, kind: 'texture' | 'cutout', texture?, pieces? }.
    */
@@ -889,5 +810,5 @@
     return result;
   }
 
-  window.Extract = { analyze, removeSurface, textOnly, trimMargins, printClean, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();
