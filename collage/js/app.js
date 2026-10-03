@@ -2285,6 +2285,30 @@ Réponds uniquement avec ce JSON :
     }
   }
 
+  // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
+  (function collapsibleSections() {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem('atelier.collapsed') || '[]'); } catch (e) { saved = []; }
+    document.querySelectorAll('aside section.step').forEach((sec) => {
+      const h = sec.querySelector(':scope > h2');
+      if (!h || !sec.id) return;
+      const chev = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      chev.setAttribute('class', 'chev'); chev.setAttribute('viewBox', '0 0 24 24'); chev.setAttribute('aria-hidden', 'true');
+      chev.innerHTML = '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      h.appendChild(chev);
+      h.setAttribute('role', 'button'); h.setAttribute('tabindex', '0');
+      const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? 'Développer' : 'Réduire'; };
+      apply(saved.includes(sec.id));
+      const toggle = () => {
+        apply(!sec.classList.contains('collapsed'));
+        const list = [...document.querySelectorAll('aside section.step.collapsed')].map((x) => x.id);
+        try { localStorage.setItem('atelier.collapsed', JSON.stringify(list)); } catch (e) { /* ignoré */ }
+      };
+      h.addEventListener('click', toggle);
+      h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    });
+  })();
+
   fillFormats();
   fillGround();
 

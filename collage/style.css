@@ -168,6 +168,13 @@ button, select, input { font: inherit; color: inherit; }
   text-wrap: balance;
 }
 .num { font-family: var(--f-body); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.2em; color: var(--accent); }
+/* sections repliables : un clic sur le titre replie ou développe la section */
+.step h2 { cursor: pointer; user-select: none; border-radius: var(--r-sm); }
+.step h2:hover { color: var(--accent); }
+.step h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.step h2 .chev { margin-left: auto; width: 14px; height: 14px; flex: none; align-self: center; color: var(--muted); transition: transform .18s; }
+.step.collapsed h2 .chev { transform: rotate(-90deg); }
+.step.collapsed > :not(h2) { display: none !important; }
 h3 { margin: 6px 0 0; font-size: 0.9rem; font-weight: 600; }
 small { color: var(--muted); font-weight: 400; font-family: var(--f-body); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 
