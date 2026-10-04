@@ -1758,6 +1758,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!state.comp) return;
     const { w, h, capped } = exportSize();
     const pdf = $('fmt').value === 'application/pdf';
+    const sum = $('export-summary');
+    if (sum) sum.textContent = `${$('fmt').selectedOptions[0].textContent.split(' (')[0]} · ${$('dpi').selectedOptions[0].textContent}`;
     $('export-info').textContent = pdf
       ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
       : `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
@@ -2615,7 +2617,9 @@ Réponds uniquement avec ce JSON :
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
   (function collapsibleSections() {
     let saved = [];
-    try { saved = JSON.parse(localStorage.getItem('atelier.collapsed') || '[]'); } catch (e) { saved = []; }
+    // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, exporter)
+    const DEFAULT_COLLAPSED = ['drawings-section', 'room-section'];
+    try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); } catch (e) { saved = DEFAULT_COLLAPSED; }
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const h = sec.querySelector(':scope > h2');
       if (!h || !sec.id) return;

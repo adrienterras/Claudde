@@ -255,7 +255,8 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 
 /* Réglages */
 .settings { border-top: 1px solid var(--line); padding-top: 12px; }
-.settings summary { cursor: pointer; font-weight: 600; font-size: 0.88rem; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+.settings summary { cursor: pointer; font-weight: 600; font-size: 0.88rem; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.settings summary small { font-weight: 400; color: var(--muted); font-size: 0.74rem; margin-left: auto; text-align: right; }
 .settings summary::after { content: "+"; font-family: var(--f-mono); color: var(--muted); }
 .settings[open] summary::after { content: "−"; }
 .settings summary::-webkit-details-marker { display: none; }

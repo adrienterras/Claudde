@@ -68,13 +68,13 @@
 
     <section id="compose-section" class="step" hidden>
       <h2><span class="num">02</span> Propositions</h2>
-      <p class="hint">Trois styles, toujours avec tous les dessins. Choisissez-en un pour le retoucher.</p>
+      <p class="hint">Choisissez une proposition : elle s’affiche sur la toile, prête à retoucher ou à télécharger.</p>
       <div id="proposals" class="proposals"></div>
       <p id="ai-status" class="hint ai"></p>
-      <button id="generate" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Cinq nouvelles propositions</span></button>
+      <button id="generate" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Nouvelles propositions</span></button>
 
-      <details class="settings" open>
-        <summary>Réglages</summary>
+      <details class="settings" id="advanced">
+        <summary>Réglages avancés <small>orientation, toile, fond, feuilles pâles</small></summary>
         <div class="field">Orientation de la toile
           <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
             <button type="button" data-orient="land" class="on ink">Paysage</button>
@@ -119,24 +119,27 @@
 
     <section id="export-section" class="step" hidden>
       <h2><span class="num">04</span> Exporter</h2>
-      <div class="field-pair">
-        <label class="field">Qualité
-          <select id="dpi">
-            <option value="screen">Écran · 2400 px</option>
-            <option value="150">Impression · 150 dpi</option>
-            <option value="300" selected>Impression · 300 dpi</option>
-          </select>
-        </label>
-        <label class="field">Fichier
-          <select id="fmt">
-            <option value="image/jpeg" selected>JPEG</option>
-            <option value="image/png">PNG</option>
-            <option value="application/pdf">PDF à l’échelle (page = toile)</option>
-          </select>
-        </label>
-      </div>
       <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <p id="export-info" class="hint mono-note"></p>
+      <details class="settings" id="export-options">
+        <summary>Options du fichier <small id="export-summary">JPEG · 300 dpi</small></summary>
+        <div class="field-pair">
+          <label class="field">Qualité
+            <select id="dpi">
+              <option value="screen">Écran · 2400 px</option>
+              <option value="150">Impression · 150 dpi</option>
+              <option value="300" selected>Impression · 300 dpi</option>
+            </select>
+          </label>
+          <label class="field">Fichier
+            <select id="fmt">
+              <option value="image/jpeg" selected>JPEG</option>
+              <option value="image/png">PNG</option>
+              <option value="application/pdf">PDF à l’échelle (page = toile)</option>
+            </select>
+          </label>
+        </div>
+      </details>
       <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
       <form id="save-form" class="save-form" hidden>
         <label class="field">Nom de la composition
@@ -148,12 +151,12 @@
         </div>
       </form>
       <p id="save-status" class="save-status" role="status" hidden></p>
-      <div class="guide-box">
-        <p class="guide-title">Réaliser l’œuvre à la main</p>
+      <details class="settings guide-box">
+        <summary>Réaliser l’œuvre à la main <small>guide PDF</small></summary>
         <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
         <button id="guide" class="btn"><svg class="ico"><use href="#i-guide"/></svg><span>Créer le guide de création</span></button>
         <p id="guide-info" class="hint mono-note"></p>
-      </div>
+      </details>
     </section>
 
     <section id="saved-section" class="step">

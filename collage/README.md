@@ -172,6 +172,11 @@ cd collage && python3 -m http.server 8000
      mise en place est gardée jusqu'au prochain import ou aux « nouvelles propositions ») ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, à 300 dpi par défaut pour l'impression sur toile.
+
+Le parcours simple tient en trois étapes (importer, choisir une proposition, télécharger) : les
+réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
+avancés », les options de fichier et le guide de création sous l'étape Exporter, et les sections
+Dessins et Mise en scène sont repliées à la première visite (le choix de chacun est mémorisé).
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
    pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
    déplacer ; bouton plein écran, pratique sur téléphone.
