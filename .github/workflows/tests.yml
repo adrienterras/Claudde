@@ -1,0 +1,37 @@
+# Lance la suite de tests d'Atelier Gribouille (collage/tests) à chaque push et pull request.
+name: Tests
+
+on:
+  push:
+    paths: ['collage/**', '.github/workflows/tests.yml']
+  pull_request:
+    paths: ['collage/**', '.github/workflows/tests.yml']
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: collage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: collage/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+        env:
+          CI: 1
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: rapport-playwright
+          path: |
+            collage/playwright-report
+            collage/test-results
+          retention-days: 14

@@ -1,0 +1,15 @@
+{
+  "name": "atelier-gribouille",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atelier Gribouille — les dessins d'enfants deviennent des œuvres d'art (application web sans serveur).",
+  "scripts": {
+    "serve": "node tests/serve.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "fixtures": "python3 tests/fixtures/make_fixtures.py"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

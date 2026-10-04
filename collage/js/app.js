@@ -16,6 +16,35 @@
   }
   const $ = (id) => document.getElementById(id);
 
+  // Capteur d'erreur global : une erreur imprévue (hors des zones déjà protégées) n'est jamais
+  // silencieuse. Elle s'affiche en haut de la page, avec son détail à copier pour la signaler.
+  (function errorCatcher() {
+    const box = $('fatal');
+    if (!box) return;
+    const seen = new Set();
+    let detail = '';
+    const show = (what, err) => {
+      const msg = (err && err.message) || (typeof err === 'string' ? err : '') || String(err || 'erreur inconnue');
+      if (/ResizeObserver loop/.test(msg)) return; // avertissement bénin de certains navigateurs
+      const stack = (err && err.stack) || '';
+      const key = what + msg;
+      if (seen.has(key)) return;
+      seen.add(key);
+      detail = `${what} : ${msg}\n${stack}\n\n${navigator.userAgent}\n${location.href}`;
+      box.querySelector('.fatal-text').textContent = `Une erreur inattendue s’est produite (${msg}). L’app peut continuer ; si elle ne répond plus, rechargez la page. Le détail copié m’aide à corriger.`;
+      box.hidden = false;
+    };
+    window.addEventListener('error', (e) => { if (e.message || e.error) show('Erreur', e.error || e.message); });
+    window.addEventListener('unhandledrejection', (e) => show('Promesse rejetée', e.reason));
+    $('fatal-close').onclick = () => { box.hidden = true; };
+    $('fatal-reload').onclick = () => location.reload();
+    $('fatal-copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(detail); $('fatal-copy').textContent = 'Détail copié'; }
+      catch (e) { window.prompt('Copiez ce détail :', detail); }
+    };
+    window.AtelierErrors = { show, get detail() { return detail; } };
+  })();
+
   if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = window.PDFJS_WORKER_SRC || 'vendor/pdf.worker.min.js';
 
   // Message affiché dans le panneau (les boîtes de dialogue du navigateur ne sont pas toujours disponibles).

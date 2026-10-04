@@ -201,7 +201,10 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
   composantes connexes → pièces, blanchiment du papier et ravivage des couleurs.
 - `js/compose.js` : tout est exprimé en centimètres sur la toile ; fond peint procédural, pages collées
   (recadrées, jamais agrandies), placement des découpes par score de composition, rendu et finition.
-- `js/app.js` : interface, édition interactive, export haute résolution.
+- `js/app.js` : interface, édition interactive, export haute résolution ; un capteur d'erreur global
+  affiche toute erreur imprévue en haut de la page, avec son détail à copier pour la signaler.
+- `tests/` : suite Playwright sur des images de synthèse (voir `tests/README.md`), lancée par
+  `npm test` et, à chaque push, par le workflow `.github/workflows/tests.yml`.
 - `js/editor.js` : éditeur de découpe (masque en pixels de la page, historique, zoom tactile).
 - `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
 - `assets/` : éléments de la charte Atelier Gribouille (monogramme détouré, motif de crayons, pictogrammes).
