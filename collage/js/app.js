@@ -2404,10 +2404,20 @@ Réponds uniquement avec ce JSON :
 
   // Rouvre une composition : les dessins sont réimportés depuis leurs images, puis la mise en place
   // sauvegardée est reposée telle quelle (pas de nouvelle analyse par Claude, rien ne bouge).
+  function savedStatus(text) { const el = $('saved-status'); el.textContent = text || ''; el.hidden = !text; }
   async function restoreComposition(id) {
+    try { await restoreCompositionInner(id); }
+    catch (e) { console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
+  }
+  async function restoreCompositionInner(id) {
+    savedStatus('Lecture de la composition sauvegardée…');
     const rec = await dbGet(id);
-    if (!rec) return;
-    saveStatus(`Réouverture de « ${rec.name} »… les dessins et l’œuvre en cours sont remplacés.`);
+    if (!rec) { savedStatus('Composition introuvable dans ce navigateur.'); return; }
+    if (!rec.drawings || !rec.drawings.length) { savedStatus('Cette sauvegarde ne contient aucun dessin.'); return; }
+    const empty = rec.drawings.filter((d) => !d.blob || !d.blob.size).length;
+    if (empty) { savedStatus(`Sauvegarde incomplète : ${empty} image(s) manquante(s).`); return; }
+    savedStatus(`Réouverture de « ${rec.name} » : ${rec.drawings.length} dessins à réimporter…`);
+    $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
     // réglages d'abord, pour que la toile et le fond soient les mêmes
     const sv = rec.settings || {};
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) $('format').value = sv.format;
@@ -2462,8 +2472,7 @@ Réponds uniquement avec ce JSON :
     regenerate();
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
-    saveStatus(`Composition « ${rec.name} » rouverte.`);
-    $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées.`);
   }
 
   $('save-comp').onclick = askSaveName;
