@@ -581,3 +581,8 @@ body.editing { overflow: hidden; }
 .saved .saved-meta { margin: 2px 0 0; color: var(--muted); font-size: 0.72rem; }
 .saved .saved-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 999px; }
 .saved .saved-del:hover { color: var(--danger); background: var(--danger-soft); }
+
+.save-form { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.save-form .row-btns { display: flex; gap: 8px; }
+.save-form .row-btns .btn { flex: 1; }
+.saved .saved-del.confirm { color: var(--on-ink); background: var(--danger); font-size: 0.7rem; font-weight: 600; padding: 4px 8px; }

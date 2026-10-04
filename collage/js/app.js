@@ -2346,15 +2346,23 @@ Réponds uniquement avec ce JSON :
     };
   }
 
-  async function saveComposition() {
-    if (!state.comp || !state.drawings.length) return;
+  // (les boîtes de dialogue du navigateur sont bloquées dans certains cadres : le nom se saisit sur place)
+  function askSaveName() {
+    if (!state.comp || !state.drawings.length) { saveStatus('Importez des dessins et choisissez une proposition avant de sauvegarder.'); return; }
     const st = STYLES.find((x) => x.id === state.comp.style);
     const dflt = (state.titles && state.titles[state.comp.style]) || `${st ? st.name : 'Composition'} du ${new Date().toLocaleDateString('fr-FR')}`;
-    const name = window.prompt('Nom de cette composition :', dflt);
-    if (name === null) return;
+    const form = $('save-form');
+    form.hidden = false;
+    $('save-name').value = dflt;
+    $('save-name').focus();
+    $('save-name').select();
+  }
+  async function saveComposition(name) {
+    if (!state.comp || !state.drawings.length) return;
+    $('save-form').hidden = true;
     saveStatus('Sauvegarde de la composition…');
     try {
-      const rec = await snapshotComposition((name || dflt).trim().slice(0, 80));
+      const rec = await snapshotComposition((name || 'Composition').trim().slice(0, 80));
       await dbPut(rec);
       saveStatus(`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
       renderSaved();
@@ -2380,7 +2388,13 @@ Réponds uniquement avec ce JSON :
       const when = new Date(rec.date);
       const st = STYLES.find((x) => x.id === rec.comp.style);
       el.innerHTML = `<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${rec.drawings.length} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString('fr-FR')}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
-      el.querySelector('.saved-del').onclick = async (e) => { e.stopPropagation(); if (!window.confirm(`Supprimer « ${rec.name} » ?`)) return; await dbDel(rec.id); renderSaved(); };
+      // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
+      const del = el.querySelector('.saved-del');
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = 'Supprimer ?'; setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
+        await dbDel(rec.id); renderSaved();
+      };
       const open = () => restoreComposition(rec.id);
       el.onclick = open;
       el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
@@ -2393,7 +2407,7 @@ Réponds uniquement avec ce JSON :
   async function restoreComposition(id) {
     const rec = await dbGet(id);
     if (!rec) return;
-    if (state.drawings.length && !window.confirm('Rouvrir cette composition remplace les dessins et l’œuvre en cours. Continuer ?')) return;
+    saveStatus(`Réouverture de « ${rec.name} »… les dessins et l’œuvre en cours sont remplacés.`);
     // réglages d'abord, pour que la toile et le fond soient les mêmes
     const sv = rec.settings || {};
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) $('format').value = sv.format;
@@ -2452,7 +2466,9 @@ Réponds uniquement avec ce JSON :
     $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
-  $('save-comp').onclick = saveComposition;
+  $('save-comp').onclick = askSaveName;
+  $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
+  $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
 
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.

@@ -138,6 +138,15 @@
       <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <p id="export-info" class="hint mono-note"></p>
       <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
+      <form id="save-form" class="save-form" hidden>
+        <label class="field">Nom de la composition
+          <input id="save-name" type="text" maxlength="80" autocomplete="off">
+        </label>
+        <div class="row-btns">
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="save-cancel" class="btn">Annuler</button>
+        </div>
+      </form>
       <p id="save-status" class="save-status" role="status" hidden></p>
       <div class="guide-box">
         <p class="guide-title">Réaliser l’œuvre à la main</p>
