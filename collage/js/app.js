@@ -41,6 +41,7 @@
     p.hidden = done >= total;
     p.querySelector('div').style.width = `${(100 * done) / Math.max(1, total)}%`;
     p.querySelector('span').textContent = label || `${done} / ${total}`;
+    if (state.restoring && label && $('saved-status')) { const el = $('saved-status'); el.textContent = `Réouverture : ${label}`; el.hidden = false; }
   }
 
   async function pagesFromFile(file) {
@@ -2326,9 +2327,12 @@ Réponds uniquement avec ce JSON :
     const comp = state.comp;
     const drawings = [];
     for (const d of state.drawings) {
+      // image stockée en octets bruts (ArrayBuffer) : les Blob relus depuis IndexedDB sont
+      // parfois vides ou illisibles sur certains navigateurs (Safari notamment)
       const blob = await toBlob(d.original, 'image/jpeg', 0.92);
+      const data = await blob.arrayBuffer();
       drawings.push({
-        name: d.name, blob, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
+        name: d.name, data, type: 'image/jpeg', role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
       });
@@ -2407,17 +2411,27 @@ Réponds uniquement avec ce JSON :
   function savedStatus(text) { const el = $('saved-status'); el.textContent = text || ''; el.hidden = !text; }
   async function restoreComposition(id) {
     try { await restoreCompositionInner(id); }
-    catch (e) { console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
+    catch (e) { state.restoring = false; console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
   }
   async function restoreCompositionInner(id) {
     savedStatus('Lecture de la composition sauvegardée…');
     const rec = await dbGet(id);
     if (!rec) { savedStatus('Composition introuvable dans ce navigateur.'); return; }
     if (!rec.drawings || !rec.drawings.length) { savedStatus('Cette sauvegarde ne contient aucun dessin.'); return; }
-    const empty = rec.drawings.filter((d) => !d.blob || !d.blob.size).length;
+    const bytesOf = (d) => d.data || d.blob || null;
+    const sizeOf = (d) => { const b = bytesOf(d); return b ? (b.byteLength !== undefined ? b.byteLength : b.size) : 0; };
+    const empty = rec.drawings.filter((d) => !sizeOf(d)).length;
     if (empty) { savedStatus(`Sauvegarde incomplète : ${empty} image(s) manquante(s).`); return; }
+    // les images doivent se relire : un essai sur la première avant de tout vider
+    try {
+      const probe = await createImageBitmap(new Blob([bytesOf(rec.drawings[0])], { type: rec.drawings[0].type || 'image/jpeg' }));
+      if (probe.close) probe.close();
+    } catch (e) {
+      savedStatus('Les images de cette sauvegarde ne peuvent pas être relues par ce navigateur. Sauvegardez de nouveau la composition.');
+      return;
+    }
     savedStatus(`Réouverture de « ${rec.name} » : ${rec.drawings.length} dessins à réimporter…`);
-    $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    state.restoring = true;
     // réglages d'abord, pour que la toile et le fond soient les mêmes
     const sv = rec.settings || {};
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) $('format').value = sv.format;
@@ -2429,10 +2443,11 @@ Réponds uniquement avec ce JSON :
     state.drawings = [];
     state.title = sv.title || '';
     state.titles = sv.titles || null;
-    const files = rec.drawings.map((d) => new File([d.blob], d.name, { type: 'image/jpeg' }));
+    const files = rec.drawings.map((d) => new File([bytesOf(d)], d.name, { type: d.type || 'image/jpeg' }));
     const sizes = {};
     rec.drawings.forEach((d) => { sizes[d.name] = d.sizeCm; });
-    await importFiles(files, sizes, { quiet: true });
+    try { await importFiles(files, sizes, { quiet: true }); } finally { state.restoring = false; }
+    if (!state.drawings.length) { savedStatus('Aucun dessin n’a pu être relu depuis la sauvegarde.'); return; }
     // réglages par dessin
     rec.drawings.forEach((sd, i) => {
       const d = state.drawings[i];
@@ -2473,6 +2488,7 @@ Réponds uniquement avec ce JSON :
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
     savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées.`);
+    $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   $('save-comp').onclick = askSaveName;
