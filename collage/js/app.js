@@ -2,7 +2,18 @@
 (function () {
   'use strict';
 
-  const SOURCE_MAX = 1400; // résolution conservée pour chaque page scannée (plus grand côté)
+  // Résolution conservée pour chaque page scannée (plus grand côté) : la plus haute possible, selon
+  // le nombre de pages et la mémoire de l'appareil, pour que les découpes gardent tout leur détail à
+  // l'impression. Chaque page garde environ 1,6 toile pleine en mémoire (page, texture ou découpes).
+  const SOURCE_MIN = 1400, SOURCE_CAP = 2800, SOURCE_CAP_PHONE = 2000;
+  function sourceMax(nPages) {
+    const mobile = navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900;
+    const mem = Math.min(8, navigator.deviceMemory || (mobile ? 4 : 8)); // Go
+    const budget = mem * (mobile ? 0.05 : 0.1) * 1e9; // octets accordés aux pages
+    const perPagePx = 1.6 * 4 * 0.71; // octets par pixel² de grand côté (format ≈ 1/√2)
+    const long = Math.sqrt(budget / (Math.max(1, nPages) * perPagePx));
+    return Math.round(Math.max(SOURCE_MIN, Math.min(mobile ? SOURCE_CAP_PHONE : SOURCE_CAP, long)));
+  }
   const $ = (id) => document.getElementById(id);
 
   if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = window.PDFJS_WORKER_SRC || 'vendor/pdf.worker.min.js';
@@ -53,11 +64,11 @@
       for (let i = 1; i <= pdf.numPages; i++) {
         pages.push({
           name: `${file.name} — p.${i}`,
-          render: async () => {
+          render: async (max) => {
             const page = await pdf.getPage(i);
             const vp0 = page.getViewport({ scale: 1 });
             const long = Math.max(vp0.width, vp0.height);
-            const vp = page.getViewport({ scale: SOURCE_MAX / long });
+            const vp = page.getViewport({ scale: max / long });
             const c = Extract.makeCanvas(vp.width, vp.height);
             await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
             page.cleanup();
@@ -73,11 +84,11 @@
     } else if (file.type.startsWith('image/')) {
       pages.push({
         name: file.name,
-        render: async () => {
+        render: async (max) => {
           // une image de plusieurs dizaines de Mo est décodée par le navigateur puis réduite
           // à la résolution de travail ; on ne garde jamais l'image complète en mémoire
           const src = await decodeImage(file);
-          const c = Extract.scaleTo(src.img, SOURCE_MAX);
+          const c = Extract.scaleTo(src.img, max);
           const origLong = Math.max(src.w, src.h), origShort = Math.min(src.w, src.h);
           src.close();
           return { canvas: c, origLong, origShort, physCm: null };
@@ -127,11 +138,12 @@
       }
     }
     const releases = new Set(pages.map((p) => p.release).filter(Boolean));
+    const max = sourceMax(state.drawings.length + pages.length);
     for (let i = 0; i < pages.length; i++) {
       setProgress(i, pages.length, `Analyse du dessin ${i + 1} / ${pages.length}…`);
       await tick();
       try {
-        const src = await pages[i].render();
+        const src = await pages[i].render(max);
         // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
         Extract.removeSurface.debug = null;
         const analysis = Extract.analyze(src.canvas, 0, { photo: true });
@@ -1319,6 +1331,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, cw, ch);
+    ctx.imageSmoothingQuality = 'high';
     const comp = state.comp;
     updateToolbar();
     if (!comp) return;
@@ -1743,7 +1756,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const { w, h, capped } = exportSize();
     const pdf = $('fmt').value === 'application/pdf';
     $('export-info').textContent = pdf
-      ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(150, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
+      ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(200, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
       : `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
   }
 
@@ -1859,8 +1872,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if ($('fmt').value === 'application/pdf') {
         saveStatus('Assemblage du PDF…');
         await tick();
-        // les images du PDF restent à 150 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
-        const blob = await exportPdf(state.comp, Math.min(s, 150 / 2.54));
+        // les images du PDF restent à 200 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
+        const blob = await exportPdf(state.comp, Math.min(s, 200 / 2.54));
         await saveFile(blob, 'oeuvre-atelier-gribouille.pdf');
         return;
       }

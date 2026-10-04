@@ -78,11 +78,15 @@ cd collage && python3 -m http.server 8000
    - **densité au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
      rejoignent le fond ; la rotation des découpes est fixe (réglage retiré) ;
+   - **résolution d'import** : chaque page est conservée à la plus haute résolution que l'appareil
+     permet (de 1400 à 2800 px de grand côté, 2000 sur téléphone), calculée d'après le nombre de pages
+     et la mémoire disponible ; l'analyse des sujets se fait sur une grille réduite, mais les découpes
+     et les pages de fond gardent cette résolution jusqu'à l'export ;
    - chaque dessin découpé apporte son sujet principal et tous ses autres éléments qui ressemblent
      à un sujet (au moins 3 cm, même peu colorés : nuages au crayon, petits personnages) ; Claude,
      s'il est disponible, regarde ensuite chaque élément un par un et écarte les fragments (taches,
      bords de feuille, texte seul) ; le contour de chaque découpe est calculé en haute résolution
-     (jusqu'à 1800 px de côté) avec un seuil d'encre à deux niveaux : les zones pâles (crayon léger,
+     (à la résolution de la page, jusqu'à 3000 px de côté) avec un seuil d'encre à deux niveaux : les zones pâles (crayon léger,
      couleurs claires, dégradés) reliées à un trait net restent dans le dessin, le grain du papier non ;
      la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4)
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
@@ -93,7 +97,7 @@ cd collage && python3 -m http.server 8000
      restent dans la bande de leur page ;
    - **export PDF à l'échelle** : une page de la taille exacte de la toile (1 cm = 1 cm), chaque page
      de fond posée tournée comme une image JPEG, les découpes et papiers déchirés en PNG avec leur
-     transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 150 dpi
+     transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 200 dpi
      au plus. Les scans restent des images : un dessin d'enfant ne se vectorise pas sans le trahir ;
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »

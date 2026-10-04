@@ -9,7 +9,7 @@
   'use strict';
 
   const WORK_MAX = 640;          // taille de travail pour l'analyse
-  const FINE_MAX = 1800;         // taille de travail pour le contour fin des découpes
+  const FINE_MAX = 3000;         // taille de travail pour le contour fin des découpes (suit la page)
   const INK_DIST = 55;           // écart au papier au-delà duquel un pixel est « dessiné »
   const PAPER_DIST = 42;         // écart en deçà duquel un pixel est considéré comme papier
   const TEXTURE_MAX_PAPER = 0.38; // moins de 38 % de papier visible => page peinte => fond
