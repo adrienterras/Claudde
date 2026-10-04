@@ -52,6 +52,12 @@ cd collage && python3 -m http.server 8000
      régulières, restant de côté) ou de les coller en fond (c'est
      alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
      fond ; les pages de fond restent entières ;
+   - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
+     enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
+     taille, orientation, photo sur un sol, sujets gardés) et la mise en place exacte (chaque pièce et
+     page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une composition
+     telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte reste
+     épinglée jusqu'à « nouvelles propositions » ou un changement de réglage ;
    - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
      taille physique) montre le dessin posé sur du parquet, du bois, du carrelage ou un plan de
      travail, une photo posée sur une page blanche (PDF d'un scanner de téléphone, marges A4) est

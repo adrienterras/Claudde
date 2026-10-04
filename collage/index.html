@@ -34,6 +34,7 @@
       <symbol id="i-fit" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M9 12h6M12 9v6"/></symbol>
       <symbol id="i-bigger" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
       <symbol id="i-smaller" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8.5 12h7"/></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4.5h10v15l-5-3.5-5 3.5z"/></symbol>
       <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></symbol>
     </defs>
   </svg>
@@ -136,6 +137,7 @@
       </div>
       <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <p id="export-info" class="hint mono-note"></p>
+      <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
       <p id="save-status" class="save-status" role="status" hidden></p>
       <div class="guide-box">
         <p class="guide-title">Réaliser l’œuvre à la main</p>
@@ -145,8 +147,14 @@
       </div>
     </section>
 
+    <section id="saved-section" class="step">
+      <h2><span class="num">05</span> Mes compositions <small id="saved-count"></small></h2>
+      <p class="hint">Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins : rouvrez-les plus tard, telles quelles.</p>
+      <div id="saved-list" class="saved-list"></div>
+    </section>
+
     <section id="room-section" class="step" hidden>
-      <h2><span class="num">05</span> Mettre en scène</h2>
+      <h2><span class="num">06</span> Mettre en scène</h2>
       <p class="hint">Une photo de votre salon, de la chambre ou du couloir : l’œuvre apparaît sur le mur, à déplacer et à ajuster à la perspective.</p>
       <label class="drop small" id="room-drop">
         <input id="room-file" type="file" accept="image/*" hidden>

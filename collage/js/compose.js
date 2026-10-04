@@ -1364,5 +1364,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng };
+  window.Compose = { generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng, paperLayer };
 })();

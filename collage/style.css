@@ -570,3 +570,14 @@ body.editing { overflow: hidden; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
 }
+
+/* ---------- Compositions sauvegardées ---------- */
+.saved-list { display: flex; flex-direction: column; gap: 8px; }
+.saved-list:empty::after { content: 'Aucune composition sauvegardée pour l’instant.'; color: var(--muted); font-size: 0.82rem; }
+.saved { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); cursor: pointer; text-align: left; }
+.saved:hover { border-color: var(--accent); }
+.saved img { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; background: var(--wall); }
+.saved .saved-name { margin: 0; font-weight: 600; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved .saved-meta { margin: 2px 0 0; color: var(--muted); font-size: 0.72rem; }
+.saved .saved-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 999px; }
+.saved .saved-del:hover { color: var(--danger); background: var(--danger-soft); }

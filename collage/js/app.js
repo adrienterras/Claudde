@@ -111,9 +111,10 @@
     return Extract.scaleTo(canvas, max || 160).toDataURL(png ? 'image/png' : 'image/jpeg', 0.8);
   }
 
-  async function importFiles(files, sizes) {
+  async function importFiles(files, sizes, opts) {
     let pages = [];
     state.sceneLayout = null;
+    state.pinned = null;
     notice('');
     setProgress(0, 1, 'Lecture des fichiers…');
     for (const f of files) {
@@ -163,7 +164,7 @@
     }
     refreshLists();
     regenerate();
-    artDirect();
+    if (!(opts && opts.quiet)) artDirect();
   }
 
   /*
@@ -1078,6 +1079,11 @@
       return { style: st, comp: Compose.generate(so) };
     });
     state.active = Math.min(state.active || 0, STYLES.length - 1);
+    // une composition rouverte reste telle quelle tant qu'on ne demande pas d'autres propositions
+    if (state.pinned) {
+      const i = STYLES.findIndex((st) => st.id === state.pinned.style);
+      if (i >= 0) { state.proposals[i].comp = state.pinned; state.active = i; }
+    }
     state.comp = state.proposals[state.active].comp;
     renderProposals();
     state.selected = null;
@@ -2054,10 +2060,10 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     if (files.length) importFiles(files);
   });
 
-  $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
-  ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', regenerate));
+  $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
+  ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
   $('fmt').addEventListener('change', updateExportInfo);
-  document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); regenerate(); }));
+  document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = exportImage;
@@ -2298,6 +2304,156 @@ Réponds uniquement avec ce JSON :
       notice('Les dessins d’exemple n’ont pas pu être chargés. Importez vos scans ci-dessus.');
     }
   }
+
+  // ---------- Compositions sauvegardées (IndexedDB, dans ce navigateur) ----------
+  const DB_NAME = 'atelier-gribouille', DB_STORE = 'compositions';
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE, { keyPath: 'id' }); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function dbAll() { return openDb().then((db) => new Promise((res, rej) => { const r = db.transaction(DB_STORE).objectStore(DB_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); })); }
+  function dbPut(rec) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).put(rec); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
+  function dbGet(id) { return openDb().then((db) => new Promise((res, rej) => { const r = db.transaction(DB_STORE).objectStore(DB_STORE).get(id); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+  function dbDel(id) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).delete(id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
+  const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
+
+  // La composition courante, sérialisée : dessins (images d'origine et réglages) et mise en place.
+  async function snapshotComposition(name) {
+    const comp = state.comp;
+    const drawings = [];
+    for (const d of state.drawings) {
+      const blob = await toBlob(d.original, 'image/jpeg', 0.92);
+      drawings.push({
+        name: d.name, blob, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
+        enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
+        pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
+      });
+    }
+    const idx = (d) => state.drawings.indexOf(d);
+    const texOwner = (src) => state.drawings.findIndex((d) => d.analysis.texture && d.analysis.texture.canvas === src);
+    const pick = (L, keys) => { const o = {}; keys.forEach((k) => { if (L[k] !== undefined) o[k] = L[k]; }); return o; };
+    const items = comp.items.map((L) => Object.assign({ d: idx(L.piece.drawing), p: L.piece.drawing.analysis.pieces.indexOf(L.piece) }, pick(L, ['x', 'y', 'w', 'h', 'rot', 'flip', 'scale', 'plan'])));
+    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan'])));
+    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale']), { items, bg });
+    return {
+      id: Date.now(), name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
+      settings: { format: $('format').value, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
+      drawings, comp: compData,
+    };
+  }
+
+  async function saveComposition() {
+    if (!state.comp || !state.drawings.length) return;
+    const st = STYLES.find((x) => x.id === state.comp.style);
+    const dflt = (state.titles && state.titles[state.comp.style]) || `${st ? st.name : 'Composition'} du ${new Date().toLocaleDateString('fr-FR')}`;
+    const name = window.prompt('Nom de cette composition :', dflt);
+    if (name === null) return;
+    saveStatus('Sauvegarde de la composition…');
+    try {
+      const rec = await snapshotComposition((name || dflt).trim().slice(0, 80));
+      await dbPut(rec);
+      saveStatus(`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
+      renderSaved();
+    } catch (e) {
+      console.error(e);
+      saveStatus('La sauvegarde a échoué (espace de stockage du navigateur ?).');
+    }
+  }
+
+  async function renderSaved() {
+    const box = $('saved-list');
+    if (!box) return;
+    let list = [];
+    try { list = await dbAll(); } catch (e) { list = []; }
+    list.sort((a, b) => b.id - a.id);
+    $('saved-count').textContent = list.length ? `(${list.length})` : '';
+    box.innerHTML = '';
+    list.forEach((rec) => {
+      const el = document.createElement('div');
+      el.className = 'saved';
+      el.setAttribute('role', 'button');
+      el.tabIndex = 0;
+      const when = new Date(rec.date);
+      const st = STYLES.find((x) => x.id === rec.comp.style);
+      el.innerHTML = `<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${rec.drawings.length} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString('fr-FR')}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+      el.querySelector('.saved-del').onclick = async (e) => { e.stopPropagation(); if (!window.confirm(`Supprimer « ${rec.name} » ?`)) return; await dbDel(rec.id); renderSaved(); };
+      const open = () => restoreComposition(rec.id);
+      el.onclick = open;
+      el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+      box.appendChild(el);
+    });
+  }
+
+  // Rouvre une composition : les dessins sont réimportés depuis leurs images, puis la mise en place
+  // sauvegardée est reposée telle quelle (pas de nouvelle analyse par Claude, rien ne bouge).
+  async function restoreComposition(id) {
+    const rec = await dbGet(id);
+    if (!rec) return;
+    if (state.drawings.length && !window.confirm('Rouvrir cette composition remplace les dessins et l’œuvre en cours. Continuer ?')) return;
+    // réglages d'abord, pour que la toile et le fond soient les mêmes
+    const sv = rec.settings || {};
+    if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) $('format').value = sv.format;
+    if (sv.orient) setCanvasOrient(sv.orient);
+    if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
+    if (sv.grain !== undefined) $('grain').checked = sv.grain;
+    if (sv.density !== undefined) $('density').value = sv.density;
+    if (sv.pale && $('pale')) $('pale').value = sv.pale;
+    state.drawings = [];
+    state.title = sv.title || '';
+    state.titles = sv.titles || null;
+    const files = rec.drawings.map((d) => new File([d.blob], d.name, { type: 'image/jpeg' }));
+    const sizes = {};
+    rec.drawings.forEach((d) => { sizes[d.name] = d.sizeCm; });
+    await importFiles(files, sizes, { quiet: true });
+    // réglages par dessin
+    rec.drawings.forEach((sd, i) => {
+      const d = state.drawings[i];
+      if (!d) return;
+      d.ai = sd.ai || null;
+      if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
+      if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
+      d.role = sd.role; // rôle effectif figé : la composition compte dessus
+      ensureMaterial(d);
+      (d.analysis.pieces || []).forEach((p, k) => { if (sd.enabled && sd.enabled[k] !== undefined) p.enabled = sd.enabled[k]; if (sd.pieceAi && sd.pieceAi[k]) p.ai = sd.pieceAi[k]; });
+    });
+    applyOrientations();
+    planCoverage();
+    refreshLists();
+    regenerate();
+    // la mise en place sauvegardée
+    const c = rec.comp;
+    const comp = Object.assign({}, c, { bg: [], items: [] });
+    c.bg.forEach((L) => {
+      if (L.paper || L.d < 0) { comp.bg.push(Object.assign({ kind: 'bg', paper: true }, L, { src: Compose.paperLayer ? Compose.paperLayer(c.W, c.H).src : null })); return; }
+      const d = state.drawings[L.d];
+      if (!d) return;
+      ensureMaterial(d);
+      const t = d.analysis.texture;
+      if (!t) return;
+      comp.bg.push(Object.assign({ kind: 'bg' }, L, { src: t.canvas, sw: L.sw || t.canvas.width, sh: L.sh || t.canvas.height, sx: L.sx || 0, sy: L.sy || 0 }));
+    });
+    comp.bg = comp.bg.filter((L) => L.src);
+    c.items.forEach((L) => {
+      const d = state.drawings[L.d];
+      const p = d && d.analysis.pieces ? d.analysis.pieces[L.p] : null;
+      if (!p) return;
+      p.enabled = true; p.placed = true;
+      comp.items.push(Object.assign({ kind: 'piece', piece: p }, L));
+    });
+    state.pinned = comp;
+    regenerate();
+    const i = STYLES.findIndex((st) => st.id === comp.style);
+    selectProposal(i >= 0 ? i : 0);
+    saveStatus(`Composition « ${rec.name} » rouverte.`);
+    $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  $('save-comp').onclick = saveComposition;
+  renderSaved();
 
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
   (function collapsibleSections() {
