@@ -64,6 +64,7 @@
       for (let i = 1; i <= pdf.numPages; i++) {
         pages.push({
           name: `${file.name} — p.${i}`,
+          source: { file, index: i - 1 },
           render: async (max) => {
             const page = await pdf.getPage(i);
             const vp0 = page.getViewport({ scale: 1 });
@@ -84,6 +85,7 @@
     } else if (file.type.startsWith('image/')) {
       pages.push({
         name: file.name,
+        source: { file, index: 0 },
         render: async (max) => {
           // une image de plusieurs dizaines de Mo est décodée par le navigateur puis réduite
           // à la résolution de travail ; on ne garde jamais l'image complète en mémoire
@@ -152,6 +154,7 @@
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
           orient: 'auto', orientDeg: 0,
           original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
+          source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm,
           sizeCm: 29.7, sizeMode: 'auto',
         };
@@ -1732,7 +1735,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // Les navigateurs de téléphone refusent les très grandes images (Safari : ~16 millions de pixels).
   const phone = () => navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900;
-  const MAX_PIXELS = () => (phone() ? 12e6 : 60e6);
+  const MAX_PIXELS = () => (phone() ? 12e6 : 180e6); // 180 Mpx : une toile de 130 × 90 cm à 300 dpi
 
   function exportSize() {
     const comp = state.comp;
@@ -1756,7 +1759,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const { w, h, capped } = exportSize();
     const pdf = $('fmt').value === 'application/pdf';
     $('export-info').textContent = pdf
-      ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(200, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
+      ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
       : `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
   }
 
@@ -1872,11 +1875,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if ($('fmt').value === 'application/pdf') {
         saveStatus('Assemblage du PDF…');
         await tick();
-        // les images du PDF restent à 200 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
-        const blob = await exportPdf(state.comp, Math.min(s, 200 / 2.54));
+        // les images du PDF restent à 300 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
+        const ps = Math.min(s, 300 / 2.54);
+        await hydrateHD(state.comp, ps);
+        const blob = await exportPdf(state.comp, ps);
+        releaseHD();
         await saveFile(blob, 'oeuvre-atelier-gribouille.pdf');
         return;
       }
+      await hydrateHD(state.comp, s);
+      saveStatus('Rendu de l’image…');
+      await tick();
       const c = Extract.makeCanvas(state.comp.W * s, state.comp.H * s);
       const x = c.getContext('2d');
       x.imageSmoothingQuality = 'high';
@@ -1899,6 +1908,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       console.error(e);
       notice('Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.');
     } finally {
+      releaseHD();
       btn.disabled = false;
       btn.querySelector('span').textContent = 'Télécharger l’œuvre';
     }
@@ -1910,6 +1920,85 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
    * du vitrail et les traits de la constellation sont dessinés en vecteurs. Les scans restent des
    * images (on ne peut pas vectoriser un dessin d'enfant sans le trahir).
    */
+  /*
+   * Haute définition à l'export. Les pages sont analysées à une résolution de travail (jusqu'à 2800 px),
+   * ce qui ne suffit pas toujours pour 300 dpi : au moment d'exporter, chaque dessin dont une découpe ou
+   * une page de fond serait agrandie est relu depuis son fichier d'origine à la résolution nécessaire,
+   * puis analysé de la même façon (la détection des sujets se fait sur une grille fixe : mêmes sujets,
+   * même ordre). Les découpes et pages ainsi obtenues remplacent les versions de travail pendant le
+   * rendu, puis sont libérées. Si la source n'a pas plus de pixels, rien ne change.
+   */
+  const HD_SOURCE_MAX = () => (phone() ? 4000 : 6500); // grand côté maximal relu (A3 à 300 dpi ≈ 5000 px)
+  async function renderSource(source, max) {
+    const pages = await pagesFromFile(source.file);
+    const pg = pages[source.index];
+    if (!pg) throw new Error('page introuvable dans le fichier d’origine');
+    try { return await pg.render(max); } finally { new Set(pages.map((p) => p.release).filter(Boolean)).forEach((r) => { try { r(); } catch (e) { /* déjà libéré */ } }); }
+  }
+  // par dessin, le facteur d'agrandissement dont l'export a besoin par rapport à la résolution de travail
+  function hdNeeds(comp, s) {
+    const need = new Map();
+    const bump = (d, r) => { if (d && d.source && r > 1.05) need.set(d, Math.max(need.get(d) || 1, r)); };
+    comp.items.forEach((L) => { const p = L.piece; if (p && p.canvas) bump(p.drawing, (L.w * s) / p.canvas.width); });
+    comp.bg.forEach((L) => {
+      if (L.paper || !L.src || !L.sw) return;
+      const d = state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src);
+      bump(d, (L.w * s) / L.sw);
+    });
+    return need;
+  }
+  async function hydrateHD(comp, s) {
+    const need = hdNeeds(comp, s);
+    let i = 0;
+    for (const [d, r] of need) {
+      i++;
+      saveStatus(`Haute définition : dessin ${i} / ${need.size} relu depuis son fichier…`);
+      await tick();
+      try {
+        const want = Math.ceil(d.srcLong * r);
+        const max = Math.min(HD_SOURCE_MAX(), want);
+        if (max <= d.srcLong * 1.05) continue; // la source n'a rien de plus à donner
+        const src = await renderSource(d.source, max);
+        const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
+        if (K0 <= 1.05) continue;
+        const mode = d.photoMode;
+        let a = Extract.analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' });
+        if (d.orientDeg) { const b = Extract.analyze(rotatedPage(a.page, d.orientDeg)); b.kind = a.kind; a = b; }
+        const page = d.analysis.page;
+        const K = a.page.width / page.width;
+        // la page retrouvée doit être la même (même recadrage) : sinon on garde la version de travail
+        if (K < 1.05 || Math.abs(a.page.width / a.page.height - page.width / page.height) > 0.03) continue;
+        const pieces = comp.items.filter((L) => L.piece && L.piece.drawing === d);
+        if (pieces.length) {
+          if (!a.pieces) a.pieces = Extract.cutPieces(a.page, a.seg);
+          pieces.forEach((L) => {
+            const p = L.piece;
+            const k = (d.analysis.pieces || []).indexOf(p);
+            const hp = k >= 0 ? a.pieces[k] : null;
+            if (!hp) return;
+            const same = Math.abs(hp.frac - p.frac) < 0.03 && Math.abs(hp.canvas.width / hp.canvas.height - p.canvas.width / p.canvas.height) < 0.06;
+            if (!same) return;
+            p.hd = Extract.scaleTo(hp.canvas, Math.ceil(Math.max(L.w, L.h) * s * 1.02));
+          });
+        }
+        const t = d.analysis.texture;
+        if (t && comp.bg.some((L) => L.src === t.canvas)) {
+          const ht = a.texture || Extract.textureFrom(a.page);
+          t.canvas.hd = Extract.scaleTo(ht.canvas, Math.ceil(Math.max(t.canvas.width, t.canvas.height) * r * 1.02));
+        }
+      } catch (e) {
+        console.warn(`Haute définition impossible pour « ${d.name} »`, e);
+      }
+    }
+    if (need.size) saveStatus('');
+  }
+  function releaseHD() {
+    state.drawings.forEach((d) => {
+      (d.analysis.pieces || []).forEach((p) => { delete p.hd; });
+      if (d.analysis.texture) delete d.analysis.texture.canvas.hd;
+    });
+  }
+
   async function exportPdf(comp, s) {
     const { jsPDF } = window.jspdf;
     const W = comp.W, H = comp.H;
@@ -2336,16 +2425,30 @@ Réponds uniquement avec ce JSON :
   const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
 
   // La composition courante, sérialisée : dessins (images d'origine et réglages) et mise en place.
+  const HD_SAVE = 3508; // page de PDF sauvegardée à 300 dpi sur un A4
+  async function sourceBytes(d) {
+    const src = d.source;
+    if (src && src.file && src.file.type && src.file.type.startsWith('image/')) return { data: await src.file.arrayBuffer(), type: src.file.type };
+    if (src && src.file) {
+      try {
+        const r = await renderSource(src, Math.min(HD_SOURCE_MAX(), HD_SAVE));
+        const blob = await toBlob(r.canvas, 'image/jpeg', 0.92);
+        return { data: await blob.arrayBuffer(), type: 'image/jpeg' };
+      } catch (e) { console.warn('source haute définition illisible, image de travail sauvegardée', e); }
+    }
+    const blob = await toBlob(d.original, 'image/jpeg', 0.92);
+    return { data: await blob.arrayBuffer(), type: 'image/jpeg' };
+  }
   async function snapshotComposition(name) {
     const comp = state.comp;
     const drawings = [];
     for (const d of state.drawings) {
       // image stockée en octets bruts (ArrayBuffer) : les Blob relus depuis IndexedDB sont
-      // parfois vides ou illisibles sur certains navigateurs (Safari notamment)
-      const blob = await toBlob(d.original, 'image/jpeg', 0.92);
-      const data = await blob.arrayBuffer();
+      // parfois vides ou illisibles sur certains navigateurs (Safari notamment). On garde la source
+      // en haute définition : le fichier image tel quel, ou la page du PDF rendue à 300 dpi (A4).
+      const { data, type } = await sourceBytes(d);
       drawings.push({
-        name: d.name, data, type: 'image/jpeg', role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
+        name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
       });
@@ -2537,7 +2640,7 @@ Réponds uniquement avec ce JSON :
   fillGround();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize };
   if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
 
   render();

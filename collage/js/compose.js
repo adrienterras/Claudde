@@ -1181,9 +1181,12 @@
         ctx.shadowOffsetX = 0.08 * s;
         ctx.shadowOffsetY = 0.18 * s;
       }
-      ctx.drawImage(L.piece.canvas, -w / 2, -h / 2, w, h);
+      // à l'export, une version haute définition de la découpe ou de la page peut être fournie
+      ctx.drawImage(L.piece.hd || L.piece.canvas, -w / 2, -h / 2, w, h);
     } else {
-      ctx.drawImage(L.src, L.sx, L.sy, L.sw, L.sh, -w / 2, -h / 2, w, h);
+      const img = L.src.hd || L.src;
+      const kk = img.width / L.src.width;
+      ctx.drawImage(img, L.sx * kk, L.sy * kk, L.sw * kk, L.sh * kk, -w / 2, -h / 2, w, h);
     }
     ctx.restore();
   }

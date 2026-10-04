@@ -81,7 +81,16 @@ cd collage && python3 -m http.server 8000
    - **résolution d'import** : chaque page est conservée à la plus haute résolution que l'appareil
      permet (de 1400 à 2800 px de grand côté, 2000 sur téléphone), calculée d'après le nombre de pages
      et la mémoire disponible ; l'analyse des sujets se fait sur une grille réduite, mais les découpes
-     et les pages de fond gardent cette résolution jusqu'à l'export ;
+     et les pages de fond gardent cette résolution à l'écran ;
+   - **export haute définition (300 dpi par défaut, tous formats)** : au moment d'exporter, chaque
+     dessin dont une découpe ou une page de fond serait agrandie est relu depuis son fichier d'origine
+     (image telle quelle, ou page du PDF rendue à la résolution nécessaire, jusqu'à 6500 px de côté) et
+     analysé de la même façon ; les découpes et pages ainsi obtenues remplacent les versions de travail
+     le temps du rendu, puis sont libérées. La seule limite est le fichier d'origine : un scan à 300 dpi
+     ou une photo de 12 Mpx donne du 300 dpi réel, un PDF compressé par l'application de scan non.
+     Les sauvegardes gardent la source en haute définition (image d'origine, ou page de PDF à 3508 px),
+     si bien qu'une composition rouverte s'exporte avec la même qualité. Sur ordinateur, l'image
+     exportée peut atteindre 180 Mpx (130 × 90 cm à 300 dpi) ; sur téléphone, 12 Mpx (limite de Safari) ;
    - chaque dessin découpé apporte son sujet principal et tous ses autres éléments qui ressemblent
      à un sujet (au moins 3 cm, même peu colorés : nuages au crayon, petits personnages) ; Claude,
      s'il est disponible, regarde ensuite chaque élément un par un et écarte les fragments (taches,
@@ -97,7 +106,7 @@ cd collage && python3 -m http.server 8000
      restent dans la bande de leur page ;
    - **export PDF à l'échelle** : une page de la taille exacte de la toile (1 cm = 1 cm), chaque page
      de fond posée tournée comme une image JPEG, les découpes et papiers déchirés en PNG avec leur
-     transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 200 dpi
+     transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 300 dpi
      au plus. Les scans restent des images : un dessin d'enfant ne se vectorise pas sans le trahir ;
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
@@ -162,7 +171,7 @@ cd collage && python3 -m http.server 8000
      l'app vérifie ensuite que les pieds restent sur le sol et que seul ce qui vole est au ciel ; cette
      mise en place est gardée jusqu'au prochain import ou aux « nouvelles propositions ») ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
-4. **Exporter** en JPEG ou PNG, jusqu'à 300 dpi pour l'impression sur toile.
+4. **Exporter** en JPEG ou PNG, à 300 dpi par défaut pour l'impression sur toile.
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
    pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
    déplacer ; bouton plein écran, pratique sur téléphone.
