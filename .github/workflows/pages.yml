@@ -29,6 +29,16 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      # Un run relancé sur un ancien commit ne doit pas écraser un site plus récent :
+      # on ne déploie que si ce commit est encore la pointe de la branche.
+      - name: Vérifier que le commit est le plus récent
+        run: |
+          git fetch --quiet origin "${GITHUB_REF_NAME}"
+          tip="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::error::Ce run concerne ${GITHUB_SHA:0:7} mais la branche est à ${tip:0:7} : déploiement refusé pour ne pas revenir en arrière. Relancez le run du dernier commit."
+            exit 1
+          fi
       - name: Préparer le site
         run: |
           mkdir -p _site/atelier
