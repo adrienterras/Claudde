@@ -101,6 +101,11 @@ cd collage && python3 -m http.server 8000
      la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4)
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
+   - **composition « Galerie »** : grille de cases carrées toujours complète (jamais une dernière rangée
+     moins remplie : le nombre de cases est ramené à la grille complète la plus proche des proportions
+     de la toile), un dessin par case réduit s'il le faut, jamais agrandi ; en « taille adaptée aux
+     dessins », la toile est dimensionnée pour la grille elle-même (cases au 75e centile des tailles,
+     grand côté plafonné à 130 cm) et non pour les pages de fond ;
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
      leur couleur (claires et froides en haut, sombres et chaudes en bas), posées en tuiles presque
      droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les éventuels lambeaux

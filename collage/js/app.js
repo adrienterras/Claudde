@@ -1098,6 +1098,26 @@
     return { w: Math.round(f.w * k), h: Math.round(f.h * k), auto: true };
   }
 
+  // Toile « adaptée aux dessins » pour la Galerie : une grille complète dont les cases accueillent les
+  // dessins à taille réelle (case au 75e centile des tailles : les quelques très grands sont réduits,
+  // les autres ne paraissent jamais minuscules), sans dépendre des pages de fond.
+  function galleryFormat(o) {
+    const f = o.format;
+    const byDrawing = new Map();
+    o.pieces.forEach((p) => { const m = Math.max(p.wcm, p.hcm); if (!byDrawing.has(p.drawing) || m > byDrawing.get(p.drawing)) byDrawing.set(p.drawing, m); });
+    o.textures.forEach((t) => { const d = t.drawing || t; if (!byDrawing.has(d)) byDrawing.set(d, Math.max(t.wcm || 0, t.hcm || 0)); });
+    const dims = [...byDrawing.values()].filter((v) => v > 0).sort((a, b) => a - b);
+    if (!dims.length) return f;
+    const g = Compose.galleryShape(Compose.galleryCount(dims.length, o), f.w / f.h);
+    const M = 3, gap = 1.6, pad = 1.6;
+    const side = dims[Math.min(dims.length - 1, Math.floor(dims.length * 0.75))] + 2 * pad;
+    let w = 2 * M + g.cols * side + (g.cols - 1) * gap, h = 2 * M + g.rows * side + (g.rows - 1) * gap;
+    // au-delà de 130 cm de grand côté, la toile est ramenée à cette taille (les dessins sont alors un peu réduits)
+    const k = Math.min(1, 130 / Math.max(w, h));
+    w *= k; h *= k;
+    return { w: Math.round(w), h: Math.round(h), auto: true };
+  }
+
   // Les styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
     { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
@@ -1119,6 +1139,7 @@
     state.proposals = STYLES.map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
       if (st.id === 'scene') { so.pieces = sceneSelection(o); if (o.format.auto) so.format = sceneFormat(o); }
+      if (st.id === 'galerie' && o.format.auto) so.format = galleryFormat(o);
       if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto) so.format = state.sceneLayout.format; }
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };

@@ -857,6 +857,32 @@
    * dessin, colorés, plutôt dressés) et le plus grand nombre de cases que la toile permet en
    * gardant chaque sujet à sa taille réelle ; le nombre de dessins dépend donc de la toile.
    */
+  // Nombre de cases visé par le curseur de densité (toutes au maximum).
+  function galleryCount(n, o) {
+    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
+    return o.everything ? n : Math.max(1, Math.round(n * (0.2 + 0.8 * t)));
+  }
+  // Grille complète (toutes les rangées pleines) la plus proche des proportions de la toile pour N cases.
+  function galleryGrid(N, ratio) {
+    let g = null;
+    for (let cols = 1; cols <= N; cols++) {
+      if (N % cols) continue;
+      const rows = N / cols;
+      const dev = Math.abs(Math.log((cols / rows) / ratio));
+      if (!g || dev < g.dev) g = { N, cols, rows, dev };
+    }
+    return g;
+  }
+  // La grille retenue : en partant du nombre visé, on retire des cases jusqu'à obtenir une grille
+  // complète aux proportions raisonnables (23 cases = 1 × 23 est refusé ; 20 = 4 × 5 accepté).
+  function galleryShape(target, ratio) {
+    for (let N = target; N >= 1; N--) {
+      const g = galleryGrid(N, ratio);
+      if (N === 1 || N <= target - 6 || g.dev <= Math.log(1.75)) return g;
+    }
+    return galleryGrid(1, ratio);
+  }
+
   function gallery(W, H, pieces, o, R, texs) {
     const M = 3, gap = 1.6, pad = 1.6;
     const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0)
@@ -870,25 +896,25 @@
     // le curseur de densité règle le nombre de cases visées (toutes au maximum). La Galerie est faite
     // pour l'impression : un dessin trop grand pour sa case est réduit (jamais agrandi), si bien que
     // tous les dessins tiennent, quelle que soit la toile.
-    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
-    const target = o.everything ? cands.length : Math.max(1, Math.round(cands.length * (0.2 + 0.8 * t)));
-    // cases carrées : pour N cases, la grille la plus proche des proportions de la toile, et le plus
-    // grand côté de case qui tient ; on préfère les sujets qui tiennent à taille réelle
+    const target = galleryCount(cands.length, o);
+    // cases carrées en grille complète (jamais une dernière rangée moins remplie) : pour N cases, la
+    // grille la plus proche des proportions de la toile, et le plus grand côté de case qui tient ;
+    // on préfère les sujets qui tiennent à taille réelle
     let best = null;
-    for (let N = target; N >= 1 && !best; N--) {
-      const cols = Math.max(1, Math.round(Math.sqrt((N * W) / H)));
-      const rows = Math.ceil(N / cols);
+    for (let want = target; want >= 1 && !best; want--) {
+      const g = galleryShape(want, W / H);
+      const N = g.N, cols = g.cols, rows = g.rows;
       const side = Math.min((W - 2 * M - (cols - 1) * gap) / cols, (H - 2 * M - (rows - 1) * gap) / rows);
       if (side < 2.5) continue;
       const fillOf = (p) => Math.max(p.wcm, p.hcm) / (side - 2 * pad);
       const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0) + (f <= 1 ? 1 : 0); };
       const fit = cands.slice().sort((a, b) => cellScore(b) - cellScore(a));
       best = { N, cols, rows, side, fit: fit.slice(0, N), inner: side - 2 * pad };
+      want = N; // on reprend, s'il le faut, en dessous de la grille essayée
     }
     if (!best) return { items: [], frames: [], kept: 0 };
     // grille centrée sur la toile ; la dernière rangée, si elle est incomplète, est centrée aussi
-    const { N, cols, side } = best;
-    const rows = Math.ceil(N / cols);
+    const { N, cols, rows, side } = best;
     const gridW = cols * side + (cols - 1) * gap, gridH = rows * side + (rows - 1) * gap;
     const x0g = (W - gridW) / 2, y0g = (H - gridH) / 2;
     const order = shuffle(best.fit, R);
@@ -1367,5 +1393,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng, paperLayer };
+  window.Compose = { galleryCount, galleryGrid, galleryShape, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng, paperLayer };
 })();
