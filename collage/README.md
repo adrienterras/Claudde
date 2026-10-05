@@ -54,7 +54,8 @@ cd collage && python3 -m http.server 8000
      fond ; les pages de fond restent entières ;
    - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
      enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
-     taille, orientation, photo sur un sol, sujets gardés) et la mise en place exacte (chaque pièce et
+     taille, orientation, photo sur un sol, sujets gardés), les retouches de découpe faites à la main
+     (le masque de chaque pièce retouchée, rejoué sur la page réimportée et respecté à l'export HD) et la mise en place exacte (chaque pièce et
      page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une composition
      telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte reste
      épinglée jusqu'à « nouvelles propositions » ou un changement de réglage ;

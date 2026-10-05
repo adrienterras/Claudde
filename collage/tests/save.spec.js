@@ -49,3 +49,58 @@ test.describe('Compositions sauvegardées', () => {
     await expect(page.locator('#save-status')).toContainText('Importez des dessins');
   });
 });
+
+test.describe('Retouches de découpe sauvegardées', () => {
+  test('une découpe retouchée est rejouée à l’identique à la réouverture', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    const coverage = () => page.evaluate(() => {
+      const p = AtelierGribouille.state.drawings[0].analysis.pieces[0];
+      const d = p.canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, p.canvas.width, p.canvas.height).data;
+      let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 127) n++;
+      return { opaque: n, w: p.canvas.width, h: p.canvas.height, edited: !!p.edited };
+    });
+    const before = await coverage();
+    expect(before.edited).toBe(false);
+    // on ouvre l'éditeur sur la première pièce et on gomme une large bande au milieu
+    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
+    await expect(page.locator('#editor')).toBeVisible();
+    await page.locator('#ed-size').fill('140');
+    const box = await page.locator('#ed-canvas').boundingBox();
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width * 0.2, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 20; i++) await page.mouse.move(box.x + box.width * (0.2 + 0.6 * i / 20), y);
+    await page.mouse.up();
+    await page.locator('#ed-apply').click();
+    await expect(page.locator('#editor')).toBeHidden();
+    const edited = await coverage();
+    expect(edited.edited).toBe(true);
+    expect(edited.opaque).toBeLessThan(before.opaque * 0.9);
+
+    await page.locator('#save-comp').click();
+    await page.fill('#save-name', 'Avec retouche');
+    await page.locator('#save-form button[type=submit]').click();
+    await expect(page.locator('#save-status')).toContainText('sauvegardée');
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
+    await page.locator('.saved').first().click();
+    await expect(page.locator('#saved-status')).toContainText('1 retouche(s) rejouée(s)', { timeout: 120000 });
+    const after = await coverage();
+    expect(after.edited).toBe(true);
+    expect(after.w).toBe(edited.w);
+    expect(after.h).toBe(edited.h);
+    expect(Math.abs(after.opaque - edited.opaque) / edited.opaque).toBeLessThan(0.02);
+    // la pièce retouchée garde sa retouche à l'export haute définition
+    const hd = await page.evaluate(async () => {
+      const A = AtelierGribouille; const comp = A.state.comp;
+      await A.hydrateHD(comp, 300 / 2.54);
+      const L = comp.items.find((x) => x.piece === A.state.drawings[0].analysis.pieces[0]);
+      const r = L && L.piece.hd ? { w: L.piece.hd.width, h: L.piece.hd.height } : null;
+      A.releaseHD();
+      return r;
+    });
+    if (hd) expect(hd.w / hd.h).toBeCloseTo(after.w / after.h, 1);
+    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+});

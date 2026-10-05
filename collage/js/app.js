@@ -1673,6 +1673,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       L.h = newSrc.h * u;
     }));
     if (p.wcm) { p.wcm *= newSrc.w / oldSrc.w; p.hcm *= newSrc.h / oldSrc.h; }
+    p.edited = true; // la retouche est sauvegardée avec la composition et rejouée à la réouverture
     p.thumb = thumbOf(p.canvas, 120, true);
     refreshPieces();
     renderProposals();
@@ -2004,12 +2005,27 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
           if (!a.pieces) a.pieces = Extract.cutPieces(a.page, a.seg);
           pieces.forEach((L) => {
             const p = L.piece;
+            const needLong = Math.ceil(Math.max(L.w, L.h) * s * 1.02);
+            if (p.edited && p.src) {
+              // pièce retouchée : la page haute définition est recoupée à l'endroit retouché et masquée
+              // par la découpe retouchée (agrandie en douceur), pour garder exactement la retouche
+              const bw = Math.max(1, Math.round(p.src.w * K)), bh = Math.max(1, Math.round(p.src.h * K));
+              const crop = Extract.makeCanvas(bw, bh);
+              crop.getContext('2d').drawImage(a.page, p.src.x * K, p.src.y * K, p.src.w * K, p.src.h * K, 0, 0, bw, bh);
+              const img = Extract.enhance(crop, p.src.paper);
+              const cx = img.getContext('2d');
+              cx.globalCompositeOperation = 'destination-in';
+              cx.imageSmoothingQuality = 'high';
+              cx.drawImage(p.canvas, 0, 0, bw, bh);
+              p.hd = Extract.scaleTo(img, needLong);
+              return;
+            }
             const k = (d.analysis.pieces || []).indexOf(p);
             const hp = k >= 0 ? a.pieces[k] : null;
             if (!hp) return;
             const same = Math.abs(hp.frac - p.frac) < 0.03 && Math.abs(hp.canvas.width / hp.canvas.height - p.canvas.width / p.canvas.height) < 0.06;
             if (!same) return;
-            p.hd = Extract.scaleTo(hp.canvas, Math.ceil(Math.max(L.w, L.h) * s * 1.02));
+            p.hd = Extract.scaleTo(hp.canvas, needLong);
           });
         }
         const t = d.analysis.texture;
@@ -2470,6 +2486,48 @@ Réponds uniquement avec ce JSON :
     const blob = await toBlob(d.original, 'image/jpeg', 0.92);
     return { data: await blob.arrayBuffer(), type: 'image/jpeg' };
   }
+  async function editOf(p, d) {
+    const page = d.analysis.page;
+    const m = Extract.makeCanvas(p.canvas.width, p.canvas.height);
+    const ctx = m.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, m.width, m.height);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(p.canvas, 0, 0);
+    const blob = await toBlob(m, 'image/png');
+    return { src: { x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h }, pageW: page.width, pageH: page.height, mask: await blob.arrayBuffer() };
+  }
+  // Rejoue une retouche sauvegardée sur la pièce réimportée : la page (peut-être à une autre
+  // résolution) est recoupée à l'endroit retouché, puis masquée par la transparence sauvegardée.
+  async function applySavedEdit(p, d, e) {
+    const page = d.analysis.page;
+    const K = page.width / e.pageW;
+    const bw = Math.max(1, Math.round(e.src.w * K)), bh = Math.max(1, Math.round(e.src.h * K));
+    const crop = Extract.makeCanvas(bw, bh);
+    crop.getContext('2d').drawImage(page, e.src.x * K, e.src.y * K, e.src.w * K, e.src.h * K, 0, 0, bw, bh);
+    const img = Extract.enhance(crop, p.src && p.src.paper);
+    const mask = await createImageBitmap(new Blob([e.mask], { type: 'image/png' }));
+    const ctx = img.getContext('2d');
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(mask, 0, 0, bw, bh);
+    ctx.globalCompositeOperation = 'source-over';
+    // carte de clic à la finesse de la pièce d'origine
+    const ratio = p.hit && p.src ? p.hit.w / p.src.w : 0.3;
+    const hw = Math.max(4, Math.round(bw * ratio)), hh = Math.max(4, Math.round(bh * ratio));
+    const hc = Extract.makeCanvas(hw, hh);
+    const hctx = hc.getContext('2d', { willReadFrequently: true });
+    hctx.drawImage(mask, 0, 0, hw, hh);
+    const hd = hctx.getImageData(0, 0, hw, hh).data;
+    const hit = new Uint8Array(hw * hh);
+    for (let i = 0; i < hit.length; i++) hit[i] = hd[i * 4 + 3] > 127 ? 1 : 0;
+    if (mask.close) mask.close();
+    p.canvas = img;
+    p.hit = { w: hw, h: hh, data: hit };
+    p.src = { x: e.src.x * K, y: e.src.y * K, w: bw, h: bh, paper: p.src && p.src.paper };
+    p.edited = true;
+    p.thumb = thumbOf(p.canvas, 120, true);
+  }
   async function snapshotComposition(name) {
     const comp = state.comp;
     const drawings = [];
@@ -2478,10 +2536,15 @@ Réponds uniquement avec ce JSON :
       // parfois vides ou illisibles sur certains navigateurs (Safari notamment). On garde la source
       // en haute définition : le fichier image tel quel, ou la page du PDF rendue à 300 dpi (A4).
       const { data, type } = await sourceBytes(d);
+      // retouches de découpe : le masque de chaque pièce retouchée (PNG de sa transparence), avec sa
+      // position dans la page, pour être rejoué sur la page réimportée
+      const edits = [];
+      for (const p of d.analysis.pieces || []) edits.push(p.edited ? await editOf(p, d) : null);
       drawings.push({
         name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
+        pieceEdits: edits,
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
@@ -2607,6 +2670,18 @@ Réponds uniquement avec ce JSON :
       (d.analysis.pieces || []).forEach((p, k) => { if (sd.enabled && sd.enabled[k] !== undefined) p.enabled = sd.enabled[k]; if (sd.pieceAi && sd.pieceAi[k]) p.ai = sd.pieceAi[k]; });
     });
     applyOrientations();
+    // retouches de découpe, rejouées sur les pages réimportées (après l'orientation : même page)
+    let nEdits = 0;
+    for (let i = 0; i < rec.drawings.length; i++) {
+      const sd = rec.drawings[i], d = state.drawings[i];
+      if (!d || !sd.pieceEdits) continue;
+      for (let k = 0; k < sd.pieceEdits.length; k++) {
+        const e = sd.pieceEdits[k], p = (d.analysis.pieces || [])[k];
+        if (!e || !p || !e.mask) continue;
+        try { await applySavedEdit(p, d, e); nEdits++; } catch (err) { console.warn(`retouche non rejouée sur « ${d.name} »`, err); }
+      }
+    }
+    if (nEdits) savedStatus(`${nEdits} retouche(s) de découpe rejouée(s)…`);
     planCoverage();
     refreshLists();
     regenerate();
@@ -2634,7 +2709,7 @@ Réponds uniquement avec ce JSON :
     regenerate();
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
-    savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées.`);
+    savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? `, ${nEdits} retouche(s) rejouée(s)` : ''}.`);
     $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
@@ -2673,7 +2748,7 @@ Réponds uniquement avec ce JSON :
   fillGround();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece };
   if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
 
   render();
