@@ -20,7 +20,7 @@
   const A4 = [210, 297], A3 = [297, 420];
   const MARGIN = 12;
 
-  const fmt = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString('fr-FR');
+  const fmt = (v, d = 1) => (Math.round(v * 10 ** d) / 10 ** d).toLocaleString(I18n.locale);
   const tick = () => new Promise((r) => setTimeout(r, 0));
 
   // ---------- Outils de page (on dessine en millimètres) ----------
@@ -92,7 +92,7 @@
   function chrome(pg, section, n, total) {
     const { ctx, w, h } = pg;
     if (chrome.logo) ctx.drawImage(chrome.logo, MARGIN, 4.6, 7, (7 * chrome.logo.height) / chrome.logo.width);
-    text(ctx, 'ATELIER GRIBOUILLE · GUIDE DE CRÉATION', MARGIN + 9, 9, 2.2, { font: F.body, color: C.muted });
+    text(ctx, tr('ATELIER GRIBOUILLE · GUIDE DE CRÉATION'), MARGIN + 9, 9, 2.2, { font: F.body, color: C.muted });
     text(ctx, section.toUpperCase(), w - MARGIN, 9, 2.4, { font: F.mono, color: C.muted, align: 'right' });
     ctx.strokeStyle = C.line;
     ctx.lineWidth = 0.25;
@@ -160,7 +160,7 @@
 
 
     // ---- Fiches de découpe : une par dessin original, avec les traits de coupe et les cotes ----
-    opts.onProgress && opts.onProgress('Préparation des fiches de découpe…');
+    opts.onProgress && opts.onProgress(tr('Préparation des fiches de découpe…'));
     const fiches = []; // { d, layers: [{ st, L }] }
     const ficheOf = new Map();
     steps.forEach((st) => {
@@ -199,10 +199,10 @@
       }
       spaced(ctx, 'ATELIER', mid, 48, 3.4, 2.2, F.body, C.ink);
       text(ctx, 'Gribouille', mid, 61, 14, { font: F.display, align: 'center' });
-      spaced(ctx, 'LES DESSINS D’ENFANTS DEVIENNENT DES ŒUVRES D’ART', mid, 68, 2.1, 0.9, F.body, C.ink);
+      spaced(ctx, tr('LES DESSINS D’ENFANTS DEVIENNENT DES ŒUVRES D’ART'), mid, 68, 2.1, 0.9, F.body, C.ink);
       ctx.fillStyle = C.ink;
       ctx.fillRect(mid - 6, 73, 12, 0.25);
-      text(ctx, 'Guide de création', mid, 84, 8, { font: F.display, weight: 'italic', align: 'center' });
+      text(ctx, tr('Guide de création'), mid, 84, 8, { font: F.display, weight: 'italic', align: 'center' });
       if (opts.title) text(ctx, `« ${opts.title} »`, mid, 92, 4.6, { font: F.display, weight: 'italic', align: 'center', color: C.accent });
       const iw = Math.min(128, (88 * comp.W) / comp.H), ih = iw * comp.H / comp.W;
       ctx.save();
@@ -212,40 +212,40 @@
       let yy = 98 + ih + 10;
       const nPieces = comp.items.length, nPanels = panels.length;
       const facts = [
-        `${opts.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
-        `${opts.drawings.length} dessins originaux, à taille réelle · ${nPanels} pages de fond · ${nPieces} découpes${scraps.length ? ` · ${scraps.length} lambeaux` : ''}`,
-        `${sheets.length} fiches de découpe · ${steps.length} étapes de collage`,
+        tr`${opts.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
+        tr`${opts.drawings.length} dessins originaux, à taille réelle · ${nPanels} pages de fond · ${nPieces} découpes${scraps.length ? tr` · ${scraps.length} lambeaux` : ''}`,
+        tr`${sheets.length} fiches de découpe · ${steps.length} étapes de collage`,
       ];
-      if (opts.aside && opts.aside.length) facts.push(`${opts.aside.length} feuille${opts.aside.length > 1 ? 's' : ''} pâle${opts.aside.length > 1 ? 's' : ''} mise${opts.aside.length > 1 ? 's' : ''} de côté, non utilisée${opts.aside.length > 1 ? 's' : ''} : dessins n° ${opts.aside.join(', ')}`);
+      if (opts.aside && opts.aside.length) facts.push(tr`${opts.aside.length} feuille${opts.aside.length > 1 ? 's' : ''} pâle${opts.aside.length > 1 ? 's' : ''} mise${opts.aside.length > 1 ? 's' : ''} de côté, non utilisée${opts.aside.length > 1 ? 's' : ''} : dessins n° ${opts.aside.join(', ')}`);
       facts.forEach((f) => { text(ctx, f, mid, yy, 3.1, { font: F.body, color: C.ink, align: 'center' }); yy += 5; });
       yy += 6;
       const colW = (A4[0] - 2 * MARGIN - 10) / 2;
-      text(ctx, 'Matériel', MARGIN, yy, 5, { font: F.display });
-      text(ctx, 'Mode d’emploi', MARGIN + colW + 10, yy, 5, { font: F.display });
+      text(ctx, tr('Matériel'), MARGIN, yy, 5, { font: F.display });
+      text(ctx, tr('Mode d’emploi'), MARGIN + colW + 10, yy, 5, { font: F.display });
       let y1 = yy + 7, y2 = yy + 7;
       [
-        `Une toile ou un carton de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
-        'Les dessins originaux, et ce guide imprimé (format libre)',
-        'Ciseaux fins et cutter, tapis de coupe',
-        'Colle vinylique ou vernis-colle (type Mod Podge), pinceau plat',
-        'Crayon à papier, règle d’un mètre, gomme',
-        'Vernis mat pour protéger l’œuvre (facultatif)',
+        tr`Une toile ou un carton de ${fmt(comp.W)} × ${fmt(comp.H)} cm`,
+        tr('Les dessins originaux, et ce guide imprimé (format libre)'),
+        tr('Ciseaux fins et cutter, tapis de coupe'),
+        tr('Colle vinylique ou vernis-colle (type Mod Podge), pinceau plat'),
+        tr('Crayon à papier, règle d’un mètre, gomme'),
+        tr('Vernis mat pour protéger l’œuvre (facultatif)'),
       ].forEach((m) => { y1 = wrap(ctx, '·  ' + m, MARGIN, y1, colW, 3, 4.2); y1 += 0.8; });
       [
-        comp.lead ? '1. Peignez toute la toile en noir (acrylique), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon blanc.'
-          : comp.groundName ? `1. Peignez toute la toile en aplat, acrylique « ${comp.groundName} » (deux couches, rouleau mousse ou brosse large), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon.`
-          : '1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile. Si un peu de toile reste nue sur le plan, peignez-la d’abord d’une couleur unie.',
-        '2. Pour chaque dessin, reportez sur l’original le trait magenta de sa fiche, à l’aide des cotes en cm, puis découpez ; gardez chaque morceau avec son numéro.',
-        scraps.length ? '3. Déchirez les chutes des pages de fond trop grandes en lambeaux, sans rien jeter.' : panels.length ? '3. Les pages de fond se collent entières, sans découpe : elles se chevauchent, et ce qui dépasse se rogne une fois collé.' : '3. Cette œuvre ne comporte pas de page de fond : la toile reste blanche entre les découpes.',
-        '4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.',
-        comp.lead ? `5. Une fois les pages de fond collées et sèches, peignez un trait noir de ${fmt(comp.lead * 10)} mm le long des bords de chaque page (le plomb du vitrail), avant de coller les découpes.` : null,
-        comp.frames ? `5. Tracez au feutre noir fin (ou à la peinture, au pinceau fin) le cadre carré de chaque case, ${fmt((comp.frameWidth || 0.3) * 10)} mm d’épaisseur, d’après le plan de pose, avant de coller les découpes au centre des cases.` : null,
-        (comp.lead || comp.frames ? '6' : '5') + '. Laissez sécher sous un poids, puis passez une couche de vernis.',
+        comp.lead ? tr('1. Peignez toute la toile en noir (acrylique), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon blanc.')
+          : comp.groundName ? tr`1. Peignez toute la toile en aplat, acrylique « ${comp.groundName} » (deux couches, rouleau mousse ou brosse large), laissez sécher, puis tracez légèrement la grille de 10 cm du plan de pose au crayon.`
+          : tr('1. Tracez légèrement au crayon la grille de 10 cm du plan de pose sur la toile. Si un peu de toile reste nue sur le plan, peignez-la d’abord d’une couleur unie.'),
+        tr('2. Pour chaque dessin, reportez sur l’original le trait magenta de sa fiche, à l’aide des cotes en cm, puis découpez ; gardez chaque morceau avec son numéro.'),
+        scraps.length ? tr('3. Déchirez les chutes des pages de fond trop grandes en lambeaux, sans rien jeter.') : panels.length ? tr('3. Les pages de fond se collent entières, sans découpe : elles se chevauchent, et ce qui dépasse se rogne une fois collé.') : tr('3. Cette œuvre ne comporte pas de page de fond : la toile reste blanche entre les découpes.'),
+        tr('4. Collez dans l’ordre des étapes : d’abord le fond, puis les découpes, du numéro 1 au dernier. Un papier qui dépasse de la toile se replie sur la tranche ou se rogne au cutter.'),
+        comp.lead ? tr`5. Une fois les pages de fond collées et sèches, peignez un trait noir de ${fmt(comp.lead * 10)} mm le long des bords de chaque page (le plomb du vitrail), avant de coller les découpes.` : null,
+        comp.frames ? tr`5. Tracez au feutre noir fin (ou à la peinture, au pinceau fin) le cadre carré de chaque case, ${fmt((comp.frameWidth || 0.3) * 10)} mm d’épaisseur, d’après le plan de pose, avant de coller les découpes au centre des cases.` : null,
+        (comp.lead || comp.frames ? '6' : '5') + tr('. Laissez sécher sous un poids, puis passez une couche de vernis.'),
       ].filter(Boolean).forEach((m) => { y2 = wrap(ctx, m, MARGIN + colW + 10, y2, colW, 3, 4.2); y2 += 0.8; });
       let y3 = Math.max(y1, y2) + 4;
       y3 = wrap(ctx, comp.reduced
-        ? `Galerie : cette œuvre est destinée à l’impression. Les dessins sont réduits pour tenir dans leurs cases (jamais agrandis) ; les cotes des fiches de découpe correspondent aux originaux, pas à l’impression. Imprimez l’œuvre (PDF ou image) à ${fmt(comp.W)} × ${fmt(comp.H)} cm.`
-        : `L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
+        ? tr`Galerie : cette œuvre est destinée à l’impression. Les dessins sont réduits pour tenir dans leurs cases (jamais agrandis) ; les cotes des fiches de découpe correspondent aux originaux, pas à l’impression. Imprimez l’œuvre (PDF ou image) à ${fmt(comp.W)} × ${fmt(comp.H)} cm.`
+        : tr`L’œuvre est composée avec les dessins à leur taille réelle : rien n’est réduit ni agrandi, et chaque dessin n’est utilisé qu’une fois. Les fiches de découpe montrent chaque original avec son trait de coupe et ses cotes ; la toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm est dimensionnée d’après le papier disponible.`, MARGIN, y3, A4[0] - 2 * MARGIN, 2.8, 3.9, { color: C.muted });
       pages.push({ pg, section: 'Couverture' });
     }
 
@@ -253,8 +253,8 @@
     {
       const pg = newPage(A4[1], A4[0]); // paysage
       const { ctx, w, h } = pg;
-      text(ctx, 'Plan de pose', MARGIN, 22, 7, { font: F.display });
-      text(ctx, 'Tracez cette grille de 10 cm au crayon sur la toile. Chaque numéro indique le centre d’un élément et son ordre de collage.', MARGIN, 29, 3, { color: C.muted });
+      text(ctx, tr('Plan de pose'), MARGIN, 22, 7, { font: F.display });
+      text(ctx, tr('Tracez cette grille de 10 cm au crayon sur la toile. Chaque numéro indique le centre d’un élément et son ordre de collage.'), MARGIN, 29, 3, { color: C.muted });
       const top = 38, left = MARGIN + 6;
       const sc = Math.min((w - left - MARGIN) / comp.W, (h - top - 14) / comp.H); // mm par cm
       const iw = comp.W * sc, ih = comp.H * sc;
@@ -276,8 +276,8 @@
         const L = st.layer;
         badge(ctx, st.n, left + L.x * sc, top + L.y * sc, 2.1, st.kind === 'panel' ? C.olive : C.accent);
       });
-      text(ctx, '● pages de fond   ● découpes', MARGIN, h - 7, 2.6, { font: F.mono, color: C.muted });
-      pages.push({ pg, section: 'Plan de pose' });
+      text(ctx, tr('● pages de fond   ● découpes'), MARGIN, h - 7, 2.6, { font: F.mono, color: C.muted });
+      pages.push({ pg, section: tr('Plan de pose') });
     }
 
     // Étapes de collage : 6 cartes par page
@@ -285,8 +285,8 @@
     for (let i = 0; i < steps.length; i += 6) {
       const pg = newPage(...A4);
       const { ctx } = pg;
-      text(ctx, 'Étapes de collage', MARGIN, 22, 7, { font: F.display });
-      text(ctx, 'Du fond vers le dessus. Chaque carte montre où poser l’élément (en couleur) sur l’œuvre.', MARGIN, 29, 3, { color: C.muted });
+      text(ctx, tr('Étapes de collage'), MARGIN, 22, 7, { font: F.display });
+      text(ctx, tr('Du fond vers le dessus. Chaque carte montre où poser l’élément (en couleur) sur l’œuvre.'), MARGIN, 29, 3, { color: C.muted });
       steps.slice(i, i + 6).forEach((st, j) => {
         const cw = (A4[0] - 2 * MARGIN - 8) / 2, ch = 82;
         const x0 = MARGIN + (j % 2) * (cw + 8), y0 = 35 + Math.floor(j / 2) * (ch + 4);
@@ -316,30 +316,30 @@
         let ty = y0 + 4 + mh + 6;
         badge(ctx, st.n, x0 + 7.5, ty - 1.2, 3, st.kind === 'piece' ? C.accent : C.olive);
         if (st.kind === 'scraps') {
-          text(ctx, 'Lambeaux de fond', x0 + 13, ty, 3.8, { weight: '600' });
+          text(ctx, tr('Lambeaux de fond'), x0 + 13, ty, 3.8, { weight: '600' });
           const srcs = [...new Set(st.layers.map((L) => ownerOf(L)).filter(Boolean))].map((d) => opts.numberOf(d));
           ty += 5;
-          ty = wrap(ctx, `Après avoir découpé les grands morceaux des pages de fond (étapes ${steps.filter((q) => q.kind === 'panel').map((q) => q.n).slice(0, 1)} à ${steps.filter((q) => q.kind === 'panel').map((q) => q.n).slice(-1)}), déchirez leurs chutes hachurées en morceaux de 3 à 7 cm et collez-les dans les zones en couleur ci-dessus (${st.layers.length} lambeaux, dessins ${srcs.join(', ')}). Pas besoin de précision : ce fond sera en partie recouvert.`, x0 + 4, ty, cw - 8, 2.8, 3.8, { color: C.ink });
+          ty = wrap(ctx, tr`Après avoir découpé les grands morceaux des pages de fond (étapes ${steps.filter((q) => q.kind === 'panel').map((q) => q.n).slice(0, 1)} à ${steps.filter((q) => q.kind === 'panel').map((q) => q.n).slice(-1)}), déchirez leurs chutes hachurées en morceaux de 3 à 7 cm et collez-les dans les zones en couleur ci-dessus (${st.layers.length} lambeaux, dessins ${srcs.join(', ')}). Pas besoin de précision : ce fond sera en partie recouvert.`, x0 + 4, ty, cw - 8, 2.8, 3.8, { color: C.ink });
           return;
         }
         const L = st.layer;
         const d = ownerOf(L);
-        const name = d ? opts.nameOf(d) : 'Élément';
+        const name = d ? opts.nameOf(d) : tr('Élément');
         text(ctx, name.length > 34 ? name.slice(0, 33) + '…' : name, x0 + 13, ty, 3.8, { weight: '600' });
         ty += 5;
         const where = `fiche ${st.sheet}`;
-        text(ctx, `${st.kind === 'panel' ? 'Page de fond' : 'Découpe'} · dessin ${d ? opts.numberOf(d) : '?'} · ${where}`, x0 + 4, ty, 2.8, { color: C.muted });
+        text(ctx, tr`${st.kind === 'panel' ? tr('Page de fond') : tr('Découpe')} · dessin ${d ? opts.numberOf(d) : '?'} · ${where}`, x0 + 4, ty, 2.8, { color: C.muted });
         ty += 4.4;
-        text(ctx, `Case ${cellName(L.x, L.y)} · centre à ${fmt(L.x)} cm de la gauche,`, x0 + 4, ty, 2.7, { font: F.mono });
+        text(ctx, tr`Case ${cellName(L.x, L.y)} · centre à ${fmt(L.x)} cm de la gauche,`, x0 + 4, ty, 2.7, { font: F.mono });
         ty += 3.9;
-        text(ctx, `${fmt(L.y)} cm du haut`, x0 + 4, ty, 2.7, { font: F.mono });
+        text(ctx, tr`${fmt(L.y)} cm du haut`, x0 + 4, ty, 2.7, { font: F.mono });
         ty += 3.9;
         const deg = Math.round((L.rot * 180) / Math.PI);
-        const rot = Math.abs(deg) < 1 ? 'Bien droit' : `Tourné de ${Math.abs(deg)}° vers la ${deg > 0 ? 'droite' : 'gauche'}`;
-        text(ctx, rot + (L.flip ? ' · en miroir' : ''), x0 + 4, ty, 2.7, { font: F.mono });
+        const rot = Math.abs(deg) < 1 ? tr('Bien droit') : tr`Tourné de ${Math.abs(deg)}° vers la ${deg > 0 ? tr('droite') : tr('gauche')}`;
+        text(ctx, rot + (L.flip ? tr(' · en miroir') : ''), x0 + 4, ty, 2.7, { font: F.mono });
       });
-      pages.push({ pg, section: 'Étapes de collage' });
-      opts.onProgress && opts.onProgress(`Étapes de collage… ${Math.min(i + 6, steps.length)} / ${steps.length}`);
+      pages.push({ pg, section: tr('Étapes de collage') });
+      opts.onProgress && opts.onProgress(tr`Étapes de collage… ${Math.min(i + 6, steps.length)} / ${steps.length}`);
       await tick();
     }
 
@@ -355,8 +355,8 @@
       const { ctx, w, h } = pg;
       text(ctx, `Fiche ${f.n}`, MARGIN, 19, 5, { font: F.display });
       scissors(ctx, MARGIN + 24, 17.5, 5, C.cut);
-      const turned = d.orientDeg ? ` · original tourné de ${d.orientDeg}° (le haut du scan est ${d.orientDeg === 90 ? 'à droite' : d.orientDeg === 180 ? 'en bas' : 'à gauche'})` : '';
-      text(ctx, `${opts.nameOf(d)} · dessin ${opts.numberOf(d)} · feuille de ${fmt(pw)} × ${fmt(ph)} cm${turned}${d.original && d.photoMode === 'auto' ? ' · photo détourée (sol ou table retiré)' : ''}`, MARGIN + 30, 19, 2.8, { color: C.muted });
+      const turned = d.orientDeg ? tr` · original tourné de ${d.orientDeg}° (le haut du scan est ${d.orientDeg === 90 ? tr('à droite') : d.orientDeg === 180 ? tr('en bas') : tr('à gauche')})` : '';
+      text(ctx, tr`${opts.nameOf(d)} · dessin ${opts.numberOf(d)} · feuille de ${fmt(pw)} × ${fmt(ph)} cm${turned}${d.original && d.photoMode === 'auto' ? tr(' · photo détourée (sol ou table retiré)') : ''}`, MARGIN + 30, 19, 2.8, { color: C.muted });
       // l'original, ajusté à la page (ce n'est pas à l'échelle : les cotes font foi)
       const top = 26, bottom = h - 34;
       const sc = Math.min((w - 2 * MARGIN - 14) / pw, (bottom - top) / ph); // mm par cm
@@ -418,17 +418,17 @@
           });
         }
         badge(ctx, st.n, ox + box.x * sc + 3.5, oy + box.y * sc + 3.5, 2.8, isPanel ? C.olive : C.accent);
-        const dims = `${fmt(box.w)} × ${fmt(box.h)} cm, à ${fmt(box.x)} cm du bord gauche et ${fmt(box.y)} cm du haut`;
-        notes.push(`${st.n}  ${isPanel ? (L.whole ? 'Page de fond entière, sans découpe' : 'Grand morceau de fond') : 'Découpe'} : ${dims}${isPanel && !L.whole ? ' — le reste de la feuille est déchiré en lambeaux (étape 1)' : ''}.`);
+        const dims = tr`${fmt(box.w)} × ${fmt(box.h)} cm, à ${fmt(box.x)} cm du bord gauche et ${fmt(box.y)} cm du haut`;
+        notes.push(`${st.n}  ${isPanel ? (L.whole ? tr('Page de fond entière, sans découpe') : tr('Grand morceau de fond')) : tr('Découpe')} : ${dims}${isPanel && !L.whole ? tr(' — le reste de la feuille est déchiré en lambeaux (étape 1)') : ''}.`);
       });
       let ny = bottom + 5;
       notes.forEach((n) => { ny = wrap(ctx, n, MARGIN, ny, w - 2 * MARGIN, 2.7, 3.7); });
-      pages.push({ pg, section: 'Fiches de découpe' });
-      if (fi % 3 === 2) { opts.onProgress && opts.onProgress(`Fiches de découpe… ${fi + 1} / ${fiches.length}`); await tick(); }
+      pages.push({ pg, section: tr('Fiches de découpe') });
+      if (fi % 3 === 2) { opts.onProgress && opts.onProgress(tr`Fiches de découpe… ${fi + 1} / ${fiches.length}`); await tick(); }
     }
 
     // ---- PDF ----
-    opts.onProgress && opts.onProgress('Assemblage du PDF…');
+    opts.onProgress && opts.onProgress(tr('Assemblage du PDF…'));
     let doc = null;
     for (let i = 0; i < pages.length; i++) {
       const { pg, section } = pages[i];
@@ -440,7 +440,7 @@
       doc.addImage(pg.c.toDataURL('image/jpeg', 0.86), 'JPEG', 0, 0, pg.w, pg.h, undefined, 'FAST');
       if (i % 4 === 3) await tick();
     }
-    doc.setProperties({ title: `Guide de création${opts.title ? ` — ${opts.title}` : ''}`, creator: 'Atelier Gribouille' });
+    doc.setProperties({ title: tr`Guide de création${opts.title ? ` — ${opts.title}` : ''}`, creator: 'Atelier Gribouille' });
     return { blob: doc.output('blob'), pages: pages.length, sheets: sheets.length, steps: steps.length };
   }
 

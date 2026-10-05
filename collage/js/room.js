@@ -324,7 +324,7 @@
     S = { photo, art, opts, corners: null, active: -1, drag: null, pointers: new Map(), pinch: null, raf: 0, view: null };
     $('room').hidden = false;
     document.body.classList.add('editing');
-    $('room-title').textContent = opts.title || 'Mise en scène';
+    $('room-title').textContent = opts.title || tr('Mise en scène');
     requestAnimationFrame(() => { fitView(); resetCorners(); });
   }
   function close() {
@@ -344,7 +344,7 @@
     const c = Extract.makeCanvas(photo.width, photo.height);
     compose(c.getContext('2d'), 1);
     const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
-    if (blob && S.opts.onSave) await S.opts.onSave(blob, 'mise-en-scene-atelier-gribouille.jpg');
+    if (blob && S.opts.onSave) await S.opts.onSave(blob, tr('mise-en-scene-atelier-gribouille.jpg'));
   }
 
   function init() {

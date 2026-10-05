@@ -31,16 +31,16 @@
       if (seen.has(key)) return;
       seen.add(key);
       detail = `${what} : ${msg}\n${stack}\n\n${navigator.userAgent}\n${location.href}`;
-      box.querySelector('.fatal-text').textContent = `Une erreur inattendue s’est produite (${msg}). L’app peut continuer ; si elle ne répond plus, rechargez la page. Le détail copié m’aide à corriger.`;
+      box.querySelector('.fatal-text').textContent = tr`Une erreur inattendue s’est produite (${msg}). L’app peut continuer ; si elle ne répond plus, rechargez la page. Le détail copié m’aide à corriger.`;
       box.hidden = false;
     };
     window.addEventListener('error', (e) => { if (e.message || e.error) show('Erreur', e.error || e.message); });
-    window.addEventListener('unhandledrejection', (e) => show('Promesse rejetée', e.reason));
+    window.addEventListener('unhandledrejection', (e) => show(tr('Promesse rejetée'), e.reason));
     $('fatal-close').onclick = () => { box.hidden = true; };
     $('fatal-reload').onclick = () => location.reload();
     $('fatal-copy').onclick = async () => {
-      try { await navigator.clipboard.writeText(detail); $('fatal-copy').textContent = 'Détail copié'; }
-      catch (e) { window.prompt('Copiez ce détail :', detail); }
+      try { await navigator.clipboard.writeText(detail); $('fatal-copy').textContent = tr('Détail copié'); }
+      catch (e) { window.prompt(tr('Copiez ce détail :'), detail); }
     };
     window.AtelierErrors = { show, get detail() { return detail; } };
   })();
@@ -83,7 +83,7 @@
     p.hidden = done >= total || !!state.restoring;
     p.querySelector('div').style.width = `${(100 * done) / Math.max(1, total)}%`;
     p.querySelector('span').textContent = label || `${done} / ${total}`;
-    if (state.restoring && label && $('saved-status')) { const el = $('saved-status'); el.textContent = `Réouverture : ${label}`; el.hidden = false; }
+    if (state.restoring && label && $('saved-status')) { const el = $('saved-status'); el.textContent = tr`Réouverture : ${label}`; el.hidden = false; }
   }
 
   async function pagesFromFile(file) {
@@ -161,19 +161,19 @@
     state.sceneLayout = null;
     state.pinned = null;
     notice('');
-    setProgress(0, 1, 'Lecture des fichiers…');
+    setProgress(0, 1, tr('Lecture des fichiers…'));
     for (const f of files) {
       try {
         pages = pages.concat(await pagesFromFile(f));
       } catch (e) {
         console.error(e);
-        notice(`Impossible de lire « ${f.name} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.`);
+        notice(tr`Impossible de lire « ${f.name} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.`);
       }
     }
     const releases = new Set(pages.map((p) => p.release).filter(Boolean));
     const max = sourceMax(state.drawings.length + pages.length);
     for (let i = 0; i < pages.length; i++) {
-      setProgress(i, pages.length, `Analyse du dessin ${i + 1} / ${pages.length}…`);
+      setProgress(i, pages.length, tr`Analyse du dessin ${i + 1} / ${pages.length}…`);
       await tick();
       try {
         const src = await pages[i].render(max);
@@ -196,7 +196,7 @@
         state.drawings.push(d);
       } catch (e) {
         console.error(e);
-        notice(`Le dessin « ${pages[i].name} » n’a pas pu être analysé (image trop grande pour cet appareil ?).`);
+        notice(tr`Le dessin « ${pages[i].name} » n’a pas pu être analysé (image trop grande pour cet appareil ?).`);
       }
     }
     releases.forEach((release) => { try { release(); } catch (e) { /* déjà libéré */ } });
@@ -247,14 +247,14 @@
     box.hidden = !list.length;
     if (!list.length) return;
     box.innerHTML = `<p class="sizes-title">Tailles à vérifier <small>(${list.length})</small></p>
-      <p class="hint">Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.</p>
+      <p class="hint">${tr('Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.')}</p>
       <div class="sizes-list"></div>`;
     const wrap = box.querySelector('.sizes-list');
     list.forEach((d) => {
       const row = document.createElement('label');
       row.className = 'sizes-row';
-      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">Dessin ${state.drawings.indexOf(d) + 1}<small>estimé ${fmt(d.sizeCm)} cm</small></span>
-        <span class="sizes-input"><input type="number" min="3" max="300" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="Plus grand côté en cm"><em>cm</em></span>`;
+      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
+        <span class="sizes-input"><input type="number" min="3" max="300" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
       const input = row.querySelector('input');
       input.onchange = () => {
         const cm = Number(input.value);
@@ -285,7 +285,7 @@
 
   // ---------- Orientation des feuilles ----------
 
-  const ORIENTS = [['auto', 'Automatique'], ['0', 'Droite, comme scannée'], ['90', 'Couchée, haut à droite'], ['180', 'Tête en bas'], ['270', 'Couchée, haut à gauche']];
+  const ORIENTS = [['auto', tr('Automatique')], ['0', tr('Droite, comme scannée')], ['90', tr('Couchée, haut à droite')], ['180', tr('Tête en bas')], ['270', tr('Couchée, haut à gauche')]];
   const orientKey = (d) => `atelier-gribouille:orientation:${d.name}:${Math.round(d.origLong)}`;
   function loadOrient(d) {
     try {
@@ -345,7 +345,7 @@
   function setPhotoMode(d, mode) {
     if (!d.original || d.photoMode === mode) return;
     const a = Extract.analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' });
-    if (mode !== 'keep' && !a.photo) { notice('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.'); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
+    if (mode !== 'keep' && !a.photo) { notice(tr('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.')); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
     d.photoMode = mode;
     d.base = a; d.analysis = a; d.orientDeg = 0;
     d.photo = a.photo || null;
@@ -369,13 +369,13 @@
     return s ? s[0] : `${fmt(cm)} cm`;
   }
 
-  const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr-FR');
+  const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString(I18n.locale);
 
   // ---------- Dessins & pièces ----------
 
   const ROLES = ['cutout', 'texture', 'off'];
-  const ROLE_LABEL = { cutout: 'découpe', texture: 'fond', off: 'ignoré' };
-  const roleLabel = (d) => (roleOf(d) === 'off' && d.role === 'auto' ? 'de côté' : ROLE_LABEL[roleOf(d)]);
+  const ROLE_LABEL = { cutout: tr('découpe'), texture: tr('fond'), off: tr('ignoré') };
+  const roleLabel = (d) => (roleOf(d) === 'off' && d.role === 'auto' ? tr('de côté') : ROLE_LABEL[roleOf(d)]);
   const asideDrawings = () => state.drawings.filter((d) => d.role === 'auto' && d.auto === 'off');
 
   // Rôle d'un dessin : choix de l'utilisateur, sinon celui du directeur artistique (Claude),
@@ -621,8 +621,8 @@
     box.hidden = !list.length;
     if (!list.length) return;
     const nums = list.map((d) => state.drawings.indexOf(d) + 1);
-    box.innerHTML = `<b>${list.length} feuille${list.length > 1 ? 's' : ''} mise${list.length > 1 ? 's' : ''} de côté</b> — pâles (crayon gris, texte), comme sur l’œuvre de référence : dessins n° ${nums.join(', ')}.
-      Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour les coller en fond, réglez « Feuilles pâles » ; pour en garder une en découpe, ouvrez-la et choisissez « découpe ».`;
+    box.innerHTML = `<b>${tr`${list.length} feuille${list.length > 1 ? 's' : ''} mise${list.length > 1 ? 's' : ''} de côté`}</b> ${tr`— pâles (crayon gris, texte), comme sur l’œuvre de référence : dessins n° ${nums.join(', ')}.`}
+      ${tr('Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour les coller en fond, réglez « Feuilles pâles » ; pour en garder une en découpe, ouvrez-la et choisissez « découpe ».')}`;
   }
 
   function refreshLists() {
@@ -635,7 +635,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? '<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>' : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
       el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
       dEl.appendChild(el);
     });
@@ -659,31 +659,31 @@
       <div>
         <p class="name">${d.ai ? `${d.ai.sujet} <small>· ${d.ai.zone}</small><br>` : ''}<small>${d.name}</small></p>
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
-        <label class="row">Orientation
+        <label class="row">${tr('Orientation')}
           <select data-orient>
-            ${ORIENTS.map(([k, label]) => `<option value="${k}" ${d.orient === k ? 'selected' : ''}>${label}${k === 'auto' ? ` (${d.orientDeg ? d.orientDeg + '°' : 'droite'})` : ''}</option>`).join('')}
+            ${ORIENTS.map(([k, label]) => `<option value="${k}" ${d.orient === k ? 'selected' : ''}>${label}${k === 'auto' ? ` (${d.orientDeg ? d.orientDeg + '°' : tr('droite')})` : ''}</option>`).join('')}
           </select>
         </label>
-        <label class="row">Taille réelle
+        <label class="row">${tr('Taille réelle')}
           <select data-size>
             ${SHEETS.map(([n, cm]) => `<option value="${cm}" ${Math.abs(cm - d.sizeCm) < 0.05 ? 'selected' : ''}>${n} · ${fmt(cm)}</option>`).join('')}
-            <option value="custom" ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? '' : 'selected'}>Autre…</option>
+            <option value="custom" ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? '' : 'selected'}>${tr('Autre…')}</option>
           </select>
         </label>
-        <label class="row" data-custom ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? 'hidden' : ''}>Plus grand côté (cm)
+        <label class="row" data-custom ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
           <input type="number" min="3" max="200" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>
-        ${mainPiece(d) ? `<label class="row" data-subject>Ou taille du sujet (cm)
-          <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="Plus grand côté du sujet découpé, mesuré sur le dessin original">
+        ${mainPiece(d) ? `<label class="row" data-subject>${tr('Ou taille du sujet (cm)')}
+          <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="${tr('Plus grand côté du sujet découpé, mesuré sur le dessin original')}">
         </label>` : ''}
         <p class="hint photo">${d.photo
-          ? `Photo sur ${d.photo.kind === 'bois' ? 'du bois ou du parquet' : 'un sol ou une table'} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
+          ? tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
           : d.photoMode === 'keep'
-            ? 'Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>'
-            : 'Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>'}</p>
-        ${!d.photo && d.photoMode !== 'keep' && d.photoDebug ? `<p class="hint mono-note" title="Mesures de la détection de sol, à transmettre si un parquet n’est pas reconnu">détection : ${Object.entries(d.photoDebug).filter(([k]) => k !== 'maskPng').map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}`).join(' · ')}</p>` : ''}
-        <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? 'Taille lue dans le PDF.' : 'Taille estimée d’après le scan — corrigez-la si besoin.') : 'Taille saisie.'}
-          Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.${mainPiece(d) ? ` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
+            ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
+            : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
+        ${!d.photo && d.photoMode !== 'keep' && d.photoDebug ? tr`<p class="hint mono-note" title="Mesures de la détection de sol, à transmettre si un parquet n’est pas reconnu">détection : ${Object.entries(d.photoDebug).filter(([k]) => k !== 'maskPng').map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}`).join(' · ')}</p>` : ''}
+        <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr('Taille lue dans le PDF.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
+          ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}${mainPiece(d) ? tr` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
       </div>`;
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
@@ -744,14 +744,14 @@
       const el = document.createElement('div');
       const unplaced = p.enabled && state.comp && !p.placed;
       el.className = `thumb${p.enabled ? '' : ' off'}${unplaced ? ' unplaced' : ''}`;
-      el.title = !p.enabled ? 'Retirée — cliquer pour l’ajouter' : unplaced ? 'Pas de place à cette échelle — cliquer pour l’ajouter quand même' : 'Dans l’œuvre — cliquer pour la retirer';
-      el.innerHTML = `<img src="${p.thumb}" alt=""><button class="edit-piece" title="Retoucher la découpe" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg></button>`;
+      el.title = !p.enabled ? tr('Retirée — cliquer pour l’ajouter') : unplaced ? tr('Pas de place à cette échelle — cliquer pour l’ajouter quand même') : tr('Dans l’œuvre — cliquer pour la retirer');
+      el.innerHTML = tr`<img src="${p.thumb}" alt=""><button class="edit-piece" title="Retoucher la découpe" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg></button>`;
       el.onclick = () => togglePiece(p);
       el.querySelector('.edit-piece').onclick = (e) => { e.stopPropagation(); editPiece(p); };
       pEl.appendChild(el);
     });
     const inArt = state.comp ? state.comp.items.length : 0;
-    $('pieces-count').textContent = `(${inArt} dans l’œuvre / ${pieces.length})`;
+    $('pieces-count').textContent = tr`(${inArt} dans l’œuvre / ${pieces.length})`;
   }
 
   function togglePiece(p) {
@@ -783,12 +783,12 @@
    * aérée quand il n'y a pas assez de dessins pour tout recouvrir.
    */
   const PAINTS = [ // [nom, teinte, aptitude comme fond (les teintes calmes portent mieux les dessins)]
-    ['Blanc de titane', '#f4f2ec', 0.9], ['Jaune de Naples', '#f2dc9a', 1.0], ['Jaune primaire', '#f6cf1e', 0.4], ['Ocre jaune', '#c8933a', 0.9],
-    ['Orange de cadmium', '#e8722a', 0.4], ['Rouge de cadmium', '#c9322b', 0.5], ['Magenta primaire', '#c8367d', 0.4], ['Rose', '#e9a3b6', 0.6],
-    ['Terre de Sienne brûlée', '#8a4b2c', 0.8], ['Terre d’ombre brûlée', '#5b3d2a', 0.9], ['Vert de vessie', '#4f6a2a', 0.9], ['Vert émeraude', '#1f8a5a', 0.6],
-    ['Vert olive', '#7a7b3f', 1.0], ['Bleu turquoise', '#2e9fb5', 0.6], ['Bleu céruléum', '#3f8fce', 0.7], ['Bleu primaire cyan', '#1b7bc0', 0.5],
-    ['Bleu outremer', '#2a3d8f', 0.8], ['Bleu de Prusse', '#1c2d4a', 1.0], ['Violet dioxazine', '#4a2a6a', 0.7], ['Gris de Payne', '#4b5561', 1.0],
-    ['Noir de Mars', '#1f1e1c', 0.8],
+    [tr('Blanc de titane'), '#f4f2ec', 0.9], [tr('Jaune de Naples'), '#f2dc9a', 1.0], [tr('Jaune primaire'), '#f6cf1e', 0.4], [tr('Ocre jaune'), '#c8933a', 0.9],
+    [tr('Orange de cadmium'), '#e8722a', 0.4], [tr('Rouge de cadmium'), '#c9322b', 0.5], [tr('Magenta primaire'), '#c8367d', 0.4], [tr('Rose'), '#e9a3b6', 0.6],
+    [tr('Terre de Sienne brûlée'), '#8a4b2c', 0.8], [tr('Terre d’ombre brûlée'), '#5b3d2a', 0.9], [tr('Vert de vessie'), '#4f6a2a', 0.9], [tr('Vert émeraude'), '#1f8a5a', 0.6],
+    [tr('Vert olive'), '#7a7b3f', 1.0], [tr('Bleu turquoise'), '#2e9fb5', 0.6], [tr('Bleu céruléum'), '#3f8fce', 0.7], [tr('Bleu primaire cyan'), '#1b7bc0', 0.5],
+    [tr('Bleu outremer'), '#2a3d8f', 0.8], [tr('Bleu de Prusse'), '#1c2d4a', 1.0], [tr('Violet dioxazine'), '#4a2a6a', 0.7], [tr('Gris de Payne'), '#4b5561', 1.0],
+    [tr('Noir de Mars'), '#1f1e1c', 0.8],
   ];
   const hexRgb = (hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
   const hsl = (rgb) => {
@@ -851,9 +851,9 @@
   }
   function updateGroundName() {
     const el = $('ground-name');
-    if (state.comp && state.comp.style === 'galerie') { el.textContent = 'blanc, fixe en Galerie'; return; }
-    if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? `conseillé · ${state.comp.groundName}` : 'conseillé selon la composition';
-    else { const paint = groundPaint(); el.textContent = paint ? paint[0] : 'toile nue'; }
+    if (state.comp && state.comp.style === 'galerie') { el.textContent = tr('blanc, fixe en Galerie'); return; }
+    if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
+    else { const paint = groundPaint(); el.textContent = paint ? paint[0] : tr('toile nue'); }
   }
   function fillGround() {
     const box = $('ground');
@@ -865,7 +865,7 @@
       b.onclick = () => { setGround(hex); regenerate(); };
       box.appendChild(b);
     };
-    mk('Couleur conseillée selon la composition', 'auto');
+    mk(tr('Couleur conseillée selon la composition'), 'auto');
     mk('Toile nue (lin, sans peinture)', '');
     PAINTS.forEach(([name, hex]) => mk(name, hex));
     box.querySelector('[data-hex="auto"]').className = 'auto';
@@ -941,7 +941,9 @@
     ['100F', 162, 130, 'formats standards'], ['100P', 162, 114, 'formats standards'], ['100M', 162, 97, 'formats standards'],
     ['120F', 195, 130, 'formats standards'], ['120P', 195, 114, 'formats standards'], ['120M', 195, 97, 'formats standards'],
   ];
-  const stockName = (t) => (canvasOrient() === 'port' ? `${t[0]} · ${t[2]} × ${t[1]} cm` : `${t[0]} · ${t[1]} × ${t[2]} cm`);
+  // les codes (20F, IKEA) restent tels quels, les noms communs sont traduits
+  const stockWord = (w) => (/^[0-9A-Z]/.test(w) ? w : tr(w));
+  const stockName = (t) => (canvasOrient() === 'port' ? `${stockWord(t[0])} · ${t[2]} × ${t[1]} cm` : `${stockWord(t[0])} · ${t[1]} × ${t[2]} cm`);
 
   // Les toiles du commerce les plus proches d'une taille calculée, dans la même orientation
   function nearestStock(w, h, n) {
@@ -958,9 +960,9 @@
     const current = sel.value;
     sel.querySelectorAll('optgroup').forEach((g) => g.remove());
     const groups = [
-      ['Toiles courantes (grandes surfaces, Cultura, web)', STOCK.filter((t) => t[3] === 'courant')],
-      ['Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…), taille de la vitre', STOCK.filter((t) => t[3] === 'IKEA')],
-      ['Formats beaux-arts normalisés (F / P / M)', STOCK.filter((t) => t[3] === 'formats standards')],
+      [tr('Toiles courantes (grandes surfaces, Cultura, web)'), STOCK.filter((t) => t[3] === 'courant')],
+      [tr('Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…), taille de la vitre'), STOCK.filter((t) => t[3] === 'IKEA')],
+      [tr('Formats beaux-arts normalisés (F / P / M)'), STOCK.filter((t) => t[3] === 'formats standards')],
     ];
     groups.forEach(([label, list]) => {
       const g = document.createElement('optgroup');
@@ -990,18 +992,18 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
-    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? ` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
+    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.auto) {
-      const near = nearestStock(f.w, f.h, 3).map((c) => `${c.t[0]} ${c.w} × ${c.h} cm (${c.t[3]}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
-      txt = `Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
+      const near = nearestStock(f.w, f.h, 3).map((c) => tr`${stockWord(c.t[0])} ${c.w} × ${c.h} cm (${stockWord(c.t[3])}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
+      txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
     } else {
       const cov = (state.coverage || 0) * 100;
       txt = cov >= 114
-        ? `Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre avec ${Math.round(cov - 100)} % de recouvrement.`
+        ? tr`Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre avec ${Math.round(cov - 100)} % de recouvrement.`
         : cov >= 100
-          ? `Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre tout juste (${Math.round(cov)} %) ; les déchirures laisseront de petits jours.`
-          : `Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite ou « taille adaptée aux dessins ».`;
+          ? tr`Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre tout juste (${Math.round(cov)} %) ; les déchirures laisseront de petits jours.`
+          : tr`Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite ou « taille adaptée aux dessins ».`;
     }
     $('scale-info').textContent = txt + aside;
   }
@@ -1130,12 +1132,12 @@
 
   // Les styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
-    { id: 'paysage', name: 'Paysage', hint: 'ciel, milieu, sol' },
-    { id: 'scene', name: 'Scène', hint: 'ciel en haut, personnages debout sur le sol' },
-    { id: 'tournesol', name: 'Tournesol', hint: 'spirale depuis le cœur' },
-    { id: 'courtepointe', name: 'Courtepointe', hint: 'patchwork, un médaillon par carreau' },
-    { id: 'cabinet', name: 'Cabinet de curiosités', hint: 'les plus beaux, en rangées' },
-    { id: 'galerie', name: 'Galerie', hint: 'grille de cadres, un dessin par case' },
+    { id: 'paysage', name: tr('Paysage'), hint: tr('ciel, milieu, sol') },
+    { id: 'scene', name: tr('Scène'), hint: tr('ciel en haut, personnages debout sur le sol') },
+    { id: 'tournesol', name: tr('Tournesol'), hint: tr('spirale depuis le cœur') },
+    { id: 'courtepointe', name: tr('Courtepointe'), hint: tr('patchwork, un médaillon par carreau') },
+    { id: 'cabinet', name: tr('Cabinet de curiosités'), hint: tr('les plus beaux, en rangées') },
+    { id: 'galerie', name: tr('Galerie'), hint: tr('grille de cadres, un dessin par case') },
   ];
 
   function regenerate() {
@@ -1181,9 +1183,9 @@
     g.disabled = white;
     const lab = g.closest('label');
     lab.classList.toggle('off', white);
-    lab.title = white ? 'Fond blanc en Galerie : pas de finition toile' : '';
+    lab.title = white ? tr('Fond blanc en Galerie : pas de finition toile') : '';
     let note = lab.querySelector('small');
-    if (white && !note) { note = document.createElement('small'); note.textContent = ' — fond blanc'; lab.appendChild(note); }
+    if (white && !note) { note = document.createElement('small'); note.textContent = tr(' — fond blanc'); lab.appendChild(note); }
     if (!white && note) note.remove();
   }
 
@@ -1198,7 +1200,7 @@
       const used = new Set();
       c.items.forEach((L) => used.add(L.piece.drawing));
       state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
-      $('density-note').textContent = `${used.size} dessin${used.size > 1 ? 's' : ''} sur ${state.drawings.length}${allIn() ? ' · tout' : ''}`;
+      $('density-note').textContent = tr`${used.size} dessin${used.size > 1 ? 's' : ''} sur ${state.drawings.length}${allIn() ? tr(' · tout') : ''}`;
     }
     if (!state.comp) { el.hidden = true; return; }
     el.hidden = false;
@@ -1207,9 +1209,9 @@
     $('label-title').textContent = t ? `« ${t} »` : '';
     $('label-title').hidden = !t;
     const c = state.comp;
-    const count = c.total ? `${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? 'adaptés' : 'beaux'}` : `${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
+    const count = c.total ? tr`${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? tr('adaptés') : tr('beaux')}` : tr`${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
     const aside = asideDrawings().length;
-    $('label-meta').textContent = `${st.name} · collage de ${count}${aside ? ` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${c.reduced ? 'dessins réduits pour tenir dans les cases (pour l’impression)' : 'dessins à taille réelle'}`;
+    $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
     renderAside();
   }
 
@@ -1235,7 +1237,7 @@
       b.className = `proposal${i === state.active ? ' on' : ''}`;
       b.setAttribute('aria-pressed', i === state.active ? 'true' : 'false');
       const t = titleFor(pr.style.id);
-      const sub = t ? `« ${t} »` : (pr.comp.total ? `${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
+      const sub = t ? `« ${t} »` : (pr.comp.total ? tr`${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
       b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${sub}</small>`;
       b.onclick = () => selectProposal(i);
       box.appendChild(b);
@@ -1251,7 +1253,7 @@
     const need = activePieces().some((p) => p.enabled && !p.ai) || !state.sceneLayout;
     if (!need) return;
     const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
-    if (!sample) { aiStatus('Scène : sans Claude, les sujets sont placés d’après leur forme (tout au sol, nuages au ciel).'); return; }
+    if (!sample) { aiStatus(tr('Scène : sans Claude, les sujets sont placés d’après leur forme (tout au sol, nuages au ciel).')); return; }
     const limits = await sample.limits().catch(() => null);
     if (!limits || !limits.images) return;
     state.sceneBusy = true;
@@ -1264,13 +1266,13 @@
       // puis Claude compose la scène lui-même : où va chaque élément, sur la toile
       const laid = await composeScene(sample, limits);
       if (laid) {
-        aiStatus(`Scène composée par Claude : ${laid} éléments placés${state.sceneLayout.titre ? ` · « ${state.sceneLayout.titre} »` : ''}.`);
+        aiStatus(tr`Scène composée par Claude : ${laid} éléments placés${state.sceneLayout.titre ? ` · « ${state.sceneLayout.titre} »` : ''}.`);
         regenerate();
         if (state.active !== keep) selectProposal(keep);
-      } else aiStatus(`Scène : Claude a regardé ${n} éléments découpés et placé chacun (ciel, sol, premier plan…).`);
+      } else aiStatus(tr`Scène : Claude a regardé ${n} éléments découpés et placé chacun (ciel, sol, premier plan…).`);
     } catch (e) {
-      const why = { not_granted: 'autorisation refusée', rate_limited: 'trop de demandes, réessayez plus tard', refused: 'demande refusée' }[e && e.code];
-      aiStatus(`Scène : Claude n’a pas pu regarder les éléments${why ? ` (${why})` : ''} ; placement d’après la forme.`);
+      const why = { not_granted: tr('autorisation refusée'), rate_limited: tr('trop de demandes, réessayez plus tard'), refused: tr('demande refusée') }[e && e.code];
+      aiStatus(tr`Scène : Claude n’a pas pu regarder les éléments${why ? ` (${why})` : ''} ; placement d’après la forme.`);
     } finally { state.sceneBusy = false; }
   }
 
@@ -1283,7 +1285,7 @@
     const fmt = o.format.auto ? sceneFormat(o) : o.format;
     const W = fmt.w, H = fmt.h;
     const els = [];
-    o.textures.forEach((t) => { if (t.wcm <= W * 0.6 && t.hcm <= H * 0.7) els.push({ kind: 'page', t, w: t.wcm, h: t.hcm, src: t.canvas, label: t.drawing.ai ? t.drawing.ai.sujet : 'page peinte' }); });
+    o.textures.forEach((t) => { if (t.wcm <= W * 0.6 && t.hcm <= H * 0.7) els.push({ kind: 'page', t, w: t.wcm, h: t.hcm, src: t.canvas, label: t.drawing.ai ? t.drawing.ai.sujet : tr('page peinte') }); });
     // on propose à Claude un peu plus que la sélection automatique : il choisit lui-même
     const cand = sceneSelection(Object.assign({}, o, { pieces: o.pieces })).concat(o.pieces.filter((p) => !sceneSelection(o).includes(p)).slice(0, 12));
     cand.forEach((p) => els.push({ kind: 'decoupe', p, w: p.wcm, h: p.hcm, src: p.canvas, label: p.ai ? p.ai.sujet : (p.drawing.ai ? p.drawing.ai.sujet : 'sujet') }));
@@ -1294,8 +1296,8 @@
     const per = Math.ceil(list.length / nSheets);
     const sheets = [];
     for (let i = 0; i < list.length; i += per) sheets.push(await pieceSheet(list.map((e) => ({ p: { canvas: e.src } })).slice(i, i + per), i));
-    aiStatus(`Claude compose la scène avec ${list.length} éléments…`);
-    const inv = list.map((e, i) => `${i + 1}. ${e.kind === 'page' ? 'PAGE DE FOND' : 'découpe'} « ${e.label} » ${e.w.toFixed(0)}×${e.h.toFixed(0)} cm`).join('\n');
+    aiStatus(tr`Claude compose la scène avec ${list.length} éléments…`);
+    const inv = list.map((e, i) => tr`${i + 1}. ${e.kind === 'page' ? 'PAGE DE FOND' : tr('découpe')} « ${e.label} » ${e.w.toFixed(0)}×${e.h.toFixed(0)} cm`).join('\n');
     const prompt = `Tu es un artiste qui compose un collage : une scène de paysage faite UNIQUEMENT de dessins d'enfants, collés à leur taille réelle sur une toile de ${W} × ${H} cm (largeur × hauteur), fond peint uni.
 Voici les ${list.length} éléments (planches contact : le numéro est en haut à gauche de chaque case), avec leur taille réelle en cm :
 ${inv}
@@ -1548,10 +1550,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     document.body.classList.toggle('bg-mode', state.bgMode);
     const b = $('bg-mode');
     b.setAttribute('aria-pressed', state.bgMode ? 'true' : 'false');
-    b.textContent = state.bgMode ? 'Tout voir' : 'Fond seul';
+    b.textContent = state.bgMode ? tr('Tout voir') : tr('Fond seul');
     $('stage-tip').textContent = state.bgMode
-      ? 'Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes'
-      : 'Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer';
+      ? tr('Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes')
+      : tr('Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer');
     render();
   }
   $('bg-mode').addEventListener('click', () => setBgMode(!state.bgMode));
@@ -1667,7 +1669,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('zoom-full').onclick = () => {
     const on = document.body.classList.toggle('stage-full');
     $('zoom-full').setAttribute('aria-pressed', on ? 'true' : 'false');
-    $('zoom-full').title = on ? 'Quitter le plein écran' : 'Plein écran';
+    $('zoom-full').title = on ? tr('Quitter le plein écran') : tr('Plein écran');
     state.bgCache = null;
     render();
   };
@@ -1679,7 +1681,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const n = state.drawings.indexOf(d) + 1;
     const base = d.ai && d.ai.sujet ? d.ai.sujet.charAt(0).toUpperCase() + d.ai.sujet.slice(1) : `Dessin ${n}`;
     const ps = d.analysis.pieces || [];
-    return ps.length > 1 ? `${base} · pièce ${ps.indexOf(p) + 1}` : base;
+    return ps.length > 1 ? tr`${base} · pièce ${ps.indexOf(p) + 1}` : base;
   }
 
   function editPiece(p) {
@@ -1820,8 +1822,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const { w, h, capped } = exportSize();
     const pdf = $('fmt').value === 'application/pdf';
     $('export-info').textContent = pdf
-      ? `PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
-      : `${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? ' (taille limitée sur cet appareil)' : ''}`;
+      ? tr`PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
+      : tr`${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
   }
 
   // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
@@ -1844,7 +1846,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const A = window.Account;
     if (!(A && A.enabled && A.user()) || !state.comp) return;
     try {
-      saveStatus('Enregistrement de l’export dans votre compte…');
+      saveStatus(tr('Enregistrement de l’export dans votre compte…'));
       const kind = /guide/.test(filename) ? 'guide' : /\.pdf$/i.test(filename) ? 'pdf' : /\.png$/i.test(filename) ? 'png' : 'jpg';
       const dpiV = $('dpi').value;
       const { w, h } = exportSize();
@@ -1853,11 +1855,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         name: filename, kind, dpi: kind === 'guide' ? 150 : (dpiV === 'screen' ? null : Number(dpiV)), width: kind === 'guide' ? null : w, height: kind === 'guide' ? null : h,
         thumb: thumbOfComp(state.comp), compName: (state.titles && state.titles[state.comp.style]) || (st ? st.name : ''),
       });
-      saveStatus(`Fichier téléchargé et gardé dans votre compte (${Math.round(blob.size / 1024 / 1024 * 10) / 10} Mo).`);
+      saveStatus(tr`Fichier téléchargé et gardé dans votre compte (${Math.round(blob.size / 1024 / 1024 * 10) / 10} Mo).`);
       renderExports();
     } catch (e) {
       console.error(e);
-      saveStatus(`Fichier téléchargé ; il n’a pas pu être gardé dans votre compte : ${e.message}`);
+      saveStatus(tr`Fichier téléchargé ; il n’a pas pu être gardé dans votre compte : ${e.message}`);
     }
   }
   // Quand les comptes sont actifs, exporter et sauvegarder demandent d'être connecté : la fenêtre
@@ -1867,7 +1869,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const A = window.Account;
       if (A && A.enabled && !A.user()) {
         state.afterSignIn = () => fn(...args);
-        if (window.openAccount) window.openAccount(`Connectez-vous ou créez un compte pour ${label}.`);
+        if (window.openAccount) window.openAccount(tr`Connectez-vous ou créez un compte pour ${label}.`);
         return undefined;
       }
       return fn(...args);
@@ -1877,16 +1879,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   async function saveFile(blob, filename) {
     const { mode, dl } = await saveMode();
     if (mode === 'viewer') {
-      saveStatus('Confirmez l’enregistrement dans la fenêtre qui s’affiche…');
+      saveStatus(tr('Confirmez l’enregistrement dans la fenêtre qui s’affiche…'));
       try {
         await dl.save({ filename, data: blob });
-        saveStatus(`Enregistré : ${filename}`);
+        saveStatus(tr`Enregistré : ${filename}`);
         return true;
       } catch (err) {
         const code = err && err.code;
-        if (code === 'declined') { saveStatus('Enregistrement annulé.'); return false; }
-        if (code === 'too_large') { notice('Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.'); saveStatus(''); return false; }
-        if (code === 'rate_limited') { notice('Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.'); saveStatus(''); return false; }
+        if (code === 'declined') { saveStatus(tr('Enregistrement annulé.')); return false; }
+        if (code === 'too_large') { notice(tr('Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.')); saveStatus(''); return false; }
+        if (code === 'rate_limited') { notice(tr('Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.')); saveStatus(''); return false; }
         // indisponible ici : on passe à l'aperçu
       }
     }
@@ -1898,15 +1900,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-      saveStatus(`Téléchargement lancé : ${filename}`);
+      saveStatus(tr`Téléchargement lancé : ${filename}`);
       return true;
     }
     if (blob.type.startsWith('image/')) {
       showPreview(blob, filename);
-      saveStatus('Aperçu ouvert : enregistrez l’image depuis l’aperçu.');
+      saveStatus(tr('Aperçu ouvert : enregistrez l’image depuis l’aperçu.'));
       return true;
     }
-    notice('L’enregistrement de fichiers n’est pas possible dans cette fenêtre. Ouvrez la page dans un navigateur (menu ⋯ ou Partager → Ouvrir dans le navigateur), le téléchargement y fonctionne.');
+    notice(tr('L’enregistrement de fichiers n’est pas possible dans cette fenêtre. Ouvrez la page dans un navigateur (menu ⋯ ou Partager → Ouvrir dans le navigateur), le téléchargement y fonctionne.'));
     saveStatus('');
     return false;
   }
@@ -1927,7 +1929,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Guide de création : planches de découpe à taille réelle et ordre de collage.
   async function exportGuide() {
     if (!state.comp) return;
-    if (!window.Guide || !window.jspdf) { notice('Le module de création du guide n’a pas pu se charger. Rechargez la page.'); return; }
+    if (!window.Guide || !window.jspdf) { notice(tr('Le module de création du guide n’a pas pu se charger. Rechargez la page.')); return; }
     const btn = $('guide');
     const label = btn.querySelector('span');
     btn.disabled = true;
@@ -1947,15 +1949,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         aside: asideDrawings().map((d) => state.drawings.indexOf(d) + 1),
         onProgress: (t) => { label.textContent = t; },
       });
-      label.textContent = 'Enregistrement…';
-      if (await saveFile(res.blob, 'guide-de-creation-atelier-gribouille.pdf')) await recordExport(res.blob, 'guide-de-creation-atelier-gribouille.pdf');
-      $('guide-info').textContent = `${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} fiches de découpe sur les originaux.`;
+      label.textContent = tr('Enregistrement…');
+      if (await saveFile(res.blob, tr('guide-de-creation-atelier-gribouille.pdf'))) await recordExport(res.blob, tr('guide-de-creation-atelier-gribouille.pdf'));
+      $('guide-info').textContent = tr`${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} fiches de découpe sur les originaux.`;
     } catch (e) {
       console.error(e);
-      notice('Le guide n’a pas pu être créé sur cet appareil. Réessayez sur un ordinateur.');
+      notice(tr('Le guide n’a pas pu être créé sur cet appareil. Réessayez sur un ordinateur.'));
     } finally {
       btn.disabled = false;
-      label.textContent = 'Créer le guide de création';
+      label.textContent = tr('Créer le guide de création');
     }
   }
 
@@ -1963,13 +1965,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!state.comp) return;
     const btn = $('export');
     btn.disabled = true;
-    btn.querySelector('span').textContent = 'Préparation…';
+    btn.querySelector('span').textContent = tr('Préparation…');
     await tick();
     try {
       const { w } = exportSize();
       const s = w / state.comp.W;
       if ($('fmt').value === 'application/pdf') {
-        saveStatus('Assemblage du PDF…');
+        saveStatus(tr('Assemblage du PDF…'));
         await tick();
         // les images du PDF restent à 300 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
         const ps = Math.min(s, 300 / 2.54);
@@ -1980,7 +1982,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         return;
       }
       await hydrateHD(state.comp, s);
-      saveStatus('Rendu de l’image…');
+      saveStatus(tr('Rendu de l’image…'));
       await tick();
       const c = Extract.makeCanvas(state.comp.W * s, state.comp.H * s);
       const x = c.getContext('2d');
@@ -1996,18 +1998,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const c2 = Extract.makeCanvas(c.width / 2, c.height / 2);
         c2.getContext('2d').drawImage(c, 0, 0, c2.width, c2.height);
         blob = await new Promise((r) => c2.toBlob(r, type, 0.92));
-        if (blob) saveStatus(`Image réduite à ${c2.width} × ${c2.height} px : cet appareil ne peut pas en produire une plus grande.`);
+        if (blob) saveStatus(tr`Image réduite à ${c2.width} × ${c2.height} px : cet appareil ne peut pas en produire une plus grande.`);
       }
       if (!blob) throw new Error('toBlob');
       const fname = `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`;
       if (await saveFile(blob, fname)) await recordExport(blob, fname);
     } catch (e) {
       console.error(e);
-      notice('Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.');
+      notice(tr('Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.'));
     } finally {
       releaseHD();
       btn.disabled = false;
-      btn.querySelector('span').textContent = 'Télécharger l’œuvre';
+      btn.querySelector('span').textContent = tr('Télécharger l’œuvre');
     }
   }
 
@@ -2029,7 +2031,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   async function renderSource(source, max) {
     const pages = await pagesFromFile(source.file);
     const pg = pages[source.index];
-    if (!pg) throw new Error('page introuvable dans le fichier d’origine');
+    if (!pg) throw new Error(tr('page introuvable dans le fichier d’origine'));
     try { return await pg.render(max); } finally { new Set(pages.map((p) => p.release).filter(Boolean)).forEach((r) => { try { r(); } catch (e) { /* déjà libéré */ } }); }
   }
   // par dessin, le facteur d'agrandissement dont l'export a besoin par rapport à la résolution de travail
@@ -2049,7 +2051,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     let i = 0;
     for (const [d, r] of need) {
       i++;
-      saveStatus(`Haute définition : dessin ${i} / ${need.size} relu depuis son fichier…`);
+      saveStatus(tr`Haute définition : dessin ${i} / ${need.size} relu depuis son fichier…`);
       await tick();
       try {
         const want = Math.ceil(d.srcLong * r);
@@ -2115,7 +2117,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const { jsPDF } = window.jspdf;
     const W = comp.W, H = comp.H;
     const doc = new jsPDF({ unit: 'cm', format: [W, H], orientation: W >= H ? 'landscape' : 'portrait', compress: true });
-    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(W)} × ${fmt(H)} cm, ${comp.reduced ? 'dessins réduits (impression)' : 'dessins à taille réelle'}` });
+    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(W)} × ${fmt(H)} cm, ${comp.reduced ? tr('dessins réduits (impression)') : tr('dessins à taille réelle')}` });
     const ground = comp.ground || '#f8f5ef';
     doc.setFillColor(ground);
     doc.rect(0, 0, W, H, 'F');
@@ -2130,7 +2132,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     let n = 0;
     for (const L of layers) {
       n++;
-      if (n % 3 === 0) { saveStatus(`Assemblage du PDF… ${n} / ${layers.length}`); await tick(); }
+      if (n % 3 === 0) { saveStatus(tr`Assemblage du PDF… ${n} / ${layers.length}`); await tick(); }
       if (L.kind === 'bg' && L.whole && !L.flip) {
         // page entière, bords droits : une image JPEG opaque, posée tournée (jsPDF pivote autour du
         // coin haut-gauche de l'image, dans le même sens que le canvas)
@@ -2207,15 +2209,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   function openRoom(file) {
     if (!state.comp || !window.Room) return;
-    $('room-info').textContent = 'Préparation de la mise en scène…';
+    $('room-info').textContent = tr('Préparation de la mise en scène…');
     Room.open({
       file,
       artwork: roomArtwork,
       title: `${(STYLES.find((x) => x.id === state.comp.style) || STYLES[0]).name} · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm`,
       onSave: (blob, name) => saveFile(blob, name),
-      onError: () => notice('Impossible de lire cette photo. Choisissez un JPG ou un PNG.'),
+      onError: () => notice(tr('Impossible de lire cette photo. Choisissez un JPG ou un PNG.')),
     });
-    $('room-info').textContent = `Photo chargée. L’œuvre affichée est la proposition active (${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm) ; changez de proposition puis rouvrez la photo pour en voir une autre.`;
+    $('room-info').textContent = tr`Photo chargée. L’œuvre affichée est la proposition active (${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm) ; changez de proposition puis rouvrez la photo pour en voir une autre.`;
     roomDirect();
   }
 
@@ -2237,7 +2239,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
       const q = res && res.oeuvre;
       if (Array.isArray(q) && q.length === 4 && q.every((pt) => Array.isArray(pt) && pt.length === 2 && pt.every((v) => typeof v === 'number' && v >= -0.2 && v <= 1.2))) {
         Room.setCorners(q);
-        $('room-info').textContent += ' Placement proposé par Claude : ajustez les coins si besoin.';
+        $('room-info').textContent += tr(' Placement proposé par Claude : ajustez les coins si besoin.');
       }
     } catch (e) {
       console.warn('placement par Claude indisponible', e);
@@ -2262,7 +2264,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
       state.drawings = state.drawings.filter((d) => !d.sample);
       state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
       $('sample-note').hidden = true;
-      importFiles(files).then(() => notice('Les dessins d’exemple ont été retirés : place aux vôtres.'));
+      importFiles(files).then(() => notice(tr('Les dessins d’exemple ont été retirés : place aux vôtres.')));
       return;
     }
     importFiles(files);
@@ -2291,8 +2293,8 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   $('dpi').addEventListener('change', updateExportInfo);
-  $('export').onclick = requireAccount('télécharger votre œuvre', exportImage);
-  $('guide').onclick = requireAccount('créer le guide', exportGuide);
+  $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
+  $('guide').onclick = requireAccount(tr('créer le guide'), exportGuide);
 
   // ---------- Direction artistique par Claude ----------
 
@@ -2367,7 +2369,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     const chosen = list.slice().sort((a, b) => rank(b.p) - rank(a.p)).slice(0, cap);
     const nSheets = Math.min(limits.images.maxCount, Math.ceil(chosen.length / 20));
     const per = Math.ceil(chosen.length / nSheets);
-    aiStatus(`Claude regarde les ${chosen.length} éléments découpés un par un…`);
+    aiStatus(tr`Claude regarde les ${chosen.length} éléments découpés un par un…`);
     let n = 0;
     // une planche par appel (charge légère), avec une seconde chance par planche
     for (let i = 0; i < chosen.length; i += per) {
@@ -2401,22 +2403,22 @@ Réponds uniquement avec ce JSON :
         };
         n++;
       });
-      aiStatus(`Claude regarde les éléments découpés… ${Math.min(i + per, chosen.length)} / ${chosen.length}`);
+      aiStatus(tr`Claude regarde les éléments découpés… ${Math.min(i + per, chosen.length)} / ${chosen.length}`);
     }
     return n;
   }
 
   async function artDirect() {
     const sample = window.claude && window.claude.use ? await window.claude.use('sample') : null;
-    if (!sample) { aiStatus('Composition automatique avec les règles intégrées.'); return; }
+    if (!sample) { aiStatus(tr('Composition automatique avec les règles intégrées.')); return; }
     const limits = await sample.limits().catch(() => null);
-    if (!limits || !limits.images) { aiStatus('Composition automatique avec les règles intégrées.'); return; }
+    if (!limits || !limits.images) { aiStatus(tr('Composition automatique avec les règles intégrées.')); return; }
     const all = state.drawings;
     const nSheets = Math.min(limits.images.maxCount, Math.ceil(all.length / 20));
     const per = Math.ceil(all.length / nSheets);
     const sheets = [];
     for (let i = 0; i < all.length; i += per) sheets.push(await contactSheet(all.slice(i, i + per), i));
-    aiStatus(`Claude regarde les ${all.length} dessins et imagine la composition…`);
+    aiStatus(tr`Claude regarde les ${all.length} dessins et imagine la composition…`);
     const prompt = `Tu es le directeur artistique d'un collage : une toile faite UNIQUEMENT de dessins d'enfants, tous utilisés, collés à la même échelle (comme une grande œuvre de famille accrochée au salon).
 Voici ${all.length} dessins numérotés de 1 à ${all.length} (planches contact, le numéro est en haut à gauche de chaque dessin).
 La toile est un paysage : « ciel » en haut, « milieu », « sol » en bas.
@@ -2482,12 +2484,12 @@ Réponds uniquement avec ce JSON :
       try { np = await directPieces(sample, limits); } catch (e) { np = 0; pieceErr = (e && (e.code || e.message)) || 'erreur'; }
       curate();
       planCoverage();
-      aiStatus(`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length}${np ? ` et ${np} éléments découpés` : pieceErr ? ` (éléments découpés non regardés : ${pieceErr})` : ''}, et placé chacun dans la scène.`);
+      aiStatus(tr`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length}${np ? tr` et ${np} éléments découpés` : pieceErr ? tr` (éléments découpés non regardés : ${pieceErr})` : ''}, et placé chacun dans la scène.`);
       refreshLists();
       regenerate();
     } catch (e) {
-      const why = { not_granted: 'autorisation refusée', rate_limited: 'trop de demandes, réessayez plus tard', refused: 'demande refusée' }[e && e.code];
-      aiStatus(`Composition automatique avec les règles intégrées${why ? ` (Claude : ${why})` : ''}.`);
+      const why = { not_granted: tr('autorisation refusée'), rate_limited: tr('trop de demandes, réessayez plus tard'), refused: tr('demande refusée') }[e && e.code];
+      aiStatus(tr`Composition automatique avec les règles intégrées${why ? ` (Claude : ${why})` : ''}.`);
     }
   }
 
@@ -2514,7 +2516,7 @@ Réponds uniquement avec ce JSON :
   // Dessins d'exemple fournis avec la page ou trouvés à côté de l'app : importés sur demande.
   async function loadSamples(m) {
     try {
-      setProgress(0, 1, 'Chargement des dessins d’exemple…');
+      setProgress(0, 1, tr('Chargement des dessins d’exemple…'));
       const files = await Promise.all(m.pages.map(async (p) => {
         const r = await fetch(m.base + p.file);
         if (!r.ok) throw new Error(p.file);
@@ -2530,7 +2532,7 @@ Réponds uniquement avec ce JSON :
     } catch (e) {
       console.error(e);
       setProgress(1, 1);
-      notice('Les dessins d’exemple n’ont pas pu être chargés. Importez vos scans ci-dessus.');
+      notice(tr('Les dessins d’exemple n’ont pas pu être chargés. Importez vos scans ci-dessus.'));
     }
   }
 
@@ -2641,9 +2643,9 @@ Réponds uniquement avec ce JSON :
 
   // (les boîtes de dialogue du navigateur sont bloquées dans certains cadres : le nom se saisit sur place)
   function askSaveName() {
-    if (!state.comp || !state.drawings.length) { saveStatus('Importez des dessins et choisissez une proposition avant de sauvegarder.'); return; }
+    if (!state.comp || !state.drawings.length) { saveStatus(tr('Importez des dessins et choisissez une proposition avant de sauvegarder.')); return; }
     const st = STYLES.find((x) => x.id === state.comp.style);
-    const dflt = (state.titles && state.titles[state.comp.style]) || `${st ? st.name : 'Composition'} du ${new Date().toLocaleDateString('fr-FR')}`;
+    const dflt = (state.titles && state.titles[state.comp.style]) || tr`${st ? st.name : 'Composition'} du ${new Date().toLocaleDateString(I18n.locale)}`;
     const form = $('save-form');
     form.hidden = false;
     $('save-name').value = dflt;
@@ -2653,23 +2655,23 @@ Réponds uniquement avec ce JSON :
   async function saveComposition(name) {
     if (!state.comp || !state.drawings.length) return;
     $('save-form').hidden = true;
-    saveStatus('Sauvegarde de la composition…');
+    saveStatus(tr('Sauvegarde de la composition…'));
     try {
       const rec = await snapshotComposition((name || 'Composition').trim().slice(0, 80));
       const A = window.Account;
       if (A && A.enabled) {
-        if (!A.user()) throw new Error('Connectez-vous pour sauvegarder.');
-        saveStatus('Envoi dans votre compte…');
-        await A.cloud.put(rec, (n, t) => saveStatus(`Envoi dans votre compte : ${n} / ${t} fichiers…`));
-        saveStatus(`Composition « ${rec.name} » sauvegardée dans votre compte.`);
+        if (!A.user()) throw new Error(tr('Connectez-vous pour sauvegarder.'));
+        saveStatus(tr('Envoi dans votre compte…'));
+        await A.cloud.put(rec, (n, t) => saveStatus(tr`Envoi dans votre compte : ${n} / ${t} fichiers…`));
+        saveStatus(tr`Composition « ${rec.name} » sauvegardée dans votre compte.`);
       } else {
         await dbPut(rec);
-        saveStatus(`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
+        saveStatus(tr`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
       }
       renderSaved();
     } catch (e) {
       console.error(e);
-      saveStatus(`La sauvegarde a échoué : ${(e && e.message) || 'espace de stockage insuffisant ?'}`);
+      saveStatus(tr`La sauvegarde a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
     }
   }
 
@@ -2695,13 +2697,13 @@ Réponds uniquement avec ce JSON :
       const when = new Date(rec.date);
       const st = STYLES.find((x) => x.id === rec.comp.style);
       const nD = rec.nDrawings !== undefined ? rec.nDrawings : rec.drawings.length;
-      const where = rec.cloud ? '<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>' : '';
-      el.innerHTML = `<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}${where}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString('fr-FR')}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+      const where = rec.cloud ? tr('<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>') : '';
+      el.innerHTML = tr`<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}${where}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString(I18n.locale)}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
       // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
       const del = el.querySelector('.saved-del');
       del.onclick = async (e) => {
         e.stopPropagation();
-        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = 'Supprimer ?'; setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
+        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = tr('Supprimer ?'); setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
         try { if (rec.cloud) await A.cloud.del(rec.id); else await dbDel(rec.id); } catch (e2) { console.error(e2); savedStatus(`Suppression impossible : ${e2.message}`); }
         renderSaved();
       };
@@ -2723,25 +2725,25 @@ Réponds uniquement avec ce JSON :
     try { rows = await A.exports.list(); } catch (e) { console.error(e); exportsStatus(`Exports indisponibles : ${e.message}`); return; }
     $('exports-count').textContent = rows.length ? `(${rows.length})` : '';
     list.innerHTML = '';
-    if (!rows.length) { list.innerHTML = '<p class="hint">Aucun export pour l’instant : téléchargez une œuvre, elle apparaîtra ici.</p>'; return; }
-    const KIND = { jpg: 'JPEG', png: 'PNG', pdf: 'PDF', guide: 'Guide PDF' };
+    if (!rows.length) { list.innerHTML = tr('<p class="hint">Aucun export pour l’instant : téléchargez une œuvre, elle apparaîtra ici.</p>'); return; }
+    const KIND = { jpg: 'JPEG', png: 'PNG', pdf: 'PDF', guide: tr('Guide PDF') };
     rows.forEach((r) => {
       const el = document.createElement('div');
       el.className = 'saved';
       const when = new Date(r.created_at);
       const size = r.size ? `${Math.round(r.size / 1024 / 1024 * 10) / 10} Mo` : '';
       const dims = r.width && r.height ? `${r.width} × ${r.height} px` : '';
-      const meta = [KIND[r.kind] || r.kind, r.dpi ? `${r.dpi} dpi` : '', dims, size, when.toLocaleDateString('fr-FR')].filter(Boolean).join(' · ');
-      el.innerHTML = `${r.thumb ? `<img src="${r.thumb}" alt="">` : `<span class="saved-kind">${KIND[r.kind] || r.kind}</span>`}<div><p class="saved-name">${(r.comp_name || r.name).replace(/</g, '&lt;')}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button class="saved-dl" title="Retélécharger" aria-label="Retélécharger"><svg class="ico"><use href="#i-download"/></svg></button><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
+      const meta = [KIND[r.kind] || r.kind, r.dpi ? `${r.dpi} dpi` : '', dims, size, when.toLocaleDateString(I18n.locale)].filter(Boolean).join(' · ');
+      el.innerHTML = tr`${r.thumb ? `<img src="${r.thumb}" alt="">` : `<span class="saved-kind">${KIND[r.kind] || r.kind}</span>`}<div><p class="saved-name">${(r.comp_name || r.name).replace(/</g, '&lt;')}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button class="saved-dl" title="Retélécharger" aria-label="Retélécharger"><svg class="ico"><use href="#i-download"/></svg></button><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
       el.querySelector('.saved-dl').onclick = async (e) => {
         e.stopPropagation();
-        try { exportsStatus('Téléchargement…'); const blob = await A.exports.blob(r.path); await saveFile(blob, r.name); exportsStatus(''); }
+        try { exportsStatus(tr('Téléchargement…')); const blob = await A.exports.blob(r.path); await saveFile(blob, r.name); exportsStatus(''); }
         catch (err) { console.error(err); exportsStatus(`Téléchargement impossible : ${err.message}`); }
       };
       const del = el.querySelector('.saved-del');
       del.onclick = async (e) => {
         e.stopPropagation();
-        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = 'Supprimer ?'; setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
+        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = tr('Supprimer ?'); setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
         try { await A.exports.del(r.id, r.path); } catch (err) { console.error(err); exportsStatus(`Suppression impossible : ${err.message}`); }
         renderExports();
       };
@@ -2757,26 +2759,26 @@ Réponds uniquement avec ce JSON :
     catch (e) { state.restoring = false; console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
   }
   async function restoreCompositionInner(id) {
-    savedStatus('Lecture de la composition sauvegardée…');
+    savedStatus(tr('Lecture de la composition sauvegardée…'));
     const fromCloud = typeof id === 'string' && id.startsWith('cloud:');
     const rec = fromCloud
-      ? await window.Account.cloud.get(id, (n, t) => savedStatus(`Téléchargement depuis votre compte : ${n} / ${t} dessins…`))
+      ? await window.Account.cloud.get(id, (n, t) => savedStatus(tr`Téléchargement depuis votre compte : ${n} / ${t} dessins…`))
       : await dbGet(id);
-    if (!rec) { savedStatus(fromCloud ? 'Composition introuvable dans votre compte.' : 'Composition introuvable dans ce navigateur.'); return; }
-    if (!rec.drawings || !rec.drawings.length) { savedStatus('Cette sauvegarde ne contient aucun dessin.'); return; }
+    if (!rec) { savedStatus(fromCloud ? tr('Composition introuvable dans votre compte.') : tr('Composition introuvable dans ce navigateur.')); return; }
+    if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette sauvegarde ne contient aucun dessin.')); return; }
     const bytesOf = (d) => d.data || d.blob || null;
     const sizeOf = (d) => { const b = bytesOf(d); return b ? (b.byteLength !== undefined ? b.byteLength : b.size) : 0; };
     const empty = rec.drawings.filter((d) => !sizeOf(d)).length;
-    if (empty) { savedStatus(`Sauvegarde incomplète : ${empty} image(s) manquante(s).`); return; }
+    if (empty) { savedStatus(tr`Sauvegarde incomplète : ${empty} image(s) manquante(s).`); return; }
     // les images doivent se relire : un essai sur la première avant de tout vider
     try {
       const probe = await createImageBitmap(new Blob([bytesOf(rec.drawings[0])], { type: rec.drawings[0].type || 'image/jpeg' }));
       if (probe.close) probe.close();
     } catch (e) {
-      savedStatus('Les images de cette sauvegarde ne peuvent pas être relues par ce navigateur. Sauvegardez de nouveau la composition.');
+      savedStatus(tr('Les images de cette sauvegarde ne peuvent pas être relues par ce navigateur. Sauvegardez de nouveau la composition.'));
       return;
     }
-    savedStatus(`Réouverture de « ${rec.name} » : ${rec.drawings.length} dessins à réimporter…`);
+    savedStatus(tr`Réouverture de « ${rec.name} » : ${rec.drawings.length} dessins à réimporter…`);
     state.restoring = true;
     // réglages d'abord, pour que la toile et le fond soient les mêmes
     const sv = rec.settings || {};
@@ -2793,7 +2795,7 @@ Réponds uniquement avec ce JSON :
     const sizes = {};
     rec.drawings.forEach((d) => { sizes[d.name] = d.sizeCm; });
     try { await importFiles(files, sizes, { quiet: true }); } finally { state.restoring = false; }
-    if (!state.drawings.length) { savedStatus('Aucun dessin n’a pu être relu depuis la sauvegarde.'); return; }
+    if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu depuis la sauvegarde.')); return; }
     // réglages par dessin
     rec.drawings.forEach((sd, i) => {
       const d = state.drawings[i];
@@ -2817,7 +2819,7 @@ Réponds uniquement avec ce JSON :
         try { await applySavedEdit(p, d, e); nEdits++; } catch (err) { console.warn(`retouche non rejouée sur « ${d.name} »`, err); }
       }
     }
-    if (nEdits) savedStatus(`${nEdits} retouche(s) de découpe rejouée(s)…`);
+    if (nEdits) savedStatus(tr`${nEdits} retouche(s) de découpe rejouée(s)…`);
     planCoverage();
     refreshLists();
     regenerate();
@@ -2845,10 +2847,10 @@ Réponds uniquement avec ce JSON :
     regenerate();
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
-    savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? `, ${nEdits} retouche(s) rejouée(s)` : ''}. L’œuvre est affichée sur la toile.`);
+    savedStatus(tr`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}. L’œuvre est affichée sur la toile.`);
   }
 
-  $('save-comp').onclick = requireAccount('sauvegarder votre composition', askSaveName);
+  $('save-comp').onclick = requireAccount(tr('sauvegarder votre composition'), askSaveName);
   $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
   $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
@@ -2866,11 +2868,11 @@ Réponds uniquement avec ce JSON :
       mode = m;
       document.querySelectorAll('.auth-tabs button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
       $('auth-name-field').hidden = m !== 'signup';
-      $('auth-submit').textContent = m === 'signup' ? 'Créer mon compte' : 'Se connecter';
-      $('acc-title').textContent = m === 'signup' ? 'Bienvenue à l’atelier' : 'Content de vous revoir';
-      $('acc-sub').textContent = m === 'signup' ? 'Gardez vos compositions et retrouvez-les sur tous vos appareils.' : 'Connectez-vous pour retrouver vos compositions.';
+      $('auth-submit').textContent = m === 'signup' ? tr('Créer mon compte') : 'Se connecter';
+      $('acc-title').textContent = m === 'signup' ? tr('Bienvenue à l’atelier') : tr('Content de vous revoir');
+      $('acc-sub').textContent = m === 'signup' ? tr('Gardez vos compositions et retrouvez-les sur tous vos appareils.') : tr('Connectez-vous pour retrouver vos compositions.');
       $('auth-password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
-      $('auth-password').placeholder = m === 'signup' ? '10 caractères au moins' : 'Votre mot de passe';
+      $('auth-password').placeholder = m === 'signup' ? tr('10 caractères au moins') : tr('Votre mot de passe');
       if ($('auth-meter')._update) $('auth-meter')._update();
       $('auth-forgot').hidden = m === 'signup';
       status('');
@@ -2899,7 +2901,7 @@ Réponds uniquement avec ce JSON :
         m.hidden = false;
         m.dataset.score = String(r.score);
         m.querySelector('.pw-label').textContent = r.label;
-        m.querySelector('.pw-tips').textContent = r.problems.length ? `À améliorer : ${r.problems.join(' ; ')}.` : 'Ce mot de passe convient.';
+        m.querySelector('.pw-tips').textContent = r.problems.length ? tr`À améliorer : ${r.problems.join(' ; ')}.` : tr('Ce mot de passe convient.');
       };
       inp.addEventListener('input', update);
       inp.addEventListener('focus', update);
@@ -2908,56 +2910,56 @@ Réponds uniquement avec ce JSON :
     meterFor('auth-password', 'auth-meter', () => ({ email: $('auth-email').value, name: $('auth-name').value }));
     meterFor('recover-password', 'recover-meter', () => ({ email: (A.user() || {}).email }));
     meterFor('profile-password', 'profile-meter', () => ({ email: (A.user() || {}).email, name: $('profile-name').value }));
-    const strongOrThrow = (pw, ctx) => { const r = A.checkPassword(pw, ctx); if (!r.ok) throw new Error(`Mot de passe trop faible : ${r.problems.join(' ; ')}.`); };
+    const strongOrThrow = (pw, ctx) => { const r = A.checkPassword(pw, ctx); if (!r.ok) throw new Error(tr`Mot de passe trop faible : ${r.problems.join(' ; ')}.`); };
     // afficher / masquer les mots de passe
     sec.querySelectorAll('.pw-eye').forEach((b) => {
-      b.onclick = () => { const inp = $(b.dataset.for); const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye'); b.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'); };
+      b.onclick = () => { const inp = $(b.dataset.for); const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye'); b.setAttribute('aria-label', show ? tr('Masquer le mot de passe') : tr('Afficher le mot de passe')); };
     });
     const busy = async (fn, okMsg) => {
-      try { status('Un instant…'); await fn(); if (okMsg !== null) status(okMsg || ''); }
+      try { status(tr('Un instant…')); await fn(); if (okMsg !== null) status(okMsg || ''); }
       catch (e) { console.error(e); status(e.message || 'Une erreur est survenue.', true); }
     };
-    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => busy(() => A.signInWith(b.dataset.provider), 'Redirection vers la connexion…'); });
+    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => busy(() => A.signInWith(b.dataset.provider), tr('Redirection vers la connexion…')); });
     $('auth-form').onsubmit = (e) => {
       e.preventDefault();
       const email = $('auth-email').value.trim(), pw = $('auth-password').value;
-      if (!email || !pw) { status('Indiquez votre e-mail et votre mot de passe.', true); return; }
+      if (!email || !pw) { status(tr('Indiquez votre e-mail et votre mot de passe.'), true); return; }
       if (mode === 'signup') {
         busy(async () => {
           strongOrThrow(pw, { email, name: $('auth-name').value });
           const r = await A.signUpEmail(email, pw, $('auth-name').value.trim());
-          if (r.needsConfirm) { setMode('signin'); status(`Compte créé : confirmez votre e-mail avec le lien envoyé à ${email}, puis connectez-vous.`); }
+          if (r.needsConfirm) { setMode('signin'); status(tr`Compte créé : confirmez votre e-mail avec le lien envoyé à ${email}, puis connectez-vous.`); }
         }, null);
       } else {
         busy(() => A.signInEmail(email, pw), '');
       }
     };
-    $('auth-forgot').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status('Indiquez d’abord votre e-mail.', true); return; } busy(() => A.resetPassword(email), `Un lien pour choisir un nouveau mot de passe a été envoyé à ${email}.`); };
-    $('auth-magic').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status('Indiquez d’abord votre e-mail.', true); return; } busy(() => A.magicLink(email), `Un lien de connexion a été envoyé à ${email}. Ouvrez-le sur cet appareil.`); };
-    $('recover-form').onsubmit = (e) => { e.preventDefault(); const pw = $('recover-password').value; busy(async () => { strongOrThrow(pw, { email: (A.user() || {}).email }); await A.updatePassword(pw); }, 'Nouveau mot de passe enregistré.'); };
+    $('auth-forgot').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status(tr('Indiquez d’abord votre e-mail.'), true); return; } busy(() => A.resetPassword(email), tr`Un lien pour choisir un nouveau mot de passe a été envoyé à ${email}.`); };
+    $('auth-magic').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status(tr('Indiquez d’abord votre e-mail.'), true); return; } busy(() => A.magicLink(email), tr`Un lien de connexion a été envoyé à ${email}. Ouvrez-le sur cet appareil.`); };
+    $('recover-form').onsubmit = (e) => { e.preventDefault(); const pw = $('recover-password').value; busy(async () => { strongOrThrow(pw, { email: (A.user() || {}).email }); await A.updatePassword(pw); }, tr('Nouveau mot de passe enregistré.')); };
     $('profile-form').onsubmit = (e) => {
       e.preventDefault();
       const u = A.user(); if (!u) return;
       const name = $('profile-name').value.trim(), email = $('profile-email').value.trim(), pw = $('profile-password').value;
       busy(async () => {
         const done = [];
-        if (name && name !== A.displayName(u)) { await A.updateProfile({ name }); done.push('nom enregistré'); }
-        if (email && email !== u.email) { await A.updateEmail(email); done.push(`un lien de confirmation a été envoyé à ${email}`); }
-        if (pw) { strongOrThrow(pw, { email: u.email, name }); await A.updatePassword(pw); $('profile-password').value = ''; $('profile-meter').hidden = true; done.push('mot de passe changé'); }
-        status(done.length ? `${done.join(', ')}.` : 'Rien à enregistrer.');
+        if (name && name !== A.displayName(u)) { await A.updateProfile({ name }); done.push(tr('nom enregistré')); }
+        if (email && email !== u.email) { await A.updateEmail(email); done.push(tr`un lien de confirmation a été envoyé à ${email}`); }
+        if (pw) { strongOrThrow(pw, { email: u.email, name }); await A.updatePassword(pw); $('profile-password').value = ''; $('profile-meter').hidden = true; done.push(tr('mot de passe changé')); }
+        status(done.length ? `${done.join(', ')}.` : tr('Rien à enregistrer.'));
       }, null);
     };
-    $('acc-signout').onclick = () => busy(() => A.signOut(), 'Vous êtes déconnecté.');
+    $('acc-signout').onclick = () => busy(() => A.signOut(), tr('Vous êtes déconnecté.'));
     const del = $('acc-delete');
     del.onclick = () => {
       if (!del.classList.contains('confirm')) {
-        del.classList.add('confirm'); del.textContent = 'Confirmer la suppression définitive';
-        setTimeout(() => { del.classList.remove('confirm'); del.textContent = 'Supprimer mon compte'; }, 6000);
+        del.classList.add('confirm'); del.textContent = tr('Confirmer la suppression définitive');
+        setTimeout(() => { del.classList.remove('confirm'); del.textContent = tr('Supprimer mon compte'); }, 6000);
         return;
       }
-      busy(() => A.deleteAccount(), 'Compte supprimé. Vos sauvegardes locales sont conservées.');
+      busy(() => A.deleteAccount(), tr('Compte supprimé. Vos sauvegardes locales sont conservées.'));
     };
-    const PROVIDERS = { google: 'Google', facebook: 'Facebook', email: 'votre e-mail' };
+    const PROVIDERS = { google: 'Google', facebook: 'Facebook', email: tr('votre e-mail') };
     let wasSigned = null;
     A.onChange((u, info) => {
       const signed = !!u, recovering = !!(info && info.recovering);
@@ -2972,10 +2974,10 @@ Réponds uniquement avec ce JSON :
         const av = $('acc-menu').querySelector('.acc-avatar');
         const pic = u.user_metadata && (u.user_metadata.avatar_url || u.user_metadata.picture);
         [av, $('profile-avatar')].forEach((a) => { a.textContent = pic ? '' : (name[0] || '?').toUpperCase(); a.style.backgroundImage = pic ? `url("${pic}")` : ''; });
-        $('profile-title').textContent = name ? `Bonjour ${name}` : 'Mon compte';
+        $('profile-title').textContent = name ? tr`Bonjour ${name}` : tr('Mon compte');
         $('profile-name').value = name;
         $('profile-email').value = u.email || '';
-        $('profile-meta').textContent = `Connecté avec ${PROVIDERS[A.providerOf(u)] || A.providerOf(u)}${u.email ? ` (${u.email})` : ''}.`;
+        $('profile-meta').textContent = tr`Connecté avec ${PROVIDERS[A.providerOf(u)] || A.providerOf(u)}${u.email ? ` (${u.email})` : ''}.`;
         $('profile-password-field').hidden = A.providerOf(u) !== 'email';
       }
       if (recovering) openPanel(true);
@@ -2987,8 +2989,8 @@ Réponds uniquement avec ce JSON :
       else if (wasSigned === true && !signed) { openPanel(false); setMode('signin'); }
       wasSigned = signed;
       $('saved-hint').textContent = signed
-        ? 'Vos compositions et vos exports sont enregistrés dans votre compte : retrouvez-les sur tous vos appareils.'
-        : 'Connectez-vous pour sauvegarder vos compositions, télécharger vos œuvres et les retrouver sur tous vos appareils.';
+        ? tr('Vos compositions et vos exports sont enregistrés dans votre compte : retrouvez-les sur tous vos appareils.')
+        : tr('Connectez-vous pour sauvegarder vos compositions, télécharger vos œuvres et les retrouver sur tous vos appareils.');
       renderSaved();
       renderExports();
     });
@@ -3008,7 +3010,7 @@ Réponds uniquement avec ce JSON :
       chev.innerHTML = '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
       h.appendChild(chev);
       h.setAttribute('role', 'button'); h.setAttribute('tabindex', '0');
-      const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? 'Développer' : 'Réduire'; };
+      const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? tr('Développer') : tr('Réduire'); };
       apply(saved.includes(sec.id));
       const toggle = () => {
         apply(!sec.classList.contains('collapsed'));

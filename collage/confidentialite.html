@@ -65,5 +65,95 @@
 
     <a class="back" href="./">← Retour à l'atelier</a>
   </main>
+  <script>
+  // Traduction anglaise de la page (le français est la source).
+(function () {
+  'use strict';
+  var EN = {
+    "Atelier Gribouille — Confidentialité": "Atelier Gribouille — Privacy",
+    "Confidentialité": "Privacy",
+    "Dernière mise à jour : octobre 2026. Ce document est un projet à relire et à compléter (identité de l'éditeur) avant publication définitive.": "Last updated: October 2026. This document is a draft to be reviewed and completed (publisher identity) before final publication.",
+    "En bref": "In short",
+    "Sans compte, tout se passe dans votre navigateur : les dessins importés et les compositions ne quittent pas votre appareil.": "Without an account, everything happens in your browser: imported drawings and compositions never leave your device.",
+    "Avec un compte, les compositions que vous choisissez de sauvegarder, et les dessins qu'elles contiennent, sont conservés dans un espace personnel hébergé en Europe, accessible par vous seul.": "With an account, the compositions you choose to save, and the drawings they contain, are kept in a personal space hosted in Europe, accessible by you alone.",
+    "Vous pouvez supprimer une composition, ou tout votre compte, à tout moment depuis l'application.": "You can delete a composition, or your whole account, at any time from the app.",
+    "Qui est responsable": "Who is responsible",
+    "L'éditeur d'Atelier Gribouille (coordonnées à compléter), joignable à": "The publisher of Atelier Gribouille (contact details to be completed), reachable at",
+    "Quelles données, pour quoi faire": "Which data, for what purpose",
+    "Compte": "Account",
+    ": adresse e-mail, nom affiché, et, si vous vous connectez avec Google ou Facebook, l'identifiant et la photo de profil que ces services transmettent. Finalité : vous reconnaître et retrouver vos compositions. Base légale : exécution du service que vous demandez.": ": email address, display name and, if you sign in with Google or Facebook, the identifier and profile picture those services pass on. Purpose: recognising you and finding your compositions. Legal basis: performance of the service you request.",
+    "Compositions sauvegardées": "Saved compositions",
+    ": les images des dessins importés, les réglages et la mise en place. Finalité : les rouvrir plus tard, sur tous vos appareils. Elles ne sont ni analysées à d'autres fins, ni partagées, ni utilisées pour entraîner un quelconque modèle.": ": the images of the imported drawings, the settings and the layout. Purpose: reopening them later, on all your devices. They are neither analysed for other purposes, nor shared, nor used to train any model.",
+    "Journaux techniques": "Technical logs",
+    ": l'hébergeur conserve des journaux de connexion (adresse IP, horodatage) pour la sécurité du service, pendant une durée limitée.": ": the host keeps connection logs (IP address, timestamp) for the security of the service, for a limited time.",
+    "Les dessins d'enfants peuvent comporter un prénom ou une signature : ils sont traités comme des données personnelles et bénéficient des mêmes protections.": "Children’s drawings may carry a first name or a signature: they are treated as personal data and enjoy the same protections.",
+    "Où et combien de temps": "Where and for how long",
+    "Les données de compte et les fichiers sont hébergés par Supabase (sous-traitant) dans un centre de données situé dans l'Union européenne. Ils sont conservés tant que votre compte existe, puis effacés lors de sa suppression. Les sauvegardes techniques de l'hébergeur sont purgées sous 30 jours.": "Account data and files are hosted by Supabase (processor) in a data centre located in the European Union. They are kept as long as your account exists, then erased when it is deleted. The host’s technical backups are purged within 30 days.",
+    "Qui y accède": "Who has access",
+    "Vous seul. Les règles d'accès de la base de données n'autorisent chaque compte qu'à ses propres lignes et fichiers. L'éditeur n'accède pas au contenu des compositions, hors demande de votre part ou obligation légale.": "You alone. The database access rules only allow each account to reach its own rows and files. The publisher does not access the content of compositions, except at your request or under a legal obligation.",
+    "Supprimer vos données": "Deleting your data",
+    "Une composition": "A composition",
+    ": dans l'application, section « Mes compositions », icône corbeille, puis confirmer.": ": in the app, “My compositions” section, bin icon, then confirm.",
+    "Tout le compte": "The whole account",
+    ": dans l'application, cliquez sur votre nom en haut du panneau, puis « Supprimer mon compte » et confirmez. Les fichiers, les compositions et le compte sont effacés immédiatement.": ": in the app, click your name at the top of the panel, then “Delete my account” and confirm. Files, compositions and the account are erased immediately.",
+    "Sans accès à l'application": "Without access to the app",
+    "(par exemple après une connexion Facebook ou Google que vous souhaitez révoquer) : écrivez à": "(for example after a Facebook or Google sign-in you wish to revoke): write to",
+    "depuis l'adresse du compte ; la suppression est faite sous 30 jours et confirmée par retour.": "from the account’s address; deletion is carried out within 30 days and confirmed by reply.",
+    "Vos droits": "Your rights",
+    "Accès, rectification, effacement, limitation, portabilité et opposition, selon le Règlement général sur la protection des données. Exercez-les par e-mail à l'adresse ci-dessus. Vous pouvez aussi saisir la CNIL (cnil.fr).": "Access, rectification, erasure, restriction, portability and objection, under the General Data Protection Regulation. Exercise them by email at the address above. You may also lodge a complaint with the CNIL (cnil.fr), the French data protection authority.",
+    "Cookies et stockage local": "Cookies and local storage",
+    "L'application n'utilise pas de cookies de suivi ni de mesure d'audience. Elle stocke dans votre navigateur vos préférences d'affichage, vos sauvegardes locales et, si vous êtes connecté, votre jeton de session.": "The app uses no tracking or analytics cookies. It stores in your browser your display preferences, your local saves and, if you are signed in, your session token.",
+    "← Retour à l'atelier": "← Back to the studio"
+  };
+
+  var KEY = 'atelier-gribouille:lang';
+  function pick() {
+    var q = null;
+    try { q = new URLSearchParams(location.search).get('lang'); } catch (e) { /* ignoré */ }
+    if (q === 'fr' || q === 'en') { try { localStorage.setItem(KEY, q); } catch (e) { /* ignoré */ } return q; }
+    try { var v = localStorage.getItem(KEY); if (v === 'fr' || v === 'en') return v; } catch (e) { /* ignoré */ }
+    return /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en';
+  }
+  var lang = pick();
+  function translate() {
+    var ATTRS = ['title', 'placeholder', 'aria-label', 'alt'];
+    var walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (n.nodeType === 1) return n.tagName === 'SCRIPT' || n.tagName === 'STYLE' || n.tagName.toLowerCase() === 'svg' ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        return /\S/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      },
+    });
+    var texts = [], n;
+    while ((n = walker.nextNode())) {
+      if (n.nodeType === 1) {
+        ATTRS.forEach(function (a) { var v = n.getAttribute(a); if (v && EN[v] !== undefined) n.setAttribute(a, EN[v]); });
+        if (n.tagName === 'META') { var c = n.getAttribute('content'); if (c && EN[c] !== undefined) n.setAttribute('content', EN[c]); }
+      } else texts.push(n);
+    }
+    texts.forEach(function (t) {
+      var raw = t.nodeValue, key = raw.replace(/\s+/g, ' ').trim();
+      if (EN[key] === undefined) return;
+      t.nodeValue = raw.match(/^\s*/)[0] + EN[key] + raw.match(/\s*$/)[0];
+    });
+    document.querySelectorAll('svg[aria-label]').forEach(function (s) { var v = s.getAttribute('aria-label'); if (EN[v] !== undefined) s.setAttribute('aria-label', EN[v]); });
+    document.querySelectorAll('a[href^="atelier/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
+    document.documentElement.lang = 'en';
+  }
+  function wire() {
+    document.querySelectorAll('[data-lang]').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-lang') === lang);
+      b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false');
+      b.onclick = function () {
+        var next = b.getAttribute('data-lang');
+        if (next === lang) return;
+        try { localStorage.setItem(KEY, next); } catch (e) { /* ignoré */ }
+        var url = new URL(location.href); url.searchParams.set('lang', next); location.replace(url.toString());
+      };
+    });
+  }
+  function run() { if (lang === 'en') translate(); wire(); }
+  if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
+})();
+  </script>
 </body>
 </html>

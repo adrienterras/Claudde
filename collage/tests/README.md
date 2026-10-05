@@ -23,6 +23,10 @@ Un navigateur déjà installé peut être utilisé avec `CHROMIUM_PATH=/chemin/v
 | `compose.spec.js` | six propositions, sélection de chaque style, Galerie sans chevauchement, nouvelles propositions et densité, Scène dans la toile, fiche du dessin à la sélection |
 | `export.spec.js` | 300 dpi par défaut, téléchargement JPEG et PDF réels, relecture haute définition puis libération, guide de création |
 | `save.spec.js` | sauvegarde, rechargement, réouverture à l'identique, suppression en deux temps |
+| `i18n.spec.js` | version anglaise : `?lang=en`, choix mémorisé, retour au français par le sélecteur ; aucun texte dynamique sans traduction après un import complet |
+
+`npm test` lance d'abord `tests/i18n-check.js`, qui compare les textes français de l'interface au
+dictionnaire anglais de `js/i18n.js` et échoue s'il manque une traduction.
 
 Chaque test échoue aussi si la page lève une erreur non rattrapée. Le workflow
 `.github/workflows/tests.yml` lance la suite à chaque push et à chaque pull request.

@@ -107,5 +107,73 @@
     <p class="values">Créativité <i>·</i> Tendresse <i>·</i> Savoir-faire</p>
     <p class="copy">© Atelier Gribouille · <a href="https://atelier-gribouille.com">atelier-gribouille.com</a></p>
   </footer>
+  <script>
+  // Traduction anglaise de la page (le français est la source).
+(function () {
+  'use strict';
+  var EN = {
+    "Atelier Gribouille — Ouverture prochaine": "Atelier Gribouille — Coming soon",
+    "Atelier Gribouille : les dessins d’enfants deviennent des œuvres d’art. Ouverture prochaine.": "Atelier Gribouille: children’s drawings become works of art. Coming soon.",
+    "Les dessins d’enfants deviennent des œuvres d’art. Ouverture prochaine.": "Children’s drawings become works of art. Coming soon.",
+    "Les dessins d’enfants": "Children’s drawings",
+    "deviennent des œuvres d’art": "become works of art",
+    "Ouverture prochaine": "Coming soon",
+    "Les grands souvenirs commencent par un gribouillage.": "Great memories start with a scribble.",
+    "Importez les dessins de vos enfants : l’atelier les découpe à leur taille réelle et compose une œuvre unique, à imprimer sur toile ou à réaliser à la main avec les originaux.": "Import your children’s drawings: the studio cuts them out at their real size and composes a unique artwork, to print on canvas or to make by hand with the originals.",
+    "Prévenez-moi à l’ouverture": "Let me know when it opens",
+    "Créativité": "Creativity",
+    "Tendresse": "Tenderness",
+    "Savoir-faire": "Craftsmanship"
+  };
+
+  var KEY = 'atelier-gribouille:lang';
+  function pick() {
+    var q = null;
+    try { q = new URLSearchParams(location.search).get('lang'); } catch (e) { /* ignoré */ }
+    if (q === 'fr' || q === 'en') { try { localStorage.setItem(KEY, q); } catch (e) { /* ignoré */ } return q; }
+    try { var v = localStorage.getItem(KEY); if (v === 'fr' || v === 'en') return v; } catch (e) { /* ignoré */ }
+    return /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en';
+  }
+  var lang = pick();
+  function translate() {
+    var ATTRS = ['title', 'placeholder', 'aria-label', 'alt'];
+    var walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (n.nodeType === 1) return n.tagName === 'SCRIPT' || n.tagName === 'STYLE' || n.tagName.toLowerCase() === 'svg' ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        return /\S/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      },
+    });
+    var texts = [], n;
+    while ((n = walker.nextNode())) {
+      if (n.nodeType === 1) {
+        ATTRS.forEach(function (a) { var v = n.getAttribute(a); if (v && EN[v] !== undefined) n.setAttribute(a, EN[v]); });
+        if (n.tagName === 'META') { var c = n.getAttribute('content'); if (c && EN[c] !== undefined) n.setAttribute('content', EN[c]); }
+      } else texts.push(n);
+    }
+    texts.forEach(function (t) {
+      var raw = t.nodeValue, key = raw.replace(/\s+/g, ' ').trim();
+      if (EN[key] === undefined) return;
+      t.nodeValue = raw.match(/^\s*/)[0] + EN[key] + raw.match(/\s*$/)[0];
+    });
+    document.querySelectorAll('svg[aria-label]').forEach(function (s) { var v = s.getAttribute('aria-label'); if (EN[v] !== undefined) s.setAttribute('aria-label', EN[v]); });
+    document.querySelectorAll('a[href^="atelier/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
+    document.documentElement.lang = 'en';
+  }
+  function wire() {
+    document.querySelectorAll('[data-lang]').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-lang') === lang);
+      b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false');
+      b.onclick = function () {
+        var next = b.getAttribute('data-lang');
+        if (next === lang) return;
+        try { localStorage.setItem(KEY, next); } catch (e) { /* ignoré */ }
+        var url = new URL(location.href); url.searchParams.set('lang', next); location.replace(url.toString());
+      };
+    });
+  }
+  function run() { if (lang === 'en') translate(); wire(); }
+  if (document.body) run(); else document.addEventListener('DOMContentLoaded', run);
+})();
+  </script>
 </body>
 </html>

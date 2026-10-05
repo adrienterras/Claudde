@@ -40,6 +40,10 @@
     .nav nav a { text-decoration: none; color: var(--ink-2); }
     .nav nav a:hover { color: var(--ink); }
     .nav nav a.btn-primary, .nav nav a.btn-primary:hover { color: var(--craie); }
+    .lang-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+    .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; line-height: 1.2; }
+    .lang-switch button:hover { color: var(--ink); }
+    .lang-switch button.on { background: var(--ink); color: var(--craie); cursor: default; }
     .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
     .btn:hover { transform: translateY(-1px); }
     .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
@@ -123,6 +127,7 @@
         <a class="hide-sm" href="#comment">Comment ça marche</a>
         <a class="hide-sm" href="#styles">Les styles</a>
         <a class="btn btn-primary btn-sm" href="atelier/">Ouvrir l’atelier</a>
+        <span class="lang-switch" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
       </nav>
     </div>
   </header>
@@ -377,5 +382,6 @@
       <span>© Atelier Gribouille</span>
     </div>
   </footer>
+  <script src="i18n.js"></script>
 </body>
 </html>

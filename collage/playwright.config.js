@@ -15,6 +15,7 @@ module.exports = defineConfig({
   use: {
     baseURL: `http://localhost:${port}/`,
     viewport: { width: 1440, height: 1000 },
+    locale: 'fr-FR', // l'interface est testée en français ; tests/i18n.spec.js couvre l'anglais
     launchOptions,
     trace: 'retain-on-failure',
   },

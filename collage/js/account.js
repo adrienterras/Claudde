@@ -37,16 +37,16 @@
   // Messages d'erreur Supabase les plus courants, en français
   function frMessage(m) {
     const map = [
-      [/Invalid login credentials/i, 'E-mail ou mot de passe incorrect.'],
-      [/Email not confirmed/i, 'Confirmez d’abord votre e-mail : un lien vous a été envoyé.'],
-      [/User already registered/i, 'Un compte existe déjà avec cet e-mail. Connectez-vous, ou utilisez « mot de passe oublié ».'],
-      [/Password should be at least (\d+)/i, 'Le mot de passe doit faire au moins $1 caractères.'],
-      [/rate limit|too many requests/i, 'Trop de tentatives : patientez une minute.'],
-      [/Unable to validate email|invalid format/i, 'Cette adresse e-mail ne semble pas valide.'],
-      [/same password/i, 'Choisissez un mot de passe différent de l’actuel.'],
-      [/Failed to fetch|NetworkError/i, 'Pas de connexion au service des comptes. Vérifiez votre réseau.'],
+      [/Invalid login credentials/i, tr('E-mail ou mot de passe incorrect.')],
+      [/Email not confirmed/i, tr('Confirmez d’abord votre e-mail : un lien vous a été envoyé.')],
+      [/User already registered/i, tr('Un compte existe déjà avec cet e-mail. Connectez-vous, ou utilisez « mot de passe oublié ».')],
+      [/Password should be at least (\d+)/i, tr('Le mot de passe doit faire au moins $1 caractères.')],
+      [/rate limit|too many requests/i, tr('Trop de tentatives : patientez une minute.')],
+      [/Unable to validate email|invalid format/i, tr('Cette adresse e-mail ne semble pas valide.')],
+      [/same password/i, tr('Choisissez un mot de passe différent de l’actuel.')],
+      [/Failed to fetch|NetworkError/i, tr('Pas de connexion au service des comptes. Vérifiez votre réseau.')],
     ];
-    for (const [re, fr] of map) if (re.test(m)) return m.replace(re, fr).replace(/^.*?(E-mail|Confirmez|Un compte|Le mot|Trop|Cette|Choisissez|Pas de)/, '$1');
+    for (const [re, fr] of map) { const mm = m.match(re); if (mm) return fr.replace('$1', mm[1] || ''); }
     return m;
   }
 
@@ -58,21 +58,21 @@
   function checkPassword(pw, ctx) {
     pw = pw || '';
     const problems = [];
-    if (pw.length < PASSWORD_MIN) problems.push(`au moins ${PASSWORD_MIN} caractères (${pw.length} pour l’instant)`);
+    if (pw.length < PASSWORD_MIN) problems.push(tr`au moins ${PASSWORD_MIN} caractères (${pw.length} pour l’instant)`);
     const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(pw)).length;
-    if (classes < 3) problems.push('mélanger au moins trois familles : minuscules, majuscules, chiffres, symboles');
+    if (classes < 3) problems.push(tr('mélanger au moins trois familles : minuscules, majuscules, chiffres, symboles'));
     const low = pw.toLowerCase();
-    if (/^(.)\1+$/.test(pw) || /^(0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef)/.test(low)) problems.push('éviter les suites et répétitions');
-    if (COMMON.some((w) => low.includes(w) && w.length >= 4 && pw.length < w.length + 6)) problems.push('éviter les mots de passe trop courants');
+    if (/^(.)\1+$/.test(pw) || /^(0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef)/.test(low)) problems.push(tr('éviter les suites et répétitions'));
+    if (COMMON.some((w) => low.includes(w) && w.length >= 4 && pw.length < w.length + 6)) problems.push(tr('éviter les mots de passe trop courants'));
     const parts = [];
     if (ctx && ctx.email) parts.push(ctx.email.split('@')[0]);
     if (ctx && ctx.name) parts.push(...ctx.name.split(/\s+/));
-    if (parts.some((p) => p && p.length >= 3 && low.includes(p.toLowerCase()))) problems.push('ne pas contenir votre nom ni votre e-mail');
+    if (parts.some((p) => p && p.length >= 3 && low.includes(p.toLowerCase()))) problems.push(tr('ne pas contenir votre nom ni votre e-mail'));
     // score indicatif : longueur et variété
     let pool = 0; if (/[a-z]/.test(pw)) pool += 26; if (/[A-Z]/.test(pw)) pool += 26; if (/[0-9]/.test(pw)) pool += 10; if (/[^A-Za-z0-9]/.test(pw)) pool += 32;
     const bits = pw.length ? pw.length * Math.log2(pool || 1) : 0;
     const score = problems.length ? Math.min(1, bits >= 40 ? 1 : 0) : bits >= 80 ? 4 : bits >= 65 ? 3 : 2;
-    const labels = ['', 'Faible', 'Correct', 'Bon', 'Excellent'];
+    const labels = ['', tr('Faible'), tr('Correct'), tr('Bon'), tr('Excellent')];
     return { ok: problems.length === 0, problems, score, label: labels[score] || '' };
   }
 
@@ -142,7 +142,7 @@
   }
 
   async function cloudPut(rec, onProgress) {
-    if (!user) throw new Error('Connectez-vous pour sauvegarder dans votre compte.');
+    if (!user) throw new Error(tr('Connectez-vous pour sauvegarder dans votre compte.'));
     const id = crypto.randomUUID();
     const base = `${user.id}/${id}`;
     const store = client.storage.from(BUCKET);
@@ -207,7 +207,7 @@
     return data || [];
   }
   async function exportPut(blob, info) {
-    if (!user) throw new Error('Connectez-vous pour enregistrer vos exports.');
+    if (!user) throw new Error(tr('Connectez-vous pour enregistrer vos exports.'));
     const id = crypto.randomUUID();
     const ext = info.kind === 'pdf' ? 'pdf' : info.kind === 'png' ? 'png' : 'jpg';
     const path = `${user.id}/exports/${id}.${ext}`;

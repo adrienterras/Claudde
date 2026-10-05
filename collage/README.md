@@ -234,6 +234,10 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
   affiche toute erreur imprévue en haut de la page, avec son détail à copier pour la signaler.
 - `tests/` : suite Playwright sur des images de synthèse (voir `tests/README.md`), lancée par
   `npm test` et, à chaque push, par le workflow `.github/workflows/tests.yml`.
+- `js/i18n.js` : deux langues. Le français est la source (textes écrits en français dans `index.html`
+  et dans les modules, via `tr('…')` ou tr`… ${valeur}`) ; le dictionnaire anglais est dans ce fichier.
+  Langue choisie par `?lang=fr|en` (mémorisé), sinon le choix mémorisé, sinon celle du navigateur ;
+  sélecteur FR / EN sous le logo. `node tests/i18n-check.js` vérifie qu'aucun texte n'est sans traduction.
 - `js/editor.js` : éditeur de découpe (masque en pixels de la page, historique, zoom tactile).
 - `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
 - `assets/` : éléments de la charte Atelier Gribouille (monogramme détouré, motif de crayons, pictogrammes).

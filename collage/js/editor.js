@@ -59,7 +59,7 @@
       dirty: true, raf: 0,
       pointers: new Map(), stroke: null, pinch: null, space: false, cursor: null,
     };
-    $('ed-title').textContent = opts.title || 'Découpe';
+    $('ed-title').textContent = opts.title || tr('Découpe');
     $('ed-msg').textContent = '';
     $('editor').hidden = false;
     document.body.classList.add('editing');
@@ -317,7 +317,7 @@
         }
       }
     }
-    if (maxX < 0) { $('ed-msg').textContent = 'La découpe est vide : restaurez une partie du dessin avant de valider.'; return; }
+    if (maxX < 0) { $('ed-msg').textContent = tr('La découpe est vide : restaurez une partie du dessin avant de valider.'); return; }
     const bw = maxX - minX + 1, bh = maxY - minY + 1;
     const canvas = Extract.makeCanvas(bw, bh);
     const cx = canvas.getContext('2d');
