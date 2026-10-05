@@ -174,6 +174,40 @@
     return { id: cloudId, name: data.name, date: data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true };
   }
 
+  // ---------- Exports (fichiers téléchargés) dans le compte ----------
+  async function exportsList() {
+    const { data, error } = await client.from('exports').select('id, name, kind, dpi, width, height, size, thumb, path, comp_name, created_at').order('created_at', { ascending: false });
+    err(error);
+    return data || [];
+  }
+  async function exportPut(blob, info) {
+    if (!user) throw new Error('Connectez-vous pour enregistrer vos exports.');
+    const id = crypto.randomUUID();
+    const ext = info.kind === 'pdf' ? 'pdf' : info.kind === 'png' ? 'png' : 'jpg';
+    const path = `${user.id}/exports/${id}.${ext}`;
+    const up = await client.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'application/octet-stream', upsert: false });
+    err(up.error);
+    const row = { id, name: info.name, kind: info.kind, dpi: info.dpi || null, width: info.width || null, height: info.height || null, size: blob.size, thumb: info.thumb || null, path, comp_name: info.compName || null };
+    const { error } = await client.from('exports').insert(row);
+    err(error);
+    return row;
+  }
+  async function exportUrl(path) {
+    const { data, error } = await client.storage.from(BUCKET).createSignedUrl(path, 3600, { download: true });
+    err(error);
+    return data.signedUrl;
+  }
+  async function exportBlob(path) {
+    const dl = await client.storage.from(BUCKET).download(path);
+    err(dl.error);
+    return dl.data;
+  }
+  async function exportDel(id, path) {
+    if (path) await client.storage.from(BUCKET).remove([path]);
+    const { error } = await client.from('exports').delete().eq('id', id);
+    err(error);
+  }
+
   async function cloudDel(cloudId) {
     const id = cloudId.replace(/^cloud:/, '');
     const store = client.storage.from(BUCKET);
@@ -190,6 +224,7 @@
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel },
+    exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',
   };
 })();

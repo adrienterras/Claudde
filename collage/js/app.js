@@ -1837,6 +1837,41 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return dl ? { mode: 'viewer', dl } : { mode: 'preview' };
   }
 
+  // Un export (image, PDF, guide) est aussi gardé dans le compte quand l'utilisateur est connecté.
+  async function recordExport(blob, filename) {
+    const A = window.Account;
+    if (!(A && A.enabled && A.user()) || !state.comp) return;
+    try {
+      saveStatus('Enregistrement de l’export dans votre compte…');
+      const kind = /guide/.test(filename) ? 'guide' : /\.pdf$/i.test(filename) ? 'pdf' : /\.png$/i.test(filename) ? 'png' : 'jpg';
+      const dpiV = $('dpi').value;
+      const { w, h } = exportSize();
+      const st = STYLES.find((x) => x.id === state.comp.style);
+      await A.exports.put(blob, {
+        name: filename, kind, dpi: kind === 'guide' ? 150 : (dpiV === 'screen' ? null : Number(dpiV)), width: kind === 'guide' ? null : w, height: kind === 'guide' ? null : h,
+        thumb: thumbOfComp(state.comp), compName: (state.titles && state.titles[state.comp.style]) || (st ? st.name : ''),
+      });
+      saveStatus(`Fichier téléchargé et gardé dans votre compte (${Math.round(blob.size / 1024 / 1024 * 10) / 10} Mo).`);
+      renderExports();
+    } catch (e) {
+      console.error(e);
+      saveStatus(`Fichier téléchargé ; il n’a pas pu être gardé dans votre compte : ${e.message}`);
+    }
+  }
+  // Quand les comptes sont actifs, exporter et sauvegarder demandent d'être connecté : la fenêtre
+  // de connexion s'ouvre et l'action reprend d'elle-même une fois connecté.
+  function requireAccount(label, fn) {
+    return (...args) => {
+      const A = window.Account;
+      if (A && A.enabled && !A.user()) {
+        state.afterSignIn = () => fn(...args);
+        if (window.openAccount) window.openAccount(`Connectez-vous ou créez un compte pour ${label}.`);
+        return undefined;
+      }
+      return fn(...args);
+    };
+  }
+
   async function saveFile(blob, filename) {
     const { mode, dl } = await saveMode();
     if (mode === 'viewer') {
@@ -1911,7 +1946,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         onProgress: (t) => { label.textContent = t; },
       });
       label.textContent = 'Enregistrement…';
-      await saveFile(res.blob, 'guide-de-creation-atelier-gribouille.pdf');
+      if (await saveFile(res.blob, 'guide-de-creation-atelier-gribouille.pdf')) await recordExport(res.blob, 'guide-de-creation-atelier-gribouille.pdf');
       $('guide-info').textContent = `${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} fiches de découpe sur les originaux.`;
     } catch (e) {
       console.error(e);
@@ -1939,7 +1974,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         await hydrateHD(state.comp, ps);
         const blob = await exportPdf(state.comp, ps);
         releaseHD();
-        await saveFile(blob, 'oeuvre-atelier-gribouille.pdf');
+        if (await saveFile(blob, 'oeuvre-atelier-gribouille.pdf')) await recordExport(blob, 'oeuvre-atelier-gribouille.pdf');
         return;
       }
       await hydrateHD(state.comp, s);
@@ -1962,7 +1997,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (blob) saveStatus(`Image réduite à ${c2.width} × ${c2.height} px : cet appareil ne peut pas en produire une plus grande.`);
       }
       if (!blob) throw new Error('toBlob');
-      await saveFile(blob, `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`);
+      const fname = `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`;
+      if (await saveFile(blob, fname)) await recordExport(blob, fname);
     } catch (e) {
       console.error(e);
       notice('Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.');
@@ -2243,8 +2279,8 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   $('dpi').addEventListener('change', updateExportInfo);
-  $('export').onclick = exportImage;
-  $('guide').onclick = exportGuide;
+  $('export').onclick = requireAccount('télécharger votre œuvre', exportImage);
+  $('guide').onclick = requireAccount('créer le guide', exportGuide);
 
   // ---------- Direction artistique par Claude ----------
 
@@ -2606,24 +2642,20 @@ Réponds uniquement avec ce JSON :
     saveStatus('Sauvegarde de la composition…');
     try {
       const rec = await snapshotComposition((name || 'Composition').trim().slice(0, 80));
-      await dbPut(rec);
       const A = window.Account;
-      if (A && A.enabled && A.user()) {
-        try {
-          saveStatus('Envoi dans votre compte…');
-          await A.cloud.put(rec, (n, t) => saveStatus(`Envoi dans votre compte : ${n} / ${t} fichiers…`));
-          saveStatus(`Composition « ${rec.name} » sauvegardée sur cet appareil et dans votre compte.`);
-        } catch (e) {
-          console.error(e);
-          saveStatus(`Composition « ${rec.name} » sauvegardée sur cet appareil ; l’envoi dans votre compte a échoué : ${e.message}`);
-        }
+      if (A && A.enabled) {
+        if (!A.user()) throw new Error('Connectez-vous pour sauvegarder.');
+        saveStatus('Envoi dans votre compte…');
+        await A.cloud.put(rec, (n, t) => saveStatus(`Envoi dans votre compte : ${n} / ${t} fichiers…`));
+        saveStatus(`Composition « ${rec.name} » sauvegardée dans votre compte.`);
       } else {
+        await dbPut(rec);
         saveStatus(`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
       }
       renderSaved();
     } catch (e) {
       console.error(e);
-      saveStatus('La sauvegarde a échoué (espace de stockage du navigateur ?).');
+      saveStatus(`La sauvegarde a échoué : ${(e && e.message) || 'espace de stockage insuffisant ?'}`);
     }
   }
 
@@ -2631,11 +2663,12 @@ Réponds uniquement avec ce JSON :
     const box = $('saved-list');
     if (!box) return;
     let list = [];
-    try { list = (await dbAll()).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; }
     const A = window.Account;
-    const signed = !!(A && A.enabled && A.user());
+    const accounts = !!(A && A.enabled);
+    const signed = accounts && !!A.user();
+    if (!accounts) { try { list = (await dbAll()).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; } }
     if (signed) {
-      try { list = list.concat(await A.cloud.list()); } catch (e) { console.error(e); savedStatus(`Compositions du compte indisponibles : ${e.message}`); }
+      try { list = await A.cloud.list(); } catch (e) { console.error(e); savedStatus(`Compositions du compte indisponibles : ${e.message}`); }
     }
     list.sort((a, b) => new Date(b.date) - new Date(a.date));
     $('saved-count').textContent = list.length ? `(${list.length})` : '';
@@ -2648,7 +2681,7 @@ Réponds uniquement avec ce JSON :
       const when = new Date(rec.date);
       const st = STYLES.find((x) => x.id === rec.comp.style);
       const nD = rec.nDrawings !== undefined ? rec.nDrawings : rec.drawings.length;
-      const where = rec.cloud ? '<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>' : (signed ? '<span class="saved-where">cet appareil</span>' : '');
+      const where = rec.cloud ? '<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>' : '';
       el.innerHTML = `<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}${where}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString('fr-FR')}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
       // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
       const del = el.querySelector('.saved-del');
@@ -2662,6 +2695,43 @@ Réponds uniquement avec ce JSON :
       el.onclick = open;
       el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
       box.appendChild(el);
+    });
+  }
+
+  // Liste des exports gardés dans le compte, avec retéléchargement et suppression.
+  const exportsStatus = (t) => { const el = $('exports-status'); if (!el) return; el.textContent = t || ''; el.hidden = !t; };
+  async function renderExports() {
+    const box = $('exports-box'), list = $('exports-list');
+    const A = window.Account;
+    if (!box || !(A && A.enabled && A.user())) { if (box) box.hidden = true; return; }
+    box.hidden = false;
+    let rows = [];
+    try { rows = await A.exports.list(); } catch (e) { console.error(e); exportsStatus(`Exports indisponibles : ${e.message}`); return; }
+    $('exports-count').textContent = rows.length ? `(${rows.length})` : '';
+    list.innerHTML = '';
+    if (!rows.length) { list.innerHTML = '<p class="hint">Aucun export pour l’instant : téléchargez une œuvre, elle apparaîtra ici.</p>'; return; }
+    const KIND = { jpg: 'JPEG', png: 'PNG', pdf: 'PDF', guide: 'Guide PDF' };
+    rows.forEach((r) => {
+      const el = document.createElement('div');
+      el.className = 'saved';
+      const when = new Date(r.created_at);
+      const size = r.size ? `${Math.round(r.size / 1024 / 1024 * 10) / 10} Mo` : '';
+      const dims = r.width && r.height ? `${r.width} × ${r.height} px` : '';
+      const meta = [KIND[r.kind] || r.kind, r.dpi ? `${r.dpi} dpi` : '', dims, size, when.toLocaleDateString('fr-FR')].filter(Boolean).join(' · ');
+      el.innerHTML = `${r.thumb ? `<img src="${r.thumb}" alt="">` : `<span class="saved-kind">${KIND[r.kind] || r.kind}</span>`}<div><p class="saved-name">${(r.comp_name || r.name).replace(/</g, '&lt;')}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button class="saved-dl" title="Retélécharger" aria-label="Retélécharger"><svg class="ico"><use href="#i-download"/></svg></button><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
+      el.querySelector('.saved-dl').onclick = async (e) => {
+        e.stopPropagation();
+        try { exportsStatus('Téléchargement…'); const blob = await A.exports.blob(r.path); await saveFile(blob, r.name); exportsStatus(''); }
+        catch (err) { console.error(err); exportsStatus(`Téléchargement impossible : ${err.message}`); }
+      };
+      const del = el.querySelector('.saved-del');
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = 'Supprimer ?'; setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
+        try { await A.exports.del(r.id, r.path); } catch (err) { console.error(err); exportsStatus(`Suppression impossible : ${err.message}`); }
+        renderExports();
+      };
+      list.appendChild(el);
     });
   }
 
@@ -2765,7 +2835,7 @@ Réponds uniquement avec ce JSON :
     $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
-  $('save-comp').onclick = askSaveName;
+  $('save-comp').onclick = requireAccount('sauvegarder votre composition', askSaveName);
   $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
   $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
@@ -2799,6 +2869,7 @@ Réponds uniquement avec ce JSON :
     };
     $('acc-open').onclick = () => openPanel(true);
     $('acc-menu').onclick = () => openPanel(sec.hidden);
+    window.openAccount = (hint) => { openPanel(true); if (hint) status(hint); };
     $('acc-close').onclick = () => openPanel(false);
     sec.addEventListener('click', (e) => { if (e.target === sec) openPanel(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sec.hidden) openPanel(false); });
@@ -2871,13 +2942,18 @@ Réponds uniquement avec ce JSON :
         $('profile-password-field').hidden = A.providerOf(u) !== 'email';
       }
       if (recovering) openPanel(true);
-      else if (wasSigned === false && signed) { openPanel(false); status(''); }
+      else if (wasSigned === false && signed) {
+        openPanel(false); status('');
+        const next = state.afterSignIn; state.afterSignIn = null;
+        if (next) setTimeout(next, 150); // l'action demandée avant la connexion reprend
+      }
       else if (wasSigned === true && !signed) { openPanel(false); setMode('signin'); }
       wasSigned = signed;
       $('saved-hint').textContent = signed
-        ? 'Vos compositions sont enregistrées dans votre compte et sur cet appareil : retrouvez-les sur tous vos appareils.'
-        : 'Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins. Connectez-vous pour les retrouver sur tous vos appareils.';
+        ? 'Vos compositions et vos exports sont enregistrés dans votre compte : retrouvez-les sur tous vos appareils.'
+        : 'Connectez-vous pour sauvegarder vos compositions, télécharger vos œuvres et les retrouver sur tous vos appareils.';
       renderSaved();
+      renderExports();
     });
   })();
 

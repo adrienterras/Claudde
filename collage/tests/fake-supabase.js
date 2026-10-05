@@ -48,9 +48,9 @@
     const run = () => {
       const uid = db.session && db.session.user.id;
       if (!uid) return ko('JWT expired');
-      let rows = db.rows.filter((r) => r.user_id === uid);
+      let rows = db.rows.filter((r) => r.user_id === uid && (r.__table || 'compositions') === table);
       q.filters.forEach(([k, v]) => { rows = rows.filter((r) => r[k] === v); });
-      if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString() }, q.row); db.rows.push(row); persist(); return ok([row]); }
+      if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
       if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(null); }
       if (q.order) rows.sort((a, b) => (a[q.order] < b[q.order] ? 1 : -1));
       if (q.single) return rows.length ? ok(rows[0]) : ko('Row not found');
@@ -68,6 +68,7 @@
     async download(path) { const f = db.files[path]; if (!f) return { data: null, error: { message: `fichier absent : ${path}` } }; return { data: new Blob([unb64(f)]), error: null }; },
     async list(prefix) { return { data: Object.keys(db.files).filter((p) => p.startsWith(prefix + '/')).map((p) => ({ name: p.slice(prefix.length + 1) })), error: null }; },
     async remove(paths) { paths.forEach((p) => { delete db.files[p]; }); persist(); return { data: paths, error: null }; },
+    async createSignedUrl(path) { return db.files[path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'fichier absent' } }; },
   }) };
   const rpc = (name) => {
     if (name !== 'delete_account') return ko('unknown function');

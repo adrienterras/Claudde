@@ -189,9 +189,12 @@ générés par `samples/make_samples.py` : aucun auteur, aucune donnée personne
 
 **Comptes utilisateurs** (optionnels) : inscription et connexion par Google, Facebook ou e-mail (mot de
 passe, ou lien de connexion sans mot de passe), gestion du compte (nom affiché, e-mail, mot de passe,
-déconnexion, suppression définitive en deux clics, lien « mot de passe oublié »), et compositions
-sauvegardées dans le compte en plus de l'appareil : retrouvées sur tous les appareils, avec les
-images des dessins en haute définition et les retouches. Le service est Supabase (Auth + Storage,
+déconnexion, suppression définitive en deux clics, lien « mot de passe oublié »). Quand les comptes
+sont actifs, télécharger une œuvre, créer le guide et sauvegarder une composition demandent d'être
+connecté (la fenêtre de connexion s'ouvre et l'action reprend d'elle-même après la connexion) ; les
+compositions sont sauvegardées dans le compte, avec les images des dessins en haute définition et
+les retouches, et chaque export (JPEG, PNG, PDF, guide) y est gardé aussi, listé sous « Mes exports »
+avec retéléchargement et suppression. Tout se retrouve depuis n'importe quel appareil. Le service est Supabase (Auth + Storage,
 hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)
 limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à
 l'utilisateur d'effacer lui-même tout son compte. Sans réglage dans `config.js`, rien n'apparaît et

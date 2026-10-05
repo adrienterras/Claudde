@@ -93,6 +93,32 @@ test.describe('Comptes utilisateurs', () => {
     expect(calls[0][2]).toMatch(/^http:\/\/localhost:\d+\/index\.html$/);
   });
 
+  test('exporter ou sauvegarder demande d’être connecté, puis l’action reprend', async ({ acc }) => {
+    const { page } = acc;
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-texture.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // déconnecté : le bouton de téléchargement ouvre la fenêtre de compte avec une explication
+    await page.locator('#export').click();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#acc-status')).toContainText('télécharger votre œuvre');
+    // on se connecte : le téléchargement demandé part tout seul, et l'export est gardé dans le compte
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-email', 'exp@example.org');
+    await page.fill('#auth-password', 'motdepasse1');
+    await page.locator('#dpi').selectOption('screen');
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#auth-submit').click()]);
+    expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
+    await expect(page.locator('#save-status')).toContainText('gardé dans votre compte', { timeout: 60000 });
+    await expect(page.locator('#exports-box')).toBeVisible();
+    await expect(page.locator('#exports-list .saved')).toHaveCount(1);
+    await expect(page.locator('#exports-list .saved-meta')).toContainText('JPEG');
+    // sauvegarder sans être connecté : même mécanisme
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await page.locator('#save-comp').click();
+    await expect(page.locator('#acc-status')).toContainText('sauvegarder votre composition');
+    await page.locator('#acc-close').click();
+  });
+
   test('compositions dans le compte : sauvegarde, liste, réouverture, suppression', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'lou@example.org', 'motdepasse1', 'Lou');
@@ -102,27 +128,24 @@ test.describe('Comptes utilisateurs', () => {
     await page.fill('#save-name', 'Dans le cloud');
     await page.locator('#save-form button[type=submit]').click();
     await expect(page.locator('#save-status')).toContainText('dans votre compte', { timeout: 60000 });
-    // deux entrées : la copie locale et celle du compte
-    await expect(page.locator('.saved')).toHaveCount(2);
-    await expect(page.locator('.saved .saved-where').filter({ hasText: 'mon compte' })).toHaveCount(1);
-    await expect(page.locator('.saved .saved-where').filter({ hasText: 'cet appareil' })).toHaveCount(1);
+    // une seule entrée, celle du compte (plus de copie locale quand les comptes sont actifs)
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved-where')).toContainText('mon compte');
     const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
     expect(uploads).toBe(3);
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
-    // sur un autre appareil (stockage local vide), la composition du compte se rouvre
-    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+    // sur un autre appareil (page rechargée, rien en local), la composition du compte se rouvre
     await page.reload();
-    await page.waitForFunction(() => window.Account && window.Account.user() && document.querySelectorAll('.saved').length === 1);
-    await expect(page.locator('.saved .saved-where')).toContainText('mon compte');
-    await page.locator('.saved').first().click();
+    await page.waitForFunction(() => window.Account && window.Account.user() && document.querySelectorAll('#saved-list .saved').length === 1);
+    await page.locator('#saved-list .saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
     expect(after.n).toBe(before.n);
     expect(after.x).toBeCloseTo(before.x, 3);
     // suppression en deux temps : ligne et fichiers effacés
-    await page.locator('.saved-del').first().click();
-    await page.locator('.saved-del').first().click();
-    await expect(page.locator('.saved')).toHaveCount(0); // plus rien : le stockage local avait été vidé
+    await page.locator('#saved-list .saved-del').first().click();
+    await page.locator('#saved-list .saved-del').first().click();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
     const left = await page.evaluate(() => ({ rows: window.__fake.db.rows.length, files: Object.keys(window.__fake.db.files).length }));
     expect(left).toEqual({ rows: 0, files: 0 });
   });

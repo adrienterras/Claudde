@@ -53,11 +53,17 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
   autre navigateur connecté au même compte.
 - « Supprimer mon compte » efface les fichiers, les compositions et le compte (fonction `delete_account`).
 
+## Mise à jour du schéma
+
+Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table
+`exports`), ré-exécutez-le tel quel dans le SQL Editor. Les objets existants sont conservés.
+
 ## Limites et coûts
 
 - Offre gratuite Supabase : 500 Mo de base, 1 Go de fichiers, 50 000 utilisateurs actifs par mois.
-  Une composition pèse 1 à 3 Mo par dessin en haute définition : comptez 20 à 40 compositions
-  complètes dans l'offre gratuite, puis l'offre Pro (25 $/mois, 100 Go).
+  Une composition pèse 1 à 3 Mo par dessin en haute définition, un export JPEG 300 dpi 5 à 20 Mo :
+  comptez une vingtaine de compositions complètes avec leurs exports dans l'offre gratuite, puis
+  l'offre Pro (25 $/mois, 100 Go). Les utilisateurs peuvent supprimer leurs exports depuis l'app.
 - Les e-mails de confirmation partent du serveur SMTP de Supabase, limité à quelques envois par heure :
   pour un vrai public, branchez un SMTP (Brevo, Postmark, Resend) dans Authentication → SMTP Settings.
 - RGPD : données hébergées en UE si la région Europe est choisie ; la page `confidentialite.html`
