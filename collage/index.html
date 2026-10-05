@@ -128,27 +128,24 @@
 
     <section id="export-section" class="step" hidden>
       <h2><span class="num">04</span> Exporter</h2>
-      <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
+      <div class="field-pair">
+        <label class="field">Qualité
+          <select id="dpi">
+            <option value="screen">Écran · 2400 px</option>
+            <option value="150">Impression · 150 dpi</option>
+            <option value="300" selected>Impression · 300 dpi</option>
+          </select>
+        </label>
+        <label class="field">Fichier
+          <select id="fmt">
+            <option value="image/jpeg" selected>JPEG</option>
+            <option value="image/png">PNG</option>
+            <option value="application/pdf">PDF à l’échelle (page = toile)</option>
+          </select>
+        </label>
+      </div>
       <p id="export-info" class="hint mono-note"></p>
-      <details class="settings" id="export-options">
-        <summary>Options du fichier <small id="export-summary">JPEG · 300 dpi</small></summary>
-        <div class="field-pair">
-          <label class="field">Qualité
-            <select id="dpi">
-              <option value="screen">Écran · 2400 px</option>
-              <option value="150">Impression · 150 dpi</option>
-              <option value="300" selected>Impression · 300 dpi</option>
-            </select>
-          </label>
-          <label class="field">Fichier
-            <select id="fmt">
-              <option value="image/jpeg" selected>JPEG</option>
-              <option value="image/png">PNG</option>
-              <option value="application/pdf">PDF à l’échelle (page = toile)</option>
-            </select>
-          </label>
-        </div>
-      </details>
+      <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
       <form id="save-form" class="save-form" hidden>
         <label class="field">Nom de la composition

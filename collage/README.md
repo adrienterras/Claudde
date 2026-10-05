@@ -189,7 +189,8 @@ générés par `samples/make_samples.py` : aucun auteur, aucune donnée personne
 
 Le parcours simple tient en trois étapes (importer, choisir une proposition, télécharger) : les
 réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
-avancés », les options de fichier et le guide de création sous l'étape Exporter, et les sections
+avancés », le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
+visibles au-dessus du bouton de téléchargement), et les sections
 Dessins et Mise en scène sont repliées à la première visite (le choix de chacun est mémorisé).
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
    pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se

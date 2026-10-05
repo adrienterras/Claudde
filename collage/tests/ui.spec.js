@@ -9,7 +9,6 @@ test.describe('Interface', () => {
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
     await expect(page.locator('#room-section')).toHaveClass(/collapsed/);
     expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(false);
-    expect(await page.locator('#export-options').evaluate((d) => d.open)).toBe(false);
     // le choix de repli est mémorisé (la section Mes compositions est visible dès le départ)
     await expect(page.locator('#saved-section')).not.toHaveClass(/collapsed/);
     await page.locator('#saved-section > h2').click();
