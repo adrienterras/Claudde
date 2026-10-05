@@ -675,3 +675,8 @@ body.editing { overflow: hidden; }
 .save-form .row-btns { display: flex; gap: 8px; }
 .save-form .row-btns .btn { flex: 1; }
 .saved .saved-del.confirm { color: var(--on-ink); background: var(--danger); font-size: 0.7rem; font-weight: 600; padding: 4px 8px; }
+
+/* iOS zoome automatiquement sur un champ dont la police fait moins de 16 px : on l'évite sans bloquer le zoom à deux doigts */
+@media (max-width: 860px) {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea { font-size: 16px; }
+}
