@@ -915,21 +915,27 @@
    * - Toiles « 3D » carrées et panoramiques Monali (Cultura).
    */
   const STOCK = [
-    ['20F', 73, 60, 'Cultura'], ['20P', 73, 54, 'formats standards'], ['20M', 73, 50, 'formats standards'],
-    ['25F', 81, 65, 'Cultura'], ['25P', 81, 60, 'formats standards'], ['25M', 81, 54, 'formats standards'],
-    ['30F', 92, 73, 'formats standards'], ['30P', 92, 65, 'formats standards'], ['30M', 92, 60, 'Cultura'],
-    ['40F', 100, 81, 'Cultura'], ['40P', 100, 73, 'formats standards'], ['40M', 100, 65, 'formats standards'],
-    ['50F', 116, 89, 'Cultura'], ['50P', 116, 81, 'Cultura'], ['50M', 116, 73, 'formats standards'],
-    ['60F', 130, 97, 'Cultura'], ['60P', 130, 89, 'formats standards'], ['60M', 130, 81, 'formats standards'],
+    // Toiles courantes (châssis entoilés vendus partout : grandes surfaces, Cultura, Action, web),
+    // de l'A4 au 80 × 120 ; les plus fréquentes sont 40 × 50 et 50 × 70.
+    ['toile', 30, 24, 'courant'], ['toile', 40, 30, 'courant'], ['toile carrée', 40, 40, 'courant'],
+    ['toile', 50, 40, 'courant'], ['toile carrée', 50, 50, 'courant'], ['toile', 70, 50, 'courant'],
+    ['toile carrée', 60, 60, 'courant'], ['toile', 80, 60, 'courant'], ['toile carrée', 80, 80, 'courant'],
+    ['toile', 100, 70, 'courant'], ['toile panoramique', 100, 50, 'courant'], ['toile carrée', 100, 100, 'courant'],
+    ['toile', 120, 80, 'courant'], ['toile panoramique', 120, 40, 'courant'], ['toile', 120, 90, 'courant'],
+    // Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN, FISKBO…) : formats photo standard, taille de la vitre
+    // (sans passe-partout) ; l'œuvre se fait sur un carton ou un papier fort à cette taille.
+    ['cadre', 30, 21, 'IKEA'], ['cadre', 40, 30, 'IKEA'], ['cadre', 50, 40, 'IKEA'], ['cadre carré', 50, 50, 'IKEA'],
+    ['cadre', 70, 50, 'IKEA'], ['cadre', 91, 61, 'IKEA'], ['cadre', 100, 70, 'IKEA'],
+    // Formats français normalisés Figure / Paysage / Marine (toute enseigne beaux-arts)
+    ['20F', 73, 60, 'formats standards'], ['20P', 73, 54, 'formats standards'], ['20M', 73, 50, 'formats standards'],
+    ['25F', 81, 65, 'formats standards'], ['25P', 81, 60, 'formats standards'], ['25M', 81, 54, 'formats standards'],
+    ['30F', 92, 73, 'formats standards'], ['30P', 92, 65, 'formats standards'], ['30M', 92, 60, 'formats standards'],
+    ['40F', 100, 81, 'formats standards'], ['40P', 100, 73, 'formats standards'], ['40M', 100, 65, 'formats standards'],
+    ['50F', 116, 89, 'formats standards'], ['50P', 116, 81, 'formats standards'], ['50M', 116, 73, 'formats standards'],
+    ['60F', 130, 97, 'formats standards'], ['60P', 130, 89, 'formats standards'], ['60M', 130, 81, 'formats standards'],
     ['80F', 146, 114, 'formats standards'], ['80P', 146, 97, 'formats standards'], ['80M', 146, 89, 'formats standards'],
     ['100F', 162, 130, 'formats standards'], ['100P', 162, 114, 'formats standards'], ['100M', 162, 97, 'formats standards'],
     ['120F', 195, 130, 'formats standards'], ['120P', 195, 114, 'formats standards'], ['120M', 195, 97, 'formats standards'],
-    ['carré', 80, 80, 'Cultura'], ['carré', 100, 100, 'Cultura'],
-    ['panoramique', 100, 50, 'Cultura'], ['panoramique', 120, 40, 'Cultura'], ['panoramique', 150, 50, 'Cultura'],
-    // Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN, FISKBO…) : formats photo standard ; l'œuvre se fait
-    // alors sur un carton ou un papier fort à la taille de la vitre, puis se glisse dans le cadre.
-    ['cadre', 40, 30, 'IKEA'], ['cadre', 50, 40, 'IKEA'], ['cadre', 70, 50, 'IKEA'],
-    ['cadre', 91, 61, 'IKEA'], ['cadre', 100, 70, 'IKEA'], ['cadre carré', 50, 50, 'IKEA'],
   ];
   const stockName = (t) => (canvasOrient() === 'port' ? `${t[0]} · ${t[2]} × ${t[1]} cm` : `${t[0]} · ${t[1]} × ${t[2]} cm`);
 
@@ -948,9 +954,9 @@
     const current = sel.value;
     sel.querySelectorAll('optgroup').forEach((g) => g.remove());
     const groups = [
-      ['Cultura (Monali)', STOCK.filter((t) => t[3] === 'Cultura')],
-      ['Formats standards beaux-arts (F / P / M)', STOCK.filter((t) => t[3] === 'formats standards')],
-      ['Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…)', STOCK.filter((t) => t[3] === 'IKEA')],
+      ['Toiles courantes (grandes surfaces, Cultura, web)', STOCK.filter((t) => t[3] === 'courant')],
+      ['Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…), taille de la vitre', STOCK.filter((t) => t[3] === 'IKEA')],
+      ['Formats beaux-arts normalisés (F / P / M)', STOCK.filter((t) => t[3] === 'formats standards')],
     ];
     groups.forEach(([label, list]) => {
       const g = document.createElement('optgroup');
