@@ -166,9 +166,14 @@ button, select, input { font: inherit; color: inherit; }
 
 .mobile-brand { display: none; }
 
-.brand-foot { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 12px; }
-.brand-foot img { width: 100%; height: 56px; object-fit: cover; object-position: left center; opacity: .85; border-radius: var(--r-sm); }
-.brand-values { margin: 0; text-align: center; font-size: 0.6rem; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); line-height: 2; }
+/* pied du carnet : un filet, une boucle de crayon, une phrase en italique, trois mots en petites capitales */
+.brand-foot { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 28px; }
+.foot-rule { display: flex; align-items: center; gap: 12px; width: 100%; color: var(--muted); }
+.foot-rule span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--line) 30%, var(--line) 70%, transparent); }
+.foot-curl { width: 52px; height: 20px; flex: none; opacity: .9; }
+.foot-line { margin: 2px 0 0; font-family: var(--f-display); font-style: italic; font-size: 1.02rem; line-height: 1.3; color: var(--ink-2); text-align: center; }
+.brand-values { margin: 0; text-align: center; font-size: 0.58rem; letter-spacing: .26em; text-transform: uppercase; color: var(--muted); line-height: 2; }
+.brand-values i { font-style: normal; color: var(--accent); margin: 0 2px; }
 
 .step { display: flex; flex-direction: column; gap: 12px; }
 .step h2 {
