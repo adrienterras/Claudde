@@ -96,7 +96,8 @@
               <input id="auth-email" type="email" autocomplete="email" required placeholder="vous@exemple.fr" inputmode="email">
             </label>
             <label class="field">Mot de passe
-              <span class="pw"><input id="auth-password" type="password" autocomplete="current-password" minlength="8" required placeholder="8 caractères au moins"><button type="button" class="pw-eye" data-for="auth-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+              <span class="pw"><input id="auth-password" type="password" autocomplete="current-password" minlength="10" required placeholder="Votre mot de passe"><button type="button" class="pw-eye" data-for="auth-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+              <span class="pw-meter" id="auth-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
             </label>
             <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Se connecter</button>
             <p class="acc-links"><button type="button" class="link" id="auth-forgot">Mot de passe oublié ?</button><span aria-hidden="true">·</span><button type="button" class="link" id="auth-magic">Lien de connexion par e-mail</button></p>
@@ -107,9 +108,10 @@
         <!-- Nouveau mot de passe après un lien « oublié » -->
         <form id="recover-form" hidden>
           <h2 class="acc-title">Nouveau mot de passe</h2>
-          <p class="acc-sub">Choisissez un mot de passe d’au moins 8 caractères.</p>
+          <p class="acc-sub">Au moins 10 caractères, avec minuscules, majuscules, chiffres ou symboles.</p>
           <label class="field">Nouveau mot de passe
-            <span class="pw"><input id="recover-password" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="pw-eye" data-for="recover-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+            <span class="pw"><input id="recover-password" type="password" autocomplete="new-password" minlength="10" required><button type="button" class="pw-eye" data-for="recover-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+            <span class="pw-meter" id="recover-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
           </label>
           <button type="submit" class="btn btn-primary btn-wide">Enregistrer le mot de passe</button>
         </form>
@@ -131,7 +133,8 @@
               <input id="profile-email" type="email" autocomplete="email">
             </label>
             <label class="field" id="profile-password-field"><span>Nouveau mot de passe <small>(laisser vide pour ne pas changer)</small></span>
-              <span class="pw"><input id="profile-password" type="password" autocomplete="new-password" minlength="8"><button type="button" class="pw-eye" data-for="profile-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+              <span class="pw"><input id="profile-password" type="password" autocomplete="new-password" minlength="10"><button type="button" class="pw-eye" data-for="profile-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+              <span class="pw-meter" id="profile-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
             </label>
             <div class="row-btns">
               <button type="submit" class="btn btn-primary">Enregistrer</button>

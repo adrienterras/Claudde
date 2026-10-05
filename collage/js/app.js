@@ -2857,6 +2857,8 @@ Réponds uniquement avec ce JSON :
       $('acc-title').textContent = m === 'signup' ? 'Bienvenue à l’atelier' : 'Content de vous revoir';
       $('acc-sub').textContent = m === 'signup' ? 'Gardez vos compositions et retrouvez-les sur tous vos appareils.' : 'Connectez-vous pour retrouver vos compositions.';
       $('auth-password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
+      $('auth-password').placeholder = m === 'signup' ? '10 caractères au moins' : 'Votre mot de passe';
+      if ($('auth-meter')._update) $('auth-meter')._update();
       $('auth-forgot').hidden = m === 'signup';
       status('');
     };
@@ -2873,6 +2875,27 @@ Réponds uniquement avec ce JSON :
     $('acc-close').onclick = () => openPanel(false);
     sec.addEventListener('click', (e) => { if (e.target === sec) openPanel(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sec.hidden) openPanel(false); });
+    // solidité du mot de passe, en direct, pour les trois champs de création
+    const meterFor = (inputId, meterId, ctxFn) => {
+      const inp = $(inputId), m = $(meterId);
+      if (!inp || !m) return;
+      const update = () => {
+        const pw = inp.value;
+        if (!pw || (inputId === 'auth-password' && mode !== 'signup')) { m.hidden = true; return; }
+        const r = A.checkPassword(pw, ctxFn());
+        m.hidden = false;
+        m.dataset.score = String(r.score);
+        m.querySelector('.pw-label').textContent = r.label;
+        m.querySelector('.pw-tips').textContent = r.problems.length ? `À améliorer : ${r.problems.join(' ; ')}.` : 'Ce mot de passe convient.';
+      };
+      inp.addEventListener('input', update);
+      inp.addEventListener('focus', update);
+      m._update = update;
+    };
+    meterFor('auth-password', 'auth-meter', () => ({ email: $('auth-email').value, name: $('auth-name').value }));
+    meterFor('recover-password', 'recover-meter', () => ({ email: (A.user() || {}).email }));
+    meterFor('profile-password', 'profile-meter', () => ({ email: (A.user() || {}).email, name: $('profile-name').value }));
+    const strongOrThrow = (pw, ctx) => { const r = A.checkPassword(pw, ctx); if (!r.ok) throw new Error(`Mot de passe trop faible : ${r.problems.join(' ; ')}.`); };
     // afficher / masquer les mots de passe
     sec.querySelectorAll('.pw-eye').forEach((b) => {
       b.onclick = () => { const inp = $(b.dataset.for); const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye'); b.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'); };
@@ -2885,9 +2908,10 @@ Réponds uniquement avec ce JSON :
     $('auth-form').onsubmit = (e) => {
       e.preventDefault();
       const email = $('auth-email').value.trim(), pw = $('auth-password').value;
-      if (!email || pw.length < 8) { status('Indiquez votre e-mail et un mot de passe d’au moins 8 caractères.', true); return; }
+      if (!email || !pw) { status('Indiquez votre e-mail et votre mot de passe.', true); return; }
       if (mode === 'signup') {
         busy(async () => {
+          strongOrThrow(pw, { email, name: $('auth-name').value });
           const r = await A.signUpEmail(email, pw, $('auth-name').value.trim());
           if (r.needsConfirm) { setMode('signin'); status(`Compte créé : confirmez votre e-mail avec le lien envoyé à ${email}, puis connectez-vous.`); }
         }, null);
@@ -2897,7 +2921,7 @@ Réponds uniquement avec ce JSON :
     };
     $('auth-forgot').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status('Indiquez d’abord votre e-mail.', true); return; } busy(() => A.resetPassword(email), `Un lien pour choisir un nouveau mot de passe a été envoyé à ${email}.`); };
     $('auth-magic').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status('Indiquez d’abord votre e-mail.', true); return; } busy(() => A.magicLink(email), `Un lien de connexion a été envoyé à ${email}. Ouvrez-le sur cet appareil.`); };
-    $('recover-form').onsubmit = (e) => { e.preventDefault(); const pw = $('recover-password').value; if (pw.length < 8) { status('Au moins 8 caractères.', true); return; } busy(() => A.updatePassword(pw), 'Nouveau mot de passe enregistré.'); };
+    $('recover-form').onsubmit = (e) => { e.preventDefault(); const pw = $('recover-password').value; busy(async () => { strongOrThrow(pw, { email: (A.user() || {}).email }); await A.updatePassword(pw); }, 'Nouveau mot de passe enregistré.'); };
     $('profile-form').onsubmit = (e) => {
       e.preventDefault();
       const u = A.user(); if (!u) return;
@@ -2906,7 +2930,7 @@ Réponds uniquement avec ce JSON :
         const done = [];
         if (name && name !== A.displayName(u)) { await A.updateProfile({ name }); done.push('nom enregistré'); }
         if (email && email !== u.email) { await A.updateEmail(email); done.push(`un lien de confirmation a été envoyé à ${email}`); }
-        if (pw) { if (pw.length < 8) throw new Error('Le mot de passe doit faire au moins 8 caractères.'); await A.updatePassword(pw); $('profile-password').value = ''; done.push('mot de passe changé'); }
+        if (pw) { strongOrThrow(pw, { email: u.email, name }); await A.updatePassword(pw); $('profile-password').value = ''; $('profile-meter').hidden = true; done.push('mot de passe changé'); }
         status(done.length ? `${done.join(', ')}.` : 'Rien à enregistrer.');
       }, null);
     };

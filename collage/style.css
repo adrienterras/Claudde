@@ -206,6 +206,15 @@ button, select, input { font: inherit; color: inherit; }
 .pw input { padding-right: 44px !important; }
 .pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
 .pw-eye:hover { color: var(--ink); background: var(--surface-2); }
+.pw-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; font-size: 0.74rem; font-weight: 400; color: var(--muted); }
+.pw-bar { flex: 1 1 100%; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.pw-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--danger); transition: width .2s, background .2s; }
+.pw-meter[data-score="1"] i { width: 25%; background: var(--danger); }
+.pw-meter[data-score="2"] i { width: 50%; background: var(--argile); }
+.pw-meter[data-score="3"] i { width: 75%; background: var(--olive); }
+.pw-meter[data-score="4"] i { width: 100%; background: var(--accent); }
+.pw-label { font-weight: 600; color: var(--ink-2); }
+.pw-tips { flex: 1 1 100%; line-height: 1.4; }
 .btn-wide { width: 100%; justify-content: center; margin-top: 4px; }
 .acc-links { margin: 0; display: flex; justify-content: center; gap: 10px; font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; }
 .acc-links .link { color: var(--ink-2); text-decoration: none; }

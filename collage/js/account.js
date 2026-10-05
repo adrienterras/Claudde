@@ -50,6 +50,32 @@
     return m;
   }
 
+  // ---------- Règle de mot de passe ----------
+  // 10 caractères au moins, trois familles sur quatre (minuscules, majuscules, chiffres, symboles),
+  // pas un mot de passe trop courant, pas de répétition d'un seul caractère, sans l'e-mail ni le nom.
+  const COMMON = ['password', 'motdepasse', 'azerty', 'qwerty', 'bonjour', 'soleil', 'chocolat', 'marseille', 'doudou', 'loulou', 'gribouille', 'atelier', 'abc', '123', 'iloveyou', 'welcome', 'admin', 'letmein', 'dragon', 'monkey', 'football', 'princesse', 'maman', 'papa'];
+  const PASSWORD_MIN = 10;
+  function checkPassword(pw, ctx) {
+    pw = pw || '';
+    const problems = [];
+    if (pw.length < PASSWORD_MIN) problems.push(`au moins ${PASSWORD_MIN} caractères (${pw.length} pour l’instant)`);
+    const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(pw)).length;
+    if (classes < 3) problems.push('mélanger au moins trois familles : minuscules, majuscules, chiffres, symboles');
+    const low = pw.toLowerCase();
+    if (/^(.)\1+$/.test(pw) || /^(0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef)/.test(low)) problems.push('éviter les suites et répétitions');
+    if (COMMON.some((w) => low.includes(w) && w.length >= 4 && pw.length < w.length + 6)) problems.push('éviter les mots de passe trop courants');
+    const parts = [];
+    if (ctx && ctx.email) parts.push(ctx.email.split('@')[0]);
+    if (ctx && ctx.name) parts.push(...ctx.name.split(/\s+/));
+    if (parts.some((p) => p && p.length >= 3 && low.includes(p.toLowerCase()))) problems.push('ne pas contenir votre nom ni votre e-mail');
+    // score indicatif : longueur et variété
+    let pool = 0; if (/[a-z]/.test(pw)) pool += 26; if (/[A-Z]/.test(pw)) pool += 26; if (/[0-9]/.test(pw)) pool += 10; if (/[^A-Za-z0-9]/.test(pw)) pool += 32;
+    const bits = pw.length ? pw.length * Math.log2(pool || 1) : 0;
+    const score = problems.length ? Math.min(1, bits >= 40 ? 1 : 0) : bits >= 80 ? 4 : bits >= 65 ? 3 : 2;
+    const labels = ['', 'Faible', 'Correct', 'Bon', 'Excellent'];
+    return { ok: problems.length === 0, problems, score, label: labels[score] || '' };
+  }
+
   // ---------- Authentification ----------
   async function signInWith(provider) {
     const { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo: redirectTo() } });
@@ -223,6 +249,7 @@
     onChange: (fn) => listeners.push(fn),
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
+    checkPassword, PASSWORD_MIN,
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',

@@ -16,7 +16,12 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
    - Site URL : `https://ateliergribouille.art`
    - Redirect URLs : `https://ateliergribouille.art/**`, `https://adrienterras.github.io/**`,
      `http://localhost:8781/**` (tests), `http://localhost:8765/**` (développement).
-6. **Authentication → Providers → Email** : laissez « Confirm email » activé (recommandé).
+6. **Authentication → Providers → Email** : laissez « Confirm email » activé (recommandé). Dans la
+   même page, section **Password** : « Minimum password length » = **10** et « Required characters » =
+   « Lowercase, uppercase letters, digits and symbols » (ou au moins la variante lettres + chiffres),
+   pour que le serveur applique la même règle que l'app (10 caractères, trois familles sur quatre, pas
+   de mot de passe courant, pas de lien avec l'e-mail ou le nom). Sur l'offre Pro, activez aussi
+   « Prevent use of leaked passwords » (vérification HaveIBeenPwned).
    **Authentication → Email Templates** : traduisez les quatre modèles en français si vous le souhaitez
    (confirmation, lien magique, changement d'e-mail, réinitialisation).
 

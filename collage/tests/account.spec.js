@@ -54,7 +54,14 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#auth-name-field')).toBeVisible();
     await page.fill('#auth-name', 'Camille');
     await page.fill('#auth-email', 'camille@example.org');
-    await page.fill('#auth-password', 'motdepasse1');
+    // un mot de passe faible est refusé, avec l'indicateur de solidité
+    await page.fill('#auth-password', 'camille123');
+    await expect(page.locator('#auth-meter')).toBeVisible();
+    await expect(page.locator('#auth-meter .pw-label')).toHaveText('Faible');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-status')).toContainText('trop faible');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await expect(page.locator('#auth-meter .pw-label')).toHaveText(/Bon|Excellent/);
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-status')).toContainText('confirmez votre e-mail');
     // l'e-mail est « confirmé » côté faux service, puis connexion
@@ -63,7 +70,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.fill('#auth-password', 'mauvais-mdp');
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-status')).toContainText('incorrect');
-    await page.fill('#auth-password', 'motdepasse1');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-menu')).toBeVisible();
     await expect(page.locator('#acc-menu .acc-name')).toHaveText('Camille');
@@ -104,7 +111,7 @@ test.describe('Comptes utilisateurs', () => {
     // on se connecte : le téléchargement demandé part tout seul, et l'export est gardé dans le compte
     await page.locator('.auth-tabs [data-mode="signup"]').click();
     await page.fill('#auth-email', 'exp@example.org');
-    await page.fill('#auth-password', 'motdepasse1');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
     await page.locator('#dpi').selectOption('screen');
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#auth-submit').click()]);
     expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
@@ -121,7 +128,7 @@ test.describe('Comptes utilisateurs', () => {
 
   test('compositions dans le compte : sauvegarde, liste, réouverture, suppression', async ({ acc }) => {
     const { page } = acc;
-    await signUpAndIn(page, 'lou@example.org', 'motdepasse1', 'Lou');
+    await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.locator('#save-comp').click();
@@ -152,12 +159,12 @@ test.describe('Comptes utilisateurs', () => {
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {
     const { page } = acc;
-    await signUpAndIn(page, 'sam@example.org', 'motdepasse1', 'Sam');
+    await signUpAndIn(page, 'sam@example.org', 'Rouge-Soleil-42', 'Sam');
     await page.locator('#acc-menu').click();
     await expect(page.locator('#profile-box')).toBeVisible();
     await expect(page.locator('#profile-meta')).toContainText('votre e-mail');
     await page.fill('#profile-name', 'Samuel');
-    await page.fill('#profile-password', 'motdepasse2');
+    await page.fill('#profile-password', 'Bleu-Nuage-77!');
     await page.locator('#profile-form button[type=submit]').click();
     await expect(page.locator('#acc-status')).toContainText('nom enregistré');
     await expect(page.locator('#acc-status')).toContainText('mot de passe changé');
@@ -168,7 +175,7 @@ test.describe('Comptes utilisateurs', () => {
     // reconnexion avec le nouveau mot de passe, puis suppression du compte
     await page.locator('#acc-open').click();
     await page.fill('#auth-email', 'sam@example.org');
-    await page.fill('#auth-password', 'motdepasse2');
+    await page.fill('#auth-password', 'Bleu-Nuage-77!');
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-menu')).toBeVisible();
     await page.locator('#acc-menu').click();
@@ -182,10 +189,10 @@ test.describe('Comptes utilisateurs', () => {
 
   test('retour d’un lien « mot de passe oublié » : formulaire de nouveau mot de passe', async ({ acc }) => {
     const { page } = acc;
-    await signUpAndIn(page, 'ana@example.org', 'motdepasse1', 'Ana');
+    await signUpAndIn(page, 'ana@example.org', 'Rouge-Soleil-42', 'Ana');
     await page.evaluate(() => window.__fake.forceRecovery());
     await expect(page.locator('#recover-form')).toBeVisible();
-    await page.fill('#recover-password', 'motdepasse3');
+    await page.fill('#recover-password', 'Vert-Pomme-19#');
     await page.locator('#recover-form button[type=submit]').click();
     await expect(page.locator('#acc-status')).toContainText('enregistré');
     await expect(page.locator('#profile-box')).toBeVisible();
