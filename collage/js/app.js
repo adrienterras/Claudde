@@ -2255,24 +2255,34 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   // ---------- Branchements ----------
 
   const drop = $('drop');
+  // Les dessins apportés par l'utilisateur remplacent les dessins d'exemple : on ne mélange pas les deux.
+  function importUserFiles(files) {
+    if (!files.length) return;
+    if (state.drawings.some((d) => d.sample)) {
+      state.drawings = state.drawings.filter((d) => !d.sample);
+      state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
+      $('sample-note').hidden = true;
+      importFiles(files).then(() => notice('Les dessins d’exemple ont été retirés : place aux vôtres.'));
+      return;
+    }
+    importFiles(files);
+  }
   $('file').addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     e.target.value = '';
-    if (files.length) importFiles(files);
+    importUserFiles(files);
   });
   ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => {
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length) importFiles(files);
+    importUserFiles(Array.from(e.dataTransfer.files));
   });
   // on accepte aussi un dépôt n'importe où sur la page
   document.addEventListener('dragover', (e) => e.preventDefault());
   document.addEventListener('drop', (e) => {
     if (drop.contains(e.target)) return;
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length) importFiles(files);
+    importUserFiles(Array.from(e.dataTransfer.files));
   });
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
@@ -2512,7 +2522,9 @@ Réponds uniquement avec ce JSON :
       }));
       const sizes = {};
       m.pages.forEach((p) => { if (p.sizeCm) sizes[p.name] = p.sizeCm; });
+      const before = new Set(state.drawings);
       await importFiles(files, sizes);
+      state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
       $('sample-note').hidden = false;
       $('sample-offer').hidden = true;
     } catch (e) {

@@ -76,6 +76,20 @@ test.describe('Dessins d’exemple', () => {
     expect(ds.every((d) => d.photo === null)).toBe(true);
   });
 
+  test('importer ses propres dessins retire les dessins d’exemple', async ({ app }) => {
+    const { page } = app;
+    const { fixture } = require('./helpers');
+    await page.locator('#load-sample').click();
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(19);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
+    expect(names).toEqual(['page-cutout.png', 'page-two.png']);
+    await expect(page.locator('#notice')).toContainText('exemple ont été retirés');
+    await expect(page.locator('#sample-note')).toBeHidden();
+  });
+
   test('avec un manifeste, un bouton propose l’exemple et le charge au clic', async ({ browser }) => {
     const fs = require('fs');
     const { fixture } = require('./helpers');
