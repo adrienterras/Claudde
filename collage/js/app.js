@@ -2458,11 +2458,12 @@ Réponds uniquement avec ce JSON :
     state.bgCache = null;
     ['drawings-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
+    $('sample-offer').hidden = !state.sampleManifest;
     refreshLists();
     render();
   };
 
-  // Dessins d'exemple fournis avec la page (version publiée) : chargés à l'ouverture.
+  // Dessins d'exemple fournis avec la page ou trouvés à côté de l'app : importés sur demande.
   async function loadSamples(m) {
     try {
       setProgress(0, 1, 'Chargement des dessins d’exemple…');
@@ -2475,6 +2476,7 @@ Réponds uniquement avec ce JSON :
       m.pages.forEach((p) => { if (p.sizeCm) sizes[p.name] = p.sizeCm; });
       await importFiles(files, sizes);
       $('sample-note').hidden = false;
+      $('sample-offer').hidden = true;
     } catch (e) {
       console.error(e);
       setProgress(1, 1);
@@ -2776,7 +2778,22 @@ Réponds uniquement avec ce JSON :
 
   // accès pour le débogage depuis la console
   window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece };
-  if (window.COLLAGE_SAMPLES) loadSamples(window.COLLAGE_SAMPLES);
+  // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
+  // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
+  (async function offerSamples() {
+    let m = window.COLLAGE_SAMPLES || null;
+    if (!m) {
+      try { const r = await fetch('samples/manifest.json', { cache: 'no-store' }); if (r.ok) m = await r.json(); } catch (e) { m = null; }
+    }
+    if (!m || !m.pages || !m.pages.length) return;
+    state.sampleManifest = m;
+    ['sample-offer', 'empty-sample'].forEach((id) => { const el = $(id); if (el) el.hidden = false; });
+    let busy = false;
+    const go = async () => { if (busy) return; busy = true; try { await loadSamples(m); } finally { busy = false; } };
+    $('load-sample').onclick = go;
+    $('empty-sample').onclick = go;
+    if (window.COLLAGE_AUTOLOAD) go();
+  })();
 
   render();
 })();

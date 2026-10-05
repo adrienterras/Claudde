@@ -10,7 +10,7 @@ const test = base.extend({
   app: async ({ page }, use) => {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    page.on('console', (m) => { if (m.type() === 'error' && !/favicon|net::ERR|InvalidPDFException/.test(m.text())) errors.push(`console : ${m.text()}`); });
+    page.on('console', (m) => { if (m.type() === 'error' && !/favicon|net::ERR|InvalidPDFException|Failed to load resource/.test(m.text())) errors.push(`console : ${m.text()}`); });
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille && window.Extract && window.Compose);
     const app = {

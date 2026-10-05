@@ -180,6 +180,11 @@ cd collage && python3 -m http.server 8000
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
 4. **Exporter** en JPEG ou PNG, à 300 dpi par défaut pour l'impression sur toile.
 
+Des dessins d'exemple peuvent être proposés sans être chargés d'office : s'ils sont fournis avec la
+page ou présents dans `samples/manifest.json` (`{ "base": "samples/", "pages": [{ "file", "name",
+"sizeCm"? }] }`) à côté de l'app, un bouton « Essayer avec les dessins d'exemple » apparaît sous la
+zone d'import et dans l'écran d'accueil ; sans ce dossier, rien n'est proposé.
+
 Le parcours simple tient en trois étapes (importer, choisir une proposition, télécharger) : les
 réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
 avancés », les options de fichier et le guide de création sous l'étape Exporter, et les sections

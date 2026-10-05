@@ -49,3 +49,38 @@ test.describe('Interface', () => {
     await ctx.close();
   });
 });
+
+test.describe('Dessins d’exemple', () => {
+  test('sans dossier samples, rien n’est proposé', async ({ app }) => {
+    await expect(app.page.locator('#sample-offer')).toBeHidden();
+    await expect(app.page.locator('#empty-sample')).toBeHidden();
+  });
+
+  test('avec un manifeste, un bouton propose l’exemple et le charge au clic', async ({ browser }) => {
+    const fs = require('fs');
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/samples/manifest.json', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ base: 'samples/', pages: [{ file: 'page-cutout.png', name: 'Exemple 1' }, { file: 'page-texture.png', name: 'Exemple 2', sizeCm: 42 }] }) }));
+    await page.route('**/samples/*.png', (r) => { const f = r.request().url().split('/').pop(); r.fulfill({ contentType: 'image/png', body: fs.readFileSync(fixture(f)) }); });
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#sample-offer')).toBeVisible();
+    await expect(page.locator('#empty-sample')).toBeVisible();
+    // rien n'est chargé d'office
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    await page.locator('#empty-sample').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.proposals);
+    const ds = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => [d.name, d.sizeCm]));
+    expect(ds).toEqual([['Exemple 1', 29.7], ['Exemple 2', 42]]);
+    await expect(page.locator('#sample-note')).toBeVisible();
+    await expect(page.locator('#sample-offer')).toBeHidden();
+    // « repartir de zéro » remet la proposition
+    await page.locator('#clear').click();
+    await expect(page.locator('#sample-offer')).toBeVisible();
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
