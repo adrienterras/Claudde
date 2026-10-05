@@ -1,0 +1,64 @@
+# Comptes utilisateurs — mise en place
+
+L'app reste un site statique : les comptes (Google, Facebook, e-mail) et le stockage des compositions
+passent par [Supabase](https://supabase.com), un service hébergé qui peut être choisi en Europe.
+Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
+
+## 1. Projet Supabase (10 min)
+
+1. Créez un compte sur supabase.com, puis **New project** : nom `atelier-gribouille`, région
+   **Europe (Frankfurt ou Paris)**, mot de passe de base de données à conserver.
+2. Dashboard → **SQL Editor** → New query → collez le contenu de `supabase/schema.sql` → **Run**.
+3. Dashboard → **Project Settings → API** : notez l'**URL du projet** et la clé **anon public**.
+4. Dans le dépôt, remplissez `collage/config.js` avec ces deux valeurs, commitez, poussez. La clé anon
+   est faite pour le navigateur : elle ne donne accès qu'à ce que les règles RLS autorisent.
+5. **Authentication → URL Configuration** :
+   - Site URL : `https://ateliergribouille.art`
+   - Redirect URLs : `https://ateliergribouille.art/**`, `https://adrienterras.github.io/**`,
+     `http://localhost:8781/**` (tests), `http://localhost:8765/**` (développement).
+6. **Authentication → Providers → Email** : laissez « Confirm email » activé (recommandé).
+   **Authentication → Email Templates** : traduisez les quatre modèles en français si vous le souhaitez
+   (confirmation, lien magique, changement d'e-mail, réinitialisation).
+
+## 2. Google (15 min)
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → nouveau projet « Atelier Gribouille ».
+2. **APIs & Services → OAuth consent screen** : type Externe, nom de l'app, e-mail d'assistance,
+   domaine autorisé `ateliergribouille.art`, liens vers `https://ateliergribouille.art/confidentialite.html`
+   (politique de confidentialité) et conditions. Scopes : `email`, `profile`, `openid`.
+   Publiez l'écran (« Publish app ») pour sortir du mode test, sinon seuls les testeurs déclarés peuvent se connecter.
+3. **Credentials → Create credentials → OAuth client ID** : type « Web application ».
+   - Authorized JavaScript origins : `https://ateliergribouille.art`
+   - Authorized redirect URIs : `https://<ref>.supabase.co/auth/v1/callback` (l'URL exacte est affichée
+     dans Supabase → Authentication → Providers → Google).
+4. Copiez Client ID et Client Secret dans Supabase → Providers → **Google** → Enable → Save.
+
+## 3. Facebook (20 min, puis validation par Meta)
+
+1. [developers.facebook.com](https://developers.facebook.com) → My Apps → **Create App** → cas d'usage
+   « Authenticate and request data from users with Facebook Login » → type Consommateur.
+2. Ajoutez le produit **Facebook Login** → Settings : « Valid OAuth Redirect URIs » =
+   `https://<ref>.supabase.co/auth/v1/callback`.
+3. App Settings → **Basic** : App Domains `ateliergribouille.art`, Privacy Policy URL
+   `https://ateliergribouille.art/confidentialite.html`, User data deletion : URL
+   `https://ateliergribouille.art/confidentialite.html#suppression` (instructions), catégorie, icône 1024 × 1024.
+4. Copiez App ID et App Secret dans Supabase → Providers → **Facebook** → Enable → Save.
+5. Passez l'app en mode **Live** (bouton en haut). Les permissions `email` et `public_profile` sont
+   accordées par défaut ; Meta peut demander une vérification de l'entreprise pour certains comptes.
+
+## 4. Vérifier
+
+- Ouvrez le site, cliquez « Se connecter ou créer un compte » : les trois modes doivent fonctionner.
+- Sauvegardez une composition : elle apparaît avec la mention « mon compte » et se rouvre depuis un
+  autre navigateur connecté au même compte.
+- « Supprimer mon compte » efface les fichiers, les compositions et le compte (fonction `delete_account`).
+
+## Limites et coûts
+
+- Offre gratuite Supabase : 500 Mo de base, 1 Go de fichiers, 50 000 utilisateurs actifs par mois.
+  Une composition pèse 1 à 3 Mo par dessin en haute définition : comptez 20 à 40 compositions
+  complètes dans l'offre gratuite, puis l'offre Pro (25 $/mois, 100 Go).
+- Les e-mails de confirmation partent du serveur SMTP de Supabase, limité à quelques envois par heure :
+  pour un vrai public, branchez un SMTP (Brevo, Postmark, Resend) dans Authentication → SMTP Settings.
+- RGPD : données hébergées en UE si la région Europe est choisie ; la page `confidentialite.html`
+  décrit les traitements et la suppression. Déclarez Supabase comme sous-traitant dans votre registre.

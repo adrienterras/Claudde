@@ -1,0 +1,164 @@
+const fs = require('fs');
+const path = require('path');
+const { test: base, expect, fixture } = require('./helpers');
+
+const FAKE = fs.readFileSync(path.join(__dirname, 'fake-supabase.js'), 'utf8');
+
+// Page avec les comptes activés : le vrai client Supabase est remplacé par un faux en mémoire.
+const test = base.extend({
+  acc: async ({ browser }, use) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: 'https://fake.supabase.co', supabaseAnonKey: 'anon', contactEmail: 'test@example.org' };" }));
+    await page.addInitScript(FAKE);
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await use({ page, errors, ctx });
+    expect(errors).toEqual([]);
+    await ctx.close();
+  },
+});
+
+async function signUpAndIn(page, email, pw, name) {
+  await page.locator('#acc-open').click();
+  await page.locator('.auth-tabs [data-mode="signup"]').click();
+  await page.fill('#auth-name', name);
+  await page.fill('#auth-email', email);
+  await page.fill('#auth-password', pw);
+  await page.locator('#auth-submit').click();
+  await expect(page.locator('#acc-menu')).toBeVisible();
+}
+
+test.describe('Comptes utilisateurs', () => {
+  test('sans réglage, aucune trace des comptes', async ({ app }) => {
+    await expect(app.page.locator('#account')).toBeHidden();
+    expect(await app.page.locator('#account-section').count()).toBe(0);
+  });
+
+  test('inscription par e-mail avec confirmation, puis connexion', async ({ acc }) => {
+    const { page } = acc;
+    await page.evaluate(() => { window.__FAKE_CONFIRM = true; });
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await page.locator('#acc-open').click();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await expect(page.locator('#auth-name-field')).toBeVisible();
+    await page.fill('#auth-name', 'Camille');
+    await page.fill('#auth-email', 'camille@example.org');
+    await page.fill('#auth-password', 'motdepasse1');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-status')).toContainText('confirmez votre e-mail');
+    // l'e-mail est « confirmé » côté faux service, puis connexion
+    await page.evaluate(() => { const u = window.__fake.db.users['camille@example.org']; u.confirmed = true; localStorage.setItem('fake.users', JSON.stringify(window.__fake.db.users)); });
+    await expect(page.locator('.auth-tabs [data-mode="signin"]')).toHaveClass(/on/);
+    await page.fill('#auth-password', 'mauvais-mdp');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-status')).toContainText('incorrect');
+    await page.fill('#auth-password', 'motdepasse1');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-menu')).toBeVisible();
+    await expect(page.locator('#acc-menu .acc-name')).toHaveText('Camille');
+    await expect(page.locator('#acc-menu .acc-avatar')).toHaveText('C');
+    await expect(page.locator('#account-section')).toBeHidden(); // le panneau se referme après connexion
+    await expect(page.locator('#saved-hint')).toContainText('votre compte');
+    // la session survit à un rechargement
+    await page.reload();
+    await page.waitForFunction(() => window.Account && window.Account.user());
+    await expect(page.locator('#acc-menu .acc-name')).toHaveText('Camille');
+  });
+
+  test('Google et Facebook déclenchent la connexion déléguée, lien magique et mot de passe oublié envoient un e-mail', async ({ acc }) => {
+    const { page } = acc;
+    await page.locator('#acc-open').click();
+    await page.locator('.social-btn[data-provider="google"]').click();
+    await page.locator('.social-btn[data-provider="facebook"]').click();
+    await page.fill('#auth-email', 'x@example.org');
+    await page.locator('#auth-magic').click();
+    await expect(page.locator('#acc-status')).toContainText('lien de connexion');
+    await page.locator('#auth-forgot').click();
+    await expect(page.locator('#acc-status')).toContainText('nouveau mot de passe');
+    const calls = await page.evaluate(() => window.__fake.calls);
+    expect(calls.map((c) => c[0])).toEqual(['oauth', 'oauth', 'otp', 'reset']);
+    expect(calls[0][1]).toBe('google');
+    expect(calls[1][1]).toBe('facebook');
+    expect(calls[0][2]).toMatch(/^http:\/\/localhost:\d+\/index\.html$/);
+  });
+
+  test('compositions dans le compte : sauvegarde, liste, réouverture, suppression', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'lou@example.org', 'motdepasse1', 'Lou');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#save-comp').click();
+    await page.fill('#save-name', 'Dans le cloud');
+    await page.locator('#save-form button[type=submit]').click();
+    await expect(page.locator('#save-status')).toContainText('dans votre compte', { timeout: 60000 });
+    // deux entrées : la copie locale et celle du compte
+    await expect(page.locator('.saved')).toHaveCount(2);
+    await expect(page.locator('.saved .saved-where').filter({ hasText: 'mon compte' })).toHaveCount(1);
+    await expect(page.locator('.saved .saved-where').filter({ hasText: 'cet appareil' })).toHaveCount(1);
+    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
+    expect(uploads).toBe(3);
+    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
+    // sur un autre appareil (stockage local vide), la composition du compte se rouvre
+    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+    await page.reload();
+    await page.waitForFunction(() => window.Account && window.Account.user() && document.querySelectorAll('.saved').length === 1);
+    await expect(page.locator('.saved .saved-where')).toContainText('mon compte');
+    await page.locator('.saved').first().click();
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
+    expect(after.n).toBe(before.n);
+    expect(after.x).toBeCloseTo(before.x, 3);
+    // suppression en deux temps : ligne et fichiers effacés
+    await page.locator('.saved-del').first().click();
+    await page.locator('.saved-del').first().click();
+    await expect(page.locator('.saved')).toHaveCount(0); // plus rien : le stockage local avait été vidé
+    const left = await page.evaluate(() => ({ rows: window.__fake.db.rows.length, files: Object.keys(window.__fake.db.files).length }));
+    expect(left).toEqual({ rows: 0, files: 0 });
+  });
+
+  test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'sam@example.org', 'motdepasse1', 'Sam');
+    await page.locator('#acc-menu').click();
+    await expect(page.locator('#profile-box')).toBeVisible();
+    await expect(page.locator('#profile-meta')).toContainText('votre e-mail');
+    await page.fill('#profile-name', 'Samuel');
+    await page.fill('#profile-password', 'motdepasse2');
+    await page.locator('#profile-form button[type=submit]').click();
+    await expect(page.locator('#acc-status')).toContainText('nom enregistré');
+    await expect(page.locator('#acc-status')).toContainText('mot de passe changé');
+    await expect(page.locator('#acc-menu .acc-name')).toHaveText('Samuel');
+    await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await expect(page.locator('#acc-menu')).toBeHidden();
+    // reconnexion avec le nouveau mot de passe, puis suppression du compte
+    await page.locator('#acc-open').click();
+    await page.fill('#auth-email', 'sam@example.org');
+    await page.fill('#auth-password', 'motdepasse2');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-menu')).toBeVisible();
+    await page.locator('#acc-menu').click();
+    await page.locator('#acc-delete').click();
+    await expect(page.locator('#acc-delete')).toContainText('Confirmer');
+    await page.locator('#acc-delete').click();
+    await expect(page.locator('#acc-status')).toContainText('Compte supprimé');
+    await expect(page.locator('#acc-open')).toBeVisible();
+    expect(await page.evaluate(() => Object.keys(window.__fake.db.users).length)).toBe(0);
+  });
+
+  test('retour d’un lien « mot de passe oublié » : formulaire de nouveau mot de passe', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'ana@example.org', 'motdepasse1', 'Ana');
+    await page.evaluate(() => window.__fake.forceRecovery());
+    await expect(page.locator('#recover-form')).toBeVisible();
+    await page.fill('#recover-password', 'motdepasse3');
+    await page.locator('#recover-form button[type=submit]').click();
+    await expect(page.locator('#acc-status')).toContainText('enregistré');
+    await expect(page.locator('#profile-box')).toBeVisible();
+  });
+});

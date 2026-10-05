@@ -39,6 +39,8 @@
       <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8 8-5-5z"/><path d="M6.5 12.5c-2 .5-3 2.2-3 4.5 0 1-.5 2-1 2.5 3 .5 6-.5 7-3"/></symbol>
       <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 12.5V6a1.5 1.5 0 0 1 3 0v5.5M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6.5 7-2.6 0-4.3-1.3-5.6-3.4L3 12.9a1.5 1.5 0 0 1 2.4-1.8L8 13.5"/></symbol>
       <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5 3.5 3.5 0 0 1 17.5 18H7z"/></symbol>
       <symbol id="i-fit" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-7 7"/><path d="M10 20H4v-6M4 20l7-7"/></symbol>
       <symbol id="i-bigger" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
       <symbol id="i-smaller" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8.5 12h7"/></symbol>
@@ -59,6 +61,81 @@
       <h1 class="brand-name">Gribouille</h1>
       <p class="brand-tag">Les dessins d’enfants<br>deviennent des œuvres d’art</p>
     </header>
+
+    <div id="account" class="account" hidden>
+      <button type="button" id="acc-open" class="acc-chip"><svg class="ico"><use href="#i-user"/></svg><span>Se connecter ou créer un compte</span></button>
+      <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+
+    <section id="account-section" class="step account-panel" hidden>
+      <!-- Connexion / inscription -->
+      <div id="auth-box">
+        <h2>Mon compte</h2>
+        <p class="hint">Un compte garde vos compositions et leurs dessins dans le cloud : retrouvez-les sur tous vos appareils.</p>
+        <div class="social">
+          <button type="button" class="btn social-btn" data-provider="google"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4" stroke="none"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853" stroke="none"/><path d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6z" fill="#FBBC05" stroke="none"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335" stroke="none"/></svg><span>Continuer avec Google</span></button>
+          <button type="button" class="btn social-btn" data-provider="facebook"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z" fill="#1877F2" stroke="none"/></svg><span>Continuer avec Facebook</span></button>
+        </div>
+        <p class="or"><span>ou avec votre e-mail</span></p>
+        <div class="seg auth-tabs" role="tablist">
+          <button type="button" data-mode="signin" class="on" role="tab" aria-selected="true">Connexion</button>
+          <button type="button" data-mode="signup" role="tab" aria-selected="false">Créer un compte</button>
+        </div>
+        <form id="auth-form" novalidate>
+          <label class="field" id="auth-name-field" hidden>Prénom ou nom affiché
+            <input id="auth-name" type="text" autocomplete="name" maxlength="60">
+          </label>
+          <label class="field">E-mail
+            <input id="auth-email" type="email" autocomplete="email" required>
+          </label>
+          <label class="field">Mot de passe
+            <input id="auth-password" type="password" autocomplete="current-password" minlength="8" required>
+          </label>
+          <p class="hint" id="auth-hint">Au moins 8 caractères.</p>
+          <div class="row-btns">
+            <button type="submit" class="btn btn-primary" id="auth-submit">Se connecter</button>
+            <button type="button" class="link" id="auth-forgot">Mot de passe oublié ?</button>
+          </div>
+          <p class="hint"><button type="button" class="link" id="auth-magic">Recevoir un lien de connexion par e-mail</button>, sans mot de passe.</p>
+        </form>
+        <p class="hint small">En créant un compte, vous acceptez que vos compositions et les dessins importés soient conservés dans votre espace personnel, uniquement pour vous. <a href="confidentialite.html" target="_blank" rel="noopener">Confidentialité</a>.</p>
+      </div>
+
+      <!-- Nouveau mot de passe après un lien « oublié » -->
+      <form id="recover-form" hidden>
+        <h2>Nouveau mot de passe</h2>
+        <label class="field">Choisissez un nouveau mot de passe
+          <input id="recover-password" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <div class="row-btns"><button type="submit" class="btn btn-primary">Enregistrer le mot de passe</button></div>
+      </form>
+
+      <!-- Compte connecté -->
+      <div id="profile-box" hidden>
+        <h2>Mon compte</h2>
+        <p class="hint" id="profile-meta"></p>
+        <form id="profile-form">
+          <label class="field">Prénom ou nom affiché
+            <input id="profile-name" type="text" autocomplete="name" maxlength="60">
+          </label>
+          <label class="field">E-mail
+            <input id="profile-email" type="email" autocomplete="email">
+          </label>
+          <label class="field" id="profile-password-field">Nouveau mot de passe <small>(laisser vide pour ne pas changer)</small>
+            <input id="profile-password" type="password" autocomplete="new-password" minlength="8">
+          </label>
+          <div class="row-btns">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <button type="button" class="btn" id="acc-signout">Se déconnecter</button>
+          </div>
+        </form>
+        <div class="danger-zone">
+          <p class="hint">Supprimer le compte efface définitivement vos compositions et dessins enregistrés dans le cloud. Les sauvegardes de cet appareil ne sont pas touchées.</p>
+          <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
+        </div>
+      </div>
+      <p id="acc-status" class="save-status" role="status" hidden></p>
+    </section>
 
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
@@ -167,7 +244,7 @@
 
     <section id="saved-section" class="step">
       <h2><span class="num">05</span> Mes compositions <small id="saved-count"></small></h2>
-      <p class="hint">Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins : rouvrez-les plus tard, telles quelles.</p>
+      <p class="hint" id="saved-hint">Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins : rouvrez-les plus tard, telles quelles.</p>
       <div id="saved-list" class="saved-list"></div>
       <p id="saved-status" class="save-status" role="status" hidden></p>
     </section>
@@ -301,6 +378,9 @@
 
   <script src="vendor/pdf.min.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="js/account.js"></script>
   <script src="js/extract.js"></script>
   <script src="js/compose.js"></script>
   <script src="js/guide.js"></script>

@@ -2607,7 +2607,19 @@ Réponds uniquement avec ce JSON :
     try {
       const rec = await snapshotComposition((name || 'Composition').trim().slice(0, 80));
       await dbPut(rec);
-      saveStatus(`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
+      const A = window.Account;
+      if (A && A.enabled && A.user()) {
+        try {
+          saveStatus('Envoi dans votre compte…');
+          await A.cloud.put(rec, (n, t) => saveStatus(`Envoi dans votre compte : ${n} / ${t} fichiers…`));
+          saveStatus(`Composition « ${rec.name} » sauvegardée sur cet appareil et dans votre compte.`);
+        } catch (e) {
+          console.error(e);
+          saveStatus(`Composition « ${rec.name} » sauvegardée sur cet appareil ; l’envoi dans votre compte a échoué : ${e.message}`);
+        }
+      } else {
+        saveStatus(`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
+      }
       renderSaved();
     } catch (e) {
       console.error(e);
@@ -2619,8 +2631,13 @@ Réponds uniquement avec ce JSON :
     const box = $('saved-list');
     if (!box) return;
     let list = [];
-    try { list = await dbAll(); } catch (e) { list = []; }
-    list.sort((a, b) => b.id - a.id);
+    try { list = (await dbAll()).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; }
+    const A = window.Account;
+    const signed = !!(A && A.enabled && A.user());
+    if (signed) {
+      try { list = list.concat(await A.cloud.list()); } catch (e) { console.error(e); savedStatus(`Compositions du compte indisponibles : ${e.message}`); }
+    }
+    list.sort((a, b) => new Date(b.date) - new Date(a.date));
     $('saved-count').textContent = list.length ? `(${list.length})` : '';
     box.innerHTML = '';
     list.forEach((rec) => {
@@ -2630,13 +2647,16 @@ Réponds uniquement avec ce JSON :
       el.tabIndex = 0;
       const when = new Date(rec.date);
       const st = STYLES.find((x) => x.id === rec.comp.style);
-      el.innerHTML = `<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${rec.drawings.length} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString('fr-FR')}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+      const nD = rec.nDrawings !== undefined ? rec.nDrawings : rec.drawings.length;
+      const where = rec.cloud ? '<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>' : (signed ? '<span class="saved-where">cet appareil</span>' : '');
+      el.innerHTML = `<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}${where}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString('fr-FR')}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
       // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
       const del = el.querySelector('.saved-del');
       del.onclick = async (e) => {
         e.stopPropagation();
         if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = 'Supprimer ?'; setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
-        await dbDel(rec.id); renderSaved();
+        try { if (rec.cloud) await A.cloud.del(rec.id); else await dbDel(rec.id); } catch (e2) { console.error(e2); savedStatus(`Suppression impossible : ${e2.message}`); }
+        renderSaved();
       };
       const open = () => restoreComposition(rec.id);
       el.onclick = open;
@@ -2654,8 +2674,11 @@ Réponds uniquement avec ce JSON :
   }
   async function restoreCompositionInner(id) {
     savedStatus('Lecture de la composition sauvegardée…');
-    const rec = await dbGet(id);
-    if (!rec) { savedStatus('Composition introuvable dans ce navigateur.'); return; }
+    const fromCloud = typeof id === 'string' && id.startsWith('cloud:');
+    const rec = fromCloud
+      ? await window.Account.cloud.get(id, (n, t) => savedStatus(`Téléchargement depuis votre compte : ${n} / ${t} dessins…`))
+      : await dbGet(id);
+    if (!rec) { savedStatus(fromCloud ? 'Composition introuvable dans votre compte.' : 'Composition introuvable dans ce navigateur.'); return; }
     if (!rec.drawings || !rec.drawings.length) { savedStatus('Cette sauvegarde ne contient aucun dessin.'); return; }
     const bytesOf = (d) => d.data || d.blob || null;
     const sizeOf = (d) => { const b = bytesOf(d); return b ? (b.byteLength !== undefined ? b.byteLength : b.size) : 0; };
@@ -2746,6 +2769,103 @@ Réponds uniquement avec ce JSON :
   $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
   $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
+
+  // ---------- Compte utilisateur (voir js/account.js) ----------
+  (function accountUi() {
+    const A = window.Account;
+    const box = $('account'), sec = $('account-section');
+    if (!A || !A.enabled) { if (sec) sec.remove(); return; }
+    A.init();
+    box.hidden = false;
+    const status = (t, bad) => { const el = $('acc-status'); el.textContent = t || ''; el.hidden = !t; el.classList.toggle('bad', !!bad); };
+    let mode = 'signin';
+    const setMode = (m) => {
+      mode = m;
+      document.querySelectorAll('.auth-tabs button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      $('auth-name-field').hidden = m !== 'signup';
+      $('auth-submit').textContent = m === 'signup' ? 'Créer mon compte' : 'Se connecter';
+      $('auth-password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
+      $('auth-forgot').hidden = m === 'signup';
+      status('');
+    };
+    document.querySelectorAll('.auth-tabs button').forEach((b) => { b.onclick = () => setMode(b.dataset.mode); });
+    const openPanel = (open) => { sec.hidden = !open; $('acc-menu').setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+    $('acc-open').onclick = () => openPanel(sec.hidden);
+    $('acc-menu').onclick = () => openPanel(sec.hidden);
+    const busy = async (fn, okMsg) => {
+      try { status('Un instant…'); await fn(); if (okMsg !== null) status(okMsg || ''); }
+      catch (e) { console.error(e); status(e.message || 'Une erreur est survenue.', true); }
+    };
+    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => busy(() => A.signInWith(b.dataset.provider), 'Redirection vers la connexion…'); });
+    $('auth-form').onsubmit = (e) => {
+      e.preventDefault();
+      const email = $('auth-email').value.trim(), pw = $('auth-password').value;
+      if (!email || pw.length < 8) { status('Indiquez votre e-mail et un mot de passe d’au moins 8 caractères.', true); return; }
+      if (mode === 'signup') {
+        busy(async () => {
+          const r = await A.signUpEmail(email, pw, $('auth-name').value.trim());
+          if (r.needsConfirm) { setMode('signin'); status(`Compte créé : confirmez votre e-mail avec le lien envoyé à ${email}, puis connectez-vous.`); }
+        }, null);
+      } else {
+        busy(() => A.signInEmail(email, pw), '');
+      }
+    };
+    $('auth-forgot').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status('Indiquez d’abord votre e-mail.', true); return; } busy(() => A.resetPassword(email), `Un lien pour choisir un nouveau mot de passe a été envoyé à ${email}.`); };
+    $('auth-magic').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status('Indiquez d’abord votre e-mail.', true); return; } busy(() => A.magicLink(email), `Un lien de connexion a été envoyé à ${email}. Ouvrez-le sur cet appareil.`); };
+    $('recover-form').onsubmit = (e) => { e.preventDefault(); const pw = $('recover-password').value; if (pw.length < 8) { status('Au moins 8 caractères.', true); return; } busy(() => A.updatePassword(pw), 'Nouveau mot de passe enregistré.'); };
+    $('profile-form').onsubmit = (e) => {
+      e.preventDefault();
+      const u = A.user(); if (!u) return;
+      const name = $('profile-name').value.trim(), email = $('profile-email').value.trim(), pw = $('profile-password').value;
+      busy(async () => {
+        const done = [];
+        if (name && name !== A.displayName(u)) { await A.updateProfile({ name }); done.push('nom enregistré'); }
+        if (email && email !== u.email) { await A.updateEmail(email); done.push(`un lien de confirmation a été envoyé à ${email}`); }
+        if (pw) { if (pw.length < 8) throw new Error('Le mot de passe doit faire au moins 8 caractères.'); await A.updatePassword(pw); $('profile-password').value = ''; done.push('mot de passe changé'); }
+        status(done.length ? `${done.join(', ')}.` : 'Rien à enregistrer.');
+      }, null);
+    };
+    $('acc-signout').onclick = () => busy(() => A.signOut(), 'Vous êtes déconnecté.');
+    const del = $('acc-delete');
+    del.onclick = () => {
+      if (!del.classList.contains('confirm')) {
+        del.classList.add('confirm'); del.textContent = 'Confirmer la suppression définitive';
+        setTimeout(() => { del.classList.remove('confirm'); del.textContent = 'Supprimer mon compte'; }, 6000);
+        return;
+      }
+      busy(() => A.deleteAccount(), 'Compte supprimé. Vos sauvegardes locales sont conservées.');
+    };
+    const PROVIDERS = { google: 'Google', facebook: 'Facebook', email: 'votre e-mail' };
+    let wasSigned = null;
+    A.onChange((u, info) => {
+      const signed = !!u, recovering = !!(info && info.recovering);
+      $('acc-open').hidden = signed;
+      $('acc-menu').hidden = !signed;
+      $('auth-box').hidden = signed || recovering;
+      $('profile-box').hidden = !signed || recovering;
+      $('recover-form').hidden = !recovering;
+      if (signed) {
+        const name = A.displayName(u);
+        $('acc-menu').querySelector('.acc-name').textContent = name;
+        const av = $('acc-menu').querySelector('.acc-avatar');
+        const pic = u.user_metadata && (u.user_metadata.avatar_url || u.user_metadata.picture);
+        av.textContent = pic ? '' : (name[0] || '?').toUpperCase();
+        av.style.backgroundImage = pic ? `url("${pic}")` : '';
+        $('profile-name').value = name;
+        $('profile-email').value = u.email || '';
+        $('profile-meta').textContent = `Connecté avec ${PROVIDERS[A.providerOf(u)] || A.providerOf(u)}${u.email ? ` (${u.email})` : ''}.`;
+        $('profile-password-field').hidden = A.providerOf(u) !== 'email';
+      }
+      if (recovering) openPanel(true);
+      else if (wasSigned === false && signed) { openPanel(false); status(''); }
+      else if (wasSigned === true && !signed) { openPanel(false); setMode('signin'); }
+      wasSigned = signed;
+      $('saved-hint').textContent = signed
+        ? 'Vos compositions sont enregistrées dans votre compte et sur cet appareil : retrouvez-les sur tous vos appareils.'
+        : 'Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins. Connectez-vous pour les retrouver sur tous vos appareils.';
+      renderSaved();
+    });
+  })();
 
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
   (function collapsibleSections() {

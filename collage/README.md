@@ -187,6 +187,17 @@ zone d'import et dans l'écran d'accueil ; sans ce dossier, rien n'est proposé.
 dépôt contient un jeu de 19 dessins de synthèse (14 sujets au feutre et au crayon, 5 pages peintes),
 générés par `samples/make_samples.py` : aucun auteur, aucune donnée personnelle, aucun dessin d'enfant réel.
 
+**Comptes utilisateurs** (optionnels) : inscription et connexion par Google, Facebook ou e-mail (mot de
+passe, ou lien de connexion sans mot de passe), gestion du compte (nom affiché, e-mail, mot de passe,
+déconnexion, suppression définitive en deux clics, lien « mot de passe oublié »), et compositions
+sauvegardées dans le compte en plus de l'appareil : retrouvées sur tous les appareils, avec les
+images des dessins en haute définition et les retouches. Le service est Supabase (Auth + Storage,
+hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)
+limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à
+l'utilisateur d'effacer lui-même tout son compte. Sans réglage dans `config.js`, rien n'apparaît et
+l'app fonctionne comme avant. Mise en place pas à pas dans `docs/COMPTES.md` ; page de
+confidentialité à relire dans `confidentialite.html`.
+
 Le parcours simple tient en trois étapes (importer, choisir une proposition, télécharger) : les
 réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
 avancés », le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
