@@ -13,6 +13,9 @@
   /* mur de galerie plus profond, carnet ivoire, accent vert sapin (plus d'orange) */
   --wall: #ddd3c4;
   --wall-2: #efe8dc;
+  /* scène blanche : l'œuvre ressort sur un fond neutre, à peine ombré vers le bas */
+  --stage: #ffffff;
+  --stage-2: #f1eee8;
   --surface: #faf7f1;
   --surface-2: #f0e9dd;
   --ink: #2b2a22;
@@ -42,6 +45,8 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --wall: #1c1b15;
+    --stage: #1c1b15;
+    --stage-2: #15140f;
     --surface: #25241d;
     --surface-2: #2e2d25;
     --ink: #f3eee4;
@@ -63,6 +68,8 @@
 }
 :root[data-theme="dark"] {
   --wall: #1c1b15;
+  --stage: #1c1b15;
+  --stage-2: #15140f;
   --surface: #25241d;
   --surface-2: #2e2d25;
   --ink: #f3eee4;
@@ -372,9 +379,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 
 .stage {
   position: relative; height: 100%; overflow: hidden;
-  background:
-    radial-gradient(ellipse at 50% 30%, var(--wall-2) 0%, transparent 62%),
-    linear-gradient(180deg, var(--wall) 0%, color-mix(in srgb, var(--wall) 86%, #000) 100%);
+  background: linear-gradient(180deg, var(--stage, var(--wall)) 0%, var(--stage, var(--wall)) 55%, var(--stage-2, var(--wall-2)) 100%);
 }
 .stage canvas { position: absolute; inset: 64px 0 64px 0; width: 100%; height: calc(100% - 128px); touch-action: none; }
 
