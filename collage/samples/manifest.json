@@ -1,0 +1,81 @@
+{
+ "base": "samples/",
+ "pages": [
+  {
+   "file": "soleil.jpg",
+   "name": "Exemple — soleil"
+  },
+  {
+   "file": "maison.jpg",
+   "name": "Exemple — maison"
+  },
+  {
+   "file": "chat.jpg",
+   "name": "Exemple — chat"
+  },
+  {
+   "file": "arc-en-ciel.jpg",
+   "name": "Exemple — arc en ciel"
+  },
+  {
+   "file": "bonhomme.jpg",
+   "name": "Exemple — bonhomme"
+  },
+  {
+   "file": "fleur.jpg",
+   "name": "Exemple — fleur"
+  },
+  {
+   "file": "arbre.jpg",
+   "name": "Exemple — arbre"
+  },
+  {
+   "file": "bateau.jpg",
+   "name": "Exemple — bateau"
+  },
+  {
+   "file": "coeurs.jpg",
+   "name": "Exemple — coeurs"
+  },
+  {
+   "file": "papillon.jpg",
+   "name": "Exemple — papillon"
+  },
+  {
+   "file": "voiture.jpg",
+   "name": "Exemple — voiture"
+  },
+  {
+   "file": "oiseau.jpg",
+   "name": "Exemple — oiseau"
+  },
+  {
+   "file": "soleil-et-bonhomme.jpg",
+   "name": "Exemple — soleil et bonhomme"
+  },
+  {
+   "file": "escargot.jpg",
+   "name": "Exemple — escargot"
+  },
+  {
+   "file": "ciel-peint.jpg",
+   "name": "Exemple — ciel peint"
+  },
+  {
+   "file": "herbe-peinte.jpg",
+   "name": "Exemple — herbe peinte"
+  },
+  {
+   "file": "rayures-peintes.jpg",
+   "name": "Exemple — rayures peintes"
+  },
+  {
+   "file": "nuit-peinte.jpg",
+   "name": "Exemple — nuit peinte"
+  },
+  {
+   "file": "terre-peinte.jpg",
+   "name": "Exemple — terre peinte"
+  }
+ ]
+}

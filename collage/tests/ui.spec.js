@@ -51,9 +51,30 @@ test.describe('Interface', () => {
 });
 
 test.describe('Dessins d’exemple', () => {
-  test('sans dossier samples, rien n’est proposé', async ({ app }) => {
-    await expect(app.page.locator('#sample-offer')).toBeHidden();
-    await expect(app.page.locator('#empty-sample')).toBeHidden();
+  test('sans dossier samples, rien n’est proposé', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.route('**/samples/manifest.json', (r) => r.fulfill({ status: 404, body: 'introuvable' }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.waitForTimeout(500);
+    await expect(page.locator('#sample-offer')).toBeHidden();
+    await expect(page.locator('#empty-sample')).toBeHidden();
+    await ctx.close();
+  });
+
+  test('le jeu d’exemple fourni avec l’app s’analyse correctement', async ({ app }) => {
+    const { page } = app;
+    await expect(page.locator('#sample-offer')).toBeVisible();
+    await page.locator('#load-sample').click();
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
+    const ds = await app.drawings();
+    expect(ds.length).toBe(19);
+    const painted = ds.filter((d) => /peint/.test(d.name));
+    expect(painted.every((d) => d.kind === 'texture'), JSON.stringify(painted)).toBe(true);
+    const subjects = ds.filter((d) => !/peint/.test(d.name));
+    expect(subjects.every((d) => d.kind === 'cutout' && d.pieces >= 1), JSON.stringify(subjects)).toBe(true);
+    expect(ds.every((d) => d.photo === null)).toBe(true);
   });
 
   test('avec un manifeste, un bouton propose l’exemple et le charge au clic', async ({ browser }) => {
