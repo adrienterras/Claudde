@@ -31,12 +31,12 @@ jobs:
           enablement: true
       - name: Préparer le site
         run: |
-          mkdir -p site
-          cp -r collage/. site/
-          rm -f site/README.md
-          touch site/.nojekyll
+          mkdir -p _site
+          cp -r collage/. _site/
+          rm -rf _site/README.md _site/tests _site/node_modules _site/package.json _site/package-lock.json _site/playwright.config.js _site/.gitignore
+          touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

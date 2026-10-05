@@ -224,7 +224,9 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
 
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
-push de la branche de l'application. Adresse : https://adrienterras.github.io/Claudde/
+push de la branche de l'application. Adresse : https://ateliergribouille.art (domaine personnalisé
+réglé dans Settings → Pages ; l'adresse https://adrienterras.github.io/Claudde/ y redirige). Le dossier
+`coming-soon/` contient la page « Ouverture prochaine » autonome, à héberger ailleurs si besoin.
 Réglages GitHub nécessaires une fois : Settings → Pages → Source « GitHub Actions », et la
 branche de l'application autorisée dans l'environnement github-pages (« Deployment branches » sans
 restriction) ; sinon chaque exécution échoue en quelques secondes, sans journal.
