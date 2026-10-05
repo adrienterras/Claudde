@@ -2784,14 +2784,28 @@ Réponds uniquement avec ce JSON :
       document.querySelectorAll('.auth-tabs button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
       $('auth-name-field').hidden = m !== 'signup';
       $('auth-submit').textContent = m === 'signup' ? 'Créer mon compte' : 'Se connecter';
+      $('acc-title').textContent = m === 'signup' ? 'Bienvenue à l’atelier' : 'Content de vous revoir';
+      $('acc-sub').textContent = m === 'signup' ? 'Gardez vos compositions et retrouvez-les sur tous vos appareils.' : 'Connectez-vous pour retrouver vos compositions.';
       $('auth-password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
       $('auth-forgot').hidden = m === 'signup';
       status('');
     };
     document.querySelectorAll('.auth-tabs button').forEach((b) => { b.onclick = () => setMode(b.dataset.mode); });
-    const openPanel = (open) => { sec.hidden = !open; $('acc-menu').setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
-    $('acc-open').onclick = () => openPanel(sec.hidden);
+    const openPanel = (open) => {
+      sec.hidden = !open;
+      $('acc-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.body.classList.toggle('acc-open', open);
+      if (open) { const first = sec.querySelector('input:not([hidden]):not([type=hidden])'); if (first && window.matchMedia('(min-width: 601px)').matches) setTimeout(() => first.focus(), 50); }
+    };
+    $('acc-open').onclick = () => openPanel(true);
     $('acc-menu').onclick = () => openPanel(sec.hidden);
+    $('acc-close').onclick = () => openPanel(false);
+    sec.addEventListener('click', (e) => { if (e.target === sec) openPanel(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sec.hidden) openPanel(false); });
+    // afficher / masquer les mots de passe
+    sec.querySelectorAll('.pw-eye').forEach((b) => {
+      b.onclick = () => { const inp = $(b.dataset.for); const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye'); b.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'); };
+    });
     const busy = async (fn, okMsg) => {
       try { status('Un instant…'); await fn(); if (okMsg !== null) status(okMsg || ''); }
       catch (e) { console.error(e); status(e.message || 'Une erreur est survenue.', true); }
@@ -2849,8 +2863,8 @@ Réponds uniquement avec ce JSON :
         $('acc-menu').querySelector('.acc-name').textContent = name;
         const av = $('acc-menu').querySelector('.acc-avatar');
         const pic = u.user_metadata && (u.user_metadata.avatar_url || u.user_metadata.picture);
-        av.textContent = pic ? '' : (name[0] || '?').toUpperCase();
-        av.style.backgroundImage = pic ? `url("${pic}")` : '';
+        [av, $('profile-avatar')].forEach((a) => { a.textContent = pic ? '' : (name[0] || '?').toUpperCase(); a.style.backgroundImage = pic ? `url("${pic}")` : ''; });
+        $('profile-title').textContent = name ? `Bonjour ${name}` : 'Mon compte';
         $('profile-name').value = name;
         $('profile-email').value = u.email || '';
         $('profile-meta').textContent = `Connecté avec ${PROVIDERS[A.providerOf(u)] || A.providerOf(u)}${u.email ? ` (${u.email})` : ''}.`;
