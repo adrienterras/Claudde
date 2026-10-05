@@ -5,7 +5,7 @@ name: Publier sur GitHub Pages
 on:
   push:
     branches: [claude/children-drawings-art-app-kr5f77]
-    paths: [collage/**, .github/workflows/pages.yml]
+    paths: [collage/**, landing/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -31,9 +31,11 @@ jobs:
           enablement: true
       - name: Préparer le site
         run: |
-          mkdir -p _site
-          cp -r collage/. _site/
-          rm -rf _site/README.md _site/tests _site/node_modules _site/package.json _site/package-lock.json _site/playwright.config.js _site/.gitignore
+          mkdir -p _site/atelier
+          cp -r collage/. _site/atelier/
+          rm -rf _site/atelier/README.md _site/atelier/tests _site/atelier/node_modules _site/atelier/package.json _site/atelier/package-lock.json _site/atelier/playwright.config.js _site/atelier/.gitignore
+          cp -r landing/. _site/
+          cp collage/confidentialite.html _site/confidentialite.html
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

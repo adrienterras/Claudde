@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Atelier Gribouille — Les dessins d’enfants deviennent des œuvres d’art</title>
+  <meta name="description" content="Scannez les dessins de vos enfants : l’atelier les découpe, les met à l’échelle et compose une œuvre unique, prête à imprimer sur toile ou à réaliser à la main.">
+  <meta property="og:title" content="Atelier Gribouille">
+  <meta property="og:description" content="Les dessins d’enfants deviennent des œuvres d’art. Scannez, l’atelier compose, accrochez.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ateliergribouille.art/">
+  <meta property="og:image" content="https://ateliergribouille.art/img/oeuvre-paysage.jpg">
+  <meta name="theme-color" content="#f8f5ef">
+  <link rel="icon" type="image/png" sizes="64x64" href="img/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --craie: #f8f5ef; --surface: #faf7f1; --surface-2: #f0e9dd; --line: #ded3c2; --wall: #ddd3c4;
+      --ink: #2b2a22; --ink-2: #4e4c3e; --muted: #7f7868;
+      --accent: #3e5a4c; --accent-soft: rgba(62, 90, 76, .12); --argile: #c26f56; --blush: #d9a7a0; --olive: #6b6f4e;
+      --f-display: "Playfair Display", Georgia, "Times New Roman", serif; --f-body: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-family: var(--f-body); color: var(--ink); line-height: 1.55; font-size: 16px; -webkit-font-smoothing: antialiased;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.012) 0 1px, transparent 1px 3px), var(--craie); }
+    a { color: inherit; }
+    .wrap { width: min(1120px, 100% - 40px); margin: 0 auto; }
+    /* barre */
+    .nav { position: sticky; top: 0; z-index: 10; background: rgba(248, 245, 239, .86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid rgba(0,0,0,.06); }
+    .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .brand img { width: 36px; height: 36px; }
+    .brand b { font-family: var(--f-display); font-weight: 400; font-size: 1.3rem; }
+    .brand small { display: block; font-size: .62rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink-2); line-height: 1; margin-bottom: 2px; }
+    .nav nav { display: flex; gap: 22px; align-items: center; font-size: .9rem; }
+    .nav nav a { text-decoration: none; color: var(--ink-2); }
+    .nav nav a:hover { color: var(--ink); }
+    .nav nav a.btn-primary, .nav nav a.btn-primary:hover { color: var(--craie); }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
+    .btn-primary:hover { background: #000; }
+    .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+    .btn-sm { padding: 9px 16px; font-size: .85rem; }
+    .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    /* héros */
+    .hero { padding: 72px 0 40px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+    .kicker { margin: 0 0 14px; font-size: .78rem; letter-spacing: .45em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(2.4rem, 5vw, 3.9rem); line-height: 1.08; letter-spacing: -.005em; }
+    h1 em { font-style: italic; color: var(--accent); }
+    .lead { margin: 22px 0 0; font-size: 1.1rem; color: var(--ink-2); max-width: 50ch; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+    .reassure { margin: 18px 0 0; font-size: .82rem; color: var(--muted); }
+    .hero-art { position: relative; }
+    .hero-art .canvas { display: block; width: 100%; height: auto; border-radius: 4px; box-shadow: 0 30px 60px -28px rgba(0,0,0,.55), 0 0 0 10px #f7f3ea, 0 0 0 11px rgba(0,0,0,.12); transform: rotate(-1.2deg); }
+    .hero-art .sticker { position: absolute; right: -14px; bottom: -18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: .8rem; box-shadow: 0 14px 30px -18px rgba(0,0,0,.4); transform: rotate(2deg); }
+    .hero-art .sticker b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1rem; }
+    /* sections */
+    section { padding: 64px 0; }
+    .sec-head { max-width: 60ch; margin-bottom: 34px; }
+    h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(1.8rem, 3.2vw, 2.5rem); line-height: 1.15; }
+    .sec-head p { margin: 12px 0 0; color: var(--ink-2); }
+    .scenes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    .scene { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: 0 20px 40px -30px rgba(0,0,0,.35); }
+    .scene .room { display: block; width: 100%; height: auto; }
+    .scene figcaption { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 3px; }
+    .scene figcaption strong { font-family: var(--f-display); font-weight: 400; font-size: 1.08rem; }
+    .scene figcaption span { font-size: .8rem; color: var(--muted); }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; counter-reset: step; }
+    .step { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; position: relative; }
+    .step::before { counter-increment: step; content: "0" counter(step); position: absolute; top: 20px; right: 22px; font-size: .72rem; letter-spacing: .2em; color: var(--muted); }
+    .step .ico { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); margin-bottom: 16px; }
+    .step .ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .step h3 { margin: 0 0 8px; font-family: var(--f-display); font-weight: 400; font-size: 1.25rem; }
+    .step p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+    .styles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .style { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .style img { display: block; width: 100%; aspect-ratio: 10 / 7; object-fit: cover; }
+    .style div { padding: 12px 14px; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .style b { font-weight: 600; font-size: .95rem; }
+    .style span { font-size: .78rem; color: var(--muted); font-style: italic; }
+    .promise { background: var(--ink); color: var(--craie); border-radius: 24px; padding: 48px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
+    .promise h2 { color: var(--craie); }
+    .promise p { color: rgba(248,245,239,.78); }
+    .promise ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+    .promise li { display: flex; gap: 12px; align-items: flex-start; font-size: .95rem; }
+    .promise li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--blush); flex: none; margin-top: 8px; }
+    .promise .btn-primary { background: var(--craie); color: var(--ink); margin-top: 22px; }
+    .promise .btn-primary:hover { background: #fff; }
+    .cta { text-align: center; padding: 72px 0 80px; }
+    .cta h2 { font-style: italic; }
+    .cta .actions { justify-content: center; }
+    footer { border-top: 1px solid var(--line); padding: 30px 0 40px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: center; font-size: .78rem; color: var(--muted); }
+    footer .values i { font-style: normal; color: var(--accent); margin: 0 6px; }
+    footer nav { display: flex; gap: 18px; }
+    footer nav a { text-decoration: none; }
+    footer nav a:hover { text-decoration: underline; }
+    .rise { animation: rise .8s ease-out both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .rise { animation: none; } html { scroll-behavior: auto; } }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding-top: 40px; gap: 36px; }
+      .hero-art { order: -1; padding: 0 10px; }
+      .scenes, .steps, .styles { grid-template-columns: 1fr; }
+      .promise { grid-template-columns: 1fr; padding: 30px 24px; }
+      .nav nav a.hide-sm { display: none; }
+      section { padding: 48px 0; }
+    }
+    @media (min-width: 901px) and (max-width: 1100px) { .scenes, .styles { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="img/logo-mark.png" alt=""><span><small>Atelier</small><b>Gribouille</b></span></a>
+      <nav>
+        <a class="hide-sm" href="#chez-vous">Chez vous</a>
+        <a class="hide-sm" href="#comment">Comment ça marche</a>
+        <a class="hide-sm" href="#styles">Les styles</a>
+        <a class="btn btn-primary btn-sm" href="atelier/">Ouvrir l’atelier</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <div class="rise">
+        <p class="kicker">Atelier Gribouille</p>
+        <h1>Les dessins d’enfants deviennent <em>des œuvres d’art.</em></h1>
+        <p class="lead">Scannez les dessins qui s’accumulent sur le frigo. L’atelier les découpe comme avec des ciseaux, les met à la même échelle et compose une œuvre unique, prête à imprimer sur toile ou à réaliser à la main, pour l’accrocher chez vous.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="atelier/"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>Créer mon œuvre</a>
+          <a class="btn btn-ghost" href="atelier/?exemple">Voir un exemple</a>
+        </div>
+        <p class="reassure">Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.</p>
+      </div>
+      <div class="hero-art rise" style="animation-delay:.15s">
+        <img class="canvas" src="img/oeuvre-scene.jpg" alt="Œuvre composée à partir de dessins d’enfants : ciel, maison, personnages, soleil et bateau sur des pages peintes" width="1300" height="913">
+        <div class="sticker"><b>Scène · 84 × 59 cm</b>19 dessins, le ciel en haut, les personnages sur le sol</div>
+      </div>
+    </section>
+
+    <section id="chez-vous">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2>Accrochée chez vous, elle raconte une année.</h2>
+          <p>Une toile tendue dans le salon, une galerie de petits cadres dans le couloir, un fond sombre pour le séjour : les mêmes dessins, trois ambiances.</p>
+        </div>
+        <div class="scenes">
+      <figure class="scene">
+<svg class="room" viewBox="0 0 900 620" role="img" aria-label="Œuvre accrochée dans un salon">
+<defs>
+<linearGradient id="w-salon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4efe4"/><stop offset="1" stop-color="#e9e1d2"/></linearGradient>
+<filter id="sh-salon" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/></filter>
+<filter id="soft-salon" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.16"/></filter>
+</defs>
+<rect width="900" height="440" fill="url(#w-salon)"/>
+<rect y="440" width="900" height="180" fill="#c9a97e"/>
+<line x1="0" y1="440" x2="-40" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="90" y1="440" x2="50" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="180" y1="440" x2="140" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="270" y1="440" x2="230" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="360" y1="440" x2="320" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="450" y1="440" x2="410" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="540" y1="440" x2="500" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="630" y1="440" x2="590" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="720" y1="440" x2="680" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="810" y1="440" x2="770" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="0" y1="500" x2="900" y2="500" stroke="#000" stroke-opacity="0.05" stroke-width="2"/>
+<line x1="0" y1="560" x2="900" y2="560" stroke="#000" stroke-opacity="0.05" stroke-width="2"/>
+<rect y="428" width="900" height="14" fill="#fff" fill-opacity="0.55"/>
+<g filter="url(#soft-salon)">
+<rect x="170" y="260" width="500" height="90" rx="26" fill="#6b6f4e"/>
+<rect x="140" y="330" width="560" height="110" rx="30" fill="#6b6f4e"/>
+<rect x="134" y="320" width="54" height="120" rx="24" fill="#6b6f4e"/>
+<rect x="652" y="320" width="54" height="120" rx="24" fill="#6b6f4e"/>
+<rect x="220" y="290" width="150" height="70" rx="18" fill="#d9a7a0"/>
+<rect x="460" y="290" width="150" height="70" rx="18" fill="#fff" fill-opacity="0.75"/>
+<rect x="160" y="440" width="14" height="24" rx="4" fill="#3a3326"/><rect x="666" y="440" width="14" height="24" rx="4" fill="#3a3326"/>
+</g>
+<g filter="url(#soft-salon)">
+<rect x="756" y="370" width="68" height="76" rx="12" fill="#c26f56"/>
+<ellipse cx="790" cy="340" rx="18" ry="42" fill="#6b6f4e" transform="rotate(-25 790 340)"/>
+<ellipse cx="790" cy="330" rx="18" ry="48" fill="#7f8a5a"/>
+<ellipse cx="790" cy="340" rx="18" ry="42" fill="#55603f" transform="rotate(25 790 340)"/>
+<ellipse cx="776" cy="358" rx="14" ry="30" fill="#8c9a66" transform="rotate(-50 776 358)"/>
+<ellipse cx="804" cy="358" rx="14" ry="30" fill="#6b6f4e" transform="rotate(50 804 358)"/>
+</g>
+<g filter="url(#soft-salon)"><rect x="86" y="300" width="6" height="140" fill="#3a3326"/><path d="M50 300h78l-12-70H62z" fill="#d9a7a0"/><ellipse cx="89" cy="440" rx="26" ry="6" fill="#3a3326"/></g>
+<g filter="url(#sh-salon)">
+<rect x="230" y="70" width="440" height="316" fill="#f7f3ea"/>
+<rect x="230" y="70" width="440" height="316" fill="none" stroke="#000" stroke-opacity="0.12"/>
+<image href="img/oeuvre-paysage.jpg" x="240" y="80" width="420" height="296" preserveAspectRatio="xMidYMid slice"/>
+</g>
+</svg>
+        <figcaption><strong>Un salon lumineux</strong><span>Paysage · toile 54 × 38 cm · les dessins découpés posés sur les pages peintes</span></figcaption>
+      </figure>
+      <figure class="scene">
+<svg class="room" viewBox="0 0 900 620" role="img" aria-label="Œuvre accrochée dans un couloir">
+<defs>
+<linearGradient id="w-couloir" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eadfcf"/><stop offset="1" stop-color="#dccbb8"/></linearGradient>
+<filter id="sh-couloir" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/></filter>
+<filter id="soft-couloir" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.16"/></filter>
+</defs>
+<rect width="900" height="440" fill="url(#w-couloir)"/>
+<rect y="440" width="900" height="180" fill="#b89468"/>
+<line x1="0" y1="440" x2="-40" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="90" y1="440" x2="50" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="180" y1="440" x2="140" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="270" y1="440" x2="230" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="360" y1="440" x2="320" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="450" y1="440" x2="410" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="540" y1="440" x2="500" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="630" y1="440" x2="590" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="720" y1="440" x2="680" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="810" y1="440" x2="770" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="0" y1="500" x2="900" y2="500" stroke="#000" stroke-opacity="0.05" stroke-width="2"/>
+<line x1="0" y1="560" x2="900" y2="560" stroke="#000" stroke-opacity="0.05" stroke-width="2"/>
+<rect y="428" width="900" height="14" fill="#fff" fill-opacity="0.55"/>
+<g filter="url(#soft-couloir)">
+<rect x="170" y="260" width="500" height="90" rx="26" fill="#3e5a4c"/>
+<rect x="140" y="330" width="560" height="110" rx="30" fill="#3e5a4c"/>
+<rect x="134" y="320" width="54" height="120" rx="24" fill="#3e5a4c"/>
+<rect x="652" y="320" width="54" height="120" rx="24" fill="#3e5a4c"/>
+<rect x="220" y="290" width="150" height="70" rx="18" fill="#f3e9d8"/>
+<rect x="460" y="290" width="150" height="70" rx="18" fill="#fff" fill-opacity="0.75"/>
+<rect x="160" y="440" width="14" height="24" rx="4" fill="#3a3326"/><rect x="666" y="440" width="14" height="24" rx="4" fill="#3a3326"/>
+</g>
+<g filter="url(#soft-couloir)">
+<rect x="756" y="370" width="68" height="76" rx="12" fill="#8a5a3c"/>
+<ellipse cx="790" cy="340" rx="18" ry="42" fill="#6b6f4e" transform="rotate(-25 790 340)"/>
+<ellipse cx="790" cy="330" rx="18" ry="48" fill="#7f8a5a"/>
+<ellipse cx="790" cy="340" rx="18" ry="42" fill="#55603f" transform="rotate(25 790 340)"/>
+<ellipse cx="776" cy="358" rx="14" ry="30" fill="#8c9a66" transform="rotate(-50 776 358)"/>
+<ellipse cx="804" cy="358" rx="14" ry="30" fill="#6b6f4e" transform="rotate(50 804 358)"/>
+</g>
+<g filter="url(#soft-couloir)"><rect x="86" y="300" width="6" height="140" fill="#3a3326"/><path d="M50 300h78l-12-70H62z" fill="#6b6f4e"/><ellipse cx="89" cy="440" rx="26" ry="6" fill="#3a3326"/></g>
+<g filter="url(#sh-couloir)">
+<rect x="230" y="70" width="440" height="440" fill="#f7f3ea"/>
+<rect x="230" y="70" width="440" height="440" fill="none" stroke="#000" stroke-opacity="0.12"/>
+<image href="img/oeuvre-galerie.jpg" x="240" y="80" width="420" height="420" preserveAspectRatio="xMidYMid slice"/>
+</g>
+</svg>
+        <figcaption><strong>Un couloir, une galerie</strong><span>Galerie · toile carrée 130 × 130 cm · un dessin par cadre, tous à leur place</span></figcaption>
+      </figure>
+      <figure class="scene">
+<svg class="room" viewBox="0 0 900 620" role="img" aria-label="Œuvre accrochée dans un sejour">
+<defs>
+<linearGradient id="w-sejour" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#44524a"/><stop offset="1" stop-color="#2f3a33"/></linearGradient>
+<filter id="sh-sejour" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.28"/></filter>
+<filter id="soft-sejour" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.16"/></filter>
+</defs>
+<rect width="900" height="440" fill="url(#w-sejour)"/>
+<rect y="440" width="900" height="180" fill="#8c6a46"/>
+<line x1="0" y1="440" x2="-40" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="90" y1="440" x2="50" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="180" y1="440" x2="140" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="270" y1="440" x2="230" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="360" y1="440" x2="320" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="450" y1="440" x2="410" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="540" y1="440" x2="500" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="630" y1="440" x2="590" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="720" y1="440" x2="680" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="810" y1="440" x2="770" y2="620" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>
+<line x1="0" y1="500" x2="900" y2="500" stroke="#000" stroke-opacity="0.05" stroke-width="2"/>
+<line x1="0" y1="560" x2="900" y2="560" stroke="#000" stroke-opacity="0.05" stroke-width="2"/>
+<rect y="428" width="900" height="14" fill="#fff" fill-opacity="0.55"/>
+<g filter="url(#soft-sejour)">
+<rect x="170" y="260" width="500" height="90" rx="26" fill="#c7b8a2"/>
+<rect x="140" y="330" width="560" height="110" rx="30" fill="#c7b8a2"/>
+<rect x="134" y="320" width="54" height="120" rx="24" fill="#c7b8a2"/>
+<rect x="652" y="320" width="54" height="120" rx="24" fill="#c7b8a2"/>
+<rect x="220" y="290" width="150" height="70" rx="18" fill="#c26f56"/>
+<rect x="460" y="290" width="150" height="70" rx="18" fill="#fff" fill-opacity="0.75"/>
+<rect x="160" y="440" width="14" height="24" rx="4" fill="#3a3326"/><rect x="666" y="440" width="14" height="24" rx="4" fill="#3a3326"/>
+</g>
+<g filter="url(#soft-sejour)">
+<rect x="756" y="370" width="68" height="76" rx="12" fill="#1c1b15"/>
+<ellipse cx="790" cy="340" rx="18" ry="42" fill="#6b6f4e" transform="rotate(-25 790 340)"/>
+<ellipse cx="790" cy="330" rx="18" ry="48" fill="#7f8a5a"/>
+<ellipse cx="790" cy="340" rx="18" ry="42" fill="#55603f" transform="rotate(25 790 340)"/>
+<ellipse cx="776" cy="358" rx="14" ry="30" fill="#8c9a66" transform="rotate(-50 776 358)"/>
+<ellipse cx="804" cy="358" rx="14" ry="30" fill="#6b6f4e" transform="rotate(50 804 358)"/>
+</g>
+<g filter="url(#soft-sejour)"><rect x="86" y="300" width="6" height="140" fill="#3a3326"/><path d="M50 300h78l-12-70H62z" fill="#d9a7a0"/><ellipse cx="89" cy="440" rx="26" ry="6" fill="#3a3326"/></g>
+<g filter="url(#sh-sejour)">
+<rect x="230" y="70" width="440" height="316" fill="#f7f3ea"/>
+<rect x="230" y="70" width="440" height="316" fill="none" stroke="#000" stroke-opacity="0.12"/>
+<image href="img/oeuvre-cabinet.jpg" x="240" y="80" width="420" height="296" preserveAspectRatio="xMidYMid slice"/>
+</g>
+</svg>
+        <figcaption><strong>Un séjour du soir</strong><span>Cabinet de curiosités · toile 54 × 38 cm · les plus beaux sujets alignés sur fond sombre</span></figcaption>
+      </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="comment">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2>Trois gestes, et c’est fait.</h2>
+          <p>Aucune compétence en retouche. L’atelier fait le travail de patience, vous gardez les choix qui comptent.</p>
+        </div>
+        <div class="steps">
+          <article class="step">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg></div>
+            <h3>Scannez les dessins</h3>
+            <p>Un PDF du scanner, des photos de téléphone, même posées sur la table ou le parquet : l’atelier retire la surface et ne garde que le dessin.</p>
+          </article>
+          <article class="step">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M5 18l.9 2.1L8 21l-2.1.9L5 24"/></svg></div>
+            <h3>L’atelier compose</h3>
+            <p>Les sujets sont découpés au millimètre, remis à leur taille réelle et posés sur les pages peintes. Six styles sont proposés ; vous déplacez, tournez, ajustez.</p>
+          </article>
+          <article class="step">
+            <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M7 19v2M17 19v2M3 9h18"/></svg></div>
+            <h3>Imprimez, ou collez</h3>
+            <p>Un fichier haute définition à 300 dpi pour l’impression sur toile, aux formats du commerce. Ou le guide de création, avec le plan de pose et chaque dessin à découper.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="styles">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2>Six manières de raconter les mêmes dessins.</h2>
+          <p>Chaque import donne six propositions, toujours avec tous les dessins. Choisissez-en une, puis faites-la vôtre.</p>
+        </div>
+        <div class="styles">
+          <figure class="style"><img src="img/oeuvre-paysage.jpg" alt="Composition Paysage"><div><b>Paysage</b><span>ciel, milieu, sol</span></div></figure>
+          <figure class="style"><img src="img/oeuvre-scene.jpg" alt="Composition Scène"><div><b>Scène</b><span>le ciel en haut, les personnages debout</span></div></figure>
+          <figure class="style"><img src="img/oeuvre-tournesol.jpg" alt="Composition Tournesol"><div><b>Tournesol</b><span>spirale depuis le cœur</span></div></figure>
+          <figure class="style"><img src="img/oeuvre-courtepointe.jpg" alt="Composition Courtepointe"><div><b>Courtepointe</b><span>patchwork, un médaillon par carreau</span></div></figure>
+          <figure class="style"><img src="img/oeuvre-cabinet.jpg" alt="Composition Cabinet de curiosités"><div><b>Cabinet de curiosités</b><span>les plus beaux, en rangées</span></div></figure>
+          <figure class="style"><img src="img/oeuvre-galerie.jpg" alt="Composition Galerie"><div><b>Galerie</b><span>un dessin par cadre</span></div></figure>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="promise">
+          <div>
+            <h2>Fait pour durer, comme les souvenirs.</h2>
+            <p>Les dessins sont relus dans leur définition d’origine au moment d’exporter : un scan à 300 dpi donne une toile nette, même en grand format. Rien n’est lissé, rien n’est redessiné : ce sont bien leurs traits.</p>
+            <a class="btn btn-primary" href="atelier/">Commencer maintenant</a>
+          </div>
+          <ul>
+            <li>Export JPEG, PNG ou PDF à l’échelle, 300 dpi, aux tailles de toiles et de cadres du commerce.</li>
+            <li>Guide de création en PDF : plan de pose, ordre de collage, fiche de découpe de chaque dessin.</li>
+            <li>Un compte gratuit pour retrouver compositions et exports sur tous vos appareils.</li>
+            <li>Vos dessins restent à vous, dans votre espace, hébergés en Europe.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta wrap">
+      <h2>Les grands souvenirs commencent par un gribouillage.</h2>
+      <div class="actions">
+        <a class="btn btn-primary" href="atelier/">Créer mon œuvre</a>
+        <a class="btn btn-ghost" href="atelier/?exemple">Essayer avec des dessins d’exemple</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span class="values">Créativité <i>·</i> Tendresse <i>·</i> Savoir-faire</span>
+      <nav><a href="atelier/">L’atelier</a><a href="confidentialite.html">Confidentialité</a><a href="mailto:bonjour@atelier-gribouille.com">Contact</a></nav>
+      <span>© Atelier Gribouille</span>
+    </div>
+  </footer>
+</body>
+</html>

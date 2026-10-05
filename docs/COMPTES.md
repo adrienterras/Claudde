@@ -14,7 +14,7 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
    est faite pour le navigateur : elle ne donne accès qu'à ce que les règles RLS autorisent.
 5. **Authentication → URL Configuration** :
    - Site URL : `https://ateliergribouille.art`
-   - Redirect URLs : `https://ateliergribouille.art/**`, `https://adrienterras.github.io/**`,
+   - Redirect URLs : `https://ateliergribouille.art/**` (couvre `/atelier/`), `https://adrienterras.github.io/**`,
      `http://localhost:8781/**` (tests), `http://localhost:8765/**` (développement).
 6. **Authentication → Providers → Email** : laissez « Confirm email » activé (recommandé). Dans la
    même page, section **Password** : « Minimum password length » = **10** et « Required characters » =

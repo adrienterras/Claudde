@@ -3039,7 +3039,7 @@ Réponds uniquement avec ce JSON :
     const go = async () => { if (busy) return; busy = true; try { await loadSamples(m); } finally { busy = false; } };
     $('load-sample').onclick = go;
     $('empty-sample').onclick = go;
-    if (window.COLLAGE_AUTOLOAD) go();
+    if (window.COLLAGE_AUTOLOAD || /[?&]exemple\b/.test(location.search)) go();
   })();
 
   render();
