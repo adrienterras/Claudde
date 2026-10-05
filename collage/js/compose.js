@@ -930,11 +930,11 @@
       const f = Math.min(1, best.inner / Math.max(p.wcm, p.hcm));
       if (f < 1) reduced = true;
       if (p.page) {
-        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f });
+        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f, frame: i });
         return;
       }
       p.placed = true;
-      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f });
+      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, frame: i });
     });
     return { items, bg, frames, kept: items.length + bg.length, cols, rows, reduced };
   }
@@ -1171,7 +1171,20 @@
   // Ajoute une découpe (à l'échelle) dans une composition existante.
   function addPiece(comp, piece, seed) {
     const R = rng(seed);
-    const item = { kind: 'piece', piece, x: comp.W * (0.25 + R() * 0.5), y: comp.H * (0.25 + R() * 0.5), w: piece.wcm * (comp.f || 1), h: piece.hcm * (comp.f || 1), rot: (R() - 0.5) * 0.2, flip: false };
+    let item = null;
+    // en Galerie, la pièce prend un cadre vide : celui qu'elle occupait si possible, sinon le premier libre
+    if (comp.style === 'galerie' && comp.frames && comp.frames.length) {
+      const used = new Set([...comp.items, ...comp.bg].map((L) => L.frame).filter((v) => v !== undefined));
+      let fi = piece.lastFrame !== undefined && !used.has(piece.lastFrame) ? piece.lastFrame : comp.frames.findIndex((f, i) => !used.has(i));
+      if (fi >= 0 && comp.frames[fi]) {
+        const f = comp.frames[fi];
+        const inner = f.w - 3.2;
+        const k = Math.min(1, inner / Math.max(piece.wcm, piece.hcm));
+        item = { kind: 'piece', piece, x: f.x + f.w / 2, y: f.y + f.h / 2, w: piece.wcm * k, h: piece.hcm * k, rot: 0, flip: false, scale: k, frame: fi };
+        if (k < 1) comp.reduced = true;
+      }
+    }
+    if (!item) item = { kind: 'piece', piece, x: comp.W * (0.25 + R() * 0.5), y: comp.H * (0.25 + R() * 0.5), w: piece.wcm * (comp.f || 1), h: piece.hcm * (comp.f || 1), rot: (R() - 0.5) * 0.2, flip: false };
     comp.items.push(item);
     piece.placed = true;
     return item;

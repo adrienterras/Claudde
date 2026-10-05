@@ -51,6 +51,29 @@ test.describe('Compositions', () => {
     expect(g.overlaps).toBe(0);
   });
 
+  test('Galerie : une pièce retirée puis remise revient dans son cadre', async ({ app }) => {
+    const { page } = app;
+    await app.page.locator('#density').fill('1.8');
+    await app.page.waitForTimeout(300);
+    await app.select('galerie');
+    await page.locator('#drawings-section > h2').click();
+    const before = await page.evaluate(() => { const L = AtelierGribouille.state.comp.items[0]; return { id: L.piece.id, x: L.x, y: L.y, w: L.w, frame: L.frame }; });
+    expect(before.frame).toBeDefined();
+    const thumb = page.locator('#pieces .thumb').nth(await page.evaluate((id) => AtelierGribouille.state.drawings.flatMap((d) => d.analysis.pieces || []).findIndex((p) => p.id === id), before.id));
+    // on retire la pièce, puis on la remet
+    await thumb.click();
+    await page.waitForTimeout(200);
+    expect(await page.evaluate((id) => AtelierGribouille.state.comp.items.some((L) => L.piece.id === id), before.id)).toBe(false);
+    await thumb.click();
+    await page.waitForTimeout(200);
+    const after = await page.evaluate((id) => { const L = AtelierGribouille.state.comp.items.find((x) => x.piece.id === id); return L && { x: L.x, y: L.y, w: L.w, frame: L.frame }; }, before.id);
+    expect(after).not.toBeNull();
+    expect(after.frame).toBe(before.frame);
+    expect(after.x).toBeCloseTo(before.x, 3);
+    expect(after.y).toBeCloseTo(before.y, 3);
+    expect(after.w).toBeCloseTo(before.w, 3);
+  });
+
   test('« Nouvelles propositions » change la mise en place, la densité aussi', async ({ app }) => {
     const { page } = app;
     const sig = () => page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.map((L) => [L.x.toFixed(1), L.y.toFixed(1)].join(',')).join(';'));

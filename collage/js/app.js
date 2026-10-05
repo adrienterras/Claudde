@@ -756,6 +756,8 @@
     if (!state.comp) return;
     const inArt = state.comp.items.some((L) => L.piece === p);
     if (inArt) {
+      const L = state.comp.items.find((x) => x.piece === p);
+      if (L && L.frame !== undefined) p.lastFrame = L.frame; // Galerie : pour remettre la pièce dans son cadre
       state.comp.items = state.comp.items.filter((L) => L.piece !== p);
       p.enabled = false;
       p.placed = false;
@@ -2579,8 +2581,8 @@ Réponds uniquement avec ce JSON :
     const idx = (d) => state.drawings.indexOf(d);
     const texOwner = (src) => state.drawings.findIndex((d) => d.analysis.texture && d.analysis.texture.canvas === src);
     const pick = (L, keys) => { const o = {}; keys.forEach((k) => { if (L[k] !== undefined) o[k] = L[k]; }); return o; };
-    const items = comp.items.map((L) => Object.assign({ d: idx(L.piece.drawing), p: L.piece.drawing.analysis.pieces.indexOf(L.piece) }, pick(L, ['x', 'y', 'w', 'h', 'rot', 'flip', 'scale', 'plan'])));
-    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan'])));
+    const items = comp.items.map((L) => Object.assign({ d: idx(L.piece.drawing), p: L.piece.drawing.analysis.pieces.indexOf(L.piece) }, pick(L, ['x', 'y', 'w', 'h', 'rot', 'flip', 'scale', 'plan', 'frame'])));
+    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale']), { items, bg });
     return {
       id: Date.now(), name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
