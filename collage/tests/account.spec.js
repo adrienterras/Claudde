@@ -33,9 +33,15 @@ async function signUpAndIn(page, email, pw, name) {
 }
 
 test.describe('Comptes utilisateurs', () => {
-  test('sans réglage, aucune trace des comptes', async ({ app }) => {
-    await expect(app.page.locator('#account')).toBeHidden();
-    expect(await app.page.locator('#account-section').count()).toBe(0);
+  test('sans réglage, aucune trace des comptes', async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#account')).toBeHidden();
+    expect(await page.locator('#account-section').count()).toBe(0);
+    await ctx.close();
   });
 
   test('inscription par e-mail avec confirmation, puis connexion', async ({ acc }) => {

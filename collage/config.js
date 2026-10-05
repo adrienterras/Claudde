@@ -2,7 +2,7 @@
 // Laisser vide pour désactiver les comptes utilisateurs : l'app fonctionne alors sans connexion,
 // avec les sauvegardes locales uniquement. Voir docs/COMPTES.md pour la mise en place.
 window.ATELIER_CONFIG = {
-  supabaseUrl: '',      // ex. https://abcdefghijkl.supabase.co
-  supabaseAnonKey: '',  // clé « anon public » du projet Supabase
+  supabaseUrl: 'https://yfrerlyndrpfgerkbkyr.supabase.co',
+  supabaseAnonKey: 'sb_publishable_anEQj6_shvidtJSVg0WrTQ_NhznsQHi', // clé publique (publishable) du projet
   contactEmail: 'bonjour@atelier-gribouille.com',
 };

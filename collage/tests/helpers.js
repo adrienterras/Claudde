@@ -11,6 +11,8 @@ const test = base.extend({
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/favicon|net::ERR|InvalidPDFException|Failed to load resource/.test(m.text())) errors.push(`console : ${m.text()}`); });
+    // les tests ordinaires tournent sans service de comptes (config.js vidé)
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille && window.Extract && window.Compose);
     const app = {
