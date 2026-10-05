@@ -78,7 +78,9 @@
 
   function setProgress(done, total, label) {
     const p = $('progress');
-    p.hidden = done >= total;
+    // pendant la réouverture d'une composition, la progression s'affiche sous « Mes compositions »
+    // seulement : la barre du haut ferait sauter la page
+    p.hidden = done >= total || !!state.restoring;
     p.querySelector('div').style.width = `${(100 * done) / Math.max(1, total)}%`;
     p.querySelector('span').textContent = label || `${done} / ${total}`;
     if (state.restoring && label && $('saved-status')) { const el = $('saved-status'); el.textContent = `Réouverture : ${label}`; el.hidden = false; }
@@ -2831,8 +2833,7 @@ Réponds uniquement avec ce JSON :
     regenerate();
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
-    savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? `, ${nEdits} retouche(s) rejouée(s)` : ''}.`);
-    $('compose-section').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    savedStatus(`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? `, ${nEdits} retouche(s) rejouée(s)` : ''}. L’œuvre est affichée sur la toile.`);
   }
 
   $('save-comp').onclick = requireAccount('sauvegarder votre composition', askSaveName);
