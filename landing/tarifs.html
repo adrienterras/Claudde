@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Tarifs — Atelier Gribouille</title>
+  <meta name="description" content="Composer est gratuit. Téléchargez votre œuvre en haute définition à partir de 14,90 €, recevez-la imprimée et encadrée dès 79 €, ou confiez-nous les dessins originaux pour une œuvre réalisée à la main.">
+  <link rel="canonical" href="https://ateliergribouille.art/tarifs.html">
+  <meta property="og:title" content="Tarifs — Atelier Gribouille">
+  <meta property="og:description" content="À télécharger dès 14,90 €, à accrocher dès 79 €, réalisé à la main dès 490 €.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ateliergribouille.art/tarifs.html">
+  <meta property="og:image" content="https://ateliergribouille.art/img/salon-toile.jpg">
+  <meta name="theme-color" content="#f8f5ef">
+  <link rel="icon" type="image/png" sizes="64x64" href="img/favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --craie: #f8f5ef; --surface: #faf7f1; --surface-2: #f0e9dd; --line: #ded3c2; --wall: #ddd3c4;
+      --ink: #2b2a22; --ink-2: #4e4c3e; --muted: #7f7868;
+      --accent: #3e5a4c; --accent-soft: rgba(62, 90, 76, .12); --argile: #c26f56; --blush: #d9a7a0; --olive: #6b6f4e;
+      --f-display: "Playfair Display", Georgia, "Times New Roman", serif; --f-body: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-family: var(--f-body); color: var(--ink); line-height: 1.55; font-size: 16px; -webkit-font-smoothing: antialiased;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.012) 0 1px, transparent 1px 3px), var(--craie); }
+    a { color: inherit; }
+    .wrap { width: min(1120px, 100% - 40px); margin: 0 auto; }
+    /* barre */
+    .nav { position: sticky; top: 0; z-index: 10; background: rgba(248, 245, 239, .86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid rgba(0,0,0,.06); }
+    .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .brand img { width: 36px; height: 36px; }
+    .brand b { font-family: var(--f-display); font-weight: 400; font-size: 1.3rem; }
+    .brand small { display: block; font-size: .62rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink-2); line-height: 1; margin-bottom: 2px; }
+    .nav nav { display: flex; gap: 22px; align-items: center; font-size: .9rem; }
+    .nav nav a { text-decoration: none; color: var(--ink-2); }
+    .nav nav a:hover { color: var(--ink); }
+    .nav nav a.btn-primary, .nav nav a.btn-primary:hover { color: var(--craie); }
+    .lang-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+    .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; line-height: 1.2; }
+    .lang-switch button:hover { color: var(--ink); }
+    .lang-switch button.on { background: var(--ink); color: var(--craie); cursor: default; }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
+    .btn-primary:hover { background: #000; }
+    .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+    .btn-sm { padding: 9px 16px; font-size: .85rem; }
+    .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    /* héros */
+    .kicker { margin: 0 0 14px; font-size: .78rem; letter-spacing: .45em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(2.4rem, 5vw, 3.9rem); line-height: 1.08; letter-spacing: -.005em; }
+    h1 em { font-style: italic; color: var(--accent); }
+    /* sections */
+    h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(1.8rem, 3.2vw, 2.5rem); line-height: 1.15; }
+    footer { border-top: 1px solid var(--line); padding: 30px 0 40px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: center; font-size: .78rem; color: var(--muted); }
+    footer .values i { font-style: normal; color: var(--accent); margin: 0 6px; }
+    footer nav { display: flex; gap: 18px; }
+    footer nav a { text-decoration: none; }
+    footer nav a:hover { text-decoration: underline; }
+    @media (prefers-reduced-motion: reduce) { .rise { animation: none; } html { scroll-behavior: auto; } }
+    @media (max-width: 900px) {
+      .nav nav a.hide-sm { display: none; }
+      .nav .wrap { width: calc(100% - 32px); height: 58px; gap: 10px; }
+      .nav nav { gap: 10px; }
+      .nav nav .btn-sm { white-space: nowrap; padding: 8px 12px; font-size: .8rem; }
+      .lang-switch { flex: none; }
+      .lang-switch button { padding: 5px 7px; font-size: .68rem; letter-spacing: .05em; }
+      .brand b { font-size: 1.15rem; }
+    }
+    
+  
+    /* page tarifs */
+    .head { padding: 64px 0 36px; max-width: 62ch; }
+    .head p { margin: 16px 0 0; color: var(--ink-2); font-size: 1.05rem; }
+    .doors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding-bottom: 56px; }
+    .door { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 26px 26px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 40px -32px rgba(0,0,0,.35); }
+    .door.star { background: var(--ink); color: var(--craie); border-color: var(--ink); }
+    .door.star .muted, .door.star .from { color: rgba(248,245,239,.72); }
+    .door .tag { position: absolute; top: -12px; left: 24px; background: var(--argile); color: #fff; font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px; font-weight: 600; }
+    .door h2 { font-size: 1.7rem; }
+    .door .from { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .door .price { font-family: var(--f-display); font-size: 2.6rem; line-height: 1; margin: 2px 0 6px; }
+    .door .price small { font-family: var(--f-body); font-size: .9rem; margin-left: 4px; }
+    .door ul { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 7px; font-size: .92rem; }
+    .door li { display: flex; gap: 10px; align-items: flex-start; }
+    .door li::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
+    .door.star li::before { background: var(--blush); }
+    .door .btn { margin-top: auto; justify-content: center; }
+    .door.star .btn-primary { background: var(--craie); color: var(--ink); }
+    .door.star .btn-primary:hover { background: #fff; }
+    .muted { color: var(--muted); font-size: .85rem; }
+    .block { padding: 48px 0; border-top: 1px solid var(--line); }
+    .block h2 { margin-bottom: 8px; }
+    .block > .wrap > p { margin: 0 0 24px; color: var(--ink-2); max-width: 64ch; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; font-size: .95rem; }
+    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--surface-2); }
+    tr:last-child td { border-bottom: 0; }
+    td.p { font-family: var(--f-display); font-size: 1.25rem; white-space: nowrap; }
+    td.hl { background: var(--accent-soft); font-weight: 600; }
+    .note { margin: 14px 0 0; font-size: .82rem; color: var(--muted); max-width: 70ch; }
+    .faq { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 32px; }
+    .faq h3 { margin: 0 0 6px; font-family: var(--f-display); font-weight: 400; font-size: 1.15rem; }
+    .faq p { margin: 0; color: var(--ink-2); font-size: .93rem; }
+    .cta { text-align: center; padding: 64px 0 80px; border-top: 1px solid var(--line); }
+    .cta h2 { font-style: italic; }
+    .cta .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+    @media (max-width: 900px) {
+      .head { padding: 40px 0 28px; }
+      .doors { grid-template-columns: 1fr; }
+      .door.star { order: -1; }
+      .faq { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="img/logo-mark.png" alt=""><span><small>Atelier</small><b>Gribouille</b></span></a>
+      <nav>
+        <a class="hide-sm" href="./#chez-vous">Chez vous</a>
+        <a class="hide-sm" href="./#comment">Comment ça marche</a>
+        <a class="hide-sm" href="tarifs.html">Tarifs</a>
+        <a class="btn btn-primary btn-sm" href="atelier/">Ouvrir l’atelier</a>
+        <span class="lang-switch" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="head">
+        <p class="kicker">Tarifs</p>
+        <h1>Composer est gratuit. <em>Le reste est simple.</em></h1>
+        <p>Importez, composez et prévisualisez autant que vous voulez. Vous ne payez que lorsque vous voulez emporter votre œuvre : en fichier, imprimée chez vous, ou réalisée à la main avec les dessins originaux.</p>
+      </div>
+
+      <div class="doors">
+        <article class="door">
+          <span class="from">À télécharger</span>
+          <h2>Mon œuvre HD</h2>
+          <p class="price">14,90 €</p>
+          <ul>
+            <li>Une composition en haute définition (300 dpi), prête à imprimer où vous voulez</li>
+            <li>JPEG, PNG ou PDF à l’échelle, aux tailles de toiles et de cadres du commerce</li>
+            <li>Corrections et nouveaux téléchargements inclus pendant 30 jours</li>
+          </ul>
+          <p class="muted">Avec le guide de découpe et de collage à l’échelle, pour la réaliser vous-même avec les originaux : 24,90 €.</p>
+          <a class="btn btn-ghost" href="atelier/">Composer mon œuvre</a>
+        </article>
+
+        <article class="door star">
+          <span class="tag">Notre préféré</span>
+          <span class="from">À accrocher · dès 79 €</span>
+          <h2>Tableau encadré 50 × 70</h2>
+          <p class="price">129 €</p>
+          <ul>
+            <li>Impression d’art sur papier premium, encadrée, prête à accrocher</li>
+            <li>Livraison standard incluse en France métropolitaine</li>
+            <li>Le fichier HD offert avec chaque commande</li>
+          </ul>
+          <p class="muted">Aussi en 30 × 40 et 70 × 100, sur papier seul ou sur toile : grille ci-dessous.</p>
+          <a class="btn btn-primary" href="mailto:bonjour@atelier-gribouille.com?subject=Commande%20%E2%80%94%20tableau%20encadr%C3%A9">Commander</a>
+        </article>
+
+        <article class="door">
+          <span class="from">Réalisé à la main · dès 490 €</span>
+          <h2>Atelier Signature</h2>
+          <p class="price">490 €</p>
+          <ul>
+            <li>Toile 50 × 70, jusqu’à 20 dessins originaux numérisés, découpés et collés à la main</li>
+            <li>Validation de la composition avant découpe, une série de modifications</li>
+            <li>Fichiers numérisés et retour des dessins non utilisés inclus</li>
+          </ul>
+          <p class="muted">Grand format 70 × 100, jusqu’à 30 dessins : 690 €. Encadrement en supplément.</p>
+          <a class="btn btn-ghost" href="mailto:bonjour@atelier-gribouille.com?subject=Atelier%20Signature">Demander un devis</a>
+        </article>
+      </div>
+    </div>
+
+    <section class="block" id="impressions">
+      <div class="wrap">
+        <h2>Imprimée et livrée chez vous</h2>
+        <p>Prix TTC, livraison standard incluse en France métropolitaine. Le fichier HD est inclus avec chaque commande.</p>
+        <table>
+          <thead><tr><th>Taille</th><th>Papier premium, sans cadre</th><th>Encadré, prêt à accrocher</th><th>Toile sur châssis</th></tr></thead>
+          <tbody>
+            <tr><td>30 × 40 cm</td><td class="p">39 €</td><td class="p">79 €</td><td class="p">69 €</td></tr>
+            <tr><td>50 × 70 cm</td><td class="p">59 €</td><td class="p hl">129 €</td><td class="p">109 €</td></tr>
+            <tr><td>70 × 100 cm</td><td class="p">89 €</td><td class="p">199 €</td><td class="p">169 €</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Chaque impression est préparée à partir de vos scans relus en pleine définition : les traits restent nets, même en grand format. Autres tailles et formats beaux-arts sur demande.</p>
+      </div>
+    </section>
+
+    <section class="block" id="signature">
+      <div class="wrap">
+        <h2>Réalisée à la main, avec les originaux</h2>
+        <p>Vous nous confiez les dessins ; nous les numérisons, composons avec vous, puis découpons et collons les originaux sur la toile. Il n’en existe qu’une.</p>
+        <table>
+          <thead><tr><th>Offre</th><th>Ce qui est compris</th><th>Prix</th></tr></thead>
+          <tbody>
+            <tr><td>Atelier Signature</td><td>Toile 50 × 70 cm, jusqu’à 20 dessins : numérisation, composition, découpe et collage à la main</td><td class="p">490 €</td></tr>
+            <tr><td>Atelier Signature Grand</td><td>Toile 70 × 100 cm, jusqu’à 30 dessins</td><td class="p">690 €</td></tr>
+            <tr><td>Projet exceptionnel</td><td>Très grand format, nombreux dessins, commande collective</td><td class="p">Sur devis</td></tr>
+          </tbody>
+        </table>
+        <p class="note">Compris : validation de la composition avant toute découpe, une série de modifications, les fichiers numérisés et le retour des dessins non utilisés. Encadrement en supplément.</p>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <h2>Questions fréquentes</h2>
+        <div class="faq" style="margin-top:24px">
+          <div><h3>Dois-je payer pour essayer ?</h3><p>Non. Importer, composer, retoucher et prévisualiser l’œuvre sur la toile ou dans une photo de votre salon est gratuit, sans limite de temps.</p></div>
+          <div><h3>Que signifie « par composition » ?</h3><p>Vous payez une fois pour une composition donnée. Pendant 30 jours, vous pouvez la corriger et la retélécharger autant que nécessaire, sans abonnement.</p></div>
+          <div><h3>Puis-je faire imprimer le fichier ailleurs ?</h3><p>Oui. Le fichier HD est à vous : 300 dpi, aux dimensions exactes des toiles et cadres du commerce, avec un PDF à l’échelle si vous préférez.</p></div>
+          <div><h3>Les dessins originaux sont-ils abîmés ?</h3><p>Pour les impressions, jamais : seuls les scans sont utilisés. Pour l’Atelier Signature, les originaux sont découpés et collés sur la toile ; ceux qui ne sont pas utilisés vous sont rendus.</p></div>
+          <div><h3>Livrez-vous hors de France ?</h3><p>Les tarifs affichés incluent la livraison standard en France métropolitaine. Pour l’Europe, écrivez-nous : nous établissons un devis de transport.</p></div>
+          <div><h3>Et pour un cadeau ?</h3><p>Le tableau encadré 50 × 70 est pensé pour ça : prêt à accrocher, livré protégé. Indiquez-nous une adresse de livraison différente lors de la commande.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="wrap">
+        <h2>Commencez par composer, c’est gratuit.</h2>
+        <div class="actions">
+          <a class="btn btn-primary" href="atelier/">Créer mon œuvre</a>
+          <a class="btn btn-ghost" href="atelier/?exemple">Voir un exemple</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span class="values">Créativité <i>·</i> Tendresse <i>·</i> Savoir-faire</span>
+      <nav><a href="atelier/">L’atelier</a><a href="tarifs.html">Tarifs</a><a href="confidentialite.html">Confidentialité</a><a href="mailto:bonjour@atelier-gribouille.com">Contact</a></nav>
+      <span>© Atelier Gribouille</span>
+    </div>
+  </footer>
+  <script src="i18n.js"></script>
+  <script src="atelier/config.js"></script>
+  <script src="atelier/js/analytics.js"></script>
+</body>
+</html>
