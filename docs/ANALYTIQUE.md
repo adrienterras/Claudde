@@ -23,7 +23,7 @@ l'adresse dans `analytics.host`.
 - Page d'accueil et application : visites, pages vues, sources, pays, appareils (agrégés).
 - Dans l'application, des compteurs d'usage, jamais de contenu : `Import` (nombre de fichiers,
   plafonné à 50), `Exemple`, `Proposition` (style), `Export` (type et qualité), `Sauvegarde`,
-  `Inscription` (via e-mail, Google ou Facebook). Ils apparaissent dans l'onglet **Events** du
+  `Inscription` (via e-mail ou Google). Ils apparaissent dans l'onglet **Events** du
   tableau de bord, avec leurs propriétés.
 - Rien n'est envoyé depuis `localhost`, les tests ni l'artefact de démonstration.
 

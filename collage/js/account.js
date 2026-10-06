@@ -1,5 +1,5 @@
 /*
- * Comptes utilisateurs (Supabase Auth + Storage) : inscription et connexion par Google, Facebook ou
+ * Comptes utilisateurs (Supabase Auth + Storage) : inscription et connexion par Google ou
  * e-mail, gestion du compte (nom, e-mail, mot de passe, déconnexion, suppression), et compositions
  * sauvegardées dans le compte. Sans réglage dans config.js, le module reste inactif et l'app
  * fonctionne comme avant (sauvegardes locales).

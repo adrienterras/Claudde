@@ -83,20 +83,18 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#acc-menu .acc-name')).toHaveText('Camille');
   });
 
-  test('Google et Facebook déclenchent la connexion déléguée, lien magique et mot de passe oublié envoient un e-mail', async ({ acc }) => {
+  test('Google déclenche la connexion déléguée, lien magique et mot de passe oublié envoient un e-mail', async ({ acc }) => {
     const { page } = acc;
     await page.locator('#acc-open').click();
     await page.locator('.social-btn[data-provider="google"]').click();
-    await page.locator('.social-btn[data-provider="facebook"]').click();
     await page.fill('#auth-email', 'x@example.org');
     await page.locator('#auth-magic').click();
     await expect(page.locator('#acc-status')).toContainText('lien de connexion');
     await page.locator('#auth-forgot').click();
     await expect(page.locator('#acc-status')).toContainText('nouveau mot de passe');
     const calls = await page.evaluate(() => window.__fake.calls);
-    expect(calls.map((c) => c[0])).toEqual(['oauth', 'oauth', 'otp', 'reset']);
+    expect(calls.map((c) => c[0])).toEqual(['oauth', 'otp', 'reset']);
     expect(calls[0][1]).toBe('google');
-    expect(calls[1][1]).toBe('facebook');
     expect(calls[0][2]).toMatch(/^http:\/\/localhost:\d+\/index\.html$/);
   });
 

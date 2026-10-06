@@ -1,6 +1,6 @@
 # Comptes utilisateurs — mise en place
 
-L'app reste un site statique : les comptes (Google, Facebook, e-mail) et le stockage des compositions
+L'app reste un site statique : les comptes (Google, e-mail) et le stockage des compositions
 passent par [Supabase](https://supabase.com), un service hébergé qui peut être choisi en Europe.
 Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
 
@@ -38,22 +38,9 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
      dans Supabase → Authentication → Providers → Google).
 4. Copiez Client ID et Client Secret dans Supabase → Providers → **Google** → Enable → Save.
 
-## 3. Facebook (20 min, puis validation par Meta)
+## 3. Vérifier
 
-1. [developers.facebook.com](https://developers.facebook.com) → My Apps → **Create App** → cas d'usage
-   « Authenticate and request data from users with Facebook Login » → type Consommateur.
-2. Ajoutez le produit **Facebook Login** → Settings : « Valid OAuth Redirect URIs » =
-   `https://<ref>.supabase.co/auth/v1/callback`.
-3. App Settings → **Basic** : App Domains `ateliergribouille.art`, Privacy Policy URL
-   `https://ateliergribouille.art/confidentialite.html`, User data deletion : URL
-   `https://ateliergribouille.art/confidentialite.html#suppression` (instructions), catégorie, icône 1024 × 1024.
-4. Copiez App ID et App Secret dans Supabase → Providers → **Facebook** → Enable → Save.
-5. Passez l'app en mode **Live** (bouton en haut). Les permissions `email` et `public_profile` sont
-   accordées par défaut ; Meta peut demander une vérification de l'entreprise pour certains comptes.
-
-## 4. Vérifier
-
-- Ouvrez le site, cliquez « Se connecter ou créer un compte » : les trois modes doivent fonctionner.
+- Ouvrez le site, cliquez « Se connecter ou créer un compte » : les deux modes (Google, e-mail) doivent fonctionner.
 - Sauvegardez une composition : elle apparaît avec la mention « mon compte » et se rouvre depuis un
   autre navigateur connecté au même compte.
 - « Supprimer mon compte » efface les fichiers, les compositions et le compte (fonction `delete_account`).

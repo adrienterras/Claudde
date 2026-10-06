@@ -2966,7 +2966,7 @@ Réponds uniquement avec ce JSON :
       }
       busy(() => A.deleteAccount(), tr('Compte supprimé. Vos sauvegardes locales sont conservées.'));
     };
-    const PROVIDERS = { google: 'Google', facebook: 'Facebook', email: tr('votre e-mail') };
+    const PROVIDERS = { google: 'Google', email: tr('votre e-mail') };
     let wasSigned = null;
     A.onChange((u, info) => {
       const signed = !!u, recovering = !!(info && info.recovering);

@@ -187,7 +187,7 @@ zone d'import et dans l'écran d'accueil ; sans ce dossier, rien n'est proposé.
 dépôt contient un jeu de 19 dessins de synthèse (14 sujets au feutre et au crayon, 5 pages peintes),
 générés par `samples/make_samples.py` : aucun auteur, aucune donnée personnelle, aucun dessin d'enfant réel.
 
-**Comptes utilisateurs** (optionnels) : inscription et connexion par Google, Facebook ou e-mail (mot de
+**Comptes utilisateurs** (optionnels) : inscription et connexion par Google ou e-mail (mot de
 passe, ou lien de connexion sans mot de passe), gestion du compte (nom affiché, e-mail, mot de passe,
 déconnexion, suppression définitive en deux clics, lien « mot de passe oublié »). Quand les comptes
 sont actifs, télécharger une œuvre, créer le guide et sauvegarder une composition demandent d'être

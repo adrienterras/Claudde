@@ -24,7 +24,6 @@
     'Se connecter ou créer un compte': 'Sign in or create an account',
     'Retrouvez vos compositions sur tous vos appareils.': 'Find your compositions on all your devices.',
     'Continuer avec Google': 'Continue with Google',
-    'Continuer avec Facebook': 'Continue with Facebook',
     'ou': 'or',
     'J’ai déjà un compte': 'I already have an account',
     'Créer un compte': 'Create an account',
