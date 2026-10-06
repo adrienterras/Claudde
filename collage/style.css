@@ -512,7 +512,9 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   border: 0; border-radius: 999px; background: none; font-size: 1.05rem; cursor: pointer;
 }
 .zoom button:hover { background: var(--accent-soft); }
-.zoom button.mode { width: auto; padding: 0 10px; font-size: 0.74rem; font-weight: 600; letter-spacing: .02em; }
+.zoom button.mode { width: auto; padding: 0 10px; font-size: 0.74rem; font-weight: 600; letter-spacing: .02em; display: inline-flex; gap: 6px; }
+.zoom button.mode .ico { width: 16px; height: 16px; }
+.zoom button.mode[aria-pressed="true"] { background: var(--ink); color: var(--craie); }
 body.bg-mode .stage { outline: 2px dashed var(--olive); outline-offset: -2px; }
 .zoom button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
 .zoom-val { min-width: 48px; text-align: center; font-family: var(--f-mono); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -668,7 +670,8 @@ body.editing { overflow: hidden; }
   .zoom button { width: 32px; height: 32px; }
   .zoom-val { min-width: 0; font-size: 0.6rem; text-align: center; padding: 2px 0; }
   .label { bottom: 10px; max-width: calc(100% - 20px); }
-  .zoom button.mode { width: 32px; height: auto; padding: 6px 2px; font-size: 0.56rem; line-height: 1.1; white-space: normal; border-radius: 12px; }
+  .zoom button.mode { width: 32px; height: 32px; padding: 0; border-radius: 999px; }
+  .zoom button.mode span { display: none; }
   .density-bar { left: 10px; bottom: 68px; padding: 6px 12px; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }

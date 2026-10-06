@@ -1550,7 +1550,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     document.body.classList.toggle('bg-mode', state.bgMode);
     const b = $('bg-mode');
     b.setAttribute('aria-pressed', state.bgMode ? 'true' : 'false');
-    b.textContent = state.bgMode ? tr('Tout voir') : tr('Fond seul');
+    b.querySelector('span').textContent = state.bgMode ? tr('Tout voir') : tr('Fond seul');
+    b.title = state.bgMode ? tr('Revenir à l’œuvre complète') : tr('Ne voir que le fond et déplacer ses pages');
     $('stage-tip').textContent = state.bgMode
       ? tr('Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes')
       : tr('Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer');

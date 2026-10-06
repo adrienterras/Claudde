@@ -128,6 +128,7 @@
     'Plein écran': 'Full screen',
     'Ne voir que le fond et déplacer ses pages': 'Show only the background and move its pages',
     'Fond seul': 'Background only',
+    'Revenir à l’œuvre complète': 'Back to the whole artwork',
     'Densité': 'Density',
     '16 dessins': '16 drawings',
     'Les grands souvenirs commencent par un gribouillage.': 'Great memories start with a scribble.',
