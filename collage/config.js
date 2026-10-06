@@ -7,5 +7,5 @@ window.ATELIER_CONFIG = {
   contactEmail: 'bonjour@atelier-gribouille.com',
   // mesure d'audience sans cookies, Umami Cloud (gratuit) : coller l'identifiant du site (Website ID)
   // donné par Umami ; vide = désactivée. Voir docs/ANALYTIQUE.md
-  analytics: { provider: 'umami', websiteId: '', host: 'https://cloud.umami.is' },
+  analytics: { provider: 'umami', websiteId: '8428c303-3200-487c-b30c-964e4f569442', host: 'https://cloud.umami.is' },
 };
