@@ -15,6 +15,9 @@
     return Math.round(Math.max(SOURCE_MIN, Math.min(mobile ? SOURCE_CAP_PHONE : SOURCE_CAP, long)));
   }
   const $ = (id) => document.getElementById(id);
+  // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const safeData = (u) => (typeof u === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(u) ? u : '');
 
   // Capteur d'erreur global : une erreur imprévue (hors des zones déjà protégées) n'est jamais
   // silencieuse. Elle s'affiche en haut de la page, avec son détail à copier pour la signaler.
@@ -658,7 +661,7 @@
     box.innerHTML = `
       <img src="${d.thumb}" alt="">
       <div>
-        <p class="name">${d.ai ? `${d.ai.sujet} <small>· ${d.ai.zone}</small><br>` : ''}<small>${d.name}</small></p>
+        <p class="name">${d.ai ? `${esc(d.ai.sujet)} <small>· ${esc(d.ai.zone)}</small><br>` : ''}<small>${esc(d.name)}</small></p>
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
         <label class="row">${tr('Orientation')}
           <select data-orient>
@@ -1238,7 +1241,7 @@
       b.className = `proposal${i === state.active ? ' on' : ''}`;
       b.setAttribute('aria-pressed', i === state.active ? 'true' : 'false');
       const t = titleFor(pr.style.id);
-      const sub = t ? `« ${t} »` : (pr.comp.total ? tr`${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
+      const sub = t ? `« ${esc(t)} »` : (pr.comp.total ? tr`${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
       b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${sub}</small>`;
       b.onclick = () => selectProposal(i);
       box.appendChild(b);
@@ -2704,7 +2707,7 @@ Réponds uniquement avec ce JSON :
       const st = STYLES.find((x) => x.id === rec.comp.style);
       const nD = rec.nDrawings !== undefined ? rec.nDrawings : rec.drawings.length;
       const where = rec.cloud ? tr('<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>') : '';
-      el.innerHTML = tr`<img src="${rec.thumb}" alt=""><div><p class="saved-name">${rec.name.replace(/</g, '&lt;')}${where}</p><p class="saved-meta">${st ? st.name : rec.comp.style} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString(I18n.locale)}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+      el.innerHTML = tr`<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name">${esc(rec.name)}${where}</p><p class="saved-meta">${st ? st.name : esc(rec.comp.style)} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString(I18n.locale)}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
       // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
       const del = el.querySelector('.saved-del');
       del.onclick = async (e) => {
@@ -2740,7 +2743,7 @@ Réponds uniquement avec ce JSON :
       const size = r.size ? `${Math.round(r.size / 1024 / 1024 * 10) / 10} Mo` : '';
       const dims = r.width && r.height ? `${r.width} × ${r.height} px` : '';
       const meta = [KIND[r.kind] || r.kind, r.dpi ? `${r.dpi} dpi` : '', dims, size, when.toLocaleDateString(I18n.locale)].filter(Boolean).join(' · ');
-      el.innerHTML = tr`${r.thumb ? `<img src="${r.thumb}" alt="">` : `<span class="saved-kind">${KIND[r.kind] || r.kind}</span>`}<div><p class="saved-name">${(r.comp_name || r.name).replace(/</g, '&lt;')}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button class="saved-dl" title="Retélécharger" aria-label="Retélécharger"><svg class="ico"><use href="#i-download"/></svg></button><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
+      el.innerHTML = tr`${safeData(r.thumb) ? `<img src="${safeData(r.thumb)}" alt="">` : `<span class="saved-kind">${esc(KIND[r.kind] || r.kind)}</span>`}<div><p class="saved-name">${esc(r.comp_name || r.name)}</p><p class="saved-meta">${esc(meta)}</p></div><span class="saved-actions"><button class="saved-dl" title="Retélécharger" aria-label="Retélécharger"><svg class="ico"><use href="#i-download"/></svg></button><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
       el.querySelector('.saved-dl').onclick = async (e) => {
         e.stopPropagation();
         try { exportsStatus(tr('Téléchargement…')); const blob = await A.exports.blob(r.path); await saveFile(blob, r.name); exportsStatus(''); }
