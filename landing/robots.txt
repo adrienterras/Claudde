@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /atelier/vendor/
+Disallow: /atelier/samples/
+
+Sitemap: https://ateliergribouille.art/sitemap.xml

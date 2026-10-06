@@ -13,6 +13,8 @@
 
   const EN = {
     // ---------- index.html ----------
+    'Atelier Gribouille — l’atelier': 'Atelier Gribouille — the studio',
+    'Importez les dessins scannés de vos enfants : l’atelier les découpe à leur taille réelle et compose six propositions, à imprimer sur toile en 300 dpi ou à réaliser à la main avec les originaux.': 'Import your children’s scanned drawings: the studio cuts them out at their real size and composes six proposals, to print on canvas at 300 dpi or to make by hand with the originals.',
     'Les dessins d’enfants': 'Children’s drawings',
     'deviennent des œuvres d’art': 'become works of art',
     'Monogramme Atelier Gribouille': 'Atelier Gribouille monogram',
