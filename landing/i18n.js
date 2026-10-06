@@ -147,7 +147,19 @@
     "Les tarifs affichés incluent la livraison standard en France métropolitaine. Pour l’Europe, écrivez-nous : nous établissons un devis de transport.": "The prices shown include standard delivery in mainland France. For Europe, write to us: we will quote the shipping.",
     "Et pour un cadeau ?": "What about a gift?",
     "Le tableau encadré 50 × 70 est pensé pour ça : prêt à accrocher, livré protégé. Indiquez-nous une adresse de livraison différente lors de la commande.": "The 50 × 70 framed print is made for that: ready to hang, delivered protected. Give us a different delivery address when ordering.",
-    "Commencez par composer, c’est gratuit.": "Start by composing, it’s free."
+    "Commencez par composer, c’est gratuit.": "Start by composing, it’s free.",
+    // kit DIY
+    "Pour la réaliser vous-même avec les originaux : le guide de découpe à 24,90 €, ou le kit complet avec toile et fournitures à 89 €.": "To make it yourself with the originals: the cutting guide at €24.90, or the complete kit with canvas and supplies at €89.",
+    "Réalisée par vous, avec les originaux": "Made by you, with the originals",
+    "Vous composez dans l’atelier, puis vous découpez et collez les vrais dessins vous-même. Deux façons de s’y mettre.": "You compose in the studio, then cut out and glue the real drawings yourself. Two ways to get started.",
+    "Mon atelier DIY": "My DIY studio",
+    "Le fichier HD et le guide de création personnalisé en PDF : taille de la toile, plan de pose à l’échelle 1, ordre de collage et, pour chaque dessin, sa fiche de découpe avec le trait de coupe et ses cotes": "The HD file and the personalised making-of guide as a PDF: canvas size, 1:1 layout plan, gluing order and, for each drawing, its cutting sheet with the cut line and measurements",
+    "24,90 €": "€24.90",
+    "Le kit DIY 50 × 70": "The DIY kit 50 × 70",
+    "Tout ce qu’il faut, livré chez vous : la toile vierge sur châssis 50 × 70 cm, le guide personnalisé imprimé, les gabarits de découpe à l’échelle et les fournitures de collage (colle, pinceau, vernis de finition). Vous utilisez vos dessins originaux": "Everything you need, delivered to your door: the blank 50 × 70 cm stretched canvas, the printed personalised guide, the to-scale cutting templates and the gluing supplies (glue, brush, finishing varnish). You use your original drawings",
+    "Un après-midi en famille, et une œuvre unique faite de leurs vrais traits. Livraison standard incluse en France métropolitaine pour le kit.": "One family afternoon, and a unique artwork made of their real lines. Standard delivery included in mainland France for the kit.",
+    "Commander le kit": "Order the kit",
+    "Composer d’abord": "Compose first"
   };
 
   var KEY = 'atelier-gribouille:lang';
