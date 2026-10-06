@@ -79,16 +79,16 @@
     /* page tarifs */
     .head { padding: 64px 0 36px; max-width: 62ch; }
     .head p { margin: 16px 0 0; color: var(--ink-2); font-size: 1.05rem; }
-    .doors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding-bottom: 56px; }
-    .door { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 26px 26px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 40px -32px rgba(0,0,0,.35); }
+    .doors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; padding-bottom: 56px; }
+    .door { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 22px 24px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 40px -32px rgba(0,0,0,.35); }
     .door.star { background: var(--ink); color: var(--craie); border-color: var(--ink); }
     .door.star .muted, .door.star .from { color: rgba(248,245,239,.72); }
     .door .tag { position: absolute; top: -12px; left: 24px; background: var(--argile); color: #fff; font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px; font-weight: 600; }
-    .door h2 { font-size: 1.7rem; }
+    .door h2 { font-size: 1.45rem; }
     .door .from { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-    .door .price { font-family: var(--f-display); font-size: 2.6rem; line-height: 1; margin: 2px 0 6px; }
+    .door .price { font-family: var(--f-display); font-size: 2.3rem; line-height: 1; margin: 2px 0 6px; }
     .door .price small { font-family: var(--f-body); font-size: .9rem; margin-left: 4px; }
-    .door ul { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 7px; font-size: .92rem; }
+    .door ul { margin: 0 0 8px; padding: 0; list-style: none; display: grid; gap: 7px; font-size: .88rem; }
     .door li { display: flex; gap: 10px; align-items: flex-start; }
     .door li::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: 8px; }
     .door.star li::before { background: var(--blush); }
@@ -112,6 +112,7 @@
     .cta { text-align: center; padding: 64px 0 80px; border-top: 1px solid var(--line); }
     .cta h2 { font-style: italic; }
     .cta .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+    @media (min-width: 901px) and (max-width: 1180px) { .doors { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 900px) {
       .head { padding: 40px 0 28px; }
       .doors { grid-template-columns: 1fr; }
@@ -153,7 +154,7 @@
             <li>JPEG, PNG ou PDF à l’échelle, aux tailles de toiles et de cadres du commerce</li>
             <li>Corrections et nouveaux téléchargements inclus pendant 30 jours</li>
           </ul>
-          <p class="muted">Pour la réaliser vous-même avec les originaux : le guide de découpe à 24,90 €, ou le kit complet avec toile et fournitures à 89 €.</p>
+          <p class="muted">Un seul achat par composition, sans abonnement. Le fichier est à vous : imprimez-le où vous voulez.</p>
           <a class="btn btn-ghost" href="atelier/">Composer mon œuvre</a>
         </article>
 
@@ -169,6 +170,19 @@
           </ul>
           <p class="muted">Aussi en 30 × 40 et 70 × 100, sur papier seul ou sur toile : grille ci-dessous.</p>
           <a class="btn btn-primary" href="mailto:bonjour@atelier-gribouille.com?subject=Commande%20%E2%80%94%20tableau%20encadr%C3%A9">Commander</a>
+        </article>
+
+        <article class="door">
+          <span class="from">À réaliser vous-même · dès 24,90 €</span>
+          <h2>Le kit DIY 50 × 70</h2>
+          <p class="price">89 €</p>
+          <ul>
+            <li>La toile vierge sur châssis, le guide personnalisé imprimé et les gabarits de découpe à l’échelle</li>
+            <li>Les fournitures de collage : colle, pinceau, vernis de finition</li>
+            <li>Vous découpez et collez vos dessins originaux, livraison incluse</li>
+          </ul>
+          <p class="muted">Guide seul, en PDF avec le fichier HD : 24,90 €.</p>
+          <a class="btn btn-ghost" href="mailto:bonjour@atelier-gribouille.com?subject=Commande%20%E2%80%94%20kit%20DIY%2050%20%C3%97%2070">Commander le kit</a>
         </article>
 
         <article class="door">

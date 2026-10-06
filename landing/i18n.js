@@ -159,7 +159,14 @@
     "Tout ce qu’il faut, livré chez vous : la toile vierge sur châssis 50 × 70 cm, le guide personnalisé imprimé, les gabarits de découpe à l’échelle et les fournitures de collage (colle, pinceau, vernis de finition). Vous utilisez vos dessins originaux": "Everything you need, delivered to your door: the blank 50 × 70 cm stretched canvas, the printed personalised guide, the to-scale cutting templates and the gluing supplies (glue, brush, finishing varnish). You use your original drawings",
     "Un après-midi en famille, et une œuvre unique faite de leurs vrais traits. Livraison standard incluse en France métropolitaine pour le kit.": "One family afternoon, and a unique artwork made of their real lines. Standard delivery included in mainland France for the kit.",
     "Commander le kit": "Order the kit",
-    "Composer d’abord": "Compose first"
+    "Composer d’abord": "Compose first",
+    // carte kit DIY
+    "À réaliser vous-même · dès 24,90 €": "To make yourself · from €24.90",
+    "La toile vierge sur châssis, le guide personnalisé imprimé et les gabarits de découpe à l’échelle": "The blank stretched canvas, the printed personalised guide and the to-scale cutting templates",
+    "Les fournitures de collage : colle, pinceau, vernis de finition": "The gluing supplies: glue, brush, finishing varnish",
+    "Vous découpez et collez vos dessins originaux, livraison incluse": "You cut out and glue your original drawings, delivery included",
+    "Guide seul, en PDF avec le fichier HD : 24,90 €.": "Guide alone, as a PDF with the HD file: €24.90.",
+    "Un seul achat par composition, sans abonnement. Le fichier est à vous : imprimez-le où vous voulez.": "One purchase per composition, no subscription. The file is yours: print it wherever you like."
   };
 
   var KEY = 'atelier-gribouille:lang';
