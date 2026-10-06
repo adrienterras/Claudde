@@ -51,6 +51,8 @@
     .btn-primary:hover { background: #000; }
     .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
     .btn-sm { padding: 9px 16px; font-size: .85rem; }
+    .btn-sm .short { display: none; }
+    @media (max-width: 900px) { .btn-sm .short { display: inline; } }
     .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     /* héros */
     .kicker { margin: 0 0 14px; font-size: .78rem; letter-spacing: .45em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
@@ -70,6 +72,16 @@
       .nav .wrap { width: calc(100% - 32px); height: 58px; gap: 10px; }
       .nav nav { gap: 10px; }
       .nav nav .btn-sm { white-space: nowrap; padding: 8px 12px; font-size: .8rem; }
+      .nav nav .nav-tarifs { font-size: .85rem; white-space: nowrap; }
+      .nav nav .btn-sm .full { display: none; }
+    }
+    @media (max-width: 380px) {
+      .nav .wrap { width: calc(100% - 24px); gap: 8px; }
+      .nav nav { gap: 8px; }
+      .nav nav .btn-sm { padding: 8px 10px; }
+      .lang-switch button { padding: 5px 6px; }
+      .brand img { width: 30px; height: 30px; }
+      .brand small { display: none; }
       .lang-switch { flex: none; }
       .lang-switch button { padding: 5px 7px; font-size: .68rem; letter-spacing: .05em; }
       .brand b { font-size: 1.15rem; }
@@ -129,8 +141,8 @@
       <nav>
         <a class="hide-sm" href="./#chez-vous">Chez vous</a>
         <a class="hide-sm" href="./#comment">Comment ça marche</a>
-        <a class="hide-sm" href="tarifs.html">Tarifs</a>
-        <a class="btn btn-primary btn-sm" href="atelier/">Ouvrir l’atelier</a>
+        <a class="nav-tarifs" href="tarifs.html">Tarifs</a>
+        <a class="btn btn-primary btn-sm" href="atelier/"><span class="full">Ouvrir l’atelier</span><span class="short">L’atelier</span></a>
         <span class="lang-switch" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
       </nav>
     </div>
