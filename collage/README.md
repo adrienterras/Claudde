@@ -238,6 +238,8 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
   et dans les modules, via `tr('…')` ou tr`… ${valeur}`) ; le dictionnaire anglais est dans ce fichier.
   Langue choisie par `?lang=fr|en` (mémorisé), sinon le choix mémorisé, sinon celle du navigateur ;
   sélecteur FR / EN sous le logo. `node tests/i18n-check.js` vérifie qu'aucun texte n'est sans traduction.
+- `js/analytics.js` : mesure d'audience sans cookies (Plausible), activée par `analytics` dans
+  `config.js` ; quelques compteurs d'usage via `Atelier.track`. Voir `docs/ANALYTIQUE.md`.
 - `js/editor.js` : éditeur de découpe (masque en pixels de la page, historique, zoom tactile).
 - `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
 - `assets/` : éléments de la charte Atelier Gribouille (monogramme détouré, motif de crayons, pictogrammes).

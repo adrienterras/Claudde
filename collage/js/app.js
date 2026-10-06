@@ -158,6 +158,7 @@
 
   async function importFiles(files, sizes, opts) {
     let pages = [];
+    if (!state.restoring && !(opts && opts.sample)) window.Atelier.track('Import', { fichiers: Math.min(files.length, 50) });
     state.sceneLayout = null;
     state.pinned = null;
     notice('');
@@ -1343,6 +1344,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   function selectProposal(i) {
     state.active = i;
+    if (state.proposals[i]) window.Atelier.track('Proposition', { style: state.proposals[i].style.id });
     if (state.proposals[i] && state.proposals[i].style.id === 'scene') analyseForScene();
     state.zoom = { z: 1, px: 0, py: 0 };
     state.comp = state.proposals[i].comp;
@@ -1844,6 +1846,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // Un export (image, PDF, guide) est aussi gardé dans le compte quand l'utilisateur est connecté.
   async function recordExport(blob, filename) {
+    window.Atelier.track('Export', { type: /\.pdf$/i.test(filename) ? (/guide/.test(filename) ? 'guide' : 'pdf') : 'image', qualite: $('dpi').value });
     const A = window.Account;
     if (!(A && A.enabled && A.user()) || !state.comp) return;
     try {
@@ -2516,6 +2519,7 @@ Réponds uniquement avec ce JSON :
 
   // Dessins d'exemple fournis avec la page ou trouvés à côté de l'app : importés sur demande.
   async function loadSamples(m) {
+    window.Atelier.track('Exemple');
     try {
       setProgress(0, 1, tr('Chargement des dessins d’exemple…'));
       const files = await Promise.all(m.pages.map(async (p) => {
@@ -2526,7 +2530,7 @@ Réponds uniquement avec ce JSON :
       const sizes = {};
       m.pages.forEach((p) => { if (p.sizeCm) sizes[p.name] = p.sizeCm; });
       const before = new Set(state.drawings);
-      await importFiles(files, sizes);
+      await importFiles(files, sizes, { sample: true });
       state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
       $('sample-note').hidden = false;
       $('sample-offer').hidden = true;
@@ -2655,6 +2659,7 @@ Réponds uniquement avec ce JSON :
   }
   async function saveComposition(name) {
     if (!state.comp || !state.drawings.length) return;
+    window.Atelier.track('Sauvegarde');
     $('save-form').hidden = true;
     saveStatus(tr('Sauvegarde de la composition…'));
     try {
@@ -2920,7 +2925,7 @@ Réponds uniquement avec ce JSON :
       try { status(tr('Un instant…')); await fn(); if (okMsg !== null) status(okMsg || ''); }
       catch (e) { console.error(e); status(e.message || 'Une erreur est survenue.', true); }
     };
-    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => busy(() => A.signInWith(b.dataset.provider), tr('Redirection vers la connexion…')); });
+    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => { window.Atelier.track('Inscription', { via: b.dataset.provider }); busy(() => A.signInWith(b.dataset.provider), tr('Redirection vers la connexion…')); }; });
     $('auth-form').onsubmit = (e) => {
       e.preventDefault();
       const email = $('auth-email').value.trim(), pw = $('auth-password').value;
@@ -2929,6 +2934,7 @@ Réponds uniquement avec ce JSON :
         busy(async () => {
           strongOrThrow(pw, { email, name: $('auth-name').value });
           const r = await A.signUpEmail(email, pw, $('auth-name').value.trim());
+          window.Atelier.track('Inscription', { via: 'email' });
           if (r.needsConfirm) { setMode('signin'); status(tr`Compte créé : confirmez votre e-mail avec le lien envoyé à ${email}, puis connectez-vous.`); }
         }, null);
       } else {
