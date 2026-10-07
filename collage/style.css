@@ -705,7 +705,9 @@ body.editing { overflow: hidden; }
     background: var(--surface); border-bottom: 1px solid var(--line);
   }
   .sheet-tabs::before { content: ""; position: absolute; top: 4px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line); }
-  .sheet-tabs button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 1px 6px; border: 0; background: none; color: var(--muted); font-size: 0.58rem; font-weight: 600; letter-spacing: .02em; cursor: pointer; border-radius: var(--r-sm); }
+  .sheet-tabs button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 1px 6px; border: 0; background: none; color: var(--muted); font-size: clamp(0.48rem, 2.3vw, 0.58rem); font-weight: 600; letter-spacing: 0; cursor: pointer; border-radius: var(--r-sm); min-width: 0; }
+  /* chaque libellé tient sur une ligne : la taille suit la largeur de l'écran, jamais de retour à la ligne */
+  .sheet-tabs button span { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .sheet-tabs button .ico { width: 20px; height: 20px; }
   .sheet-tabs button.on { color: var(--ink); background: var(--accent-soft); }
   .sheet-tabs button:disabled { opacity: .4; cursor: default; }
