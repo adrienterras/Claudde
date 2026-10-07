@@ -293,8 +293,8 @@
       const est = calib ? d.origLong * calib : (d.origLong / median) * 29.7;
       const ratio = d.origLong / Math.max(1, d.origShort);
       const sheetLike = ratio > 1.15 && ratio < 1.75; // proportions plausibles d'une feuille
-      // étalonnée, l'estimation est précise : on n'arrondit à un format standard qu'à 5 % près
-      const snap = SHEETS.find(([, cm]) => Math.abs(est / cm - 1) < (calib ? 0.05 : 0.15));
+      // étalonnée, l'estimation est précise : on n'arrondit à un format standard qu'à 3 % près
+      const snap = SHEETS.find(([, cm]) => Math.abs(est / cm - 1) < (calib ? 0.03 : 0.15));
       // on n'arrondit à un format standard que si la feuille en a les proportions ;
       // un rouleau, une bande ou un très grand format restent à leur estimation, à vérifier
       d.sizeCm = sheetLike && snap ? snap[1] : Math.round(est * 2) / 2;
