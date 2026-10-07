@@ -758,7 +758,6 @@
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
-        ${!d.photo && d.photoMode !== 'keep' && d.photoDebug ? tr`<p class="hint mono-note" title="Mesures de la détection de sol, à transmettre si un parquet n’est pas reconnu">détection : ${Object.entries(d.photoDebug).filter(([k]) => k !== 'maskPng').map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}`).join(' · ')}</p>` : ''}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}${mainPiece(d) ? tr` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
       </div>`;
