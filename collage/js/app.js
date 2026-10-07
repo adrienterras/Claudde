@@ -2819,7 +2819,7 @@ Réponds uniquement avec ce JSON :
         try { if (rec.cloud) await A.cloud.del(rec.id); else await dbDel(rec.id); } catch (e2) { console.error(e2); savedStatus(`Suppression impossible : ${e2.message}`); }
         renderSaved();
       };
-      const open = () => restoreComposition(rec.id);
+      const open = () => restoreComposition(rec.id, el);
       el.onclick = open;
       el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
       box.appendChild(el);
@@ -2866,9 +2866,30 @@ Réponds uniquement avec ce JSON :
   // Rouvre une composition : les dessins sont réimportés depuis leurs images, puis la mise en place
   // sauvegardée est reposée telle quelle (pas de nouvelle analyse par Claude, rien ne bouge).
   function savedStatus(text) { const el = $('saved-status'); el.textContent = text || ''; el.hidden = !text; }
-  async function restoreComposition(id) {
+  // Pendant la réouverture, les sections au-dessus de la liste apparaissent et changent de hauteur :
+  // sans ancrage, la ligne touchée file sous le doigt (Safari n'ancre pas le défilement tout seul).
+  // On garde l'élément touché à la même hauteur à l'écran jusqu'à la fin.
+  function keepAnchored(el) {
+    if (!el || !el.getBoundingClientRect) return () => {};
+    const scroller = (() => { let n = el.parentElement; while (n && n !== document.body) { const o = getComputedStyle(n).overflowY; if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight) return n; n = n.parentElement; } return null; })();
+    let top = el.getBoundingClientRect().top, on = true;
+    const frame = () => {
+      if (!on) return;
+      if (el.isConnected) {
+        const d = el.getBoundingClientRect().top - top;
+        if (Math.abs(d) > 1) { if (scroller) scroller.scrollTop += d; else window.scrollBy(0, d); }
+      }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    return () => { on = false; };
+  }
+
+  async function restoreComposition(id, anchor) {
+    const release = keepAnchored(anchor);
     try { await restoreCompositionInner(id); }
     catch (e) { state.restoring = false; console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
+    finally { await tick(); release(); }
   }
   async function restoreCompositionInner(id) {
     savedStatus(tr('Lecture de la composition sauvegardée…'));
