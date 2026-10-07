@@ -94,3 +94,4 @@ scan.save('scan-150dpi.png', dpi=(150, 150))
 # même dessin sans résolution, en deux tailles de pixels : sert au test d'étalonnage
 scan.resize((620, 877), Image.LANCZOS).save('noscale-small.jpg', quality=85)
 scan.resize((1240, 1754), Image.LANCZOS).save('noscale-large.jpg', quality=85)
+scan.resize((930, 1315), Image.LANCZOS).save('noscale-medium.jpg', quality=85)

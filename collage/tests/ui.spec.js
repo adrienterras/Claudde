@@ -108,8 +108,8 @@ test.describe('Dessins d’exemple', () => {
     await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.proposals);
     const ds = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => [d.name, d.sizeCm]));
-    // la taille connue d'Exemple 2 (42 cm) étalonne Exemple 1, qui a le même nombre de pixels
-    expect(ds).toEqual([['Exemple 1', 42], ['Exemple 2', 42]]);
+    // une seule taille connue ne suffit pas à étalonner les autres : Exemple 1 garde l'estimation A4
+    expect(ds).toEqual([['Exemple 1', 29.7], ['Exemple 2', 42]]);
     await expect(page.locator('#sample-note')).toBeVisible();
     await expect(page.locator('#sample-offer')).toBeHidden();
     // « repartir de zéro » remet la proposition

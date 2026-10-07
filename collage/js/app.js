@@ -282,10 +282,19 @@
     const unknown = state.drawings.filter((d) => !d.physCm);
     const longs = unknown.map((d) => d.origLong).sort((a, b) => a - b);
     const median = longs.length ? longs[Math.floor(longs.length / 2)] : 1;
-    // Étalonnage : une taille saisie à la main sur un scan sans résolution connue sert de référence
-    // aux autres scans (même scanner, même échelle) : médiane des cm par pixel des feuilles corrigées.
-    const refs = unknown.filter((d) => d.sizeMode === 'manual' && d.origLong > 0).map((d) => d.sizeCm / d.origLong).sort((a, b) => a - b);
-    const calib = refs.length ? refs[Math.floor(refs.length / 2)] : null;
+    // Étalonnage : les tailles saisies à la main sur des scans sans résolution connue servent de référence
+    // aux autres (même scanner, même échelle). Prudence : il faut au moins deux références qui concordent
+    // (à 15 % près) et correspondent à une résolution de scanner plausible ; une affiche de 90 cm
+    // photographiée au téléphone, ou une seule feuille corrigée, ne doivent pas redimensionner tout l'import.
+    const refs = unknown.filter((d) => d.sizeMode === 'manual' && d.origLong > 0 && d.sizeCm > 0)
+      .map((d) => d.sizeCm / d.origLong)
+      .filter((cmPx) => { const dpi = 2.54 / cmPx; return dpi >= 72 && dpi <= 1200; })
+      .sort((a, b) => a - b);
+    let calib = null;
+    if (refs.length >= 2) {
+      const med = refs[Math.floor(refs.length / 2)];
+      if (refs.every((v) => Math.abs(v / med - 1) < 0.15)) calib = med;
+    }
     state.drawings.forEach((d) => {
       d.uncertain = false;
       if (d.sizeMode !== 'auto') return;

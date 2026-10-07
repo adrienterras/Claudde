@@ -40,16 +40,20 @@ test.describe('Import des scans', () => {
     await expect(app.page.locator('#sizes-check')).toBeHidden();
   });
 
-  test('une taille corrigée à la main étalonne les scans sans résolution connue', async ({ app }) => {
-    await app.import(['noscale-small.jpg', 'noscale-large.jpg'], 2);
-    // sans repère, la médiane passe pour un A4 ; on corrige la petite feuille à 20 cm
-    await app.page.evaluate(() => { const d = AtelierGribouille.state.drawings[0]; d.sizeCm = 20; d.sizeMode = 'manual'; });
-    await app.page.evaluate(() => AtelierGribouille.estimateSizes());
-    const ds = await app.page.evaluate(() => AtelierGribouille.state.drawings.map((d) => ({ sizeCm: d.sizeCm, mode: d.sizeMode, calibrated: !!d.calibrated, uncertain: d.uncertain })));
+  test('deux tailles corrigées qui concordent étalonnent les scans sans résolution connue, une seule non', async ({ app }) => {
+    await app.import(['noscale-small.jpg', 'noscale-medium.jpg', 'noscale-large.jpg'], 3);
+    const read = () => app.page.evaluate(() => AtelierGribouille.state.drawings.map((d) => ({ sizeCm: d.sizeCm, mode: d.sizeMode, calibrated: !!d.calibrated, uncertain: d.uncertain })));
+    // une seule correction (petite feuille à 20 cm) ne redimensionne pas les autres
+    await app.page.evaluate(() => { const d = AtelierGribouille.state.drawings[0]; d.sizeCm = 20; d.sizeMode = 'manual'; AtelierGribouille.estimateSizes(); });
+    let ds = await read();
     expect(ds[0]).toMatchObject({ sizeCm: 20, mode: 'manual' });
-    // la grande feuille a deux fois plus de pixels : elle fait 40 cm, sans point d'interrogation
+    expect(ds[1].calibrated).toBe(false);
+    expect(ds[2].calibrated).toBe(false);
+    // une seconde correction cohérente (grande feuille à 40 cm, deux fois plus de pixels) : la moyenne suit
+    await app.page.evaluate(() => { const d = AtelierGribouille.state.drawings[2]; d.sizeCm = 40; d.sizeMode = 'manual'; AtelierGribouille.estimateSizes(); });
+    ds = await read();
     expect(ds[1].calibrated).toBe(true);
-    expect(ds[1].sizeCm).toBeCloseTo(40, 0);
+    expect(ds[1].sizeCm).toBeCloseTo(30, 0);
     expect(ds[1].uncertain).toBe(false);
   });
 
