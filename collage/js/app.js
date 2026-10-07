@@ -828,8 +828,11 @@
     const domHue = (Math.atan2(hy, hx) * 180) / Math.PI;
     const domStrength = Math.min(1, satW / wsum);
     let best = null;
+    // Nuage et Frise : un fond clair et calme, les dessins doivent respirer dessus
+    const light = style === 'nuage' || style === 'frise';
     PAINTS.forEach((paint) => {
       const c = hsl(hexRgb(paint[1]));
+      if (light && c.l < 150) return;
       let score = Math.min(1, Math.abs(c.l - L) / 110) * 2 + paint[2] * 1.5;
       if (c.s > 0.25) {
         const d = ((c.h - domHue) * Math.PI) / 180;
@@ -1117,6 +1120,27 @@
   // Toile « adaptée aux dessins » pour la Galerie : une grille complète dont les cases accueillent les
   // dessins à taille réelle (case au 75e centile des tailles : les quelques très grands sont réduits,
   // les autres ne paraissent jamais minuscules), sans dépendre des pages de fond.
+  // Toile « adaptée aux dessins » pour la Frise : une bande panoramique, haute comme les pages peintes
+  // (ou comme le plus grand sujet), assez longue pour aligner les sujets à la suite.
+  function friseFormat(o) {
+    const tallest = Math.max(0, ...o.textures.map((t) => t.hcm), ...o.pieces.map((p) => p.hcm * 1.3));
+    const h = Math.max(30, Math.min(70, tallest * 1.15));
+    const run = o.pieces.reduce((a, p) => a + p.wcm, 0) * 0.78 + 8;
+    const w = Math.max(h * 2.2, Math.min(h * 3.6, run));
+    return { w: Math.round(w), h: Math.round(h), auto: true };
+  }
+
+  // Toile « adaptée aux dessins » pour le Nuage : de l'air autour de chaque sujet (les découpes couvrent
+  // environ 30 % de la toile), dans la proportion choisie.
+  function nuageFormat(o) {
+    const f = o.format;
+    const area = o.pieces.reduce((a, p) => a + p.wcm * p.hcm, 0) / 0.42;
+    const ratio = f.w / f.h;
+    let h = Math.sqrt(area / ratio), w = h * ratio;
+    const k = Math.min(1, 130 / Math.max(w, h));
+    return { w: Math.round(Math.max(30, w * k)), h: Math.round(Math.max(24, h * k)), auto: true };
+  }
+
   function galleryFormat(o) {
     const f = o.format;
     const byDrawing = new Map();
@@ -1137,7 +1161,8 @@
   // Les styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
     { id: 'paysage', name: tr('Paysage'), hint: tr('ciel, milieu, sol') },
-    { id: 'scene', name: tr('Scène'), hint: tr('ciel en haut, personnages debout sur le sol') },
+    { id: 'frise', name: tr('Frise'), hint: tr('une bande, les dessins à la suite') },
+    { id: 'nuage', name: tr('Nuage'), hint: tr('dispersés sur un fond uni, bien droits') },
     { id: 'tournesol', name: tr('Tournesol'), hint: tr('spirale depuis le cœur') },
     { id: 'courtepointe', name: tr('Courtepointe'), hint: tr('patchwork, un médaillon par carreau') },
     { id: 'cabinet', name: tr('Cabinet de curiosités'), hint: tr('les plus beaux, en rangées') },
@@ -1156,6 +1181,10 @@
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
       if (st.id === 'scene') { so.pieces = sceneSelection(o); if (o.format.auto) so.format = sceneFormat(o); }
       if (st.id === 'galerie' && o.format.auto) so.format = galleryFormat(o);
+      if (st.id === 'frise' && o.format.auto) so.format = friseFormat(o);
+      if (st.id === 'nuage' && o.format.auto) so.format = nuageFormat(o);
+      // Frise et Nuage montrent tous les dessins (ou presque) : le curseur de densité part plus haut
+      if (st.id === 'frise' || st.id === 'nuage') so.densityT = Math.max(so.densityT, 0.8);
       if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto) so.format = state.sceneLayout.format; }
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };

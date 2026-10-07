@@ -144,7 +144,7 @@ cd collage && python3 -m http.server 8000
      la couleur à peindre ; le choix est mémorisé ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **six propositions, six styles** (Paysage sélectionné par défaut), à chaque fois :
+   - **sept propositions, sept styles** (Paysage sélectionné par défaut), à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
@@ -253,7 +253,7 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Le site publié a deux parties : la page d'accueil (`landing/`,
-présentation du concept, œuvres accrochées dans des salons illustrés, les six styles) à la racine, et
+présentation du concept, œuvres accrochées dans des salons illustrés, les sept styles) à la racine, et
 l'application sous `/atelier/` (`?exemple` charge le jeu d'exemple d'office). Adresse :
 https://ateliergribouille.art (domaine personnalisé
 réglé dans Settings → Pages ; l'adresse https://adrienterras.github.io/Claudde/ y redirige). Le dossier

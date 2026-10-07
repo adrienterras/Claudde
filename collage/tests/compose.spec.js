@@ -1,13 +1,13 @@
 const { test, expect } = require('./helpers');
 
-const STYLES = ['paysage', 'scene', 'tournesol', 'courtepointe', 'cabinet', 'galerie'];
+const STYLES = ['paysage', 'frise', 'nuage', 'tournesol', 'courtepointe', 'cabinet', 'galerie'];
 
 test.describe('Compositions', () => {
   test.beforeEach(async ({ app }) => {
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png']);
   });
 
-  test('six propositions, Paysage en premier, chacune avec du contenu', async ({ app }) => {
+  test('sept propositions, Paysage en premier, chacune avec du contenu', async ({ app }) => {
     const ps = await app.proposals();
     expect(ps.map((p) => p.style)).toEqual(STYLES);
     for (const p of ps) {
@@ -15,7 +15,7 @@ test.describe('Compositions', () => {
       expect(p.W).toBeGreaterThan(10);
       expect(p.H).toBeGreaterThan(10);
     }
-    expect(await app.page.locator('#proposals .proposal').count()).toBe(6);
+    expect(await app.page.locator('#proposals .proposal').count()).toBe(7);
     await expect(app.page.locator('#proposals .proposal.on')).toContainText('Paysage');
   });
 
@@ -88,18 +88,37 @@ test.describe('Compositions', () => {
     expect(c).not.toBe(b);
   });
 
-  test('Scène : les sujets sont au sol ou dans le ciel, jamais hors de la toile', async ({ app }) => {
-    await app.select('scene');
+  test('Frise : toile panoramique, sujets droits et dans la toile', async ({ app }) => {
+    await app.select('frise');
     const r = await app.page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
-      return { W: c.W, H: c.H, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, place: L.piece.place || null })) };
+      return { W: c.W, H: c.H, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, rot: L.rot })) };
     });
+    expect(r.W / r.H).toBeGreaterThan(2);
     expect(r.items.length).toBeGreaterThan(0);
     for (const it of r.items) {
+      expect(Math.abs(it.rot)).toBeLessThan(0.1);
       expect(it.x).toBeGreaterThan(-it.w / 2);
       expect(it.x).toBeLessThan(r.W + it.w / 2);
       expect(it.y).toBeGreaterThan(-it.h / 2);
       expect(it.y).toBeLessThan(r.H + it.h / 2);
+    }
+  });
+
+  test('Nuage : fond uni sans page peinte, sujets droits et espacés', async ({ app }) => {
+    await app.select('nuage');
+    const r = await app.page.evaluate(() => {
+      const c = AtelierGribouille.state.comp;
+      return { bg: c.bg.filter((L) => !L.paper).length, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, rot: L.rot })) };
+    });
+    expect(r.bg).toBe(0);
+    expect(r.items.length).toBeGreaterThan(1);
+    for (const it of r.items) expect(Math.abs(it.rot)).toBeLessThan(0.1);
+    for (let i = 0; i < r.items.length; i++) for (let j = i + 1; j < r.items.length; j++) {
+      const a = r.items[i], b = r.items[j];
+      const ox = Math.max(0, Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2));
+      const oy = Math.max(0, Math.min(a.y + a.h / 2, b.y + b.h / 2) - Math.max(a.y - a.h / 2, b.y - b.h / 2));
+      expect(ox * oy / Math.min(a.w * a.h, b.w * b.h)).toBeLessThan(0.5);
     }
   });
 
