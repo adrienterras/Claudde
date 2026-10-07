@@ -127,7 +127,12 @@
           const c = Extract.scaleTo(src.img, max);
           const origLong = Math.max(src.w, src.h), origShort = Math.min(src.w, src.h);
           src.close();
-          return { canvas: c, origLong, origShort, physCm: null };
+          // Un scanner écrit sa résolution (150, 300, 600 dpi) dans le JPEG ou le PNG : elle donne
+          // la taille réelle de la feuille. Les valeurs par défaut (72, 96) ne veulent rien dire.
+          let dpi = null;
+          try { dpi = readDpi(await file.slice(0, 256 * 1024).arrayBuffer()); } catch (e) { dpi = null; }
+          const physCm = dpi ? (origLong / dpi) * 2.54 : null;
+          return { canvas: c, origLong, origShort, physCm: physCm && physCm >= 8 && physCm <= 150 ? physCm : null, physSource: physCm ? `${dpi} dpi` : null };
         },
       });
     }
@@ -157,6 +162,54 @@
   // Vignette ; en PNG pour les pièces découpées, qui ont un fond transparent.
   function thumbOf(canvas, max, png) {
     return Extract.scaleTo(canvas, max || 160).toDataURL(png ? 'image/png' : 'image/jpeg', 0.8);
+  }
+
+  // Résolution déclarée dans l'en-tête d'une image : JFIF (densité), EXIF (XResolution + unité) ou PNG (pHYs).
+  // Renvoie des dpi plausibles pour un scanner, ou null.
+  function readDpi(buf) {
+    const b = new DataView(buf), n = b.byteLength;
+    const plausible = (v) => (v >= 100 && v <= 1200 && Math.abs(v - 96) > 2 ? Math.round(v) : null);
+    if (n > 24 && b.getUint32(0) === 0x89504e47) {
+      // PNG : chunks ; pHYs = pixels par mètre
+      for (let p = 8; p + 12 <= n;) {
+        const len = b.getUint32(p), type = String.fromCharCode(b.getUint8(p + 4), b.getUint8(p + 5), b.getUint8(p + 6), b.getUint8(p + 7));
+        if (type === 'pHYs' && b.getUint8(p + 16) === 1) return plausible(b.getUint32(p + 8) * 0.0254);
+        if (type === 'IDAT' || type === 'IEND') return null;
+        p += 12 + len;
+      }
+      return null;
+    }
+    if (n > 4 && b.getUint16(0) === 0xffd8) {
+      let jfif = null;
+      for (let p = 2; p + 4 <= n;) {
+        if (b.getUint8(p) !== 0xff) break;
+        const marker = b.getUint8(p + 1), len = b.getUint16(p + 2);
+        if (marker === 0xda) break; // début des données
+        if (marker === 0xe0 && p + 16 <= n && b.getUint32(p + 4) === 0x4a464946) {
+          const units = b.getUint8(p + 11), x = b.getUint16(p + 12);
+          if (units === 1) jfif = plausible(x); else if (units === 2) jfif = plausible(x * 2.54);
+        }
+        if (marker === 0xe1 && p + 14 <= n && b.getUint32(p + 4) === 0x45786966) {
+          // EXIF : TIFF à p+10 ; XResolution (0x011a, RATIONAL) et ResolutionUnit (0x0128 : 2 = pouce, 3 = cm)
+          const t = p + 10, le = b.getUint16(t) === 0x4949;
+          const u16 = (o) => b.getUint16(o, le), u32 = (o) => b.getUint32(o, le);
+          const ifd = t + u32(t + 4);
+          if (ifd + 2 <= n) {
+            const cnt = u16(ifd);
+            let xres = null, unit = 2;
+            for (let i = 0; i < cnt && ifd + 2 + i * 12 + 12 <= n; i++) {
+              const e = ifd + 2 + i * 12, tag = u16(e), type = u16(e + 2);
+              if (tag === 0x011a && type === 5) { const off = t + u32(e + 8); if (off + 8 <= n) { const den = u32(off + 4); xres = den ? u32(off) / den : null; } }
+              if (tag === 0x0128) unit = u16(e + 8);
+            }
+            if (xres) { const v = plausible(unit === 3 ? xres * 2.54 : xres); if (v) return v; }
+          }
+        }
+        p += 2 + len;
+      }
+      return jfif;
+    }
+    return null;
   }
 
   async function importFiles(files, sizes, opts) {
@@ -190,7 +243,7 @@
           orient: 'auto', orientDeg: 0,
           original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
-          srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm,
+          srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm, physSource: src.physSource || (src.physCm ? 'PDF' : null),
           sizeCm: 29.7, sizeMode: 'auto',
         };
         preparePieces(analysis.pieces, d);
@@ -229,18 +282,24 @@
     const unknown = state.drawings.filter((d) => !d.physCm);
     const longs = unknown.map((d) => d.origLong).sort((a, b) => a - b);
     const median = longs.length ? longs[Math.floor(longs.length / 2)] : 1;
+    // Étalonnage : une taille saisie à la main sur un scan sans résolution connue sert de référence
+    // aux autres scans (même scanner, même échelle) : médiane des cm par pixel des feuilles corrigées.
+    const refs = unknown.filter((d) => d.sizeMode === 'manual' && d.origLong > 0).map((d) => d.sizeCm / d.origLong).sort((a, b) => a - b);
+    const calib = refs.length ? refs[Math.floor(refs.length / 2)] : null;
     state.drawings.forEach((d) => {
       d.uncertain = false;
       if (d.sizeMode !== 'auto') return;
       if (d.physCm) { d.sizeCm = d.physCm; return; }
-      const est = (d.origLong / median) * 29.7;
+      const est = calib ? d.origLong * calib : (d.origLong / median) * 29.7;
       const ratio = d.origLong / Math.max(1, d.origShort);
       const sheetLike = ratio > 1.15 && ratio < 1.75; // proportions plausibles d'une feuille
-      const snap = SHEETS.find(([, cm]) => Math.abs(est / cm - 1) < 0.15);
+      // étalonnée, l'estimation est précise : on n'arrondit à un format standard qu'à 5 % près
+      const snap = SHEETS.find(([, cm]) => Math.abs(est / cm - 1) < (calib ? 0.05 : 0.15));
       // on n'arrondit à un format standard que si la feuille en a les proportions ;
       // un rouleau, une bande ou un très grand format restent à leur estimation, à vérifier
-      d.sizeCm = sheetLike && snap ? snap[1] : Math.round(est);
-      d.uncertain = !(sheetLike && snap) || est > 45 || est < 15;
+      d.sizeCm = sheetLike && snap ? snap[1] : Math.round(est * 2) / 2;
+      d.uncertain = calib ? false : !(sheetLike && snap) || est > 45 || est < 15;
+      d.calibrated = !!calib;
     });
   }
 
@@ -266,6 +325,7 @@
         d.sizeCm = cm;
         d.sizeMode = 'manual';
         saveSize(d);
+        estimateSizes();
         refreshLists();
         regenerate();
       };
@@ -686,7 +746,7 @@
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
         ${!d.photo && d.photoMode !== 'keep' && d.photoDebug ? tr`<p class="hint mono-note" title="Mesures de la détection de sol, à transmettre si un parquet n’est pas reconnu">détection : ${Object.entries(d.photoDebug).filter(([k]) => k !== 'maskPng').map(([k, v]) => `${k} ${typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v}`).join(' · ')}</p>` : ''}
-        <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr('Taille lue dans le PDF.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
+        <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}${mainPiece(d) ? tr` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
       </div>`;
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
@@ -709,6 +769,7 @@
       d.sizeCm = cm;
       d.sizeMode = 'manual';
       saveSize(d);
+      estimateSizes();
       refreshLists();
       regenerate();
     };
@@ -3065,7 +3126,7 @@ Réponds uniquement avec ce JSON :
   fillGround();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

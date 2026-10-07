@@ -86,3 +86,11 @@ im.save('photo-wood.png')
 a = Image.open('page-cutout.png').convert('RGB'); b = Image.open('page-texture.png').convert('RGB')
 a.save('two-pages.pdf', save_all=True, append_images=[b], resolution=150)
 print('fixtures générées')
+
+# Scans avec résolution déclarée : la taille réelle se lit dans l'en-tête (JFIF 300 dpi, pHYs 150 dpi)
+scan = Image.open('page-cutout.png').convert('RGB')
+scan.resize((2480, 3508), Image.LANCZOS).save('scan-300dpi.jpg', quality=85, dpi=(300, 300))
+scan.save('scan-150dpi.png', dpi=(150, 150))
+# même dessin sans résolution, en deux tailles de pixels : sert au test d'étalonnage
+scan.resize((620, 877), Image.LANCZOS).save('noscale-small.jpg', quality=85)
+scan.resize((1240, 1754), Image.LANCZOS).save('noscale-large.jpg', quality=85)

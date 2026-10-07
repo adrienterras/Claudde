@@ -29,6 +29,30 @@ test.describe('Import des scans', () => {
     expect(ds[0].sizeCm).toBeCloseTo(29.7, 0);
   });
 
+  test('la résolution écrite par le scanner (JPEG 300 dpi, PNG 150 dpi) donne la taille réelle', async ({ app }) => {
+    await app.import(['scan-300dpi.jpg', 'scan-150dpi.png'], 2);
+    const ds = await app.page.evaluate(() => AtelierGribouille.state.drawings.map((d) => ({ name: d.name, sizeCm: d.sizeCm, phys: d.physSource, uncertain: d.uncertain })));
+    expect(ds[0].phys).toBe('300 dpi');
+    expect(ds[0].sizeCm).toBeCloseTo(29.7, 0);
+    expect(ds[1].phys).toBe('150 dpi');
+    expect(ds[1].sizeCm).toBeCloseTo(29.7, 0);
+    expect(ds.every((d) => !d.uncertain)).toBe(true);
+    await expect(app.page.locator('#sizes-check')).toBeHidden();
+  });
+
+  test('une taille corrigée à la main étalonne les scans sans résolution connue', async ({ app }) => {
+    await app.import(['noscale-small.jpg', 'noscale-large.jpg'], 2);
+    // sans repère, la médiane passe pour un A4 ; on corrige la petite feuille à 20 cm
+    await app.page.evaluate(() => { const d = AtelierGribouille.state.drawings[0]; d.sizeCm = 20; d.sizeMode = 'manual'; });
+    await app.page.evaluate(() => AtelierGribouille.estimateSizes());
+    const ds = await app.page.evaluate(() => AtelierGribouille.state.drawings.map((d) => ({ sizeCm: d.sizeCm, mode: d.sizeMode, calibrated: !!d.calibrated, uncertain: d.uncertain })));
+    expect(ds[0]).toMatchObject({ sizeCm: 20, mode: 'manual' });
+    // la grande feuille a deux fois plus de pixels : elle fait 40 cm, sans point d'interrogation
+    expect(ds[1].calibrated).toBe(true);
+    expect(ds[1].sizeCm).toBeCloseTo(40, 0);
+    expect(ds[1].uncertain).toBe(false);
+  });
+
   test('un fichier illisible est signalé sans bloquer les autres', async ({ app }) => {
     const { page } = app;
     await page.setInputFiles('#file', [{ name: 'cassé.pdf', mimeType: 'application/pdf', buffer: Buffer.from('ceci n’est pas un PDF') }]);
