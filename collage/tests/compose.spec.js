@@ -96,6 +96,9 @@ test.describe('Compositions', () => {
     });
     expect(r.W / r.H).toBeGreaterThan(2);
     expect(r.items.length).toBeGreaterThan(0);
+    // chaque page peinte n'est posée qu'une fois dans la bande
+    const srcs = await app.page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => L.panel).map((L) => L.src));
+    expect(new Set(srcs).size).toBe(srcs.length);
     for (const it of r.items) {
       expect(Math.abs(it.rot)).toBeLessThan(0.1);
       expect(it.x).toBeGreaterThan(-it.w / 2);

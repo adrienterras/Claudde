@@ -1200,7 +1200,9 @@
     const tallest = Math.max(0, ...o.textures.map((t) => t.hcm), ...o.pieces.map((p) => p.hcm * 1.3));
     const h = Math.max(30, Math.min(70, tallest * 1.15));
     const run = o.pieces.reduce((a, p) => a + p.wcm, 0) * 0.78 + 8;
-    const w = Math.max(h * 2.2, Math.min(h * 3.6, run));
+    // avec des pages peintes, la bande ne dépasse pas leur longueur totale (chaque page n'est posée qu'une fois)
+    const band = o.textures.length ? o.textures.reduce((a, t) => a + t.wcm, 0) + 2 : Infinity;
+    const w = Math.max(h * 2.2, Math.min(h * 3.6, run, band));
     return { w: Math.round(w), h: Math.round(h), auto: true };
   }
 

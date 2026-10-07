@@ -1145,17 +1145,18 @@
       // de gauche à droite, bien droits ; les pages peintes forment la bande derrière eux.
       bg.push(paperLayer(W, H));
       if (o.textures.length) {
-        // la bande : les pages peintes mises bout à bout, à la même hauteur, sur une bande horizontale
+        // la bande : les pages peintes mises bout à bout, à la même hauteur, chacune une seule fois ;
+        // centrée sur la toile, le fond peint reste visible aux extrémités si elles ne suffisent pas
         const bandH = Math.min(H * 0.72, Math.max(...o.textures.map((t) => t.hcm)));
         const y = H / 2;
-        let x = -1;
-        for (let i = 0; x < W + 1; i++) {
-          const t = o.textures[i % o.textures.length];
+        const total = o.textures.reduce((a, t) => a + t.wcm, 0) - 0.6 * (o.textures.length - 1);
+        let x = total >= W ? -(total - W) / 2 : (W - total) / 2;
+        o.textures.forEach((t) => {
           const h = Math.min(bandH, t.hcm), w = t.wcm;
           const sh = t.canvas.height * (h / t.hcm), sy = (t.canvas.height - sh) * (0.2 + 0.6 * R());
           bg.push({ kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm, sx: 0, sy, sw: t.canvas.width, sh, x: x + w / 2, y: y + (R() - 0.5) * 0.4, w, h, rot: (R() - 0.5) * 0.01, flip: false, clip: null, whole: false });
           x += w - 0.6;
-        }
+        });
       }
       Z = zonesFor(W, H, false);
       const order = o.pieces.slice().sort((a, b) => ((a.drawing && a.drawing.id) || 0) - ((b.drawing && b.drawing.id) || 0));
