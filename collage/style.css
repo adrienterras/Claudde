@@ -167,7 +167,7 @@ button, select, input { font: inherit; color: inherit; }
 .lang-switch { display: inline-flex; margin-top: 12px; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
 .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.68rem; letter-spacing: 0.12em; padding: 4px 10px; cursor: pointer; line-height: 1.4; }
 .lang-switch button:hover { color: var(--ink); }
-.lang-switch button.on { background: var(--ink); color: var(--craie, #f8f5ef); cursor: default; }
+.lang-switch button.on { background: var(--ink); color: var(--on-ink); cursor: default; }
 
 .mobile-brand { display: none; }
 .sheet-tabs { display: none; }

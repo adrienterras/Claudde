@@ -92,84 +92,6 @@
       <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
 
-    <section id="account-section" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="acc-title">
-      <div class="acc-card">
-        <button type="button" class="acc-close" id="acc-close" aria-label="Fermer">×</button>
-        <span class="brand-mark acc-mark" aria-hidden="true"></span>
-        <p id="acc-status" class="acc-status" role="status" hidden></p>
-
-        <!-- Connexion / inscription -->
-        <div id="auth-box">
-          <h2 id="acc-title" class="acc-title">Bienvenue à l’atelier</h2>
-          <p class="acc-sub" id="acc-sub">Retrouvez vos compositions sur tous vos appareils.</p>
-          <div class="social">
-            <button type="button" class="btn social-btn" data-provider="google"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4" stroke="none"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853" stroke="none"/><path d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6z" fill="#FBBC05" stroke="none"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335" stroke="none"/></svg><span>Continuer avec Google</span></button>
-          </div>
-          <p class="or"><span>ou</span></p>
-          <div class="auth-tabs" role="tablist">
-            <button type="button" data-mode="signin" class="on" role="tab" aria-selected="true">J’ai déjà un compte</button>
-            <button type="button" data-mode="signup" role="tab" aria-selected="false">Créer un compte</button>
-          </div>
-          <form id="auth-form" novalidate>
-            <label class="field" id="auth-name-field" hidden><span>Prénom <small>(facultatif)</small></span>
-              <input id="auth-name" type="text" autocomplete="name" maxlength="60" placeholder="Camille">
-            </label>
-            <label class="field">E-mail
-              <input id="auth-email" type="email" autocomplete="email" required placeholder="vous@exemple.fr" inputmode="email">
-            </label>
-            <label class="field">Mot de passe
-              <span class="pw"><input id="auth-password" type="password" autocomplete="current-password" minlength="10" required placeholder="Votre mot de passe"><button type="button" class="pw-eye" data-for="auth-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
-              <span class="pw-meter" id="auth-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
-            </label>
-            <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Se connecter</button>
-            <p class="acc-links"><button type="button" class="link" id="auth-forgot">Mot de passe oublié ?</button><span aria-hidden="true">·</span><button type="button" class="link" id="auth-magic">Lien de connexion par e-mail</button></p>
-          </form>
-          <p class="acc-legal">En continuant, vous acceptez notre <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>. Vos dessins restent à vous, dans votre espace.</p>
-        </div>
-
-        <!-- Nouveau mot de passe après un lien « oublié » -->
-        <form id="recover-form" hidden>
-          <h2 class="acc-title">Nouveau mot de passe</h2>
-          <p class="acc-sub">Au moins 10 caractères, avec minuscules, majuscules, chiffres ou symboles.</p>
-          <label class="field">Nouveau mot de passe
-            <span class="pw"><input id="recover-password" type="password" autocomplete="new-password" minlength="10" required><button type="button" class="pw-eye" data-for="recover-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
-            <span class="pw-meter" id="recover-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
-          </label>
-          <button type="submit" class="btn btn-primary btn-wide">Enregistrer le mot de passe</button>
-        </form>
-
-        <!-- Compte connecté -->
-        <div id="profile-box" hidden>
-          <div class="acc-head">
-            <span class="acc-avatar big" id="profile-avatar" aria-hidden="true"></span>
-            <div>
-              <h2 class="acc-title" id="profile-title">Mon compte</h2>
-              <p class="acc-sub" id="profile-meta"></p>
-            </div>
-          </div>
-          <form id="profile-form">
-            <label class="field">Prénom ou nom affiché
-              <input id="profile-name" type="text" autocomplete="name" maxlength="60">
-            </label>
-            <label class="field">E-mail
-              <input id="profile-email" type="email" autocomplete="email">
-            </label>
-            <label class="field" id="profile-password-field"><span>Nouveau mot de passe <small>(laisser vide pour ne pas changer)</small></span>
-              <span class="pw"><input id="profile-password" type="password" autocomplete="new-password" minlength="10"><button type="button" class="pw-eye" data-for="profile-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
-              <span class="pw-meter" id="profile-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
-            </label>
-            <div class="row-btns">
-              <button type="submit" class="btn btn-primary">Enregistrer</button>
-              <button type="button" class="btn" id="acc-signout">Se déconnecter</button>
-            </div>
-          </form>
-          <div class="danger-zone">
-            <p class="hint">Supprimer le compte efface définitivement vos compositions et dessins enregistrés dans le cloud. Les sauvegardes de cet appareil ne sont pas touchées.</p>
-            <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
@@ -326,6 +248,85 @@
       <p class="brand-values">Créativité <i>·</i> Tendresse <i>·</i> Savoir-faire</p>
     </footer>
   </aside>
+
+  <section id="account-section" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="acc-title">
+    <div class="acc-card">
+      <button type="button" class="acc-close" id="acc-close" aria-label="Fermer">×</button>
+      <span class="brand-mark acc-mark" aria-hidden="true"></span>
+      <p id="acc-status" class="acc-status" role="status" hidden></p>
+
+      <!-- Connexion / inscription -->
+      <div id="auth-box">
+        <h2 id="acc-title" class="acc-title">Bienvenue à l’atelier</h2>
+        <p class="acc-sub" id="acc-sub">Retrouvez vos compositions sur tous vos appareils.</p>
+        <div class="social">
+          <button type="button" class="btn social-btn" data-provider="google"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4" stroke="none"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853" stroke="none"/><path d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6z" fill="#FBBC05" stroke="none"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335" stroke="none"/></svg><span>Continuer avec Google</span></button>
+        </div>
+        <p class="or"><span>ou</span></p>
+        <div class="auth-tabs" role="tablist">
+          <button type="button" data-mode="signin" class="on" role="tab" aria-selected="true">J’ai déjà un compte</button>
+          <button type="button" data-mode="signup" role="tab" aria-selected="false">Créer un compte</button>
+        </div>
+        <form id="auth-form" novalidate>
+          <label class="field" id="auth-name-field" hidden><span>Prénom <small>(facultatif)</small></span>
+            <input id="auth-name" type="text" autocomplete="name" maxlength="60" placeholder="Camille">
+          </label>
+          <label class="field">E-mail
+            <input id="auth-email" type="email" autocomplete="email" required placeholder="vous@exemple.fr" inputmode="email">
+          </label>
+          <label class="field">Mot de passe
+            <span class="pw"><input id="auth-password" type="password" autocomplete="current-password" minlength="10" required placeholder="Votre mot de passe"><button type="button" class="pw-eye" data-for="auth-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+            <span class="pw-meter" id="auth-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
+          </label>
+          <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Se connecter</button>
+          <p class="acc-links"><button type="button" class="link" id="auth-forgot">Mot de passe oublié ?</button><span aria-hidden="true">·</span><button type="button" class="link" id="auth-magic">Lien de connexion par e-mail</button></p>
+        </form>
+        <p class="acc-legal">En continuant, vous acceptez notre <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>. Vos dessins restent à vous, dans votre espace.</p>
+      </div>
+
+      <!-- Nouveau mot de passe après un lien « oublié » -->
+      <form id="recover-form" hidden>
+        <h2 class="acc-title">Nouveau mot de passe</h2>
+        <p class="acc-sub">Au moins 10 caractères, avec minuscules, majuscules, chiffres ou symboles.</p>
+        <label class="field">Nouveau mot de passe
+          <span class="pw"><input id="recover-password" type="password" autocomplete="new-password" minlength="10" required><button type="button" class="pw-eye" data-for="recover-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+          <span class="pw-meter" id="recover-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-wide">Enregistrer le mot de passe</button>
+      </form>
+
+      <!-- Compte connecté -->
+      <div id="profile-box" hidden>
+        <div class="acc-head">
+          <span class="acc-avatar big" id="profile-avatar" aria-hidden="true"></span>
+          <div>
+            <h2 class="acc-title" id="profile-title">Mon compte</h2>
+            <p class="acc-sub" id="profile-meta"></p>
+          </div>
+        </div>
+        <form id="profile-form">
+          <label class="field">Prénom ou nom affiché
+            <input id="profile-name" type="text" autocomplete="name" maxlength="60">
+          </label>
+          <label class="field">E-mail
+            <input id="profile-email" type="email" autocomplete="email">
+          </label>
+          <label class="field" id="profile-password-field"><span>Nouveau mot de passe <small>(laisser vide pour ne pas changer)</small></span>
+            <span class="pw"><input id="profile-password" type="password" autocomplete="new-password" minlength="10"><button type="button" class="pw-eye" data-for="profile-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
+            <span class="pw-meter" id="profile-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
+          </label>
+          <div class="row-btns">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <button type="button" class="btn" id="acc-signout">Se déconnecter</button>
+          </div>
+        </form>
+        <div class="danger-zone">
+          <p class="hint">Supprimer le compte efface définitivement vos compositions et dessins enregistrés dans le cloud. Les sauvegardes de cet appareil ne sont pas touchées.</p>
+          <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <main class="stage">
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée" hidden>
