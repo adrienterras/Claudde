@@ -72,6 +72,7 @@
     <nav class="sheet-tabs" id="sheet-tabs" aria-label="Étapes">
       <button type="button" data-tab="import-section" class="on"><svg class="ico"><use href="#i-upload"/></svg><span>Importer</span></button>
       <button type="button" data-tab="compose-section" disabled><svg class="ico"><use href="#i-spark"/></svg><span>Propositions</span></button>
+      <button type="button" data-tab="sizes-section" disabled><svg class="ico"><use href="#i-fit"/></svg><span>Tailles</span></button>
       <button type="button" data-tab="drawings-section" disabled><svg class="ico"><use href="#i-layers"/></svg><span>Dessins</span></button>
       <button type="button" data-tab="export-section" disabled><svg class="ico"><use href="#i-download"/></svg><span>Exporter</span></button>
       <button type="button" data-tab="more"><svg class="ico"><use href="#i-bookmark"/></svg><span>Plus</span></button>
@@ -196,21 +197,6 @@
       <p id="ai-status" class="hint ai"></p>
       <button id="generate" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Nouvelles propositions</span></button>
 
-      <div class="field">Orientation de la toile
-        <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
-          <button type="button" data-orient="land" class="on ink">Paysage</button>
-          <button type="button" data-orient="port">Portrait</button>
-        </div>
-      </div>
-      <label class="field">Toile
-        <select id="format">
-          <option value="auto:1.4286" selected>Taille adaptée aux dessins · proportion classique</option>
-          <option value="auto:1.8">Taille adaptée aux dessins · allongée</option>
-          <option value="auto:1">Taille adaptée aux dessins · carrée</option>
-        </select>
-      </label>
-      <p id="scale-info" class="hint mono-note"></p>
-
       <details class="settings" id="advanced">
         <summary>Réglages avancés <small>fond, feuilles pâles, finition</small></summary>
         <label class="field">Feuilles pâles (crayon, texte)
@@ -227,6 +213,26 @@
       </details>
     </section>
 
+    <section id="sizes-section" class="step" hidden>
+      <h2><span class="num">03</span> Tailles</h2>
+      <p class="hint">La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.</p>
+      <div id="sizes-check" class="sizes-check" hidden></div>
+      <div class="field">Orientation de la toile
+        <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
+          <button type="button" data-orient="land" class="on ink">Paysage</button>
+          <button type="button" data-orient="port">Portrait</button>
+        </div>
+      </div>
+      <label class="field">Toile
+        <select id="format">
+          <option value="auto:1.4286" selected>Taille adaptée aux dessins · proportion classique</option>
+          <option value="auto:1.8">Taille adaptée aux dessins · allongée</option>
+          <option value="auto:1">Taille adaptée aux dessins · carrée</option>
+        </select>
+      </label>
+      <p id="scale-info" class="hint mono-note"></p>
+    </section>
+
     <section id="drawings-section" class="step" hidden>
       <h2><span class="num">03</span> Dessins <small id="drawings-count"></small></h2>
       <p class="hint">Touchez un dessin pour régler son rôle et sa taille réelle.</p>
@@ -236,7 +242,6 @@
         <li><b class="tag off">ignoré</b><span>n’apparaît ni dans l’œuvre ni dans le guide</span></li>
       </ul>
       <p id="aside-note" class="aside-note" hidden></p>
-      <div id="sizes-check" class="sizes-check" hidden></div>
       <div id="detail" class="detail" hidden></div>
       <div id="drawings" class="grid"></div>
       <h3>Pièces découpées <small id="pieces-count"></small></h3>

@@ -264,7 +264,7 @@
     curate();
     planCoverage();
     if (state.drawings.length) {
-      ['drawings-section', 'compose-section', 'export-section', 'room-section'].forEach((id) => ($(id).hidden = false));
+      ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
       $('restart-offer').hidden = false;
       if (!state.restoring) selectTab('compose-section');
@@ -2489,8 +2489,8 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
   $('export-free').onclick = exportPreview;
   $('sizes-alert-go').onclick = () => {
-    const sec = $('drawings-section');
-    if (mobileQuery.matches) selectTab('drawings-section'); else if (sec._expand) sec._expand();
+    const sec = $('sizes-section');
+    if (mobileQuery.matches) selectTab('sizes-section'); else if (sec._expand) sec._expand();
     const box = $('sizes-check');
     if (box) box.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
@@ -2707,7 +2707,7 @@ Réponds uniquement avec ce JSON :
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label', 'restart-offer'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label', 'restart-offer'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
     $('sample-offer').hidden = !state.sampleManifest;
     refreshLists();

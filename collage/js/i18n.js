@@ -67,6 +67,8 @@
     'commencez une nouvelle œuvre': 'start a new artwork',
     'Vérifier': 'Check',
     'Tout inclure': 'Include all',
+    'Tailles': 'Sizes',
+    'La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.': 'The canvas adapts to the drawings, glued at their real size. Check here the sheets whose size could not be read from the scan.',
     'Reprendre': 'Resume',
     'Reprendre l’œuvre en cours': 'Resume the work in progress',
     'Oublier': 'Forget',
