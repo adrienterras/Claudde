@@ -680,7 +680,7 @@ body.editing { overflow: hidden; }
 @media (max-width: 860px) {
   :root { --sheet: 42svh; --topbar: 50px; --tabs: 64px; }
   html, body { height: 100%; }
-  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100svh; overflow: hidden; }
+  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100svh; overflow: hidden; overscroll-behavior: none; }
   body.has-lang-offer { grid-template-rows: auto auto 1fr; }
   .mobile-brand {
     order: 0; display: flex; align-items: center; justify-content: center; gap: 10px; position: relative; min-height: var(--topbar); box-sizing: border-box;
@@ -696,7 +696,7 @@ body.editing { overflow: hidden; }
   .panel {
     order: 2; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; height: var(--sheet); box-sizing: border-box;
     border-right: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: var(--tabs) 16px calc(24px + env(safe-area-inset-bottom, 0px)); gap: 22px;
-    box-shadow: 0 -12px 30px -20px rgba(0, 0, 0, .5); transition: height .22s ease-out; overscroll-behavior: contain;
+    box-shadow: 0 -12px 30px -20px rgba(0, 0, 0, .5); transition: height .22s ease-out; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;
   }
   /* tiroir agrandi : la variable change pour tout le monde (tiroir, onglets, toile, densité) */
   body.sheet-tall { --sheet: 86svh; }

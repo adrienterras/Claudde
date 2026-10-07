@@ -721,7 +721,16 @@
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
       el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
-      el.onclick = () => { state.current = state.current === d ? null : d; refreshLists(); };
+      el.onclick = () => {
+        state.current = state.current === d ? null : d;
+        refreshLists();
+        // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier
+        if (state.current && mobileQuery.matches) {
+          document.body.classList.add('sheet-tall');
+          const panel = document.querySelector('.panel'), box = $('detail');
+          if (panel && box) setTimeout(() => { panel.scrollTo({ top: Math.max(0, box.offsetTop - 12), behavior: 'smooth' }); }, 60);
+        }
+      };
       dEl.appendChild(el);
     });
     $('drawings-count').textContent = `(${state.drawings.length})`;
@@ -3393,7 +3402,7 @@ Réponds uniquement avec ce JSON :
     tabs.addEventListener('touchend', (e) => {
       if (ty === null) return;
       const dy = e.changedTouches[0].clientY - ty; ty = null;
-      if (Math.abs(dy) < 24) return;
+      if (Math.abs(dy) < 48) return; // un vrai glissement, pas un début de défilement
       document.body.classList.toggle('sheet-tall', dy < 0);
     }, { passive: true });
     const obs = new MutationObserver(syncTabs);
