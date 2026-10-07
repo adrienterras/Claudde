@@ -574,6 +574,12 @@ body.stage-full .density-bar { display: none; }
 .thumb:hover .edit-piece, .thumb .edit-piece:focus-visible { opacity: 1; }
 @media (hover: none) { .thumb .edit-piece { opacity: 1; } }
 
+/* Écrans moyens (iPad, petit portable) : la scène est trop étroite pour loger densité, cartouche et zoom
+   sur une même ligne ; le cartouche passe au-dessus des commandes. */
+@media (min-width: 861px) and (max-width: 1400px) {
+  .label { bottom: 72px; max-width: calc(100% - 28px); }
+}
+
 .save-status { margin: 0; padding: 8px 10px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); font-size: 0.82rem; }
 
 /* Aperçu de secours pour enregistrer l'image */
