@@ -1128,6 +1128,40 @@
       if (o.textures.length) backgroundShards(W, H, o.textures, R, bg);
       // rosace : la pièce maîtresse au centre, puis deux anneaux
       mode = { targets: (idx, n) => { if (idx === 0) return { x: W / 2, y: H / 2, rot: 0, r: 0 }; const ring = idx <= 6 ? 1 : 2; const k = ring === 1 ? idx - 1 : idx - 7; const m = ring === 1 ? 6 : Math.max(1, n - 7); const a = (k / m) * Math.PI * 2 + (ring === 2 ? Math.PI / m : -Math.PI / 2); const rad = ring === 1 ? Math.min(W, H) * 0.27 : Math.min(W, H) * 0.44; return { x: W / 2 + Math.cos(a) * rad * (W / Math.min(W, H)) * 0.85, y: H / 2 + Math.sin(a) * rad, rot: 0, r: ring }; }, byRadius: true, tight: false };
+    } else if (style === 'nuage') {
+      // Nuage : fond uni, les sujets bien droits, dispersés avec de l'air entre eux, la pièce maîtresse au centre.
+      Z = zonesFor(W, H, false);
+      bg.push(paperLayer(W, H));
+      const n = Math.max(1, o.pieces.length);
+      const minD = Math.sqrt((W * H) / n) * 0.78;
+      const pts = [{ x: W / 2, y: H / 2 }];
+      for (let tries = 0; tries < 6000 && pts.length < n + 4; tries++) {
+        const q = { x: W * (0.1 + R() * 0.8), y: H * (0.12 + R() * 0.76) };
+        if (pts.every((p) => Math.hypot(p.x - q.x, p.y - q.y) > minD)) pts.push(q);
+      }
+      mode = { targets: (idx) => ({ x: pts[idx % pts.length].x, y: pts[idx % pts.length].y, rot: 0, r: idx }), byRadius: false, tight: false, spread: 0.7 };
+    } else if (style === 'frise') {
+      // Frise : une bande horizontale, les sujets dans l'ordre d'arrivée (du plus ancien au plus récent),
+      // de gauche à droite, bien droits ; les pages peintes forment la bande derrière eux.
+      bg.push(paperLayer(W, H));
+      if (o.textures.length) {
+        // la bande : les pages peintes mises bout à bout, à la même hauteur, sur une bande horizontale
+        const bandH = Math.min(H * 0.72, Math.max(...o.textures.map((t) => t.hcm)));
+        const y = H / 2;
+        let x = -1;
+        for (let i = 0; x < W + 1; i++) {
+          const t = o.textures[i % o.textures.length];
+          const h = Math.min(bandH, t.hcm), w = t.wcm;
+          const sh = t.canvas.height * (h / t.hcm), sy = (t.canvas.height - sh) * (0.2 + 0.6 * R());
+          bg.push({ kind: 'bg', panel: true, src: t.canvas, pageW: t.wcm, pageH: t.hcm, sx: 0, sy, sw: t.canvas.width, sh, x: x + w / 2, y: y + (R() - 0.5) * 0.4, w, h, rot: (R() - 0.5) * 0.01, flip: false, clip: null, whole: false });
+          x += w - 0.6;
+        }
+      }
+      Z = zonesFor(W, H, false);
+      const order = o.pieces.slice().sort((a, b) => ((a.drawing && a.drawing.id) || 0) - ((b.drawing && b.drawing.id) || 0));
+      const rows = W / H >= 2.2 || order.length <= 7 ? 1 : 2;
+      const cols = Math.ceil(order.length / rows);
+      mode = { targets: (idx, n, p) => { const k = Math.max(0, order.indexOf(p)); const row = k % rows, col = Math.floor(k / rows); return { x: W * (0.07 + 0.86 * ((col + 0.5) / cols)), y: rows === 1 ? H * 0.52 : H * (0.3 + 0.42 * row), rot: 0, r: k }; }, byRadius: false, tight: false, spread: 0.5 };
     } else if (style === 'constellation') {
       if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
       Z = zonesFor(W, H, false);
