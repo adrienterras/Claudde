@@ -279,70 +279,161 @@ def snail(d):
     stroke(d, [(300, 1130), (280, 980)], INK, 9); stroke(d, [(380, 1110), (400, 960)], INK, 9)
     stroke(d, circle_pts(280, 960, 18), INK, 7, closed=True); stroke(d, circle_pts(400, 940, 18), INK, 7, closed=True)
 
-# ---------- pages de fond (entièrement peintes) ----------
-def wash(color, color2, strokes=80, blur=5, extra=()):
-    """aplat de peinture : larges coups de brosse dans une gamme de couleurs assez variée
-    (comme une vraie page peinte, où aucune teinte ne domine tout à fait)"""
-    im = Image.new('RGB', (W, H), color); d = ImageDraw.Draw(im)
-    fam = [color, color2] + list(extra)
-    for _ in range(strokes):
-        y = random.randrange(-50, H + 50); x = random.randrange(-200, W)
-        a, b = random.sample(fam, 2)
-        c = tuple(int(u + (v - u) * random.random()) for u, v in zip(a, b))
-        d.line([(x, y), (x + random.randint(300, 900), y + random.randint(-60, 60))], fill=c, width=random.randint(40, 110))
-    return im.filter(ImageFilter.GaussianBlur(blur))
+# ---------- pages de fond : gouache à la brosse large, comme une page entièrement peinte par un enfant ----------
+def _clamp(c): return tuple(max(0, min(255, int(v))) for v in c)
+def _mix(a, b, t): return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+def _jit(c, k): return _clamp(tuple(v + random.uniform(-k, k) for v in c))
+
+def brush(layer, p0, p1, color, width, load=1.0, bristles=None, curve=0.0):
+    """Un coup de brosse plate : des poils parallèles, chacun un peu décalé et d'une teinte proche ;
+    la peinture s'épuise le long du trait (fin de trait sec, poils qui lâchent), les bords sont irréguliers."""
+    d = ImageDraw.Draw(layer, 'RGBA')
+    (x0, y0), (x1, y1) = p0, p1
+    L = math.hypot(x1 - x0, y1 - y0) or 1
+    ux, uy = (x1 - x0) / L, (y1 - y0) / L
+    nx, ny = -uy, ux
+    n = bristles or max(6, int(width / 2.2))
+    for i in range(n):
+        off = (i / (n - 1) - 0.5) * width * random.uniform(0.92, 1.04)
+        if random.random() < 0.03: continue  # poil qui manque
+        c = _jit(color, 16)
+        # un peu plus sombre sur les bords du trait (peinture repoussée)
+        edge = abs(off) / (width / 2)
+        c = _clamp(_mix(c, (c[0] * 0.86, c[1] * 0.86, c[2] * 0.86), edge ** 3 * 0.35))
+        w = random.uniform(4.0, 6.0)
+        # le trait en segments : l'alpha baisse quand la brosse se vide, et le trait finit en pointillé
+        segs = max(6, int(L / 22))
+        pts = []
+        for k in range(segs + 1):
+            t = k / segs
+            bend = math.sin(t * math.pi) * curve * width
+            jx = random.uniform(-1.2, 1.2); jy = random.uniform(-1.2, 1.2)
+            pts.append((x0 + ux * L * t + nx * (off + bend) + jx, y0 + uy * L * t + ny * (off + bend) + jy))
+        for k in range(segs):
+            t = k / segs
+            a = min(1, load * 1.15) * (1 - 0.12 * t) * random.uniform(0.94, 1.0)
+            if t > 0.82 and random.random() < (t - 0.82) * 2.2: continue  # brosse sèche
+            d.line([pts[k], pts[k + 1]], fill=c + (int(255 * min(1, a)),), width=int(w))
+
+def dab(layer, cx, cy, r, color, load=0.9, texture=True):
+    """une touche ronde de pinceau chargé : une tache aux bords irréguliers, puis deux ou trois petits
+    coups de brosse par-dessus pour la texture"""
+    d = ImageDraw.Draw(layer, 'RGBA')
+    pts = [(cx + r * random.uniform(0.86, 1.08) * math.cos(a), cy + r * random.uniform(0.86, 1.08) * math.sin(a)) for a in [2 * math.pi * k / 22 for k in range(22)]]
+    d.polygon(pts, fill=_jit(color, 5) + (int(235 * load),))
+    for _ in range(3 if texture else 0):
+        a = random.uniform(0, math.pi)
+        brush(layer, (cx - math.cos(a) * r * 0.7, cy - math.sin(a) * r * 0.7), (cx + math.cos(a) * r * 0.7, cy + math.sin(a) * r * 0.7), color, r * 0.9, load * 0.8)
+
+def painted_page(bg, sweeps, base_angle=0):
+    """`sweeps` : liste de (couleur, nombre, largeur, direction en degrés ± écart, longueur, charge)."""
+    im = paper()
+    # première couche : la feuille entière, en larges passages bord à bord (un enfant couvre tout)
+    # en alternant les trois teintes principales : aucune ne domine la page, comme une vraie gouache mélangée
+    bases = [sw[0] for sw in sweeps[:5]]
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    y = -40; k = 0
+    while y < H + 40:
+        dy = math.tan(math.radians(base_angle)) * (W + 160)
+        brush(layer, (-80, y - dy / 2 + random.uniform(-6, 6)), (W + 80, y + dy / 2 + random.uniform(-14, 14)), _jit(bases[k % 5], 8), 150, 0.95, curve=random.uniform(-0.06, 0.06))
+        y += 78; k += 1
+    layer = layer.filter(ImageFilter.GaussianBlur(0.4))
+    im.paste(layer, (0, 0), layer)
+    # puis les coups de brosse libres, par couleur
+    for color, count, width, (ang, spread), length, load in sweeps:
+        layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        for _ in range(count):
+            a = math.radians(ang + random.uniform(-spread, spread))
+            L = length * random.uniform(0.6, 1.25)
+            x = random.uniform(-0.1 * W, 1.1 * W); y = random.uniform(-0.05 * H, 1.05 * H)
+            brush(layer, (x, y), (x + math.cos(a) * L, y + math.sin(a) * L), color, width * random.uniform(0.8, 1.2), load, curve=random.uniform(-0.15, 0.15))
+        layer = layer.filter(ImageFilter.GaussianBlur(0.4))
+        im.paste(layer, (0, 0), layer)
+    return im
+
+def paper_grain(im):
+    """grain de la feuille sous la peinture + très léger relief"""
+    noise = Image.effect_noise((W, H), 18).convert('L')
+    g = Image.merge('RGB', (noise, noise, noise))
+    return Image.blend(im, g, 0.06)
 
 def sky_page():
-    im = wash((90, 150, 215), (175, 210, 240), 110, 5, extra=[(140, 120, 200), (230, 170, 190), (250, 225, 150)])
-    d = ImageDraw.Draw(im); d._image = im
-    for cx, cy in ((300, 400), (900, 650), (500, 1250), (950, 1450)):
-        for k in range(5):
-            p = circle_pts(cx + (k - 2) * 75, cy + (0 if k % 2 else 40), 90, 24)
-            ImageDraw.Draw(im).ellipse((p[0][0] - 90, cy - 90, p[0][0] + 90, cy + 90), fill=(246, 248, 252))
-        stroke(d, [(cx - 230, cy + 85), (cx + 230, cy + 85)], (235, 240, 248), 20)
-    return im
+    SKY = (86, 150, 214); LIGHT = (190, 222, 244); DEEP = (30, 70, 160); MAUVE = (170, 130, 215); WHITE = (246, 247, 250)
+    im = painted_page(None, [
+        (SKY, 46, 150, (0, 6), 900, 0.95), (LIGHT, 50, 120, (0, 8), 700, 0.85), (DEEP, 30, 110, (0, 5), 600, 0.9),
+        (MAUVE, 10, 90, (0, 10), 500, 0.7), ((236, 180, 200), 8, 80, (0, 8), 420, 0.6),
+    ])
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for cx, cy, s in ((330, 420, 1.0), (880, 700, 1.15), (420, 1230, 0.9), (930, 1480, 1.0)):
+        for k in range(8):
+            dab(layer, cx + (k - 3.5) * 58 * s, cy + (-30 if k % 2 else 12) * s + random.uniform(-8, 8), 92 * s * random.uniform(0.85, 1.1), WHITE, 0.97, texture=False)
+        brush(layer, (cx - 230 * s, cy + 75 * s), (cx + 230 * s, cy + 80 * s), WHITE, 34, 0.9)
+    im.paste(layer, (0, 0), layer)
+    return paper_grain(im)
 
 def grass_page():
-    im = wash((60, 135, 60), (150, 200, 80), 130, 4, extra=[(220, 200, 60), (120, 90, 40), (90, 170, 140)])
-    d = ImageDraw.Draw(im); d._image = im
-    for _ in range(400):
-        x = random.randrange(W); y = random.randrange(H)
-        stroke(d, [(x, y), (x + random.randint(-15, 15), y - random.randint(30, 80))], (40 + random.randint(0, 40), 100 + random.randint(0, 60), 40), 6, amp=1, passes=1)
-    for _ in range(30):
-        x, y = random.randrange(W), random.randrange(H)
-        stroke(d, circle_pts(x, y, 14, 12), random.choice([YELLOW, PINK, (250, 250, 250)]), 10, closed=True, passes=1)
-    return im
+    G1 = (70, 146, 62); G2 = (166, 210, 80); G3 = (20, 76, 46); YEL = (232, 216, 82); BROWN2 = (124, 94, 46)
+    im = painted_page(None, [
+        (G1, 34, 150, (0, 7), 900, 0.95), (G2, 38, 120, (0, 9), 700, 0.85), (G3, 20, 110, (0, 6), 600, 0.9),
+        (YEL, 16, 80, (0, 12), 450, 0.7), (BROWN2, 12, 70, (0, 10), 400, 0.7),
+    ])
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for _ in range(420):  # brins d'herbe au pinceau fin, vers le haut
+        x = random.uniform(0, W); y = random.uniform(0, H)
+        brush(layer, (x, y), (x + random.uniform(-18, 18), y - random.uniform(40, 110)), _jit(random.choice([G3, G1, (90, 160, 70)]), 14), 7, 0.9, bristles=3)
+    for _ in range(34):  # petites fleurs : une touche de couleur
+        x, y = random.uniform(40, W - 40), random.uniform(40, H - 40)
+        dab(layer, x, y, random.uniform(14, 24), random.choice([YELLOW, PINK, (250, 250, 250), (240, 120, 60)]), 0.95)
+    im.paste(layer, (0, 0), layer)
+    return paper_grain(im)
 
 def stripes_page():
-    im = Image.new('RGB', (W, H), (250, 248, 240)); d = ImageDraw.Draw(im); d._image = im
-    cols = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK]
-    y = -40
-    i = 0
-    while y < H + 40:
-        h = random.randint(110, 190)
-        poly = [(-30, y), (W + 30, y + random.randint(-20, 20)), (W + 30, y + h), (-30, y + h + random.randint(-20, 20))]
-        crayon_fill(d, poly, cols[i % len(cols)], spacing=10, angle=random.choice([0, 90, 35]), width=10)
-        y += h - 10; i += 1
-    return im
+    """bandes de couleur à la brosse large, une couleur par bande, bords qui bavent"""
+    im = paper()
+    cols = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE, PINK, (60, 170, 160)]
+    y = -30; i = 0
+    while y < H + 30:
+        h = random.randint(120, 200)
+        layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        c = cols[i % len(cols)]
+        for k in range(3):  # trois passages par bande, un peu décalés
+            yy = y + h / 2 + random.uniform(-h * 0.18, h * 0.18)
+            x0 = random.uniform(-80, 40)
+            brush(layer, (x0, yy), (W + 60, yy + random.uniform(-14, 14)), c, h * random.uniform(0.6, 0.8), random.uniform(0.8, 1.0), curve=random.uniform(-0.1, 0.1))
+        layer = layer.filter(ImageFilter.GaussianBlur(0.4))
+        im.paste(layer, (0, 0), layer)
+        y += h - 14; i += 1
+    return paper_grain(im)
 
 def night_page():
-    im = wash((25, 35, 90), (80, 70, 170), 170, 3, extra=[(140, 60, 150), (30, 120, 150), (210, 130, 70), (60, 160, 120)])
-    d = ImageDraw.Draw(im); d._image = im
-    for _ in range(26):
-        cx, cy = random.randrange(80, W - 80), random.randrange(80, H - 80); r = random.randint(25, 60)
-        pts = [(cx + (r if k % 2 == 0 else r * 0.45) * math.cos(-math.pi / 2 + k * math.pi / 5), cy + (r if k % 2 == 0 else r * 0.45) * math.sin(-math.pi / 2 + k * math.pi / 5)) for k in range(10)]
-        felt_fill(d, pts, YELLOW); stroke(d, pts, (250, 220, 90), 5, closed=True, passes=1)
-    moon = circle_pts(900, 350, 150); felt_fill(d, moon, (250, 240, 200))
-    ImageDraw.Draw(im).ellipse((860, 190, 1150, 480), fill=(28, 38, 95))
-    return im
+    NAVY = (20, 30, 90); IND = (110, 130, 210); VIOL = (150, 60, 160); TEAL = (40, 150, 150); PLUM = (214, 130, 70)
+    im = painted_page(None, [
+        (NAVY, 40, 150, (0, 8), 900, 1.0), (IND, 50, 120, (0, 10), 700, 0.9), (VIOL, 32, 100, (0, 12), 520, 0.75),
+        (TEAL, 10, 90, (0, 10), 500, 0.6), (PLUM, 10, 90, (0, 10), 460, 0.7),
+    ])
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for _ in range(30):  # étoiles : petites croix de pinceau fin, jaune chargé
+        cx, cy = random.uniform(60, W - 60), random.uniform(60, H - 60); r = random.uniform(14, 34)
+        for a in (0, math.pi / 2, math.pi / 4, -math.pi / 4):
+            brush(layer, (cx - math.cos(a) * r, cy - math.sin(a) * r), (cx + math.cos(a) * r, cy + math.sin(a) * r), (250, 214, 70), 7, 1.0, bristles=3)
+        dab(layer, cx, cy, r * 0.5, (252, 228, 110), 1.0)
+    dab(layer, 900, 360, 150, (248, 236, 190), 1.0, texture=False)  # la lune, une grosse touche ronde
+    im.paste(layer, (0, 0), layer)
+    return paper_grain(im)
 
 def earth_page():
-    im = wash((150, 95, 55), (220, 170, 100), 170, 3, extra=[(200, 70, 50), (235, 205, 90), (80, 55, 40), (120, 150, 70)])
-    d = ImageDraw.Draw(im); d._image = im
-    for _ in range(60):
-        x, y = random.randrange(W), random.randrange(H)
-        stroke(d, circle_pts(x, y, random.randint(20, 60), 16), (110 + random.randint(0, 40), 70, 40), 8, closed=True, passes=1)
-    return im
+    OCRE = (182, 122, 58); SIEN = (110, 52, 30); SAND = (236, 208, 140); RUST = (215, 55, 40); UMBER = (90, 100, 120); MOSS = (120, 150, 60)
+    im = painted_page(None, [
+        (OCRE, 30, 150, (12, 22), 700, 0.95), (SAND, 40, 120, (-8, 24), 600, 0.8), (SIEN, 22, 110, (20, 25), 520, 0.9),
+        (MOSS, 16, 90, (-15, 25), 420, 0.75), (RUST, 14, 90, (10, 25), 440, 0.8), (UMBER, 10, 90, (-20, 20), 420, 0.8),
+    ], base_angle=11)
+    layer = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for _ in range(40):  # cailloux : petits cercles au pinceau
+        x, y = random.uniform(40, W - 40), random.uniform(40, H - 40); r = random.uniform(18, 50)
+        pts = circle_pts(x, y, r, 14)
+        for p, q in zip(pts, pts[1:] + pts[:1]): brush(layer, p, q, _jit((70, 44, 30), 20), 8, 0.9, bristles=3)
+    im.paste(layer, (0, 0), layer)
+    return paper_grain(im)
 
 PAGES = [
     ('soleil', sun), ('maison', house), ('chat', cat), ('arc-en-ciel', rainbow), ('bonhomme', figure),
@@ -357,8 +448,8 @@ for name, fn in PAGES:
     im.save(f'{name}.jpg', quality=82, optimize=True)
     manifest['pages'].append({'file': f'{name}.jpg', 'name': f'Exemple — {name.replace("-", " ")}'})
 for name, fn in BACKS:
-    im = fn().filter(ImageFilter.GaussianBlur(0.6))
-    im.save(f'{name}.jpg', quality=80, optimize=True)
+    im = fn()
+    im.save(f'{name}.jpg', quality=88, optimize=True)
     manifest['pages'].append({'file': f'{name}.jpg', 'name': f'Exemple — {name.replace("-", " ")}'})
 json.dump(manifest, open('manifest.json', 'w'), ensure_ascii=False, indent=1)
 print('ok', len(manifest['pages']), 'pages')
