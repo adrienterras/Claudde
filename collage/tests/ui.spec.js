@@ -78,6 +78,35 @@ test.describe('Interface', () => {
   });
 });
 
+test.describe('Brouillon', () => {
+  test('l’œuvre en cours est gardée d’elle-même et proposée après un rechargement', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#draft-offer')).toBeHidden();
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForTimeout(3500); // le brouillon s'enregistre 2,5 s après le dernier changement
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#draft-offer')).toBeVisible();
+    await expect(page.locator('#draft-offer')).toContainText('2 dessins');
+    // le brouillon n'est pas listé parmi les compositions sauvegardées
+    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
+    await page.locator('#draft-resume').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#draft-offer')).toBeHidden();
+    await expect(page.locator('#compose-section')).toBeVisible();
+    // repartir de zéro efface le brouillon
+    await page.locator('#restart').click();
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.waitForTimeout(500);
+    await expect(page.locator('#draft-offer')).toBeHidden();
+  });
+});
+
 test.describe('Dessins d’exemple', () => {
   test('sans dossier samples, rien n’est proposé', async ({ browser }) => {
     const ctx = await browser.newContext();

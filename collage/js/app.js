@@ -1534,6 +1534,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   function render() {
     if (!raf) raf = requestAnimationFrame(draw);
+    scheduleDraft();
   }
 
   function draw() {
@@ -2713,6 +2714,9 @@ Réponds uniquement avec ce JSON :
     updateLabel();
     render();
     selectTab('import-section');
+    clearTimeout(draftTimer);
+    dbDel(DRAFT_ID).catch(() => {});
+    $('draft-offer').hidden = true;
   }
   $('clear').onclick = startOver;
   $('restart').onclick = startOver;
@@ -2757,6 +2761,45 @@ Réponds uniquement avec ce JSON :
   function dbGet(id) { return openDb().then((db) => new Promise((res, rej) => { const r = db.transaction(DB_STORE).objectStore(DB_STORE).get(id); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
   function dbDel(id) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).delete(id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
   const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
+
+  // Brouillon : l'œuvre en cours est gardée d'elle-même dans ce navigateur (dessins compris), pour
+  // survivre à un rechargement ou à un onglet fermé par le téléphone. Proposée à la prochaine visite.
+  const DRAFT_ID = 'brouillon';
+  let draftTimer = 0, draftBusy = false, draftAgain = false;
+  function scheduleDraft() {
+    if (!state.comp || !state.drawings.length || state.restoring) return;
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(saveDraft, 2500);
+  }
+  async function saveDraft() {
+    if (!state.comp || !state.drawings.length || state.restoring) return;
+    if (draftBusy) { draftAgain = true; return; }
+    draftBusy = true;
+    try {
+      const rec = await snapshotComposition(tr('Œuvre en cours'));
+      rec.id = DRAFT_ID;
+      await dbPut(rec);
+    } catch (e) { console.warn('brouillon non enregistré', e); }
+    finally { draftBusy = false; if (draftAgain) { draftAgain = false; scheduleDraft(); } }
+  }
+  async function offerDraft() {
+    const box = $('draft-offer');
+    if (!box) return;
+    let rec = null;
+    try { rec = await dbGet(DRAFT_ID); } catch (e) { rec = null; }
+    if (!rec || !rec.drawings || !rec.drawings.length || state.drawings.length) return;
+    const when = new Date(rec.date);
+    box.querySelector('span').textContent = tr`Œuvre en cours retrouvée : ${rec.drawings.length} dessins, ${when.toLocaleString(I18n.locale, { dateStyle: 'medium', timeStyle: 'short' })}.`;
+    box.hidden = false;
+    $('draft-resume').onclick = async () => {
+      box.querySelector('span').textContent = tr('Réouverture de l’œuvre en cours…');
+      $('draft-resume').hidden = true; $('draft-forget').hidden = true;
+      await restoreComposition(DRAFT_ID);
+      box.hidden = true;
+      $('draft-resume').hidden = false; $('draft-forget').hidden = false;
+    };
+    $('draft-forget').onclick = () => { box.hidden = true; dbDel(DRAFT_ID).catch(() => {}); };
+  }
 
   // La composition courante, sérialisée : dessins (images d'origine et réglages) et mise en place.
   const HD_SAVE = 3508; // page de PDF sauvegardée à 300 dpi sur un A4
@@ -2889,7 +2932,7 @@ Réponds uniquement avec ce JSON :
     const A = window.Account;
     const accounts = !!(A && A.enabled);
     const signed = accounts && !!A.user();
-    if (!accounts) { try { list = (await dbAll()).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; } }
+    if (!accounts) { try { list = (await dbAll()).filter((r) => r.id !== DRAFT_ID).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; } }
     if (signed) {
       try { list = await A.cloud.list(); } catch (e) { console.error(e); savedStatus(`Compositions du compte indisponibles : ${e.message}`); }
     }
@@ -3083,6 +3126,7 @@ Réponds uniquement avec ce JSON :
   $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
   $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
+  offerDraft();
 
   // ---------- Compte utilisateur (voir js/account.js) ----------
   (function accountUi() {
