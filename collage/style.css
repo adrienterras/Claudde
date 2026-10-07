@@ -678,7 +678,7 @@ body.editing { overflow: hidden; }
 }
 
 @media (max-width: 860px) {
-  :root { --sheet: 42svh; --topbar: 50px; }
+  :root { --sheet: 42svh; --topbar: 50px; --tabs: 64px; }
   html, body { height: 100%; }
   body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100svh; overflow: hidden; }
   body.has-lang-offer { grid-template-rows: auto auto 1fr; }
@@ -695,17 +695,19 @@ body.editing { overflow: hidden; }
   /* le carnet devient un tiroir fixe en bas de l'écran : l'œuvre reste visible pendant qu'on règle */
   .panel {
     order: 2; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; height: var(--sheet); box-sizing: border-box;
-    border-right: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); gap: 22px;
-    box-shadow: 0 -12px 30px -20px rgba(0, 0, 0, .5); transition: height .22s ease-out;
+    border-right: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: var(--tabs) 16px calc(24px + env(safe-area-inset-bottom, 0px)); gap: 22px;
+    box-shadow: 0 -12px 30px -20px rgba(0, 0, 0, .5); transition: height .22s ease-out; overscroll-behavior: contain;
   }
-  .panel.tall { height: 86svh; }
+  /* tiroir agrandi : la variable change pour tout le monde (tiroir, onglets, toile, densité) */
+  body.sheet-tall { --sheet: 86svh; }
   .panel .brand { display: none; }
+  /* la barre d'onglets est fixée au bord haut du tiroir (pas de « sticky », que Safari perd parfois) */
   .sheet-tabs {
-    display: grid; grid-template-columns: repeat(6, 1fr); position: sticky; top: 0; z-index: 2; margin: 0 -16px 2px; padding: 6px 6px 4px;
-    background: var(--surface); border-bottom: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: calc(var(--sheet) - var(--tabs)); height: var(--tabs); z-index: 7; margin: 0; padding: 6px 6px 0; box-sizing: border-box;
+    background: var(--surface); border-bottom: 1px solid var(--line); border-radius: 18px 18px 0 0; transition: bottom .22s ease-out;
   }
   .sheet-tabs::before { content: ""; position: absolute; top: 4px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line); }
-  .sheet-tabs button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 1px 6px; border: 0; background: none; color: var(--muted); font-size: clamp(0.48rem, 2.3vw, 0.58rem); font-weight: 600; letter-spacing: 0; cursor: pointer; border-radius: var(--r-sm); min-width: 0; }
+  .sheet-tabs button { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; padding: 10px 1px 6px; border: 0; background: none; color: var(--muted); font-size: clamp(0.48rem, 2.3vw, 0.58rem); font-weight: 600; letter-spacing: 0; cursor: pointer; border-radius: var(--r-sm); min-width: 0; }
   /* chaque libellé tient sur une ligne : la taille suit la largeur de l'écran, jamais de retour à la ligne */
   .sheet-tabs button span { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .sheet-tabs button .ico { width: 20px; height: 20px; }

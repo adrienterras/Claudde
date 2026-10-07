@@ -3358,14 +3358,14 @@ Réponds uniquement avec ce JSON :
     if (!tabs) return;
     tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => selectTab(b.dataset.tab); });
     // la poignée (double-clic ou glissement vertical) agrandit ou réduit le tiroir
-    tabs.addEventListener('dblclick', () => document.querySelector('.panel').classList.toggle('tall'));
+    tabs.addEventListener('dblclick', () => document.body.classList.toggle('sheet-tall'));
     let ty = null;
     tabs.addEventListener('touchstart', (e) => { ty = e.touches[0].clientY; }, { passive: true });
     tabs.addEventListener('touchend', (e) => {
       if (ty === null) return;
       const dy = e.changedTouches[0].clientY - ty; ty = null;
       if (Math.abs(dy) < 24) return;
-      document.querySelector('.panel').classList.toggle('tall', dy < 0);
+      document.body.classList.toggle('sheet-tall', dy < 0);
     }, { passive: true });
     const obs = new MutationObserver(syncTabs);
     document.querySelectorAll('aside section.step').forEach((sec) => obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] }));
