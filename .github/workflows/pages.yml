@@ -46,6 +46,11 @@ jobs:
           rm -rf _site/atelier/README.md _site/atelier/tests _site/atelier/node_modules _site/atelier/package.json _site/atelier/package-lock.json _site/atelier/playwright.config.js _site/atelier/.gitignore
           cp -r landing/. _site/
           cp collage/confidentialite.html _site/confidentialite.html
+          # Chaque déploiement change l'adresse des scripts et de la feuille de style : les navigateurs
+          # (Safari surtout) ne gardent plus une vieille version en cache après une mise à jour.
+          V="${GITHUB_SHA:0:8}"
+          sed -i -E "s#(src=\"(js/[a-z0-9-]+|config)\.js)\"#\1?v=$V\"#g; s#href=\"style\.css\"#href=\"style.css?v=$V\"#" _site/atelier/index.html
+          sed -i -E "s#(src=\"[a-z0-9-]+\.js)\"#\1?v=$V\"#g; s#(href=\"[a-z0-9-]+\.css)\"#\1?v=$V\"#g" _site/index.html _site/tarifs.html
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
