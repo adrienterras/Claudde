@@ -172,6 +172,7 @@
 
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
+      <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link">Reprendre</button> · <button type="button" id="draft-forget" class="link">Oublier</button></p>
       <label id="drop" class="drop">
         <input id="file" type="file" multiple accept="application/pdf,image/*" hidden>
         <svg class="ico ico-lg"><use href="#i-upload"/></svg>
@@ -180,7 +181,6 @@
       </label>
       <div id="progress" class="progress" hidden><div></div><span></span></div>
       <p id="notice" class="notice" role="status" hidden></p>
-      <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link">Reprendre</button> · <button type="button" id="draft-forget" class="link">Oublier</button></p>
       <p id="sample-offer" class="hint" hidden>Pas de scans sous la main ? <button id="load-sample" class="link">Essayer avec les dessins d’exemple</button></p>
       <p id="sample-note" class="hint" hidden>Exemple chargé : des dessins de démonstration.
         Ajoutez vos scans, ou <button id="clear" class="link">repartez de zéro</button>.</p>
@@ -357,6 +357,7 @@
         <p class="empty-title">Les grands souvenirs commencent par un gribouillage.</p>
         <span class="empty-rule"></span>
         <p class="hint">Importez les dessins scannés : l’atelier les découpe à leur taille réelle et compose sept propositions, à imprimer ou à réaliser avec les originaux.</p>
+        <button id="empty-resume" class="btn btn-primary" hidden><svg class="ico"><use href="#i-bookmark"/></svg><span>Reprendre l’œuvre en cours</span></button>
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Voir un exemple</span></button>
       </div>
     </div>

@@ -2717,6 +2717,7 @@ Réponds uniquement avec ce JSON :
     clearTimeout(draftTimer);
     dbDel(DRAFT_ID).catch(() => {});
     $('draft-offer').hidden = true;
+    if ($('empty-resume')) $('empty-resume').hidden = true;
   }
   $('clear').onclick = startOver;
   $('restart').onclick = startOver;
@@ -2791,14 +2792,20 @@ Réponds uniquement avec ce JSON :
     const when = new Date(rec.date);
     box.querySelector('span').textContent = tr`Œuvre en cours retrouvée : ${rec.drawings.length} dessins, ${when.toLocaleString(I18n.locale, { dateStyle: 'medium', timeStyle: 'short' })}.`;
     box.hidden = false;
-    $('draft-resume').onclick = async () => {
+    const big = $('empty-resume');
+    if (big) big.hidden = false; // aussi sur la scène vide, visible sans ouvrir le tiroir sur téléphone
+    const resume = async () => {
       box.querySelector('span').textContent = tr('Réouverture de l’œuvre en cours…');
       $('draft-resume').hidden = true; $('draft-forget').hidden = true;
+      if (big) big.disabled = true;
       await restoreComposition(DRAFT_ID);
       box.hidden = true;
+      if (big) { big.hidden = true; big.disabled = false; }
       $('draft-resume').hidden = false; $('draft-forget').hidden = false;
     };
-    $('draft-forget').onclick = () => { box.hidden = true; dbDel(DRAFT_ID).catch(() => {}); };
+    $('draft-resume').onclick = resume;
+    if (big) big.onclick = resume;
+    $('draft-forget').onclick = () => { box.hidden = true; if (big) big.hidden = true; dbDel(DRAFT_ID).catch(() => {}); };
   }
 
   // La composition courante, sérialisée : dessins (images d'origine et réglages) et mise en place.

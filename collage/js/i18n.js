@@ -68,6 +68,7 @@
     'Vérifier': 'Check',
     'Tout inclure': 'Include all',
     'Reprendre': 'Resume',
+    'Reprendre l’œuvre en cours': 'Resume the work in progress',
     'Oublier': 'Forget',
     'Œuvre en cours': 'Work in progress',
     'Œuvre en cours retrouvée : {0} dessins, {1}.': 'Work in progress found: {0} drawings, {1}.',

@@ -92,6 +92,7 @@ test.describe('Brouillon', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#draft-offer')).toBeVisible();
     await expect(page.locator('#draft-offer')).toContainText('2 dessins');
+    await expect(page.locator('#empty-resume')).toBeVisible();
     // le brouillon n'est pas listé parmi les compositions sauvegardées
     await expect(page.locator('#saved-list .saved')).toHaveCount(0);
     await page.locator('#draft-resume').click();
