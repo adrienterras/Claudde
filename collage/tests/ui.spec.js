@@ -47,6 +47,35 @@ test.describe('Interface', () => {
     expect(zoom).toBe('column');
     await ctx.close();
   });
+
+  test('téléphone : le carnet est un tiroir à onglets, ouvert sur Propositions après l’import', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    // sans dessin : onglet Importer, les autres étapes grisées, numérotation continue (01, 02)
+    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'import-section');
+    await expect(page.locator('#sheet-tabs [data-tab="compose-section"]')).toBeDisabled();
+    expect(await page.evaluate(() => [...document.querySelectorAll('aside section.step')].filter((s) => !s.hidden).map((s) => s.querySelector('.num').textContent))).toEqual(['01', '02']);
+    await expect(page.locator('#toolbar')).toBeHidden();
+    const { fixture } = require('./helpers');
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
+    await expect(page.locator('#compose-section')).toBeVisible();
+    await expect(page.locator('#import-section')).toBeHidden();
+    await expect(page.locator('#toolbar')).toBeVisible();
+    // l'onglet Dessins ouvre la section même si elle était repliée par défaut
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
+    await expect(page.locator('#drawings .thumb').first()).toBeVisible();
+    // l'œuvre reste visible au-dessus du tiroir
+    const canvasBottom = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().bottom);
+    const panelTop = await page.locator('.panel').evaluate((el) => el.getBoundingClientRect().top);
+    expect(canvasBottom).toBeLessThanOrEqual(panelTop + 1);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    await ctx.close();
+  });
 });
 
 test.describe('Dessins d’exemple', () => {

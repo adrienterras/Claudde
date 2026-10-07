@@ -78,6 +78,7 @@
   // ---------- Import ----------
 
   const tick = () => new Promise((r) => setTimeout(r, 0));
+  const mobileQuery = window.matchMedia('(max-width: 860px)');
 
   function setProgress(done, total, label) {
     const p = $('progress');
@@ -265,6 +266,8 @@
     if (state.drawings.length) {
       ['drawings-section', 'compose-section', 'export-section', 'room-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
+      $('restart-offer').hidden = false;
+      if (!state.restoring) selectTab('compose-section');
     }
     refreshLists();
     regenerate();
@@ -320,6 +323,11 @@
     const box = $('sizes-check');
     const list = state.drawings.filter((d) => d.uncertain && d.sizeMode === 'auto');
     box.hidden = !list.length;
+    const alert = $('sizes-alert');
+    if (alert) {
+      alert.hidden = !list.length;
+      alert.querySelector('span').textContent = list.length === 1 ? tr('1 dessin a une taille estimée : vérifiez-la pour un guide de découpe exact.') : tr`${list.length} dessins ont une taille estimée : vérifiez-les pour un guide de découpe exact.`;
+    }
     if (!list.length) return;
     box.innerHTML = `<p class="sizes-title">Tailles à vérifier <small>(${list.length})</small></p>
       <p class="hint">${tr('Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.')}</p>
@@ -1303,12 +1311,27 @@
     updateSettingsFor(state.comp);
     updateGroundName();
     $('density-bar').hidden = !state.comp;
+    $('toolbar').hidden = !state.comp;
+    const partial = $('partial-note');
+    if (partial) partial.hidden = true;
     if (state.comp) {
       const c = state.comp;
       const used = new Set();
       c.items.forEach((L) => used.add(L.piece.drawing));
       state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
       $('density-note').textContent = tr`${used.size} dessin${used.size > 1 ? 's' : ''} sur ${state.drawings.length}${allIn() ? tr(' · tout') : ''}`;
+      // styles qui ne retiennent qu'une sélection : on le dit, et on propose d'ajouter le reste
+      const left = unusedDrawings();
+      if (partial && c.total && left.length && !allIn()) {
+        partial.hidden = false;
+        // Galerie : le curseur de densité au maximum fait une case pour chaque dessin ; Cabinet : les
+        // étagères sont pleines, on le dit sans proposer d'entasser
+        const gallery = c.style === 'galerie';
+        $('partial-add').hidden = !(gallery && Number($('density').value) < Number($('density').max));
+        partial.querySelector('span').textContent = left.length === 1
+          ? tr`Ce style met en valeur une sélection : 1 dessin n’est pas retenu${gallery ? '' : tr(' (plus de place sur les étagères)')}. Il reste disponible dans Dessins.`
+          : tr`Ce style met en valeur une sélection : ${left.length} dessins ne sont pas retenus${gallery ? '' : tr(' (plus de place sur les étagères)')}. Ils restent disponibles dans Dessins.`;
+      }
     }
     if (!state.comp) { el.hidden = true; return; }
     el.hidden = false;
@@ -1321,6 +1344,21 @@
     const aside = asideDrawings().length;
     $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
     renderAside();
+  }
+
+  function unusedDrawings() {
+    const c = state.comp;
+    if (!c) return [];
+    const used = new Set();
+    c.items.forEach((L) => used.add(L.piece.drawing));
+    state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
+    return state.drawings.filter((d) => roleOf(d) !== 'off' && !used.has(d));
+  }
+  // Galerie : une case par dessin quand la densité est au maximum
+  function includeAll() {
+    const d = $('density');
+    d.value = d.max;
+    d.dispatchEvent(new Event('change'));
   }
 
   function titleFor(styleId) {
@@ -1927,6 +1965,48 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return { w, h, capped };
   }
 
+  function updateExportNote() {
+    const A = window.Account;
+    const gated = !!(A && A.enabled && !A.user());
+    const note = $('export-account'), free = $('export-free');
+    if (note) note.hidden = !gated;
+    if (free) free.hidden = !gated;
+  }
+
+  // Aperçu sans compte : l'image en 1200 px, avec un filigrane discret ; la haute définition et
+  // la sauvegarde restent réservées au compte.
+  async function exportPreview() {
+    if (!state.comp) return;
+    const btn = $('export-free');
+    btn.disabled = true;
+    try {
+      const s = 1200 / Math.max(state.comp.W, state.comp.H);
+      const c = Extract.makeCanvas(state.comp.W * s, state.comp.H * s);
+      const x = c.getContext('2d');
+      x.imageSmoothingQuality = 'high';
+      Compose.renderBg(x, state.comp, s, false);
+      Compose.renderItems(x, state.comp, s, false);
+      Compose.renderFinish(x, state.comp, s);
+      x.save();
+      x.globalAlpha = 0.28;
+      x.fillStyle = '#1c1b15';
+      x.font = `600 ${Math.round(c.width / 28)}px Montserrat, Arial, sans-serif`;
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.translate(c.width / 2, c.height / 2);
+      x.rotate(-Math.PI / 9);
+      const text = tr('aperçu · ateliergribouille.art');
+      for (let k = -2; k <= 2; k++) x.fillText(text, 0, k * c.height / 3.2);
+      x.restore();
+      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.86));
+      if (!blob) throw new Error('toBlob');
+      if (await saveFile(blob, tr('apercu-atelier-gribouille.jpg'))) window.Atelier.track('Export', { type: 'apercu', qualite: 'apercu' });
+    } catch (e) {
+      console.error(e);
+      notice(tr('L’aperçu n’a pas pu être produit sur cet appareil.'));
+    } finally { btn.disabled = false; }
+  }
+
   function updateExportInfo() {
     if (!state.comp) return;
     const { w, h, capped } = exportSize();
@@ -2405,6 +2485,14 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
+  $('export-free').onclick = exportPreview;
+  $('sizes-alert-go').onclick = () => {
+    const sec = $('drawings-section');
+    if (mobileQuery.matches) selectTab('drawings-section'); else if (sec._expand) sec._expand();
+    const box = $('sizes-check');
+    if (box) box.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+  $('partial-add').onclick = includeAll;
   $('guide').onclick = requireAccount(tr('créer le guide'), exportGuide);
 
   // ---------- Direction artistique par Claude ----------
@@ -2605,7 +2693,7 @@ Réponds uniquement avec ce JSON :
   }
 
   // Tout effacer pour repartir de ses propres scans
-  $('clear').onclick = () => {
+  function startOver() {
     state.drawings = [];
     state.title = '';
     state.titles = null;
@@ -2617,12 +2705,16 @@ Réponds uniquement avec ce JSON :
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label', 'restart-offer'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
     $('sample-offer').hidden = !state.sampleManifest;
     refreshLists();
+    updateLabel();
     render();
-  };
+    selectTab('import-section');
+  }
+  $('clear').onclick = startOver;
+  $('restart').onclick = startOver;
 
   // Dessins d'exemple fournis avec la page ou trouvés à côté de l'app : importés sur demande.
   async function loadSamples(m) {
@@ -2641,6 +2733,7 @@ Réponds uniquement avec ce JSON :
       state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
       $('sample-note').hidden = false;
       $('sample-offer').hidden = true;
+      $('restart-offer').hidden = true; // « repartez de zéro » est déjà proposé dans la note d'exemple
     } catch (e) {
       console.error(e);
       setProgress(1, 1);
@@ -2801,6 +2894,7 @@ Réponds uniquement avec ce JSON :
     }
     list.sort((a, b) => new Date(b.date) - new Date(a.date));
     $('saved-count').textContent = list.length ? `(${list.length})` : '';
+    if ($('saved-empty')) $('saved-empty').hidden = !!list.length;
     box.innerHTML = '';
     list.forEach((rec) => {
       const el = document.createElement('div');
@@ -3012,6 +3106,7 @@ Réponds uniquement avec ce JSON :
       status('');
     };
     document.querySelectorAll('.auth-tabs button').forEach((b) => { b.onclick = () => setMode(b.dataset.mode); });
+    updateExportNote();
     const openPanel = (open) => {
       sec.hidden = !open;
       $('acc-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -3097,6 +3192,7 @@ Réponds uniquement avec ce JSON :
     const PROVIDERS = { google: 'Google', email: tr('votre e-mail') };
     let wasSigned = null;
     A.onChange((u, info) => {
+      updateExportNote();
       const signed = !!u, recovering = !!(info && info.recovering);
       $('acc-open').hidden = signed;
       $('acc-menu').hidden = !signed;
@@ -3146,6 +3242,7 @@ Réponds uniquement avec ce JSON :
       h.appendChild(chev);
       h.setAttribute('role', 'button'); h.setAttribute('tabindex', '0');
       const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? tr('Développer') : tr('Réduire'); };
+      sec._expand = () => apply(false);
       apply(saved.includes(sec.id));
       const toggle = () => {
         apply(!sec.classList.contains('collapsed'));
@@ -3155,6 +3252,92 @@ Réponds uniquement avec ce JSON :
       h.addEventListener('click', toggle);
       h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     });
+  })();
+
+  // Les étapes sont numérotées d'après ce qui est visible : pas de « 05 » juste après « 01 ».
+  function renumberSteps() {
+    let n = 0;
+    document.querySelectorAll('aside section.step').forEach((sec) => {
+      const num = sec.querySelector(':scope > h2 .num');
+      if (!num || sec.hidden) return;
+      num.textContent = String(++n).padStart(2, '0');
+    });
+  }
+
+  // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
+  const TAB_OF = { more: ['saved-section', 'room-section'] };
+  function selectTab(id) {
+    const panel = document.querySelector('.panel');
+    const tabs = $('sheet-tabs');
+    if (!panel || !tabs) return;
+    if (!mobileQuery.matches) { panel.classList.remove('tabbed'); panel.removeAttribute('data-tab'); return; }
+    const btn = tabs.querySelector(`[data-tab="${id}"]`);
+    if (!btn || (!TAB_OF[id] && $(id).hidden)) return;
+    btn.disabled = false;
+    panel.classList.add('tabbed');
+    panel.dataset.tab = id;
+    tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+    const show = TAB_OF[id] || [id];
+    document.querySelectorAll('aside section.step').forEach((sec) => {
+      const on = show.includes(sec.id);
+      sec.classList.toggle('tab-on', on);
+      if (on && sec._expand) sec._expand();
+    });
+    panel.scrollTop = 0;
+  }
+  function syncTabs() {
+    const tabs = $('sheet-tabs');
+    if (!tabs) return;
+    tabs.querySelectorAll('button').forEach((b) => {
+      const id = b.dataset.tab;
+      if (TAB_OF[id]) return;
+      b.disabled = !!$(id).hidden;
+    });
+    renumberSteps();
+    const panel = document.querySelector('.panel');
+    if (mobileQuery.matches) {
+      const cur = panel.dataset.tab;
+      const curBtn = cur && tabs.querySelector(`[data-tab="${cur}"]`);
+      if (!cur || !curBtn || curBtn.disabled) selectTab(state.drawings.length ? 'compose-section' : 'import-section');
+    } else { panel.classList.remove('tabbed'); panel.removeAttribute('data-tab'); }
+  }
+  (function sheetTabs() {
+    const tabs = $('sheet-tabs');
+    if (!tabs) return;
+    tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => selectTab(b.dataset.tab); });
+    // la poignée (double-clic ou glissement vertical) agrandit ou réduit le tiroir
+    tabs.addEventListener('dblclick', () => document.querySelector('.panel').classList.toggle('tall'));
+    let ty = null;
+    tabs.addEventListener('touchstart', (e) => { ty = e.touches[0].clientY; }, { passive: true });
+    tabs.addEventListener('touchend', (e) => {
+      if (ty === null) return;
+      const dy = e.changedTouches[0].clientY - ty; ty = null;
+      if (Math.abs(dy) < 24) return;
+      document.querySelector('.panel').classList.toggle('tall', dy < 0);
+    }, { passive: true });
+    const obs = new MutationObserver(syncTabs);
+    document.querySelectorAll('aside section.step').forEach((sec) => obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] }));
+    const onMedia = () => syncTabs();
+    if (mobileQuery.addEventListener) mobileQuery.addEventListener('change', onMedia); else mobileQuery.addListener(onMedia);
+    syncTabs();
+  })();
+
+  // Navigateur en anglais mais français parmi ses langues (ou fuseau francophone) : on propose la
+  // version française, une seule fois.
+  (function langOffer() {
+    const el = $('lang-offer');
+    if (!el || !window.I18n || I18n.lang !== 'en') return;
+    let chosen = null, seen = null;
+    try { chosen = localStorage.getItem('atelier-gribouille:lang'); seen = localStorage.getItem('atelier-gribouille:lang-offer'); } catch (e) { /* ignoré */ }
+    if (chosen || seen) return;
+    const langs = navigator.languages || [navigator.language];
+    let tz = '';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { tz = ''; }
+    const french = langs.some((l) => /^fr\b/i.test(l)) || /^Europe\/(Paris|Brussels|Zurich|Luxembourg|Monaco)$|^America\/Montreal$/.test(tz);
+    if (!french) return;
+    el.hidden = false;
+    document.body.classList.add('has-lang-offer');
+    $('lang-offer-close').onclick = () => { el.hidden = true; document.body.classList.remove('has-lang-offer'); try { localStorage.setItem('atelier-gribouille:lang-offer', '1'); } catch (e) { /* ignoré */ } };
   })();
 
   fillFormats();

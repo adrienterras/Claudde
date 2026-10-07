@@ -12,13 +12,15 @@ test.describe('langues', () => {
     await expect(page.locator('#import-section h2')).toContainText('Import');
     await expect(page.locator('#drop strong')).toHaveText('Drop your scans');
     await expect(page.locator('#export')).toContainText('Download the artwork');
-    await expect(page.locator('[data-lang="en"]')).toHaveAttribute('aria-pressed', 'true');
+    // deux sélecteurs : celui du carnet (grand écran) et celui du bandeau (téléphone)
+    await expect(page.locator('.brand [data-lang="en"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.mobile-brand [data-lang="en"]')).toHaveAttribute('aria-pressed', 'true');
     // la langue reste mémorisée sans le paramètre d'URL
     await page.goto('index.html');
     await page.waitForFunction(() => window.I18n);
     await expect(page.locator('#import-section h2')).toContainText('Import');
     // retour au français par le sélecteur
-    await page.click('[data-lang="fr"]');
+    await page.click('.brand [data-lang="fr"]');
     await page.waitForFunction(() => window.I18n && window.I18n.lang === 'fr');
     await expect(page.locator('#import-section h2')).toContainText('Importer');
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr');

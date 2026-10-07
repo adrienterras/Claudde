@@ -59,12 +59,23 @@
     </defs>
   </svg>
 
-  <div class="mobile-brand" aria-hidden="true">
-    <span class="brand-mark"></span>
-    <span class="mobile-brand-name"><small>Atelier</small> Gribouille</span>
+  <div class="mobile-brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="mobile-brand-name" aria-hidden="true"><small>Atelier</small> Gribouille</span>
+    <div class="lang-switch mobile-lang" role="group" aria-label="Langue / Language">
+      <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+    </div>
   </div>
+  <p id="lang-offer" class="lang-offer" hidden><span lang="fr">Ce site existe aussi en français.</span> <button type="button" data-lang="fr" class="link" lang="fr">Voir en français</button><button type="button" id="lang-offer-close" class="lang-offer-close" aria-label="Fermer">×</button></p>
 
   <aside class="panel">
+    <nav class="sheet-tabs" id="sheet-tabs" aria-label="Étapes">
+      <button type="button" data-tab="import-section" class="on"><svg class="ico"><use href="#i-upload"/></svg><span>Importer</span></button>
+      <button type="button" data-tab="compose-section" disabled><svg class="ico"><use href="#i-spark"/></svg><span>Propositions</span></button>
+      <button type="button" data-tab="drawings-section" disabled><svg class="ico"><use href="#i-layers"/></svg><span>Dessins</span></button>
+      <button type="button" data-tab="export-section" disabled><svg class="ico"><use href="#i-download"/></svg><span>Exporter</span></button>
+      <button type="button" data-tab="more"><svg class="ico"><use href="#i-bookmark"/></svg><span>Plus</span></button>
+    </nav>
     <header class="brand">
       <span class="brand-mark" role="img" aria-label="Monogramme Atelier Gribouille"></span>
       <p class="brand-kicker">Atelier</p>
@@ -84,6 +95,7 @@
       <div class="acc-card">
         <button type="button" class="acc-close" id="acc-close" aria-label="Fermer">×</button>
         <span class="brand-mark acc-mark" aria-hidden="true"></span>
+        <p id="acc-status" class="acc-status" role="status" hidden></p>
 
         <!-- Connexion / inscription -->
         <div id="auth-box">
@@ -155,7 +167,6 @@
             <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
           </div>
         </div>
-        <p id="acc-status" class="acc-status" role="status" hidden></p>
       </div>
     </section>
 
@@ -172,31 +183,35 @@
       <p id="sample-offer" class="hint" hidden>Pas de scans sous la main ? <button id="load-sample" class="link">Essayer avec les dessins d’exemple</button></p>
       <p id="sample-note" class="hint" hidden>Exemple chargé : des dessins de démonstration.
         Ajoutez vos scans, ou <button id="clear" class="link">repartez de zéro</button>.</p>
+      <p id="restart-offer" class="hint" hidden>Ajoutez d’autres scans à cette œuvre, ou <button id="restart" class="link">commencez une nouvelle œuvre</button>.</p>
     </section>
 
     <section id="compose-section" class="step" hidden>
       <h2><span class="num">02</span> Propositions</h2>
       <p class="hint">Choisissez une proposition : elle s’affiche sur la toile, prête à retoucher ou à télécharger.</p>
+      <p id="sizes-alert" class="alert" hidden><span></span> <button type="button" class="link" id="sizes-alert-go">Vérifier</button></p>
       <div id="proposals" class="proposals"></div>
+      <p id="partial-note" class="hint partial" hidden><span></span> <button type="button" class="link" id="partial-add">Tout inclure</button></p>
       <p id="ai-status" class="hint ai"></p>
       <button id="generate" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Nouvelles propositions</span></button>
 
-      <details class="settings" id="advanced">
-        <summary>Réglages avancés <small>orientation, toile, fond, feuilles pâles</small></summary>
-        <div class="field">Orientation de la toile
-          <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
-            <button type="button" data-orient="land" class="on ink">Paysage</button>
-            <button type="button" data-orient="port">Portrait</button>
-          </div>
+      <div class="field">Orientation de la toile
+        <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
+          <button type="button" data-orient="land" class="on ink">Paysage</button>
+          <button type="button" data-orient="port">Portrait</button>
         </div>
-        <label class="field">Toile
-          <select id="format">
-            <option value="auto:1.4286" selected>Taille adaptée aux dessins · proportion classique</option>
-            <option value="auto:1.8">Taille adaptée aux dessins · allongée</option>
-            <option value="auto:1">Taille adaptée aux dessins · carrée</option>
-          </select>
-        </label>
-        <p id="scale-info" class="hint mono-note"></p>
+      </div>
+      <label class="field">Toile
+        <select id="format">
+          <option value="auto:1.4286" selected>Taille adaptée aux dessins · proportion classique</option>
+          <option value="auto:1.8">Taille adaptée aux dessins · allongée</option>
+          <option value="auto:1">Taille adaptée aux dessins · carrée</option>
+        </select>
+      </label>
+      <p id="scale-info" class="hint mono-note"></p>
+
+      <details class="settings" id="advanced">
+        <summary>Réglages avancés <small>fond, feuilles pâles, finition</small></summary>
         <label class="field">Feuilles pâles (crayon, texte)
           <select id="pale">
             <option value="aside" selected>Mises de côté (sauf sujet reconnu par Claude)</option>
@@ -213,9 +228,12 @@
 
     <section id="drawings-section" class="step" hidden>
       <h2><span class="num">03</span> Dessins <small id="drawings-count"></small></h2>
-      <p class="hint">Touchez un dessin pour régler son rôle
-        (<b class="tag cutout">découpe</b> <b class="tag texture">fond</b> <b class="tag off">ignoré</b>)
-        et sa taille réelle.</p>
+      <p class="hint">Touchez un dessin pour régler son rôle et sa taille réelle.</p>
+      <ul class="roles-legend">
+        <li><b class="tag cutout">découpe</b><span>le sujet est détouré, puis collé sur la toile</span></li>
+        <li><b class="tag texture">fond</b><span>la feuille entière sert de papier peint, derrière les découpes</span></li>
+        <li><b class="tag off">ignoré</b><span>n’apparaît ni dans l’œuvre ni dans le guide</span></li>
+      </ul>
       <p id="aside-note" class="aside-note" hidden></p>
       <div id="sizes-check" class="sizes-check" hidden></div>
       <div id="detail" class="detail" hidden></div>
@@ -244,7 +262,9 @@
         </label>
       </div>
       <p id="export-info" class="hint mono-note"></p>
+      <p id="export-account" class="hint account-note" hidden><svg class="ico"><use href="#i-user"/></svg><span>Le téléchargement en haute définition et la sauvegarde demandent un compte gratuit : il garde vos œuvres sur tous vos appareils. L’aperçu ci-dessous est libre.</span></p>
       <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
+      <button id="export-free" class="btn" hidden><svg class="ico"><use href="#i-eye"/></svg><span>Aperçu sans compte <small>basse définition, filigrane</small></span></button>
       <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
       <form id="save-form" class="save-form" hidden>
         <label class="field">Nom de la composition
@@ -268,6 +288,7 @@
       <h2><span class="num">05</span> Mes compositions <small id="saved-count"></small></h2>
       <p class="hint" id="saved-hint">Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins : rouvrez-les plus tard, telles quelles.</p>
       <div id="saved-list" class="saved-list"></div>
+      <p id="saved-empty" class="hint">Aucune composition sauvegardée pour l’instant.</p>
       <p id="saved-status" class="save-status" role="status" hidden></p>
       <div id="exports-box" hidden>
         <h3>Mes exports <small id="exports-count"></small></h3>
@@ -301,15 +322,15 @@
   </aside>
 
   <main class="stage">
-    <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée">
-      <button data-act="front" title="Mettre devant"><svg class="ico"><use href="#i-front"/></svg><span>Devant</span></button>
-      <button data-act="back" title="Mettre derrière"><svg class="ico"><use href="#i-back"/></svg><span>Derrière</span></button>
-      <button data-act="flip" title="Retourner"><svg class="ico"><use href="#i-flip"/></svg><span>Miroir</span></button>
-      <button data-act="dup" title="Dupliquer"><svg class="ico"><use href="#i-copy"/></svg><span>Dupliquer</span></button>
-      <button data-act="edit" title="Retoucher la découpe (double-clic)"><svg class="ico"><use href="#i-scissors"/></svg><span>Retoucher</span></button>
-      <button data-act="bigger" class="gallery-only" hidden title="Agrandir de 10 % (Galerie, pour l’impression)"><svg class="ico"><use href="#i-bigger"/></svg><span>Agrandir</span></button>
-      <button data-act="smaller" class="gallery-only" hidden title="Réduire de 10 % (Galerie, pour l’impression)"><svg class="ico"><use href="#i-smaller"/></svg><span>Réduire</span></button>
-      <button data-act="del" title="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
+    <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée" hidden>
+      <button data-act="front" title="Mettre devant" aria-label="Mettre devant"><svg class="ico"><use href="#i-front"/></svg><span>Devant</span></button>
+      <button data-act="back" title="Mettre derrière" aria-label="Mettre derrière"><svg class="ico"><use href="#i-back"/></svg><span>Derrière</span></button>
+      <button data-act="flip" title="Retourner" aria-label="Retourner"><svg class="ico"><use href="#i-flip"/></svg><span>Miroir</span></button>
+      <button data-act="dup" title="Dupliquer" aria-label="Dupliquer"><svg class="ico"><use href="#i-copy"/></svg><span>Dupliquer</span></button>
+      <button data-act="edit" title="Retoucher la découpe (double-clic)" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg><span>Retoucher</span></button>
+      <button data-act="bigger" class="gallery-only" hidden title="Agrandir de 10 % (Galerie, pour l’impression)" aria-label="Agrandir"><svg class="ico"><use href="#i-bigger"/></svg><span>Agrandir</span></button>
+      <button data-act="smaller" class="gallery-only" hidden title="Réduire de 10 % (Galerie, pour l’impression)" aria-label="Réduire"><svg class="ico"><use href="#i-smaller"/></svg><span>Réduire</span></button>
+      <button data-act="del" title="Retirer (Suppr)" aria-label="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
     </div>
     <p class="stage-tip" id="stage-tip">Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer</p>
     <canvas id="canvas"></canvas>
@@ -319,7 +340,7 @@
       <button id="zoom-in" title="Zoomer" aria-label="Zoomer">+</button>
       <button id="zoom-fit" title="Voir toute l’œuvre" aria-label="Voir toute l’œuvre"><svg class="ico"><use href="#i-fit"/></svg></button>
       <button id="zoom-full" title="Plein écran" aria-label="Plein écran" aria-pressed="false"><svg class="ico"><use href="#i-expand"/></svg></button>
-      <button id="bg-mode" class="mode" title="Ne voir que le fond et déplacer ses pages" aria-pressed="false"><svg class="ico"><use href="#i-layers"/></svg><span>Fond seul</span></button>
+      <button id="bg-mode" class="mode" title="Ne voir que le fond et déplacer ses pages" aria-label="Fond seul" aria-pressed="false"><svg class="ico"><use href="#i-layers"/></svg><span>Fond seul</span></button>
     </div>
     <div id="density-bar" class="density-bar" hidden>
       <label for="density">Densité</label>
