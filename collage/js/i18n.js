@@ -177,6 +177,7 @@
     'Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.': 'These sheets are not a standard size: enter their longest side, in cm. This sets their size in the artwork.',
     'Dessin {0}': 'Drawing {0}',
     'estimé {0} cm': 'estimated {0} cm',
+    'photo : {0} cm ?': 'photo: {0} cm?',
     'Plus grand côté en cm': 'Longest side in cm',
     'Automatique': 'Automatic',
     'Droite, comme scannée': 'Upright, as scanned',

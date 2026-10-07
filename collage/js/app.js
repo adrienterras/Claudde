@@ -309,6 +309,9 @@
       d.sizeCm = sheetLike && snap ? snap[1] : Math.round(est * 2) / 2;
       d.uncertain = calib ? false : !(sheetLike && snap) || est > 45 || est < 15;
       d.calibrated = !!calib;
+      // Photo prise au téléphone (dessin posé sur un sol, une table) : le nombre de pixels dépend de la
+      // distance de prise de vue, pas de la feuille. On reste entre A5 et A3 et on demande confirmation.
+      if (d.photo && !calib) { d.sizeCm = Math.min(42, Math.max(15, d.sizeCm)); d.uncertain = true; }
     });
   }
 
@@ -325,11 +328,9 @@
     list.forEach((d) => {
       const row = document.createElement('label');
       row.className = 'sizes-row';
-      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
-        <span class="sizes-input"><input type="number" min="3" max="300" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
-      const input = row.querySelector('input');
-      input.onchange = () => {
-        const cm = Number(input.value);
+      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
+        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="300" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
+      const apply = (cm) => {
         if (!(cm > 0)) return;
         d.sizeCm = cm;
         d.sizeMode = 'manual';
@@ -338,6 +339,9 @@
         refreshLists();
         regenerate();
       };
+      const input = row.querySelector('input');
+      input.onchange = () => apply(Number(input.value));
+      row.querySelectorAll('[data-cm]').forEach((b) => { b.onclick = (e) => { e.preventDefault(); apply(Number(b.dataset.cm)); }; });
       wrap.appendChild(row);
     });
   }
