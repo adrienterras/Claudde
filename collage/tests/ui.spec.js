@@ -99,6 +99,14 @@ test.describe('Brouillon', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#draft-offer')).toBeHidden();
     await expect(page.locator('#compose-section')).toBeVisible();
+    // retour d'une connexion externe (Google) : l'œuvre reprend d'elle-même, sur l'étape Exporter
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => sessionStorage.setItem('atelier-gribouille:after-auth', 'télécharger votre œuvre'));
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#draft-offer')).toBeHidden();
+    await expect(page.locator('#save-status')).toContainText('télécharger votre œuvre');
+    expect(await page.evaluate(() => sessionStorage.getItem('atelier-gribouille:after-auth'))).toBeNull();
     // repartir de zéro efface le brouillon
     await page.locator('#restart').click();
     await page.reload();

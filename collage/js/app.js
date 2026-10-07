@@ -2062,6 +2062,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const A = window.Account;
       if (A && A.enabled && !A.user()) {
         state.afterSignIn = () => fn(...args);
+        state.afterSignInLabel = label;
         if (window.openAccount) window.openAccount(tr`Connectez-vous ou créez un compte pour ${label}.`);
         return undefined;
       }
@@ -2783,12 +2784,28 @@ Réponds uniquement avec ce JSON :
     } catch (e) { console.warn('brouillon non enregistré', e); }
     finally { draftBusy = false; if (draftAgain) { draftAgain = false; scheduleDraft(); } }
   }
+  const AFTER_AUTH_KEY = 'atelier-gribouille:after-auth';
   async function offerDraft() {
     const box = $('draft-offer');
     if (!box) return;
     let rec = null;
     try { rec = await dbGet(DRAFT_ID); } catch (e) { rec = null; }
     if (!rec || !rec.drawings || !rec.drawings.length || state.drawings.length) return;
+    // retour d'une connexion Google : l'œuvre reprend sans rien demander, puis on revient à l'export
+    let after = null;
+    try { after = sessionStorage.getItem(AFTER_AUTH_KEY); sessionStorage.removeItem(AFTER_AUTH_KEY); } catch (e) { after = null; }
+    if (after) {
+      notice(tr('Connexion terminée : votre œuvre est rouverte…'));
+      await restoreComposition(DRAFT_ID);
+      if (state.comp) {
+        selectTab('export-section');
+        const sec = $('export-section');
+        if (sec && sec._expand) sec._expand();
+        notice('');
+        saveStatus(after === '1' ? tr('Votre œuvre est de retour.') : tr`Votre œuvre est de retour : touchez le bouton pour ${after}.`);
+      }
+      return;
+    }
     const when = new Date(rec.date);
     box.querySelector('span').textContent = tr`Œuvre en cours retrouvée : ${rec.drawings.length} dessins, ${when.toLocaleString(I18n.locale, { dateStyle: 'medium', timeStyle: 'short' })}.`;
     box.hidden = false;
@@ -3200,7 +3217,19 @@ Réponds uniquement avec ce JSON :
       try { status(tr('Un instant…')); await fn(); if (okMsg !== null) status(okMsg || ''); }
       catch (e) { console.error(e); status(e.message || 'Une erreur est survenue.', true); }
     };
-    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => { window.Atelier.track('Inscription', { via: b.dataset.provider }); busy(() => A.signInWith(b.dataset.provider), tr('Redirection vers la connexion…')); }; });
+    // La connexion Google quitte la page : l'œuvre en cours est mise en brouillon juste avant, et
+    // reprise d'elle-même au retour (voir offerDraft), avec l'action demandée rappelée.
+    document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => {
+      window.Atelier.track('Inscription', { via: b.dataset.provider });
+      busy(async () => {
+        if (state.comp && state.drawings.length) {
+          clearTimeout(draftTimer);
+          await saveDraft();
+          try { sessionStorage.setItem(AFTER_AUTH_KEY, state.afterSignInLabel || '1'); } catch (e) { /* ignoré */ }
+        }
+        await A.signInWith(b.dataset.provider);
+      }, tr('Redirection vers la connexion…'));
+    }; });
     $('auth-form').onsubmit = (e) => {
       e.preventDefault();
       const email = $('auth-email').value.trim(), pw = $('auth-password').value;
