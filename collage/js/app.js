@@ -1547,7 +1547,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const comp = state.comp;
     updateToolbar();
     if (!comp) return;
-    const pad = (document.body.classList.contains('stage-full') ? 12 : 36) * dpr;
+    // sur téléphone, l'œuvre prend toute la largeur disponible
+    const pad = (document.body.classList.contains('stage-full') ? 12 : mobileQuery.matches ? 8 : 36) * dpr;
     const fitS = Math.min((cw - 2 * pad) / comp.W, (ch - 2 * pad) / comp.H);
     const Z = state.zoom;
     const s = fitS * Z.z;

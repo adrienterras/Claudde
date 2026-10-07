@@ -678,7 +678,7 @@ body.editing { overflow: hidden; }
 }
 
 @media (max-width: 860px) {
-  :root { --sheet: 46svh; --topbar: 50px; }
+  :root { --sheet: 42svh; --topbar: 50px; }
   html, body { height: 100%; }
   body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100svh; overflow: hidden; }
   body.has-lang-offer { grid-template-rows: auto auto 1fr; }
@@ -719,7 +719,7 @@ body.editing { overflow: hidden; }
   body.stage-full .panel { display: none; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
-  .stage canvas { inset: 58px 50px calc(var(--sheet) + 48px) 0; width: calc(100% - 50px); height: calc(100% - 58px - var(--sheet) - 48px); }
+  .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: calc(100% - 56px - var(--sheet) - 44px); }
   body.stage-full .stage { padding-bottom: 0; }
   .stage-tip { display: none; }
   .toolbar { top: 10px; }
@@ -734,7 +734,7 @@ body.editing { overflow: hidden; }
   .zoom button.mode { display: grid; place-items: center; width: 32px; min-width: 32px; max-width: 32px; height: 32px; padding: 0; margin: 0; gap: 0; border-radius: 999px; }
   .zoom button.mode span { display: none; }
   .zoom button.mode .ico { display: block; }
-  .density-bar { left: 10px; bottom: calc(var(--sheet) + 52px); padding: 6px 12px; }
+  .density-bar { left: 10px; bottom: calc(var(--sheet) + 6px); padding: 6px 12px; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
 }
