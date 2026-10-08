@@ -75,6 +75,7 @@ test.describe('Interface', () => {
     await page.locator('#detail .detail-close').click();
     await expect(page.locator('#detail')).toBeHidden();
     await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    await page.waitForTimeout(300);
     // l'œuvre reste visible au-dessus du tiroir
     const canvasBottom = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().bottom);
     const panelTop = await page.locator('.panel').evaluate((el) => el.getBoundingClientRect().top);
