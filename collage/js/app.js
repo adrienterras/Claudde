@@ -2725,6 +2725,7 @@ Réponds uniquement avec ce JSON :
     render();
     selectTab('import-section');
     clearTimeout(draftTimer);
+    draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire le brouillon effacé
     dbDel(DRAFT_ID).catch(() => {});
     $('draft-offer').hidden = true;
     if ($('empty-resume')) $('empty-resume').hidden = true;
@@ -2776,7 +2777,7 @@ Réponds uniquement avec ce JSON :
   // Brouillon : l'œuvre en cours est gardée d'elle-même dans ce navigateur (dessins compris), pour
   // survivre à un rechargement ou à un onglet fermé par le téléphone. Proposée à la prochaine visite.
   const DRAFT_ID = 'brouillon';
-  let draftTimer = 0, draftBusy = false, draftAgain = false;
+  let draftTimer = 0, draftBusy = false, draftAgain = false, draftEpoch = 0;
   function scheduleDraft() {
     if (!state.comp || !state.drawings.length || state.restoring) return;
     clearTimeout(draftTimer);
@@ -2787,7 +2788,9 @@ Réponds uniquement avec ce JSON :
     if (draftBusy) { draftAgain = true; return; }
     draftBusy = true;
     try {
+      const epoch = draftEpoch;
       const rec = await snapshotComposition(tr('Œuvre en cours'));
+      if (epoch !== draftEpoch) return; // « nouvelle œuvre » demandée pendant l'instantané : on n'écrit pas
       rec.id = DRAFT_ID;
       await dbPut(rec);
     } catch (e) { console.warn('brouillon non enregistré', e); }

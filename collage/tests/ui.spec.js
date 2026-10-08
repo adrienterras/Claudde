@@ -79,11 +79,15 @@ test.describe('Interface', () => {
 });
 
 // attend que le brouillon soit bien écrit dans IndexedDB (il part 2,5 s après le dernier changement)
-const waitDraft = (page) => page.waitForFunction(() => new Promise((res) => {
+const hasDraft = (page) => page.evaluate(() => new Promise((res) => {
   const r = indexedDB.open('atelier-gribouille', 1);
   r.onsuccess = () => { const db = r.result; try { const g = db.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => { db.close(); res(!!(g.result && g.result.drawings && g.result.drawings.length)); }; g.onerror = () => { db.close(); res(false); }; } catch (e) { db.close(); res(false); } };
   r.onerror = () => res(false);
-}), null, { timeout: 60000 });
+}));
+const waitDraft = async (page) => {
+  for (let i = 0; i < 120; i++) { if (await hasDraft(page)) return; await page.waitForTimeout(500); }
+  throw new Error('brouillon jamais écrit');
+};
 
 test.describe('Brouillon', () => {
   test('l’œuvre en cours est gardée d’elle-même et proposée après un rechargement', async ({ page }) => {
@@ -116,6 +120,8 @@ test.describe('Brouillon', () => {
     expect(await page.evaluate(() => sessionStorage.getItem('atelier-gribouille:after-auth'))).toBeNull();
     // repartir de zéro efface le brouillon
     await page.locator('#restart').click();
+    for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
+    expect(await hasDraft(page)).toBe(false);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.waitForTimeout(500);
