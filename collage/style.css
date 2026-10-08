@@ -330,6 +330,8 @@ small { color: var(--muted); font-weight: 400; font-family: var(--f-body); font-
 .save-status.bad { color: var(--danger); }
 .fatal { position: fixed; z-index: 1000; left: 50%; top: 12px; transform: translateX(-50%); width: min(640px, calc(100vw - 32px)); padding: 14px 16px; border-radius: var(--r-md); background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); font-size: 0.86rem; }
 .fatal .fatal-text { margin: 0 0 10px; white-space: pre-wrap; word-break: break-word; }
+.row-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+.row-btns .btn { flex: 1 1 140px; }
 .fatal .row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .fatal .btn { padding: 6px 12px; font-size: 0.8rem; }
 .notice { margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--danger-soft); color: var(--danger); font-size: 0.84rem; }

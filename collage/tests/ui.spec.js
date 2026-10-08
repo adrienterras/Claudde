@@ -78,6 +78,13 @@ test.describe('Interface', () => {
   });
 });
 
+// attend que le brouillon soit bien écrit dans IndexedDB (il part 2,5 s après le dernier changement)
+const waitDraft = (page) => page.waitForFunction(() => new Promise((res) => {
+  const r = indexedDB.open('atelier-gribouille', 1);
+  r.onsuccess = () => { const db = r.result; try { const g = db.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => { db.close(); res(!!(g.result && g.result.drawings && g.result.drawings.length)); }; g.onerror = () => { db.close(); res(false); }; } catch (e) { db.close(); res(false); } };
+  r.onerror = () => res(false);
+}), null, { timeout: 60000 });
+
 test.describe('Brouillon', () => {
   test('l’œuvre en cours est gardée d’elle-même et proposée après un rechargement', async ({ page }) => {
     const { fixture } = require('./helpers');
@@ -87,7 +94,7 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await page.waitForTimeout(3500); // le brouillon s'enregistre 2,5 s après le dernier changement
+    await waitDraft(page);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#draft-offer')).toBeVisible();
@@ -100,7 +107,7 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
     await expect(page.locator('#compose-section')).toBeVisible();
     // retour d'une connexion externe (Google) : l'œuvre reprend d'elle-même, sur l'étape Exporter
-    await page.waitForTimeout(3500);
+    await waitDraft(page);
     await page.evaluate(() => sessionStorage.setItem('atelier-gribouille:after-auth', 'télécharger votre œuvre'));
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
