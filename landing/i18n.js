@@ -2,6 +2,15 @@
 (function () {
   'use strict';
   var EN = {
+    "Le deuxième atelier": "The second studio",
+    "Le livre de dessins": "The drawing book",
+    "Tous leurs dessins réunis dans un vrai livre, comme un album photo : une couverture à leur nom, un dessin par page ou plusieurs, avec son titre et leur âge.": "All their drawings gathered in a real book, like a photo album: a cover with their name, one drawing per page or several, with its title and their age.",
+    "Formats A4 portrait ou paysage, carré 21 ou 30 cm.": "A4 portrait or landscape, 21 or 30 cm square.",
+    "Un PDF en 300 dpi, prêt pour un service d’albums photo ou l’imprimante de la maison.": "A 300 dpi PDF, ready for a photo book service or your home printer.",
+    "Gratuit, sans compte : les dessins restent sur votre appareil.": "Free, no account: the drawings stay on your device.",
+    "Créer mon livre": "Create my book",
+    "Voir un livre d’exemple": "See a sample book",
+    "Un livre de dessins ouvert : un dessin d’enfant par page, avec son titre et l’âge de l’enfant": "An open drawing book: one child’s drawing per page, with its title and the child’s age",
     "Atelier Gribouille — Les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — Children’s drawings become works of art",
     "Scannez les dessins de vos enfants : l’atelier les découpe à leur taille réelle et compose une œuvre unique, à imprimer sur toile ou à réaliser à la main avec les originaux.": "Scan your children’s drawings: the studio cuts them out at their real size and composes a unique artwork, to print on canvas or to make by hand with the originals.",
     "Les dessins d’enfants deviennent des œuvres d’art. Scannez, l’atelier compose, accrochez.": "Children’s drawings become works of art. Scan, the studio composes, hang it up.",
@@ -202,7 +211,7 @@
       t.nodeValue = raw.match(/^\s*/)[0] + EN[key] + raw.match(/\s*$/)[0];
     });
     document.querySelectorAll('svg[aria-label]').forEach(function (s) { var v = s.getAttribute('aria-label'); if (EN[v] !== undefined) s.setAttribute('aria-label', EN[v]); });
-    document.querySelectorAll('a[href^="atelier/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
+    document.querySelectorAll('a[href^="atelier/"], a[href^="livre/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
     document.documentElement.lang = 'en';
   }
   function wire() {

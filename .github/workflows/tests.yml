@@ -3,9 +3,9 @@ name: Tests
 
 on:
   push:
-    paths: ['collage/**', '.github/workflows/tests.yml']
+    paths: ['collage/**', 'livre/**', '.github/workflows/tests.yml']
   pull_request:
-    paths: ['collage/**', '.github/workflows/tests.yml']
+    paths: ['collage/**', 'livre/**', '.github/workflows/tests.yml']
   workflow_dispatch:
 
 permissions:

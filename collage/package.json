@@ -5,7 +5,7 @@
   "description": "Atelier Gribouille — les dessins d'enfants deviennent des œuvres d'art (application web sans serveur).",
   "scripts": {
     "serve": "node tests/serve.js",
-    "pretest": "node tests/i18n-check.js",
+    "pretest": "node tests/i18n-check.js && node tests/livre-i18n-check.js",
     "test": "playwright test",
     "i18n": "node tests/i18n-check.js",
     "test:headed": "playwright test --headed",

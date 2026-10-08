@@ -4,13 +4,17 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.resolve(__dirname, '..');
+const livre = path.resolve(__dirname, '..', '..', 'livre');
 const port = Number(process.argv[2] || process.env.PORT || 8765);
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon' };
 
 http.createServer((req, res) => {
   const url = decodeURIComponent(req.url.split('?')[0]);
-  let file = path.join(root, url === '/' ? 'index.html' : url);
-  if (!file.startsWith(root)) { res.writeHead(403); res.end(); return; }
+  // comme en ligne : /livre/ est le livre de dessins (dossier ../livre), /atelier/ l'atelier (ce dossier)
+  let base = root, rel = url;
+  if (url.startsWith('/livre/')) { base = livre; rel = url.slice('/livre'.length); } else if (url.startsWith('/atelier/')) rel = url.slice('/atelier'.length);
+  let file = path.join(base, rel === '/' ? 'index.html' : rel);
+  if (!file.startsWith(base)) { res.writeHead(403); res.end(); return; }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end('introuvable'); return; }

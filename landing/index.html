@@ -116,6 +116,14 @@
     .promise li::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--blush); flex: none; margin-top: 8px; }
     .promise .btn-primary { background: var(--craie); color: var(--ink); margin-top: 22px; }
     .promise .btn-primary:hover { background: #fff; }
+    .book { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; align-items: center; }
+    .book-art img { display: block; width: 100%; height: auto; border-radius: 14px; box-shadow: 0 30px 60px -36px rgba(0,0,0,.55); }
+    .book .kicker { margin: 0 0 10px; font-size: .72rem; letter-spacing: .24em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    .book p { color: var(--ink-2); }
+    .book ul { margin: 18px 0 0; padding-left: 18px; color: var(--ink-2); font-size: .94rem; }
+    .book ul li { margin: 4px 0; }
+    .book .actions { margin-top: 24px; }
+    @media (max-width: 900px) { .book { grid-template-columns: 1fr; gap: 28px; } }
     .cta { text-align: center; padding: 72px 0 80px; }
     .cta h2 { font-style: italic; }
     .cta .actions { justify-content: center; }
@@ -405,6 +413,26 @@
       </div>
     </section>
 
+    <section id="livre">
+      <div class="wrap book">
+        <div class="book-art"><img src="img/livre-apercu.jpg" width="1400" height="1024" loading="lazy" alt="Un livre de dessins ouvert : un dessin d’enfant par page, avec son titre et l’âge de l’enfant"></div>
+        <div>
+          <p class="kicker">Le deuxième atelier</p>
+          <h2>Le livre de dessins</h2>
+          <p>Tous leurs dessins réunis dans un vrai livre, comme un album photo : une couverture à leur nom, un dessin par page ou plusieurs, avec son titre et leur âge.</p>
+          <ul>
+            <li>Formats A4 portrait ou paysage, carré 21 ou 30 cm.</li>
+            <li>Un PDF en 300 dpi, prêt pour un service d’albums photo ou l’imprimante de la maison.</li>
+            <li>Gratuit, sans compte : les dessins restent sur votre appareil.</li>
+          </ul>
+          <div class="actions">
+            <a class="btn btn-primary" href="livre/">Créer mon livre</a>
+            <a class="btn btn-ghost" href="livre/?exemple">Voir un livre d’exemple</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="cta wrap">
       <h2>Les grands souvenirs commencent par un gribouillage.</h2>
       <div class="actions">
@@ -417,7 +445,7 @@
   <footer>
     <div class="wrap">
       <span class="values">Créativité <i>·</i> Tendresse <i>·</i> Savoir-faire</span>
-      <nav><a href="atelier/">L’atelier</a><a href="tarifs.html">Tarifs</a><a href="confidentialite.html">Confidentialité</a><a href="mailto:bonjour@atelier-gribouille.com">Contact</a></nav>
+      <nav><a href="atelier/">L’atelier</a><a href="livre/">Le livre de dessins</a><a href="tarifs.html">Tarifs</a><a href="confidentialite.html">Confidentialité</a><a href="mailto:bonjour@atelier-gribouille.com">Contact</a></nav>
       <span>© Atelier Gribouille</span>
     </div>
   </footer>

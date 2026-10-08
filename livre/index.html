@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="icon" type="image/svg+xml" href="../atelier/assets/favicon.svg?v=2">
+  <link rel="icon" type="image/png" sizes="48x48" href="../atelier/assets/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../atelier/assets/favicon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="../atelier/assets/apple-touch-icon.png?v=2">
+  <meta name="theme-color" content="#f8f5ef">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Atelier Gribouille — le livre de dessins</title>
+  <meta name="description" content="Rassemblez les dessins de vos enfants dans un vrai livre : couverture, légendes, mise en page soignée, et un PDF prêt à imprimer en 300 dpi.">
+  <link rel="canonical" href="https://ateliergribouille.art/livre/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8zM18.5 16l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14"/></symbol>
+      <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+      <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.8l2.5 5.1 5.6.8-4 3.9.9 5.6-5-2.6-5 2.6.9-5.6-4-3.9 5.6-.8z"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5zM12 6.5v13"/></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4.5h10v15l-5-3.5-5 3.5z"/></symbol>
+    </defs>
+  </svg>
+
+  <aside class="panel">
+    <header class="brand">
+      <a class="brand-home" href="../" aria-label="Accueil Atelier Gribouille"><span class="brand-mark" aria-hidden="true"></span></a>
+      <div class="brand-text">
+        <p class="brand-kicker">Atelier Gribouille</p>
+        <h1 class="brand-name">Le livre de dessins</h1>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Langue / Language">
+        <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+      </div>
+    </header>
+    <p class="intro">Rassemblez les dessins de vos enfants dans un vrai livre, comme un album photo : une couverture, une page par dessin ou plusieurs, leurs titres et leurs dates. Le PDF se fait imprimer chez un service d’albums photo ou à la maison.</p>
+
+    <section id="import-section" class="step">
+      <h2><span class="num">01</span> Importer les dessins</h2>
+      <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link">Reprendre</button> · <button type="button" id="draft-forget" class="link">Oublier</button></p>
+      <label id="drop" class="drop">
+        <input id="file" type="file" multiple accept="application/pdf,image/*" hidden>
+        <svg class="ico ico-lg"><use href="#i-upload"/></svg>
+        <strong>Déposez vos scans ou vos photos</strong>
+        <span>PDF de plusieurs pages, JPG ou PNG · un dessin par page</span>
+      </label>
+      <div id="progress" class="progress" hidden><div></div><span></span></div>
+      <p id="notice" class="notice" role="status" hidden></p>
+      <p id="sample-offer" class="hint">Pas de scans sous la main ? <button type="button" id="load-sample" class="link">Essayer avec les dessins d’exemple</button></p>
+      <p id="restart-offer" class="hint" hidden>Ajoutez d’autres dessins, ou <button type="button" id="restart" class="link">commencez un nouveau livre</button>.</p>
+    </section>
+
+    <section id="book-section" class="step" hidden>
+      <h2><span class="num">02</span> Le livre</h2>
+      <label class="field">Titre
+        <input id="title" type="text" maxlength="48" placeholder="Les dessins de Léa">
+      </label>
+      <label class="field">Sous-titre
+        <input id="subtitle" type="text" maxlength="60" placeholder="2023 – 2026">
+      </label>
+      <label class="field">Format
+        <select id="format">
+          <option value="a4p" selected>A4 portrait · 21 × 29,7 cm</option>
+          <option value="a4l">A4 paysage · 29,7 × 21 cm</option>
+          <option value="sq21">Carré · 21 × 21 cm</option>
+          <option value="sq30">Grand carré · 30 × 30 cm</option>
+        </select>
+      </label>
+      <div class="field">Dessins par page
+        <div class="seg" id="layout" role="group" aria-label="Dessins par page">
+          <button type="button" data-n="1" class="on">Un</button>
+          <button type="button" data-n="2">Deux</button>
+          <button type="button" data-n="4">Quatre</button>
+        </div>
+      </div>
+      <div class="field">Papier
+        <div class="swatches" id="paper" role="radiogroup" aria-label="Couleur du papier"></div>
+      </div>
+      <label class="switch row"><input id="captions" type="checkbox" checked><span></span>Titres et dates sous les dessins</label>
+      <label class="switch row"><input id="numbers" type="checkbox" checked><span></span>Numéros de page</label>
+    </section>
+
+    <section id="drawings-section" class="step" hidden>
+      <h2><span class="num">03</span> Les dessins <small id="count"></small></h2>
+      <p class="hint">L’ordre de la liste est celui du livre. Donnez un titre et une date ou un âge à chaque dessin ; l’étoile choisit le dessin de la couverture.</p>
+      <ol id="list" class="list"></ol>
+    </section>
+
+    <section id="export-section" class="step" hidden>
+      <h2><span class="num">04</span> Imprimer</h2>
+      <div class="field-pair">
+        <label class="field">Qualité
+          <select id="quality">
+            <option value="300" selected>Impression · 300 dpi</option>
+            <option value="150">Fichier léger · 150 dpi</option>
+          </select>
+        </label>
+        <label class="switch row bleed"><input id="bleed" type="checkbox"><span></span>Fond perdu 3 mm</label>
+      </div>
+      <p id="export-info" class="hint mono-note"></p>
+      <button id="export" class="btn btn-primary" type="button"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger le livre (PDF)</span></button>
+      <p id="export-status" class="status" role="status" hidden></p>
+      <p class="hint">Un PDF, une page par page du livre, couverture comprise. Les services d’albums photo l’acceptent tel quel ; à la maison, imprimez-le en recto verso. Le fond perdu ajoute 3 mm autour de chaque page, comme le demandent la plupart des imprimeurs.</p>
+    </section>
+
+    <footer class="foot">
+      <a href="../atelier/">L’atelier des œuvres</a><span aria-hidden="true">·</span><a href="../">Accueil</a><span aria-hidden="true">·</span><a href="../confidentialite.html">Confidentialité</a>
+      <p>Vos dessins restent sur votre appareil : rien n’est envoyé.</p>
+    </footer>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="stage-bar" id="stage-bar" hidden>
+      <p id="stage-info"></p>
+    </div>
+    <div id="spreads" class="spreads"></div>
+    <div id="empty" class="empty">
+      <div>
+        <svg class="ico empty-ico" aria-hidden="true"><use href="#i-book"/></svg>
+        <p class="empty-title">Un livre pour tous leurs dessins.</p>
+        <span class="empty-rule"></span>
+        <p class="hint">Importez les dessins : le livre se compose de lui-même, page après page. Réglez ensuite le titre, l’ordre et les légendes.</p>
+        <button id="empty-resume" class="btn btn-primary" type="button" hidden><svg class="ico"><use href="#i-bookmark"/></svg><span>Reprendre le livre en cours</span></button>
+        <button id="empty-sample" class="btn" type="button"><svg class="ico"><use href="#i-spark"/></svg><span>Voir un exemple</span></button>
+      </div>
+    </div>
+  </main>
+
+  <script src="../atelier/vendor/pdf.min.js"></script>
+  <script src="../atelier/vendor/jspdf.umd.min.js"></script>
+  <script src="../atelier/config.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="../atelier/js/analytics.js"></script>
+  <script src="js/book.js"></script>
+</body>
+</html>
