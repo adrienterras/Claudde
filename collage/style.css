@@ -688,7 +688,7 @@ body.editing { overflow: hidden; }
   body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100svh; overflow: hidden; overscroll-behavior: none; }
   body.has-lang-offer { grid-template-rows: auto auto 1fr; }
   .mobile-brand {
-    order: 0; display: flex; align-items: center; justify-content: center; gap: 10px; position: relative; min-height: var(--topbar); box-sizing: border-box;
+    order: 0; display: flex; align-items: center; justify-content: flex-start; gap: 10px; position: relative; min-height: var(--topbar); box-sizing: border-box;
     padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--line);
   }
   .mobile-brand .brand-mark { width: 30px; margin: 0; }
@@ -731,6 +731,9 @@ body.editing { overflow: hidden; }
   .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: calc(100% - 56px - var(--sheet) - 44px); }
   body.stage-full .stage { padding-bottom: 0; }
   .stage-tip { display: none; }
+  .empty { bottom: var(--sheet); padding: 16px 56px 16px 16px; }
+  .empty-pictos img { height: 36px; }
+  .empty-title { font-size: 1.5rem; }
   .toolbar { top: 10px; }
   .toolbar button span { display: none; }
   .zoom { right: 6px; bottom: auto; top: 62px; flex-direction: column; align-items: center; padding: 3px; gap: 1px; border-radius: 20px; overflow: hidden; }
