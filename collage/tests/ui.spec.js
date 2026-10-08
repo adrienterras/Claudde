@@ -118,6 +118,17 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
     await expect(page.locator('#save-status')).toContainText('télécharger votre œuvre');
     expect(await page.evaluate(() => sessionStorage.getItem('atelier-gribouille:after-auth'))).toBeNull();
+    // une composition rouverte est épinglée : en choisir une autre puis modifier un dessin n'y ramène pas
+    const pinnedStyle = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    const other = await page.evaluate((st) => AtelierGribouille.state.proposals.findIndex((p) => p.style.id !== st), pinnedStyle);
+    await page.evaluate((i) => AtelierGribouille.selectProposal(i), other);
+    const otherStyle = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    expect(otherStyle).not.toBe(pinnedStyle);
+    await page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
+    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#detail [data-role="texture"]').click();
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(otherStyle);
     // repartir de zéro efface le brouillon
     await page.locator('#restart').click();
     for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone

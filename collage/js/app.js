@@ -344,6 +344,7 @@
         d.sizeMode = 'manual';
         saveSize(d);
         estimateSizes();
+        state.pinned = null;
         refreshLists();
         regenerate();
       };
@@ -439,6 +440,7 @@
     if (a.pieces) curateDrawing(d);
     ensureMaterial(d);
     planCoverage();
+    state.pinned = null;
     refreshLists();
     regenerate();
   }
@@ -782,12 +784,14 @@
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
       ensureMaterial(d);
+      state.pinned = null; // la composition rouverte ne correspond plus aux dessins
       refreshLists();
       regenerate();
     }));
     box.querySelector('[data-orient]').onchange = (e) => {
       d.orient = e.target.value;
       saveOrient(d);
+      state.pinned = null;
       regenerate();
       refreshLists();
     };
@@ -799,6 +803,7 @@
       d.sizeMode = 'manual';
       saveSize(d);
       estimateSizes();
+      state.pinned = null;
       refreshLists();
       regenerate();
     };
@@ -1498,6 +1503,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   function selectProposal(i) {
     state.active = i;
+    // une composition rouverte reste épinglée tant qu'on la regarde ; en choisir une autre la libère,
+    // sinon chaque réglage ramènerait à elle
+    if (state.pinned && state.proposals[i] && state.proposals[i].style.id !== state.pinned.style) state.pinned = null;
     if (state.proposals[i]) window.Atelier.track('Proposition', { style: state.proposals[i].style.id });
     if (state.proposals[i] && state.proposals[i].style.id === 'scene') analyseForScene();
     state.zoom = { z: 1, px: 0, py: 0 };
