@@ -68,6 +68,13 @@ test.describe('Interface', () => {
     // l'onglet Dessins ouvre la section même si elle était repliée par défaut
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
     await expect(page.locator('#drawings .thumb').first()).toBeVisible();
+    // la fiche d'un dessin s'ouvre dans un tiroir agrandi et se ferme par sa croix
+    await page.locator('#drawings .thumb').first().click();
+    await expect(page.locator('#detail')).toBeVisible();
+    await expect(page.locator('body')).toHaveClass(/sheet-tall/);
+    await page.locator('#detail .detail-close').click();
+    await expect(page.locator('#detail')).toBeHidden();
+    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
     // l'œuvre reste visible au-dessus du tiroir
     const canvasBottom = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().bottom);
     const panelTop = await page.locator('.panel').evaluate((el) => el.getBoundingClientRect().top);

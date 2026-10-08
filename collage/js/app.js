@@ -751,6 +751,7 @@
     const longOnArt = d.sizeCm * k;
     const [aw, ah] = ar >= 1 ? [longOnArt, longOnArt / ar] : [longOnArt * ar, longOnArt];
     box.innerHTML = `
+      <button type="button" class="detail-close" aria-label="${tr('Fermer')}" title="${tr('Fermer')}">×</button>
       <img src="${d.thumb}" alt="">
       <div>
         <p class="name">${d.ai ? `${esc(d.ai.sujet)} <small>· ${esc(d.ai.zone)}</small><br>` : ''}<small>${esc(d.name)}</small></p>
@@ -777,6 +778,12 @@
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>
       </div>`;
+    box.querySelector('.detail-close').onclick = () => {
+      state.current = null;
+      refreshLists();
+      // téléphone : le tiroir reprend sa hauteur normale et montre la liste
+      if (mobileQuery.matches) { document.body.classList.remove('sheet-tall'); const panel = document.querySelector('.panel'); if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' }); }
+    };
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
