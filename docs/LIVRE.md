@@ -9,7 +9,10 @@ imprimer, comme un album photo.
 2. **Le livre** : titre, sous-titre, format (A4 portrait, A4 paysage, carré 21 cm, carré 30 cm),
    un, deux ou quatre dessins par page, couleur du papier, légendes et numéros de page.
 3. **Les dessins** : ordre (flèches), titre et date ou âge de chaque dessin, quart de tour,
-   dessin de couverture (étoile), retrait.
+   dessin de couverture (étoile), retrait, et **retouche** (crayon, vignette ou dessin touché dans
+   l'aperçu) : recadrer par les coins et les bords du cadre, gommer une zone (la gomme peint la
+   couleur du papier, relevée sur le pourtour du dessin), Défaire, « Tout le dessin », « Dessin
+   d'origine ». Le scan importé est gardé à part : on peut toujours y revenir.
 4. **Imprimer** : PDF 300 dpi (ou 150 dpi, plus léger), fond perdu de 3 mm en option.
 
 ## Le livre produit
@@ -27,7 +30,8 @@ imprimer, comme un album photo.
 
 ## Technique
 
-- Fichiers : `livre/index.html`, `livre/style.css`, `livre/js/book.js`, `livre/js/i18n.js`.
+- Fichiers : `livre/index.html`, `livre/style.css`, `livre/js/book.js` (livre, PDF, brouillon),
+  `livre/js/editor.js` (retouche), `livre/js/i18n.js`.
 - Réutilise depuis l'atelier, par `../atelier/` : pdf.js, jsPDF, `config.js` et la mesure
   d'audience (`Atelier.track('Livre', { etape })`), les dessins d'exemple et les icônes.
 - Livre en cours gardé dans IndexedDB (base `atelier-gribouille-livre`) : chaque dessin est écrit

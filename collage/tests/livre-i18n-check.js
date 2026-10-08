@@ -68,7 +68,7 @@ function cookedKey(lit) {
   return out;
 }
 const keys = new Map(); // clé -> provenance
-for (const f of ['book.js']) {
+for (const f of ['book.js', 'editor.js']) {
   const src = read('js/' + f);
   for (const { a, b, kind } of literals(src)) {
     const before = src.slice(Math.max(0, a - 3), a);

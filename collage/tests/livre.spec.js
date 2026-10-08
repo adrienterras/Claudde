@@ -140,6 +140,76 @@ test.describe('Livre de dessins', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
   });
 
+  test('recadrer et gommer un dessin, puis revenir au dessin d’origine, même après un rechargement', async ({ page }) => {
+    const errors = await open(page);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await waitDrawings(page, 2);
+    const [w0, h0] = await page.evaluate(() => [LivreGribouille.state.drawings[0].w, LivreGribouille.state.drawings[0].h]);
+    await page.locator('#list .item').first().locator('[data-a="edit"]').click();
+    await page.waitForFunction(() => LivreEditor.isOpen());
+    await expect(page.locator('#editor')).toBeVisible();
+    await expect(page.locator('#ed-orig')).toBeHidden(); // pas encore retouché : pas d'original à part
+    // la poignée en haut à gauche, tirée vers l'intérieur, recadre
+    const r = await page.locator('#ed-canvas').boundingBox();
+    const k = Math.min((r.width - 48) / w0, (r.height - 48) / h0);
+    const ox = r.x + (r.width - w0 * k) / 2, oy = r.y + (r.height - h0 * k) / 2;
+    await page.mouse.move(ox + 1, oy + 1);
+    await page.mouse.down();
+    await page.mouse.move(ox + w0 * k * 0.2, oy + h0 * k * 0.2, { steps: 5 });
+    await page.mouse.up();
+    // Défaire annule ce recadrage, on le refait
+    await page.locator('#ed-undo').click();
+    expect(await page.evaluate(() => LivreEditor.session().crop.x)).toBe(0);
+    await page.mouse.move(ox + 1, oy + 1);
+    await page.mouse.down();
+    await page.mouse.move(ox + w0 * k * 0.2, oy + h0 * k * 0.2, { steps: 5 });
+    await page.mouse.up();
+    // un coup de gomme au centre
+    await page.locator('#editor [data-tool="erase"]').click();
+    await page.mouse.move(ox + w0 * k * 0.5, oy + h0 * k * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(ox + w0 * k * 0.6, oy + h0 * k * 0.55, { steps: 5 });
+    await page.mouse.up();
+    expect(await page.evaluate(() => LivreEditor.session().strokes.length)).toBe(1);
+    await page.locator('#ed-apply').click();
+    await page.waitForFunction(() => !LivreEditor.isOpen());
+    await page.waitForFunction((w0) => LivreGribouille.state.drawings[0].w < w0 * 0.85, w0);
+    const [w1, h1, hasOrig] = await page.evaluate(() => { const d = LivreGribouille.state.drawings[0]; return [d.w, d.h, !!d.orig]; });
+    expect(Math.abs(w1 / w0 - 0.8)).toBeLessThan(0.03);
+    expect(Math.abs(h1 / h0 - 0.8)).toBeLessThan(0.03);
+    expect(hasOrig).toBe(true);
+    // la retouche et le scan d'origine survivent au rechargement
+    await page.evaluate(() => LivreGribouille.saveMeta());
+    await page.reload();
+    await page.waitForFunction(() => window.LivreGribouille);
+    await page.locator('#empty-resume').click();
+    await waitDrawings(page, 2);
+    expect(await page.evaluate(() => LivreGribouille.state.drawings[0].w)).toBe(w1);
+    // « Dessin d'origine » rend le scan entier ; Annuler ne change rien
+    await page.locator('#list .item').first().locator('.thumb').click();
+    await page.waitForFunction(() => LivreEditor.isOpen());
+    await page.locator('#ed-cancel').click();
+    expect(await page.evaluate(() => LivreGribouille.state.drawings[0].w)).toBe(w1);
+    await page.locator('#list .item').first().locator('[data-a="edit"]').click();
+    await page.waitForFunction(() => LivreEditor.isOpen());
+    await expect(page.locator('#ed-orig')).toBeVisible();
+    await page.locator('#ed-orig').click();
+    await page.waitForFunction((w0) => LivreEditor.session().w === w0, w0);
+    await page.locator('#ed-apply').click();
+    await page.waitForFunction((w0) => !LivreEditor.isOpen() && LivreGribouille.state.drawings[0].w === w0, w0);
+    expect(errors).toEqual([]);
+  });
+
+  test('toucher un dessin dans l’aperçu l’ouvre pour la retouche', async ({ page }) => {
+    await open(page);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await waitDrawings(page, 1);
+    await page.locator('#spreads image[data-id]').nth(1).click();
+    await page.waitForFunction(() => LivreEditor.isOpen());
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !LivreEditor.isOpen());
+  });
+
   test('les dessins d’exemple de l’atelier composent un livre légendé', async ({ page }) => {
     const errors = await open(page, '?exemple');
     await waitDrawings(page, 10);

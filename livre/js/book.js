@@ -192,8 +192,8 @@
     return added;
   }
 
-  async function rotate(d) {
-    const img = await decode(d.blob);
+  async function rotateBlob(blob, keep) {
+    const img = await decode(blob);
     const [w, h] = dims(img);
     const c = makeCanvas(h, w);
     const x = c.getContext('2d');
@@ -201,11 +201,34 @@
     x.rotate(Math.PI / 2);
     x.drawImage(img, 0, 0);
     if (img.close) img.close();
-    d.blob = await toBlob(c, 'image/jpeg', 0.9);
-    d.w = c.width; d.h = c.height;
-    await makeThumb(d, c);
-    c.width = c.height = 0;
+    const out = { blob: await toBlob(c, 'image/jpeg', 0.9), w: c.width, h: c.height, canvas: keep ? c : null };
+    if (!keep) c.width = c.height = 0;
+    return out;
+  }
+  async function rotate(d) {
+    const r = await rotateBlob(d.blob, true);
+    d.blob = r.blob; d.w = r.w; d.h = r.h;
+    await makeThumb(d, r.canvas);
+    r.canvas.width = r.canvas.height = 0;
+    // le scan d'origine tourne avec lui : « dessin d'origine » le rend dans le même sens
+    if (d.orig) d.orig = (await rotateBlob(d.orig)).blob;
     await saveDrawing(d);
+  }
+
+  // Recadrer ou gommer : l'éditeur rend le dessin retouché ; le scan importé reste gardé à part.
+  function edit(d) {
+    if (!window.LivreEditor || state.busy) return;
+    LivreEditor.open(d, {
+      original: d.orig || null,
+      onApply: async (blob, w, h) => {
+        if (!d.orig) d.orig = d.blob;
+        d.blob = blob; d.w = w; d.h = h;
+        await makeThumb(d);
+        await saveDrawing(d);
+        changed(true);
+        track('Livre', { etape: 'retouche' });
+      },
+    }).catch((e) => { console.error(e); notice(tr('Ce dessin n’a pas pu être ouvert pour la retouche sur cet appareil.')); });
   }
 
   // ---------- Mise en page (en centimètres) ----------
@@ -394,17 +417,12 @@
     updateExportInfo(pages);
   }
 
-  // un dessin touché dans l'aperçu : sa ligne s'allume dans la liste
+  // un dessin touché dans l'aperçu s'ouvre pour être recadré ou gommé
   $('spreads').addEventListener('click', (e) => {
     const im = e.target.closest('image[data-id]');
     if (!im) return;
-    const li = document.querySelector(`#list li[data-id="${im.getAttribute('data-id')}"]`);
-    if (!li) return;
-    li.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    li.classList.add('flash');
-    setTimeout(() => li.classList.remove('flash'), 1400);
-    const input = li.querySelector('input');
-    if (input && !matchMedia('(max-width: 860px)').matches) setTimeout(() => input.focus({ preventScroll: true }), 350);
+    const d = state.drawings.find((x) => String(x.id) === im.getAttribute('data-id'));
+    if (d) edit(d);
   });
 
   // ---------- Liste des dessins ----------
@@ -425,6 +443,7 @@
           <input type="text" data-f="caption" maxlength="60">
           <input type="text" data-f="date" maxlength="40">
           <div class="actions">
+            <button type="button" data-a="edit">${icon('i-edit')}</button>
             <button type="button" data-a="up">${icon('i-up')}</button>
             <button type="button" data-a="down">${icon('i-down')}</button>
             <button type="button" data-a="rotate">${icon('i-rotate')}</button>
@@ -445,12 +464,19 @@
       cap.oninput = () => { d.caption = cap.value; renderSoon(); saveMetaSoon(); };
       date.oninput = () => { d.date = date.value; renderSoon(); saveMetaSoon(); };
       const btn = (a) => li.querySelector(`[data-a="${a}"]`);
-      const labels = { up: tr('Avancer d’une place'), down: tr('Reculer d’une place'), rotate: tr('Tourner d’un quart de tour'), cover: tr('Mettre en couverture'), del: tr('Retirer du livre') };
+      const labels = { edit: tr('Recadrer ou gommer'), up: tr('Avancer d’une place'), down: tr('Reculer d’une place'), rotate: tr('Tourner d’un quart de tour'), cover: tr('Mettre en couverture'), del: tr('Retirer du livre') };
       Object.entries(labels).forEach(([a, l]) => { btn(a).title = l; btn(a).setAttribute('aria-label', l); });
       btn('up').disabled = i === 0;
       btn('down').disabled = i === ds.length - 1;
       btn('cover').classList.toggle('on', isCover);
       btn('cover').setAttribute('aria-pressed', isCover ? 'true' : 'false');
+      btn('edit').onclick = () => edit(d);
+      const thumb = li.querySelector('.thumb');
+      thumb.setAttribute('role', 'button');
+      thumb.tabIndex = 0;
+      thumb.title = tr('Recadrer ou gommer');
+      thumb.onclick = () => edit(d);
+      thumb.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); edit(d); } };
       btn('up').onclick = () => move(i, -1);
       btn('down').onclick = () => move(i, 1);
       btn('cover').onclick = () => { state.settings.cover = d.id; changed(); };
@@ -661,7 +687,7 @@
 
   // Chaque dessin est écrit une fois (octets bruts : Safari relit mal les Blob) ; le reste est léger.
   async function saveDrawing(d) {
-    try { await dbPut(`d:${d.id}`, { id: d.id, name: d.name, w: d.w, h: d.h, data: await d.blob.arrayBuffer() }); } catch (e) { console.warn('dessin non gardé', e); }
+    try { await dbPut(`d:${d.id}`, { id: d.id, name: d.name, w: d.w, h: d.h, data: await d.blob.arrayBuffer(), orig: d.orig ? await d.orig.arrayBuffer() : null }); } catch (e) { console.warn('dessin non gardé', e); }
   }
   let metaTimer = 0;
   function saveMetaSoon() { clearTimeout(metaTimer); metaTimer = setTimeout(saveMeta, 600); }
@@ -691,7 +717,7 @@
         try {
           const r = await dbGet(`d:${o.id}`);
           if (!r || !r.data) continue;
-          const d = { id: r.id, name: r.name, w: r.w, h: r.h, blob: new Blob([r.data], { type: 'image/jpeg' }), caption: o.caption || '', date: o.date || '' };
+          const d = { id: r.id, name: r.name, w: r.w, h: r.h, blob: new Blob([r.data], { type: 'image/jpeg' }), orig: r.orig ? new Blob([r.orig], { type: 'image/jpeg' }) : null, caption: o.caption || '', date: o.date || '' };
           await makeThumb(d);
           state.drawings.push(d);
         } catch (e) { console.warn('dessin non relu', e); }
@@ -770,5 +796,5 @@
   if (/[?&]exemple\b/.test(location.search)) loadSamples();
 
   // accès pour les tests et le débogage
-  window.LivreGribouille = { state, bookPages, layoutPage, buildPdf, saveMeta };
+  window.LivreGribouille = { state, bookPages, layoutPage, buildPdf, saveMeta, edit };
 })();

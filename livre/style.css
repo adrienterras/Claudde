@@ -133,6 +133,8 @@ small { color: var(--muted); font-size: 0.74rem; font-family: var(--f-body); }
 }
 .item.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .item .thumb { position: relative; width: 76px; height: 76px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.item .thumb[role="button"] { cursor: pointer; }
+.item .thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .item .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .item .thumb .n { position: absolute; left: 4px; top: 4px; min-width: 20px; padding: 1px 5px; border-radius: 999px; background: rgba(255,255,255,.9); color: #2b2a22; font-size: 0.66rem; font-weight: 600; text-align: center; }
 .item .thumb .cover { position: absolute; right: 4px; bottom: 4px; padding: 1px 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.6rem; font-weight: 600; }
@@ -173,6 +175,31 @@ small { color: var(--muted); font-size: 0.74rem; font-family: var(--f-body); }
 .empty-ico { width: 54px; height: 54px; stroke-width: 1.2; color: var(--ink-2); }
 .empty-title { margin: 0; font-family: var(--f-display); font-style: italic; font-size: clamp(1.6rem, 3vw, 2.3rem); line-height: 1.2; }
 .empty-rule { width: 40px; height: 1px; background: var(--ink-2); }
+
+/* ---------- Retouche d'un dessin : recadrer, gommer ---------- */
+.btn-sm { padding: 8px 12px; font-size: 0.8rem; }
+body.editing { overflow: hidden; }
+.editor { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background: var(--surface); }
+.ed-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.ed-bar h2 { margin: 0 auto 0 0; font-family: var(--f-display); font-weight: 400; font-size: 1.25rem; }
+.ed-tools { min-width: 240px; }
+.ed-tools button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.ed-size { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--ink-2); }
+.ed-size input { width: 120px; }
+.ed-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.ed-stage { position: relative; flex: 1; min-height: 0; background: #3b3a33; }
+.ed-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.ed-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.ed-foot .hint { margin-right: auto; }
+@media (max-width: 700px) {
+  .ed-bar { padding: 10px 12px; gap: 8px; }
+  .ed-bar h2 { flex-basis: 100%; font-size: 1.1rem; }
+  .ed-tools { min-width: 0; flex: 1; }
+  .ed-group .btn span { display: none; }
+  .ed-foot { padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .ed-foot .hint { flex-basis: 100%; font-size: 0.78rem; }
+  .ed-foot .btn { flex: 1; }
+}
 
 /* ---------- Téléphone : une seule colonne, le livre sous l'import ---------- */
 @media (max-width: 860px) {
