@@ -769,16 +769,13 @@
         <label class="row" data-custom ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
           <input type="number" min="3" max="200" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>
-        ${mainPiece(d) ? `<label class="row" data-subject>${tr('Ou taille du sujet (cm)')}
-          <input type="number" min="1" max="200" step="0.5" placeholder="${fmt(subjectCm(d))}" title="${tr('Plus grand côté du sujet découpé, mesuré sur le dessin original')}">
-        </label>` : ''}
         <p class="hint photo">${d.photo
           ? tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
-          ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}${mainPiece(d) ? tr` Sujet principal : ${fmt(subjectCm(d))} cm.` : ''}</p>
+          ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>
       </div>`;
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
@@ -807,32 +804,11 @@
       refreshLists();
       regenerate();
     };
-    const subject = box.querySelector('[data-subject] input');
-    if (subject) {
-      // taille connue du sujet → taille de la feuille entière, par simple proportion
-      subject.onchange = () => {
-        const cm = Number(subject.value);
-        const p = mainPiece(d);
-        if (cm > 0 && p) setSize((cm * d.srcLong) / Math.max(p.canvas.width, p.canvas.height));
-      };
-    }
     sel.onchange = () => {
       if (sel.value === 'custom') { custom.hidden = false; custom.querySelector('input').focus(); return; }
       setSize(Number(sel.value));
     };
     custom.querySelector('input').onchange = (e) => setSize(Number(e.target.value));
-  }
-
-  // Le sujet principal d'un dessin découpé : sa plus grande pièce.
-  function mainPiece(d) {
-    if (roleOf(d) !== 'cutout') return null;
-    const ps = d.analysis.pieces || [];
-    return ps.reduce((a, b) => (!a || b.canvas.width * b.canvas.height > a.canvas.width * a.canvas.height ? b : a), null);
-  }
-
-  function subjectCm(d) {
-    const p = mainPiece(d);
-    return p ? Math.max(p.canvas.width, p.canvas.height) * cmPerPx(d) : 0;
   }
 
   function refreshPieces() {
