@@ -525,6 +525,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .toolbar button:hover:not(:disabled) { background: var(--accent-soft); }
 .toolbar button[data-act="del"]:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
 .toolbar button:disabled { opacity: .35; cursor: default; }
+.toolbar .tb-sep { width: 1px; align-self: stretch; margin: 6px 3px; background: var(--line); flex: none; }
 .stage-tip { position: absolute; top: 66px; left: 0; right: 0; margin: 0; text-align: center; font-size: 0.74rem; color: var(--muted); pointer-events: none; z-index: 1; }
 
 /* Zoom sur l'œuvre */
@@ -736,6 +737,9 @@ body.editing { overflow: hidden; }
   .empty-title { font-size: 1.5rem; }
   .toolbar { top: 10px; }
   .toolbar button span { display: none; }
+  .toolbar { gap: 0; padding: 4px; }
+  .toolbar button { padding: 8px 9px; }
+  .toolbar .tb-sep { margin: 6px 1px; }
   .zoom { right: 6px; bottom: auto; top: 62px; flex-direction: column; align-items: center; padding: 3px; gap: 1px; border-radius: 20px; overflow: hidden; }
   .zoom button { width: 32px; height: 32px; }
   .zoom-val { min-width: 0; font-size: 0.6rem; text-align: center; padding: 2px 0; }

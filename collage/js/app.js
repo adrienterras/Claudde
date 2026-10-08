@@ -271,6 +271,7 @@
     }
     refreshLists();
     regenerate();
+    clearHistory(); // les dessins ont changé : les anciens instantanés ne valent plus
     if (!(opts && opts.quiet)) artDirect();
   }
 
@@ -838,6 +839,7 @@
 
   function togglePiece(p) {
     if (!state.comp) return;
+    commit();
     const inArt = state.comp.items.some((L) => L.piece === p);
     if (inArt) {
       const L = state.comp.items.find((x) => x.piece === p);
@@ -1251,6 +1253,7 @@
 
   function regenerate() {
     if (!state.drawings.length) return;
+    if (state.comp && !state.restoring) commit();
     planCoverage();
     state.canvasSize = formatCm();
     applyOrientations();
@@ -1485,6 +1488,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   function selectProposal(i) {
+    if (state.comp && i !== state.active) commit();
     state.active = i;
     // une composition rouverte reste épinglée tant qu'on la regarde ; en choisir une autre la libère,
     // sinon chaque réglage ramènerait à elle
@@ -1731,14 +1735,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const h = handlePos(L);
       if (Math.hypot(h.x - p.X, h.y - p.Y) * view.s < 18 * view.dpr) {
         // la poignée tourne la pièce, sans changer sa taille : l'échelle reste juste
-        drag = { mode: 'rotate', L, a0: Math.atan2(p.Y - L.y, p.X - L.x), r0: L.rot };
+        drag = { mode: 'rotate', L, a0: Math.atan2(p.Y - L.y, p.X - L.x), r0: L.rot, snap: snapshot() };
         return;
       }
     }
     const hit = hitAt(p);
     if (hit) {
       state.selected = hit;
-      drag = { mode: 'move', L: hit, dx: p.X - hit.x, dy: p.Y - hit.y, x0: hit.x, y0: hit.y };
+      drag = { mode: 'move', L: hit, dx: p.X - hit.x, dy: p.Y - hit.y, x0: hit.x, y0: hit.y, snap: snapshot() };
       // le panneau du dessin correspondant s'ouvre (taille, fond ou découpe, photo…)
       showDrawingOf(hit);
     } else {
@@ -1783,7 +1787,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   const endDrag = (e) => {
     touches.delete(e.pointerId);
     if (touches.size < 2) pinch = null;
-    if (drag && drag.mode !== 'pan') { if (drag.L && drag.L.kind === 'bg') state.bgCache = null; refreshActiveThumb(); }
+    if (drag && drag.mode !== 'pan') {
+      if (drag.L && drag.L.kind === 'bg') state.bgCache = null;
+      const moved = drag.mode === 'move' ? (drag.L.x !== drag.x0 || drag.L.y !== drag.y0) : drag.L.rot !== drag.r0;
+      if (moved && drag.snap) { history.past.push(drag.snap); if (history.past.length > history.max) history.past.shift(); history.future = []; history.lastTag = null; updateHistoryButtons(); }
+      refreshActiveThumb();
+    }
     if (drag && drag.mode === 'pan') canvas.style.cursor = '';
     drag = null;
   };
@@ -1800,6 +1809,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), d.px, d.py);
       return;
     }
+    commit('wheel');
     L.rot += e.deltaY * 0.002;
     render();
   }, { passive: false });
@@ -1863,9 +1873,76 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     render();
   }
 
+  /*
+   * Historique : avant chaque action sur l'œuvre (déplacer, tourner, retourner, devant/derrière,
+   * dupliquer, retirer, ajouter une pièce, changer de proposition, nouvelles propositions), on garde
+   * un instantané de la mise en place ; Défaire et Refaire y naviguent. Les retouches de découpe
+   * et les réglages des dessins (rôle, taille) n'en font pas partie.
+   */
+  const history = { past: [], future: [], max: 60, lastTag: null, lastAt: 0 };
+  function snapshot() {
+    const comp = state.comp;
+    const enabled = new Map();
+    activePieces().forEach((p) => enabled.set(p, !!p.enabled));
+    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, enabled };
+  }
+  // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
+  function commit(tag) {
+    if (!state.comp || state.restoring) return;
+    const now = Date.now();
+    if (tag && history.lastTag === tag && now - history.lastAt < 800) { history.lastAt = now; return; }
+    history.past.push(snapshot());
+    if (history.past.length > history.max) history.past.shift();
+    history.future = [];
+    history.lastTag = tag || null; history.lastAt = now;
+    updateHistoryButtons();
+  }
+  function restoreSnapshot(s) {
+    const comp = s.comp;
+    comp.items = s.items.map((L) => Object.assign({}, L));
+    comp.bg = s.bg.map((L) => Object.assign({}, L));
+    comp.reduced = s.reduced;
+    s.enabled.forEach((on, p) => { p.enabled = on; });
+    activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
+    state.comp = comp;
+    if (state.proposals && state.proposals[s.active] && state.proposals[s.active].style.id === comp.style) { state.proposals[s.active].comp = comp; state.active = s.active; }
+    state.selected = null;
+    state.bgCache = null;
+    renderProposals();
+    refreshPieces();
+    updateToolbar();
+    render();
+    updateExportInfo();
+    updateLabel();
+    refreshActiveThumb();
+  }
+  function undo() {
+    if (!history.past.length || !state.comp) return;
+    history.future.push(snapshot());
+    restoreSnapshot(history.past.pop());
+    history.lastTag = null;
+    updateHistoryButtons();
+  }
+  function redo() {
+    if (!history.future.length || !state.comp) return;
+    history.past.push(snapshot());
+    restoreSnapshot(history.future.pop());
+    history.lastTag = null;
+    updateHistoryButtons();
+  }
+  function clearHistory() { history.past = []; history.future = []; history.lastTag = null; updateHistoryButtons(); }
+  function updateHistoryButtons() {
+    const u = document.querySelector('#toolbar [data-act="undo"]'), r = document.querySelector('#toolbar [data-act="redo"]');
+    if (u) u.disabled = !history.past.length;
+    if (r) r.disabled = !history.future.length;
+  }
+
   function act(name) {
+    if (name === 'undo') { undo(); return; }
+    if (name === 'redo') { redo(); return; }
     const comp = state.comp, L = state.selected;
     if (!comp || !L) return;
+    if (name !== 'edit') commit();
     if (L.kind === 'bg') {
       // page de fond : on la met devant ou derrière les autres pages, on la retourne, on la retire
       if (name === 'bigger' || name === 'smaller') {
@@ -1919,9 +1996,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   function updateToolbar() {
+    updateHistoryButtons();
     const L = state.selected;
     const gallery = !!(state.comp && state.comp.style === 'galerie');
     document.querySelectorAll('#toolbar button').forEach((b) => {
+      if (b.classList.contains('history')) return;
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
       // agrandir / réduire : seulement en Galerie, faite pour l'impression
@@ -1935,6 +2014,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (window.Editor && Editor.isOpen()) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     if (e.key === 'Delete' || e.key === 'Backspace') act('del');
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
+      e.preventDefault();
+      if (e.key === 'y' || e.shiftKey) redo(); else undo();
+      return;
+    }
     if (e.key === 'Escape') {
       if (document.body.classList.contains('stage-full')) $('zoom-full').click();
       state.selected = null;
@@ -2715,6 +2799,7 @@ Réponds uniquement avec ce JSON :
     updateLabel();
     render();
     selectTab('import-section');
+    clearHistory();
     clearTimeout(draftTimer);
     draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire le brouillon effacé
     dbDel(DRAFT_ID).catch(() => {});
@@ -3146,6 +3231,7 @@ Réponds uniquement avec ce JSON :
     regenerate();
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
+    clearHistory();
     savedStatus(tr`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}. L’œuvre est affichée sur la toile.`);
   }
 
@@ -3428,7 +3514,7 @@ Réponds uniquement avec ce JSON :
   fillGround();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, undo, redo };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

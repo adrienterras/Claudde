@@ -148,6 +148,45 @@ test.describe('Brouillon', () => {
   });
 });
 
+test.describe('Historique', () => {
+  test('Défaire et Refaire reviennent sur un retrait, un retournement et un changement de proposition', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const undo = page.locator('#toolbar [data-act="undo"]'), redo = page.locator('#toolbar [data-act="redo"]');
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+    const n0 = await page.evaluate(() => AtelierGribouille.state.comp.items.length);
+    // retirer une pièce
+    await page.evaluate(() => { const s = AtelierGribouille.state; s.selected = s.comp.items[0]; AtelierGribouille.render(); });
+    await page.locator('#toolbar [data-act="del"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items.length)).toBe(n0 - 1);
+    await expect(undo).toBeEnabled();
+    await undo.click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items.length)).toBe(n0);
+    await expect(redo).toBeEnabled();
+    await redo.click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items.length)).toBe(n0 - 1);
+    await undo.click();
+    // retourner, puis Ctrl+Z au clavier
+    await page.evaluate(() => { const s = AtelierGribouille.state; s.selected = s.comp.items[0]; AtelierGribouille.render(); });
+    const f0 = await page.evaluate(() => !!AtelierGribouille.state.comp.items[0].flip);
+    await page.locator('#toolbar [data-act="flip"]').click();
+    expect(await page.evaluate(() => !!AtelierGribouille.state.comp.items[0].flip)).toBe(!f0);
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate(() => !!AtelierGribouille.state.comp.items[0].flip)).toBe(f0);
+    // changer de proposition se défait aussi
+    const s0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    await page.evaluate(() => AtelierGribouille.selectProposal((AtelierGribouille.state.active + 1) % AtelierGribouille.state.proposals.length));
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).not.toBe(s0);
+    await undo.click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(s0);
+  });
+});
+
 test.describe('Dessins d’exemple', () => {
   test('sans dossier samples, rien n’est proposé', async ({ browser }) => {
     const ctx = await browser.newContext();
