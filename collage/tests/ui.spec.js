@@ -417,7 +417,7 @@ test.describe('Luminosité et contraste', () => {
     expect(m1).toBeLessThan(m0 - 1);
     await expect(page.locator('#detail [data-tone="b"] + output')).toHaveText('−40');
     await slide('c', 30);
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toEqual({ b: -40, c: 30 });
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toEqual({ b: -40, c: 30, s: 0 });
     // pas de nouvelle composition : seul le rendu change
     expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, comp)).toBe(true);
     // les vignettes suivent, et le réglage est gardé dans ce navigateur
@@ -429,5 +429,52 @@ test.describe('Luminosité et contraste', () => {
     await expect(page.locator('#detail [data-tone-reset]')).toBeHidden();
     expect(Math.abs((await mean()) - m0)).toBeLessThan(0.5);
     expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(false);
+    // saturation : même formule que saturate() en CSS
+    const sat = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = c.height = 1;
+      const x = c.getContext('2d'); x.fillStyle = 'rgb(200,100,50)'; x.fillRect(0, 0, 1, 1);
+      return Array.from(Compose.toned(c, { b: 0, c: 0, s: 50 }).getContext('2d').getImageData(0, 0, 1, 1).data).slice(0, 3);
+    });
+    const ref = [200, 100, 50], k = 1.5, m = [[0.213 + 0.787 * k, 0.715 - 0.715 * k, 0.072 - 0.072 * k], [0.213 - 0.213 * k, 0.715 + 0.285 * k, 0.072 - 0.072 * k], [0.213 - 0.213 * k, 0.715 - 0.715 * k, 0.072 + 0.928 * k]];
+    m.forEach((row, i) => expect(Math.abs(sat[i] - Math.min(255, Math.max(0, row[0] * ref[0] + row[1] * ref[1] + row[2] * ref[2])))).toBeLessThanOrEqual(1));
+    // réglage automatique : les curseurs prennent les valeurs calculées, avec une explication
+    await page.locator('#detail [data-tone-auto]').click();
+    await expect(page.locator('#detail [data-tone-msg]')).toBeVisible();
+    const auto = await page.evaluate(() => AtelierGribouille.state.drawings[0].tone || { b: 0, c: 0, s: 0 });
+    for (const k of ['b', 'c', 's']) expect(Number(await page.locator(`#detail [data-tone="${k}"]`).inputValue())).toBe(auto[k] || 0);
+  });
+});
+
+test.describe('Réglage automatique de l’image', () => {
+  test('éclaircit et ravive un scan terne, laisse tranquille un dessin déjà net, une page peinte et le crayon gris', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.Compose && Compose.autoTone);
+    const r = await page.evaluate(() => {
+      const mk = (paper, ink, col) => {
+        const c = document.createElement('canvas'); c.width = 400; c.height = 300; const x = c.getContext('2d');
+        x.fillStyle = `rgb(${paper})`; x.fillRect(0, 0, 400, 300); x.fillStyle = `rgb(${ink})`; x.fillRect(50, 50, 120, 8); x.fillRect(50, 100, 8, 120);
+        if (col) { x.fillStyle = `rgb(${col})`; x.fillRect(200, 80, 140, 140); }
+        return c;
+      };
+      const terne = mk('200,198,190', '110,110,110', '170,120,110');
+      const t = Compose.autoTone([terne]);
+      // le papier du scan terne devient blanc
+      const px = Compose.toned(terne, t).getContext('2d').getImageData(10, 10, 1, 1).data;
+      return {
+        terne: t, paper: px[0],
+        bon: Compose.autoTone([mk('250,250,250', '15,15,15', '230,30,30')]),
+        peint: Compose.autoTone([mk('40,60,140', '20,20,60', '200,180,40')]),
+        crayon: Compose.autoTone([mk('235,235,235', '150,150,150')]),
+      };
+    });
+    expect(r.terne.b).toBeGreaterThan(0);
+    expect(r.terne.c).toBeGreaterThan(0);
+    expect(r.terne.s).toBeGreaterThan(0);
+    expect(r.paper).toBeGreaterThan(240);
+    expect(r.bon).toEqual({ b: 0, c: 0, s: 0 });
+    expect(r.peint.b).toBe(0);
+    expect(r.crayon.s).toBe(0);
+    for (const t of [r.terne, r.crayon]) for (const k of ['b', 'c']) expect(Math.abs(t[k])).toBeLessThanOrEqual(35);
   });
 });

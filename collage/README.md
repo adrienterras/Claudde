@@ -18,8 +18,12 @@ cd collage && python3 -m http.server 8000
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc.
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **orientation** de la feuille
    (automatique, droite, couchée à droite, tête en bas, couchée à gauche ; en automatique, une page de
-   fond trop haute pour la toile est couchée), **luminosité et contraste** (−50 à +50, appliqués en
-   direct à l'œuvre, aux vignettes et à l'export ; mémorisés par dessin, « Rétablir » revient au scan)
+   fond trop haute pour la toile est couchée), **luminosité, contraste et saturation** (−50 à +50,
+   appliqués en direct à l'œuvre, aux vignettes et à l'export ; mémorisés par dessin, « Rétablir »
+   revient au scan). **« Ajuster automatiquement »** les règle d'après les pixels réellement collés :
+   papier éclairci jusqu'au blanc (s'il y en a assez de visible, jamais assombri), traits pâles foncés
+   d'un tiers, couleurs ternes ravivées (jamais sur le crayon gris, avec retenue si le papier a une
+   teinte) ; voir `Compose.autoTone`
    et **taille réelle** de la feuille
    (A5, A4, A3, A2 ou autre) — c'est cette taille qui compte, puisque les dessins sont collés à
    taille réelle. Sans information dans le fichier, la taille est estimée à partir du scan
@@ -57,7 +61,7 @@ cd collage && python3 -m http.server 8000
      fond ; les pages de fond restent entières ;
    - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
      enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
-     taille, orientation, luminosité et contraste, photo sur un sol, sujets gardés), les retouches de découpe faites à la main
+     taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), les retouches de découpe faites à la main
      (le masque de chaque pièce retouchée, rejoué sur la page réimportée et respecté à l'export HD) et la mise en place exacte (chaque pièce et
      page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une composition
      telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte reste

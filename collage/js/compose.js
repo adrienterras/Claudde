@@ -1228,30 +1228,123 @@
   // ---------- Rendu ----------
 
   /*
-   * Luminosité et contraste réglés par dessin : l'application dit quel réglage s'applique à un
-   * calque ({ b, c } en %, 0 = inchangé). Même formule que les filtres CSS brightness() puis
-   * contrast(), pour que les vignettes (filtrées en CSS) ressemblent à l'œuvre. L'image corrigée
-   * est calculée une fois par image et par réglage, puis gardée.
+   * Luminosité, contraste et saturation réglés par dessin : l'application dit quel réglage
+   * s'applique à un calque ({ b, c, s } en %, 0 = inchangé). Même formule que les filtres CSS
+   * brightness() puis contrast() puis saturate() (bornés à chaque étape), pour que les vignettes,
+   * filtrées en CSS, ressemblent à l'œuvre. L'image corrigée est calculée une fois par image et par
+   * réglage, puis gardée.
    */
   let toneOf = () => null;
   const tonedCache = new WeakMap();
-  function toned(img, t) {
-    if (!img || !t || (!t.b && !t.c)) return img;
-    const key = `${t.b}:${t.c}`;
-    const hit = tonedCache.get(img);
-    if (hit && hit.key === key) return hit.canvas;
+  const isNeutral = (t) => !t || (!t.b && !t.c && !t.s);
+  const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+  function toneLut(t) {
     const lut = new Uint8ClampedArray(256);
     const kb = 1 + (t.b || 0) / 100, kc = 1 + (t.c || 0) / 100;
-    for (let v = 0; v < 256; v++) lut[v] = Math.round((v * kb - 127.5) * kc + 127.5);
+    for (let v = 0; v < 256; v++) lut[v] = Math.round((clamp255(v * kb) - 127.5) * kc + 127.5);
+    return lut;
+  }
+  // matrice de saturate() (Filter Effects, coefficients de luminance sRGB)
+  function satMatrix(k) {
+    return [0.213 + 0.787 * k, 0.715 - 0.715 * k, 0.072 - 0.072 * k,
+      0.213 - 0.213 * k, 0.715 + 0.285 * k, 0.072 - 0.072 * k,
+      0.213 - 0.213 * k, 0.715 - 0.715 * k, 0.072 + 0.928 * k];
+  }
+  function tonePixels(px, t) {
+    const lut = toneLut(t);
+    const k = 1 + (t.s || 0) / 100;
+    if (k === 1) {
+      for (let i = 0; i < px.length; i += 4) { px[i] = lut[px[i]]; px[i + 1] = lut[px[i + 1]]; px[i + 2] = lut[px[i + 2]]; }
+      return;
+    }
+    const m = satMatrix(k);
+    for (let i = 0; i < px.length; i += 4) {
+      const r = lut[px[i]], g = lut[px[i + 1]], b = lut[px[i + 2]];
+      px[i] = m[0] * r + m[1] * g + m[2] * b;
+      px[i + 1] = m[3] * r + m[4] * g + m[5] * b;
+      px[i + 2] = m[6] * r + m[7] * g + m[8] * b;
+    }
+  }
+  function toned(img, t) {
+    if (!img || isNeutral(t)) return img;
+    const key = `${t.b || 0}:${t.c || 0}:${t.s || 0}`;
+    const hit = tonedCache.get(img);
+    if (hit && hit.key === key) return hit.canvas;
     const c = Extract.makeCanvas(img.width, img.height);
     const x = c.getContext('2d', { willReadFrequently: true });
     x.drawImage(img, 0, 0);
-    const im = x.getImageData(0, 0, c.width, c.height), px = im.data;
-    for (let i = 0; i < px.length; i += 4) { px[i] = lut[px[i]]; px[i + 1] = lut[px[i + 1]]; px[i + 2] = lut[px[i + 2]]; }
+    const im = x.getImageData(0, 0, c.width, c.height);
+    tonePixels(im.data, t);
     x.putImageData(im, 0, 0);
     tonedCache.set(img, { key, canvas: c });
     return c;
   }
+
+  /*
+   * Réglage automatique, d'après les pixels réellement collés (pièces découpées ou page de fond) :
+   *  - blanc : le papier (pixels clairs et neutres, 90e centile) est éclairci jusqu'à 247 — s'il y a
+   *    assez de papier visible ; une page peinte partout garde ses clairs ;
+   *  - noir : les traits les plus sombres (1er centile) ne sont foncés que s'ils sont pâles (crayon
+   *    léger, scan voilé), et seulement d'un tiers de l'écart ;
+   *  - saturation : relevée si les couleurs, une fois le contraste corrigé, restent ternes ; jamais
+   *    baissée, rien sur un dessin au crayon gris, et modérée si le papier a une teinte (pour ne pas
+   *    jaunir un papier photographié sous une lampe).
+   * Rend { b, c, s } en % : luminosité et contraste bornés à ±35, saturation à +30, les petits
+   * écarts (< 3) ramenés à 0.
+   */
+  function autoTone(imgs) {
+    const hist = new Uint32Array(256), paperHist = new Uint32Array(256);
+    const samples = [];
+    let n = 0, paperN = 0;
+    for (const img of imgs) {
+      if (!img || !img.width) continue;
+      const k = Math.min(1, 320 / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * k)), h = Math.max(1, Math.round(img.height * k));
+      const c = Extract.makeCanvas(w, h);
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.drawImage(img, 0, 0, w, h);
+      const px = x.getImageData(0, 0, w, h).data;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] < 200) continue;
+        const r = px[i], g = px[i + 1], b = px[i + 2];
+        const l = Math.round(0.213 * r + 0.715 * g + 0.072 * b);
+        hist[l]++;
+        n++;
+        if (l >= 120 && Math.max(r, g, b) - Math.min(r, g, b) <= 24) { paperHist[l]++; paperN++; }
+        if (samples.length < 240000) samples.push(r, g, b);
+      }
+    }
+    const none = { b: 0, c: 0, s: 0 };
+    if (n < 200) return none;
+    const pct = (H, tot, q) => { let acc = 0; const lim = q * tot; for (let v = 0; v < 256; v++) { acc += H[v]; if (acc >= lim) return v; } return 255; };
+    const lo = pct(hist, n, 0.01);
+    const hasPaper = paperN >= n * 0.08;
+    const hi = hasPaper ? pct(paperHist, paperN, 0.9) : pct(hist, n, 0.985);
+    if (hi - lo < 12) return none; // image presque unie : rien à étirer
+    const tHi = hasPaper ? Math.max(hi, 247) : hi; // un papier déjà blanc n'est jamais assombri
+    const tLo = lo <= 30 ? lo : lo - (lo - 30) / 3;
+    const a = (tHi - tLo) / (hi - lo), off = tHi - a * hi;
+    const kc = Math.min(1.35, Math.max(0.65, 1 - off / 127.5));
+    const kb = Math.min(1.35, Math.max(0.65, a / kc));
+    const snap = (v, m) => { const r = Math.round(Math.max(-m, Math.min(m, v))); return Math.abs(r) < 3 ? 0 : r; };
+    const t = { b: snap((kb - 1) * 100, 35), c: snap((kc - 1) * 100, 35), s: 0 };
+    // saturation, mesurée après luminosité et contraste
+    const lut = toneLut(t);
+    let sat = 0, colourful = 0, paperChroma = 0, paper = 0;
+    const cnt = samples.length / 3;
+    for (let i = 0; i < samples.length; i += 3) {
+      const r = lut[samples[i]], g = lut[samples[i + 1]], b = lut[samples[i + 2]];
+      const mx = Math.max(r, g, b), ch = mx - Math.min(r, g, b);
+      if (mx > 40 && ch > 30) { sat += ch / mx; colourful++; } else if (mx > 200) { paperChroma += ch; paper++; }
+    }
+    if (colourful > cnt * 0.01) {
+      let sv = (0.5 / (sat / colourful) - 1) * 100 * 0.6;
+      if (paper && paperChroma / paper > 10) sv = Math.min(sv, 10);
+      t.s = snap(Math.max(0, sv), 30);
+    }
+    return t;
+  }
+
   function setTone(fn) { toneOf = fn || (() => null); }
 
   function drawLayer(ctx, L, s, shadows) {
@@ -1469,5 +1562,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { galleryCount, galleryGrid, galleryShape, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, toned, setTone, hitItem, rng, paperLayer };
+  window.Compose = { galleryCount, galleryGrid, galleryShape, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
 })();

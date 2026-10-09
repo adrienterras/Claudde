@@ -507,7 +507,9 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .detail .tone output { min-width: 2.4em; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .detail .tone .row { justify-content: flex-start; }
 .detail .tone .row > span { flex: 0 0 6.5em; }
-.detail .tone [data-tone-reset] { justify-self: end; font-size: 0.76rem; }
+.detail .tone-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.detail .tone [data-tone-reset] { font-size: 0.76rem; }
+.detail .tone [data-tone-msg] { margin: 0; }
 .chips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 3px; border-radius: 999px; background: var(--surface-2); }
 .chips button { padding: 6px 2px; border: 0; border-radius: 999px; background: none; font-size: 0.76rem; font-weight: 600; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
 .chips button.on { background: var(--ink); color: var(--on-ink); }
