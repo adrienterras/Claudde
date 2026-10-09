@@ -2320,7 +2320,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // Les navigateurs de téléphone refusent les très grandes images (Safari : ~16 millions de pixels).
   const phone = () => navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900;
-  const MAX_PIXELS = () => (phone() ? 12e6 : 180e6); // 180 Mpx : une toile de 130 × 90 cm à 300 dpi
+  const iOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // Safari sur iPhone et iPad refuse les canvas de plus de 16,7 Mpx et plafonne leur mémoire totale
+  const MAX_PIXELS = () => (phone() ? 12e6 : iOS() ? 16e6 : 180e6); // 180 Mpx : une toile de 130 × 90 cm à 300 dpi
 
   function exportSize() {
     const comp = state.comp;
@@ -2490,7 +2492,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
-  const iOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   // Fichier prêt (ready) : boutons « Enregistrer dans Photos » (partage du système) et « Télécharger ».
   // Sinon, aperçu de secours : l'image en grand, à enregistrer par appui long ou clic droit.
@@ -2564,6 +2565,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
   }
 
+  // Un canvas que le navigateur n'a pas pu allouer reste transparent ; le fond de l'œuvre, lui, est
+  // toujours opaque : un seul point transparent suffit à reconnaître l'échec.
+  function blankCanvas(c) {
+    try {
+      const x = c.getContext('2d');
+      if (!x) return true;
+      return [[0.5, 0.5], [0.01, 0.01], [0.99, 0.99], [0.25, 0.75]].some(([u, v]) => x.getImageData(Math.floor(u * (c.width - 1)), Math.floor(v * (c.height - 1)), 1, 1).data[3] === 0);
+    } catch (e) { return true; }
+  }
+
   async function exportImage() {
     if (!state.comp) return;
     const btn = $('export');
@@ -2584,26 +2595,34 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (await saveFile(blob, 'oeuvre-atelier-gribouille.pdf')) await recordExport(blob, 'oeuvre-atelier-gribouille.pdf');
         return;
       }
-      await hydrateHD(state.comp, s);
-      saveStatus(tr('Rendu de l’image…'));
-      await tick();
-      const c = Extract.makeCanvas(state.comp.W * s, state.comp.H * s);
-      const x = c.getContext('2d');
-      x.imageSmoothingQuality = 'high';
-      const shadows = false; // pas d'ombre portée
-      Compose.renderBg(x, state.comp, s, shadows);
-      Compose.renderItems(x, state.comp, s, shadows);
-      Compose.renderFinish(x, state.comp, s);
       const type = $('fmt').value;
-      let blob = await new Promise((r) => c.toBlob(r, type, 0.92));
-      if (!blob) {
-        // l'appareil n'a pas pu fabriquer l'image : on réessaie deux fois plus petit
-        const c2 = Extract.makeCanvas(c.width / 2, c.height / 2);
-        c2.getContext('2d').drawImage(c, 0, 0, c2.width, c2.height);
-        blob = await new Promise((r) => c2.toBlob(r, type, 0.92));
-        if (blob) saveStatus(tr`Image réduite à ${c2.width} × ${c2.height} px : cet appareil ne peut pas en produire une plus grande.`);
+      // Safari (iPhone, iPad) : un canvas au-delà de sa mémoire reste vide, sans erreur, et le JPEG
+      // qui en sort est tout noir. L'image rendue est donc vérifiée ; si elle est vide, on réessaie
+      // plus petit, jusqu'à trois fois.
+      let blob = null, scale = s, rw = 0, rh = 0;
+      for (let attempt = 0; attempt < 4 && !blob; attempt++) {
+        if (attempt) { scale *= 0.6; saveStatus(tr('Image trop grande pour cet appareil : nouvel essai plus petit…')); await tick(); }
+        await hydrateHD(state.comp, scale);
+        if (!attempt) saveStatus(tr('Rendu de l’image…'));
+        await tick();
+        const c = Extract.makeCanvas(state.comp.W * scale, state.comp.H * scale);
+        const x = c.getContext('2d');
+        if (x) {
+          x.imageSmoothingQuality = 'high';
+          const shadows = false; // pas d'ombre portée
+          Compose.renderBg(x, state.comp, scale, shadows);
+          Compose.renderItems(x, state.comp, scale, shadows);
+          Compose.renderFinish(x, state.comp, scale);
+        }
+        releaseHD();
+        if (x && !blankCanvas(c)) {
+          blob = await new Promise((r) => c.toBlob(r, type, 0.92));
+          rw = c.width; rh = c.height;
+        }
+        Extract.release(c);
       }
       if (!blob) throw new Error('toBlob');
+      if (scale < s) notice(tr`Image réduite à ${rw} × ${rh} px : cet appareil ne peut pas en produire une plus grande.`);
       const fname = `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`;
       if (await saveFile(blob, fname)) await recordExport(blob, fname);
     } catch (e) {
@@ -2630,7 +2649,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
    * même ordre). Les découpes et pages ainsi obtenues remplacent les versions de travail pendant le
    * rendu, puis sont libérées. Si la source n'a pas plus de pixels, rien ne change.
    */
-  const HD_SOURCE_MAX = () => (phone() ? 4000 : 6500); // grand côté maximal relu (A3 à 300 dpi ≈ 5000 px)
+  const HD_SOURCE_MAX = () => (phone() || iOS() ? 4000 : 6500); // grand côté maximal relu (A3 à 300 dpi ≈ 5000 px)
   async function renderSource(source, max) {
     const pages = await pagesFromFile(source.file);
     const pg = pages[source.index];
@@ -2656,16 +2675,20 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       i++;
       saveStatus(tr`Haute définition : dessin ${i} / ${need.size} relu depuis son fichier…`);
       await tick();
+      // images intermédiaires, vidées dès ce dessin traité (Safari sur iPad les garde sinon longtemps)
+      const tmp = [];
       try {
         const want = Math.ceil(d.srcLong * r);
         const max = Math.min(HD_SOURCE_MAX(), want);
         if (max <= d.srcLong * 1.05) continue; // la source n'a rien de plus à donner
         const src = await renderSource(d.source, max);
+        tmp.push(src.canvas);
         const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
         if (K0 <= 1.05) continue;
         const mode = d.photoMode;
         let a = Extract.analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' });
-        if (d.orientDeg) { const b = Extract.rotated(a, d.orientDeg); b.kind = a.kind; a = b; }
+        tmp.push(a);
+        if (d.orientDeg) { const b = Extract.rotated(a, d.orientDeg); b.kind = a.kind; a = b; tmp.push(a); }
         const page = d.analysis.page;
         const K = a.page.width / page.width;
         // la page retrouvée doit être la même (même recadrage) : sinon on garde la version de travail
@@ -2681,8 +2704,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
               // par la découpe retouchée (agrandie en douceur), pour garder exactement la retouche
               const bw = Math.max(1, Math.round(p.src.w * K)), bh = Math.max(1, Math.round(p.src.h * K));
               const crop = Extract.makeCanvas(bw, bh);
+              tmp.push(crop);
               crop.getContext('2d').drawImage(a.page, p.src.x * K, p.src.y * K, p.src.w * K, p.src.h * K, 0, 0, bw, bh);
               const img = Extract.enhance(crop, p.src.paper);
+              tmp.push(img);
               const cx = img.getContext('2d');
               cx.globalCompositeOperation = 'destination-in';
               cx.imageSmoothingQuality = 'high';
@@ -2701,19 +2726,26 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const t = d.analysis.texture;
         if (t && comp.bg.some((L) => L.src === t.canvas)) {
           const ht = a.texture || Extract.textureFrom(a.page);
+          tmp.push(ht.canvas);
           t.canvas.hd = Extract.scaleTo(ht.canvas, Math.ceil(Math.max(t.canvas.width, t.canvas.height) * r * 1.02));
         }
       } catch (e) {
         console.warn(`Haute définition impossible pour « ${d.name} »`, e);
+      } finally {
+        tmp.forEach((x) => {
+          if (x instanceof HTMLCanvasElement) Extract.release(x);
+          else if (x) { Extract.release(x.page); (x.pieces || []).forEach((q) => Extract.release(q.canvas)); if (x.texture) Extract.release(x.texture.canvas); }
+        });
       }
     }
     if (need.size) saveStatus('');
   }
   function releaseHD() {
-    if (state.comp) state.comp.items.forEach((L) => { if (L.piece) delete L.piece.hd; }); // copies comprises
+    const drop = (o) => { if (o && o.hd) { Extract.release(o.hd); delete o.hd; } };
+    if (state.comp) state.comp.items.forEach((L) => drop(L.piece)); // copies comprises
     state.drawings.forEach((d) => {
-      (d.analysis.pieces || []).forEach((p) => { delete p.hd; });
-      if (d.analysis.texture) delete d.analysis.texture.canvas.hd;
+      (d.analysis.pieces || []).forEach(drop);
+      if (d.analysis.texture) drop(d.analysis.texture.canvas);
     });
   }
 

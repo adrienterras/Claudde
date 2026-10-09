@@ -443,6 +443,7 @@
     'Assemblage du PDF…': 'Assembling the PDF…',
     'Rendu de l’image…': 'Rendering the image…',
     'Image réduite à {0} × {1} px : cet appareil ne peut pas en produire une plus grande.': 'Image reduced to {0} × {1} px: this device cannot produce a larger one.',
+    'Image trop grande pour cet appareil : nouvel essai plus petit…': 'Image too large for this device: trying again smaller…',
     'Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.': 'Export impossible at this size on this device. Choose “Screen” as quality and try again.',
     'page introuvable dans le fichier d’origine': 'page not found in the original file',
     'Haute définition : dessin {0} / {1} relu depuis son fichier…': 'High definition: drawing {0} / {1} re-read from its file…',

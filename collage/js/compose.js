@@ -1457,7 +1457,10 @@
     ctx.fillStyle = comp.ground || '#f8f5ef';
     ctx.fillRect(0, 0, comp.W * s, comp.H * s);
     if (comp.ground && comp.paint !== false) {
-      ctx.drawImage(paintCanvas(comp.ground, comp.W, comp.H, s), 0, 0, comp.W * s, comp.H * s);
+      // les coups de brosse sont doux : 4 Mpx au plus, étirés à l'export (une texture à la taille d'un
+      // export 300 dpi, gardée en cache, épuisait la mémoire de l'iPad)
+      const ps = Math.min(s, Math.sqrt(4e6 / (comp.W * comp.H)));
+      ctx.drawImage(paintCanvas(comp.ground, comp.W, comp.H, ps), 0, 0, comp.W * s, comp.H * s);
     }
   }
 

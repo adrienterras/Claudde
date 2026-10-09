@@ -79,4 +79,21 @@ test.describe('Export', () => {
       await expect(page.locator('#preview')).toBeHidden();
     }
   });
+
+  test('canvas vide (mémoire de l’iPad dépassée) : l’image est refaite plus petite, jamais noire', async ({ app }) => {
+    const { page } = app;
+    // Safari laisse vide, sans erreur, un canvas au-delà de sa mémoire : on simule ce cas au-delà de 2 Mpx
+    await page.evaluate(() => {
+      const orig = CanvasRenderingContext2D.prototype.getImageData;
+      CanvasRenderingContext2D.prototype.getImageData = function (...a) {
+        return this.canvas.width * this.canvas.height > 2e6 ? new ImageData(a[2], a[3]) : orig.apply(this, a);
+      };
+    });
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
+    expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
+    await expect(page.locator('#notice')).toContainText('Image réduite');
+    const px = await page.evaluate(() => { const t = document.getElementById('notice').textContent.match(/(\d+) × (\d+)/); return Number(t[1]) * Number(t[2]); });
+    expect(px).toBeLessThanOrEqual(2e6);
+    expect(px).toBeGreaterThan(5e5);
+  });
 });
