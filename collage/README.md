@@ -62,7 +62,12 @@ cd collage && python3 -m http.server 8000
      fond ; les pages de fond restent entières ;
    - **œuvre en cours** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
      **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
-     œuvre » l'efface ;
+     œuvre » l'efface. Chaque dessin est relu à la résolution de travail qu'il avait (elle dépend du
+     nombre de dessins importés d'un coup), pour retrouver exactement la même page ; une retouche
+     dont la page ne correspond plus (proportions, empreinte 16 × 16) n'est pas rejouée — la
+     découpe automatique est gardée et c'est signalé ;
+   - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
+     deuxième fois ;
    - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
      enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
      taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), les retouches de découpe faites à la main
@@ -222,7 +227,7 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
 5. **Retoucher une découpe** : bouton « Retoucher » (ou double-clic sur une pièce de l'œuvre, ou ciseaux
    sur la vignette d'une pièce). Éditeur plein écran avec zoom (molette, pincement, + / −), gomme,
    pinceau « restaurer » qui remet le dessin d'origine (y compris autour de la découpe initiale),
-   défaire / refaire (Ctrl+Z), retour à la découpe d'origine, et panneau **« Lumière et couleurs »**
+   défaire / refaire (Ctrl+Z), « Découpe automatique » (revient à la découpe faite par l'atelier), et panneau **« Lumière et couleurs »**
    (luminosité, contraste, saturation, ajustement automatique) avec aperçu direct. Le trait de coupe
    magenta est affiché en direct ; en validant, la pièce est mise à jour dans les trois propositions
    sans bouger sur la toile, et le réglage de lumière s'applique à tout le dessin (« Fermer sans

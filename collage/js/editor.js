@@ -36,7 +36,8 @@
 
   /*
    * piece : la pièce à retoucher ; opts : { title, onApply(piece, oldSrc, newSrc),
-   *   tone (réglage actuel du dessin), autoTone() → réglage proposé, onTone(tone) }
+   *   tone (réglage actuel du dessin), autoTone() → réglage proposé, onTone(tone),
+   *   autoPiece() → la pièce telle que l'atelier la découpe d'office (pour « Découpe automatique ») }
    */
   function open(piece, opts) {
     const d = piece.drawing;
@@ -282,10 +283,17 @@
     render();
   }
 
+  // retour à la découpe automatique de l'atelier (recalculée), sinon à celle de l'ouverture
   function reset() {
     if (!S) return;
     pushUndo();
-    putAlpha(S.mask, S.initial);
+    let auto = null;
+    try { auto = S.opts.autoPiece ? S.opts.autoPiece() : null; } catch (e) { auto = null; }
+    if (auto && auto.src) {
+      const m = S.mask.getContext('2d', { willReadFrequently: true });
+      m.clearRect(0, 0, S.mask.width, S.mask.height);
+      m.drawImage(auto.canvas, auto.src.x - S.R.x, auto.src.y - S.R.y, auto.src.w, auto.src.h);
+    } else putAlpha(S.mask, S.initial);
     S.dirty = true;
     render();
   }

@@ -158,3 +158,89 @@ test.describe('Dessin dupliqué', () => {
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 });
+
+test.describe('Réouverture fidèle des retouches', () => {
+  test('dessins importés en plusieurs fois : la retouche revient au même endroit, sinon elle n’est pas plaquée de travers', async ({ page }) => {
+    test.setTimeout(240000);
+    const { fixture } = require('./helpers');
+    // peu de mémoire : la résolution de travail dépend du nombre de dessins importés d'un coup
+    await page.addInitScript(() => Object.defineProperty(navigator, 'deviceMemory', { get: () => 0.2 }));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    const ready = (n) => page.waitForFunction((n) => window.AtelierGribouille && AtelierGribouille.state.drawings.length === n && AtelierGribouille.state.comp && document.getElementById('progress').hidden, n, { timeout: 120000 });
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await ready(1);
+    const piece = () => page.evaluate(() => {
+      const d = AtelierGribouille.state.drawings[0], p = d.analysis.pieces.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b));
+      const px = p.canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, p.canvas.width, p.canvas.height).data;
+      let n = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 127) n++;
+      return { long: d.srcLong, edited: !!p.edited, opaque: n / (d.srcLong * d.srcLong), x: p.src.x / d.analysis.page.width, y: p.src.y / d.analysis.page.width };
+    });
+    const auto = await piece();
+    // gommer une bande au milieu de la pièce principale
+    await page.evaluate(() => { const d = AtelierGribouille.state.drawings[0]; AtelierGribouille.editPiece(d.analysis.pieces.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
+    await page.locator('#ed-size').fill('140');
+    const box = await page.locator('#ed-canvas').boundingBox();
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
+    await page.mouse.down();
+    for (let i = 1; i <= 16; i++) await page.mouse.move(box.x + box.width * (0.3 + 0.025 * i), box.y + box.height * 0.5);
+    await page.mouse.up();
+    await page.locator('#ed-apply').click();
+    const edited = await piece();
+    expect(edited.edited).toBe(true);
+    expect(edited.opaque).toBeLessThan(auto.opaque * 0.95);
+    // deuxième import : les nouveaux dessins sont lus à une résolution plus basse
+    await page.setInputFiles('#file', [fixture('page-two.png'), fixture('scan-300dpi.jpg')]);
+    await ready(3);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[1].srcLong)).toBeLessThan(edited.long);
+    // le même fichier, réimporté, n'est pas ajouté une deuxième fois
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(3);
+    const draft = () => page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille', 1);
+      q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
+      q.onerror = () => res(null);
+    }));
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3 && r.drawings[0].pieceEdits.some(Boolean)) break; await page.waitForTimeout(500); }
+    // rechargement : tout est relu d'un coup, chaque dessin à sa résolution d'origine
+    await page.reload();
+    await ready(3);
+    await page.waitForTimeout(500);
+    const back = await piece();
+    expect(back.long).toBe(edited.long);
+    expect(back.edited).toBe(true);
+    expect(Math.abs(back.opaque - edited.opaque) / edited.opaque).toBeLessThan(0.02);
+    expect(Math.abs(back.x - edited.x)).toBeLessThan(0.005);
+    expect(Math.abs(back.y - edited.y)).toBeLessThan(0.005);
+    // « Découpe automatique » ramène la découpe de l'atelier
+    await page.evaluate(() => { const d = AtelierGribouille.state.drawings[0]; AtelierGribouille.editPiece(d.analysis.pieces.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
+    await page.locator('#ed-reset').click();
+    await page.locator('#ed-apply').click();
+    const reset = await piece();
+    expect(Math.abs(reset.opaque - auto.opaque) / auto.opaque).toBeLessThan(0.03);
+    // une retouche sauvegardée sur une page qui ne correspond plus n'est pas rejouée : découpe automatique gardée, et c'est dit
+    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
+    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
+    await page.mouse.down();
+    for (let i = 1; i <= 16; i++) await page.mouse.move(box.x + box.width * (0.3 + 0.025 * i), box.y + box.height * 0.5);
+    await page.mouse.up();
+    await page.locator('#ed-apply').click();
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings[0].pieceEdits.some(Boolean)) break; await page.waitForTimeout(500); }
+    await page.waitForTimeout(3000);
+    await page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille', 1);
+      q.onsuccess = () => {
+        const st = q.result.transaction('compositions', 'readwrite').objectStore('compositions');
+        const g = st.get('brouillon');
+        g.onsuccess = () => { const r = g.result; r.drawings[0].pieceEdits.forEach((e) => { if (e) e.fp = e.fp.map(() => 0); }); st.put(r).onsuccess = () => res(); };
+      };
+    }));
+    await page.reload();
+    await ready(3);
+    await expect(page.locator('#notice')).toContainText('n’ont pas pu être replacées');
+    expect((await piece()).edited).toBe(false);
+    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+});

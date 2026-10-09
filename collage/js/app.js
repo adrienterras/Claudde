@@ -234,6 +234,21 @@
     return null;
   }
 
+  // Empreinte d'un fichier (taille + début du contenu) : reconnaît un fichier déjà importé, même
+  // renommé (copie « … 2.JPG » faite par le téléphone ou l'ordinateur).
+  async function fileKey(f) {
+    try {
+      const head = await f.slice(0, 512 * 1024).arrayBuffer();
+      const h = await crypto.subtle.digest('SHA-1', head);
+      return `${f.size}:${Array.from(new Uint8Array(h), (b) => b.toString(16).padStart(2, '0')).join('')}`;
+    } catch (e) { return `${f.size}:${f.name}`; }
+  }
+
+  /*
+   * opts : { quiet, sample, longs } — longs[i] : résolution de travail (grand côté) imposée au
+   * fichier i ; la réouverture d'une œuvre relit chaque dessin à la résolution qu'il avait, pour
+   * retrouver exactement la même page (et donc replacer les retouches de découpe au bon endroit).
+   */
   async function importFiles(files, sizes, opts) {
     let pages = [];
     if (!state.restoring && !(opts && opts.sample)) window.Atelier.track('Import', { fichiers: Math.min(files.length, 50) });
@@ -241,21 +256,33 @@
     state.pinned = null;
     notice('');
     setProgress(0, 1, tr('Lecture des fichiers…'));
-    for (const f of files) {
+    const known = new Set(state.drawings.map((d) => d.fileKey).filter(Boolean));
+    const twins = [];
+    for (let fi = 0; fi < files.length; fi++) {
+      const f = files[fi];
       try {
-        pages = pages.concat(await pagesFromFile(f));
+        const key = await fileKey(f);
+        // un fichier déjà dans l'atelier n'est pas importé une deuxième fois (sauf à la réouverture)
+        if (!state.restoring && known.has(key)) { twins.push(f.name); continue; }
+        known.add(key);
+        const ps = await pagesFromFile(f);
+        ps.forEach((pg) => { pg.fileIndex = fi; pg.fileKey = key; });
+        pages = pages.concat(ps);
       } catch (e) {
         console.error(e);
         notice(tr`Impossible de lire « ${f.name} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.`);
       }
     }
+    if (twins.length) notice(twins.length === 1 ? tr`« ${twins[0]} » est déjà dans l’atelier (même fichier) : il n’a pas été ajouté une deuxième fois.` : tr`${twins.length} fichiers sont déjà dans l’atelier (mêmes fichiers) : ils n’ont pas été ajoutés une deuxième fois.`);
     const releases = new Set(pages.map((p) => p.release).filter(Boolean));
     const max = sourceMax(state.drawings.length + pages.length);
+    const longs = (opts && opts.longs) || [];
     for (let i = 0; i < pages.length; i++) {
       setProgress(i, pages.length, tr`Analyse du dessin ${i + 1} / ${pages.length}…`);
       await tick();
       try {
-        const src = await pages[i].render(max);
+        const want = longs[pages[i].fileIndex];
+        const src = await pages[i].render(want > 0 ? want : max);
         // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
         Extract.removeSurface.debug = null;
         const analysis = Extract.analyze(src.canvas, 0, { photo: true });
@@ -265,6 +292,7 @@
           orient: 'auto', orientDeg: 0,
           original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
+          fileKey: pages[i].fileKey || null,
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm, physSource: src.physSource || (src.physCm ? 'PDF' : null),
           sizeCm: 29.7, sizeMode: 'auto',
           // qualité pour l'impression (voir js/quality.js) : pixels réels et mesures faites ici une fois
@@ -2033,6 +2061,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       title: pieceName(p), onApply: applyPieceEdit,
       // lumière et couleurs : réglage du dessin entier, appliqué à la validation
       tone: d.tone, autoTone: () => Compose.autoTone(toneSources(d)),
+      // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
+      autoPiece: () => {
+        const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
+        return k >= 0 ? Extract.cutPieces(d.analysis.page, d.analysis.seg)[k] || null : null;
+      },
       onTone: (t) => {
         if (t && (t.b || t.c || t.s)) d.tone = t; else delete d.tone;
         saveTone(d);
@@ -3143,12 +3176,32 @@ Réponds uniquement avec ce JSON :
     ctx.globalCompositeOperation = 'destination-in';
     ctx.drawImage(p.canvas, 0, 0);
     const blob = await toBlob(m, 'image/png');
-    return { src: { x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h }, pageW: page.width, pageH: page.height, mask: await blob.arrayBuffer() };
+    return { src: { x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h }, pageW: page.width, pageH: page.height, fp: pagePrint(page), mask: await blob.arrayBuffer() };
+  }
+  // Empreinte d'une page (16 × 16 niveaux de gris) : vérifie qu'une page relue est bien la même.
+  function pagePrint(page) {
+    const c = Extract.makeCanvas(16, 16);
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(page, 0, 0, 16, 16);
+    const d = x.getImageData(0, 0, 16, 16).data, out = [];
+    for (let i = 0; i < d.length; i += 4) out.push(Math.round(0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]));
+    return out;
+  }
+  // La retouche sauvegardée peut-elle être rejouée sur cette page ? Même cadrage (proportions) et,
+  // si l'empreinte est connue, même contenu. Sinon elle tomberait à côté du dessin.
+  function sameEditPage(page, e) {
+    if (Math.abs(page.width / page.height - e.pageW / e.pageH) > 0.01) return false;
+    if (!e.fp) return true;
+    const fp = pagePrint(page);
+    let diff = 0;
+    for (let i = 0; i < fp.length; i++) diff += Math.abs(fp[i] - e.fp[i]);
+    return diff / fp.length < 10;
   }
   // Rejoue une retouche sauvegardée sur la pièce réimportée : la page (peut-être à une autre
   // résolution) est recoupée à l'endroit retouché, puis masquée par la transparence sauvegardée.
   async function applySavedEdit(p, d, e) {
     const page = d.analysis.page;
+    if (!sameEditPage(page, e)) throw new Error(tr('le dessin relu ne correspond plus à la page retouchée'));
     const K = page.width / e.pageW;
     const bw = Math.max(1, Math.round(e.src.w * K)), bh = Math.max(1, Math.round(e.src.h * K));
     const crop = Extract.makeCanvas(bw, bh);
@@ -3189,7 +3242,7 @@ Réponds uniquement avec ce JSON :
       const edits = [];
       for (const p of d.analysis.pieces || []) edits.push(p.edited ? await editOf(p, d) : null);
       drawings.push({
-        name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null,
+        name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null, work: d.srcLong,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
         pieceEdits: edits,
@@ -3397,7 +3450,7 @@ Réponds uniquement avec ce JSON :
     const files = rec.drawings.map((d) => new File([bytesOf(d)], d.name, { type: d.type || 'image/jpeg' }));
     const sizes = {};
     rec.drawings.forEach((d) => { sizes[d.name] = d.sizeCm; });
-    try { await importFiles(files, sizes, { quiet: true }); } finally { state.restoring = false; }
+    try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0) }); } finally { state.restoring = false; }
     if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu depuis la sauvegarde.')); return; }
     // réglages par dessin
     rec.drawings.forEach((sd, i) => {
@@ -3413,14 +3466,14 @@ Réponds uniquement avec ce JSON :
     });
     applyOrientations();
     // retouches de découpe, rejouées sur les pages réimportées (après l'orientation : même page)
-    let nEdits = 0;
+    let nEdits = 0, nSkipped = 0;
     for (let i = 0; i < rec.drawings.length; i++) {
       const sd = rec.drawings[i], d = state.drawings[i];
       if (!d || !sd.pieceEdits) continue;
       for (let k = 0; k < sd.pieceEdits.length; k++) {
         const e = sd.pieceEdits[k], p = (d.analysis.pieces || [])[k];
         if (!e || !p || !e.mask) continue;
-        try { await applySavedEdit(p, d, e); nEdits++; } catch (err) { console.warn(`retouche non rejouée sur « ${d.name} »`, err); }
+        try { await applySavedEdit(p, d, e); nEdits++; } catch (err) { nSkipped++; console.warn(`retouche non rejouée sur « ${d.name} »`, err); }
       }
     }
     if (nEdits) savedStatus(tr`${nEdits} retouche(s) de découpe rejouée(s)…`);
@@ -3448,7 +3501,7 @@ Réponds uniquement avec ce JSON :
       // copie dupliquée sur l'œuvre : sa propre découpe, rejouée sur elle seule
       if (L.copy) {
         p = copyPiece(p);
-        if (L.copy.edit) try { await applySavedEdit(p, d, L.copy.edit); } catch (err) { console.warn(`découpe de copie non rejouée sur « ${d.name} »`, err); }
+        if (L.copy.edit) try { await applySavedEdit(p, d, L.copy.edit); } catch (err) { nSkipped++; console.warn(`découpe de copie non rejouée sur « ${d.name} »`, err); }
       }
       const item = Object.assign({ kind: 'piece', piece: p }, L);
       delete item.copy;
@@ -3459,7 +3512,8 @@ Réponds uniquement avec ce JSON :
     const i = STYLES.findIndex((st) => st.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
     clearHistory();
-    savedStatus(tr`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}. L’œuvre est affichée sur la toile.`);
+    savedStatus(tr`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);
+    if (nSkipped) notice(tr`${nSkipped} retouche(s) de découpe n’ont pas pu être replacées sur le dessin relu : la découpe automatique est gardée pour ce(s) dessin(s).`);
   }
 
   $('save-comp').onclick = requireAccount(tr('sauvegarder votre composition'), askSaveName);
