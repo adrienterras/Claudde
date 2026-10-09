@@ -722,6 +722,9 @@ body.stage-full .density-bar { display: none; }
 .preview-bar .btn { width: auto; flex: none; }
 .preview-stage { min-height: 0; overflow: auto; padding: 16px; display: grid; place-items: center; background: var(--wall); -webkit-touch-callout: default; }
 .preview-stage img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 12px 30px -16px rgba(0, 0, 0, .6); -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+.preview-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.preview-actions .btn { width: auto; }
+.preview-doc { margin: 0; padding: 28px 32px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; font-family: var(--f-display); font-size: 1.2rem; text-align: center; }
 .preview-name { margin: 0; padding: 10px 20px; border-top: 1px solid var(--line); }
 
 /* ---------- Éditeur de découpe ---------- */

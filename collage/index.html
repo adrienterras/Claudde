@@ -428,11 +428,15 @@
       <div>
         <p class="ed-kicker">Votre œuvre</p>
         <h2 id="preview-title">Enregistrer l’image</h2>
-        <p class="hint">Sur téléphone : appuyez longuement sur l’image, puis « Enregistrer l’image ». Sur ordinateur : clic droit → « Enregistrer l’image sous… ».</p>
+        <p id="preview-hint" class="hint">Sur téléphone : appuyez longuement sur l’image, puis « Enregistrer l’image ». Sur ordinateur : clic droit → « Enregistrer l’image sous… ».</p>
+        <div id="preview-actions" class="preview-actions" hidden>
+          <button id="preview-share" class="btn btn-primary" hidden><svg class="ico"><use href="#i-download"/></svg><span>Enregistrer dans Photos</span></button>
+          <button id="preview-dl" class="btn"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger le fichier</span></button>
+        </div>
       </div>
       <button id="preview-close" class="btn">Fermer</button>
     </div>
-    <div class="preview-stage"><img id="preview-img" alt=""></div>
+    <div class="preview-stage"><img id="preview-img" alt=""><p id="preview-doc" class="preview-doc" hidden></p></div>
     <p id="preview-name" class="hint mono-note preview-name"></p>
   </div>
 

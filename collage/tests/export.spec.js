@@ -60,4 +60,23 @@ test.describe('Export', () => {
     expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
     expect(buf.length).toBeGreaterThan(50000);
   });
+
+  test('écran tactile : le fichier prêt s’ouvre avec « Télécharger le fichier »', async ({ app }) => {
+    const { page } = app;
+    // iPhone et tablettes : le téléchargement n'est lancé que par un toucher sur le fichier prêt
+    await page.evaluate(() => Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => 5 }));
+    for (const [fmt, ext] of [['image/png', /\.png$/], ['application/pdf', /\.pdf$/]]) {
+      await page.locator('#fmt').selectOption(fmt);
+      await page.locator('#dpi').selectOption('screen');
+      await page.locator('#export').click();
+      await expect(page.locator('#preview')).toBeVisible();
+      await expect(page.locator('#preview-title')).toHaveText(fmt === 'image/png' ? 'Votre image est prête' : 'Votre fichier est prêt');
+      await expect(page.locator('#preview-img')).toBeVisible({ visible: fmt === 'image/png' });
+      const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.locator('#preview-dl').click()]);
+      expect(download.suggestedFilename()).toMatch(ext);
+      await expect(page.locator('#save-status')).toContainText('Téléchargement lancé');
+      await page.locator('#preview-close').click();
+      await expect(page.locator('#preview')).toBeHidden();
+    }
+  });
 });

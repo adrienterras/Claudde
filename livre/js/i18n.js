@@ -112,6 +112,7 @@
     "La bibliothèque PDF n’a pas pu être chargée. Rechargez la page.": "The PDF library could not be loaded. Reload the page.",
     "Mise en page {0} / {1}…": "Laying out page {0} / {1}…",
     "Livre prêt : {0} ({1} Mo).": "Book ready: {0} ({1} MB).",
+    "Enregistrer le PDF prêt": "Save the ready PDF",
     "Le PDF n’a pas pu être créé sur cet appareil. Choisissez « Fichier léger · 150 dpi » et réessayez.": "The PDF could not be created on this device. Choose “Light file · 150 dpi” and try again.",
     "Livre en cours retrouvé : {0} dessins, {1}.": "Book in progress found: {0} drawings, {1}.",
     "Réouverture du livre…": "Reopening the book…",

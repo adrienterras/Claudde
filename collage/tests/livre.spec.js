@@ -114,6 +114,18 @@ test.describe('Livre de dessins', () => {
     expect(errors).toEqual([]);
   });
 
+  test('écran tactile : le PDF prêt s’enregistre d’un second toucher', async ({ page }) => {
+    const errors = await open(page);
+    await page.evaluate(() => Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => 5 }));
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await waitDrawings(page, 2);
+    await page.locator('#export').click();
+    await expect(page.locator('#export-ready')).toBeVisible({ timeout: 120000 });
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.locator('#export-ready').click()]);
+    expect(dl.suggestedFilename()).toMatch(/\.pdf$/);
+    expect(errors).toEqual([]);
+  });
+
   test('le livre en cours est retrouvé après un rechargement, puis effacé par « nouveau livre »', async ({ page }) => {
     await open(page);
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);

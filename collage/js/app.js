@@ -2443,13 +2443,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       }
     }
     if (mode === 'anchor') {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      // Sur téléphone et tablette, le fichier arrive plusieurs secondes après le toucher : Safari ignore
+      // alors un téléchargement lancé tout seul, et une image téléchargée finit dans Fichiers, pas dans
+      // Photos. Le fichier prêt s'ouvre donc dans une fenêtre où un toucher l'enregistre ou le partage.
+      if (navigator.maxTouchPoints > 0) {
+        showPreview(blob, filename, true);
+        saveStatus(tr`Fichier prêt : ${filename}`);
+        return true;
+      }
+      anchorDownload(blob, filename);
       saveStatus(tr`Téléchargement lancé : ${filename}`);
       return true;
     }
@@ -2463,13 +2465,48 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return false;
   }
 
-  // Aperçu de secours : l'image en grand, à enregistrer par appui long ou clic droit.
-  function showPreview(blob, filename) {
+  function anchorDownload(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+  const iOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // Fichier prêt (ready) : boutons « Enregistrer dans Photos » (partage du système) et « Télécharger ».
+  // Sinon, aperçu de secours : l'image en grand, à enregistrer par appui long ou clic droit.
+  function showPreview(blob, filename, ready) {
     const box = $('preview');
     const img = $('preview-img');
+    const image = blob.type.startsWith('image/');
     if (img.src) URL.revokeObjectURL(img.src);
-    img.src = URL.createObjectURL(blob);
-    img.alt = filename;
+    img.removeAttribute('src');
+    if (image) { img.src = URL.createObjectURL(blob); img.alt = filename; }
+    img.hidden = !image;
+    $('preview-doc').hidden = image;
+    $('preview-doc').textContent = filename;
+    $('preview-title').textContent = !ready ? tr('Enregistrer l’image') : image ? tr('Votre image est prête') : tr('Votre fichier est prêt');
+    $('preview-hint').textContent = !ready
+      ? tr('Sur téléphone : appuyez longuement sur l’image, puis « Enregistrer l’image ». Sur ordinateur : clic droit → « Enregistrer l’image sous… ».')
+      : image ? tr('Enregistrez-la dans Photos ou téléchargez le fichier. Vous pouvez aussi appuyer longuement sur l’image.') : tr('Touchez « Télécharger le fichier » pour l’enregistrer.');
+    $('preview-actions').hidden = !ready;
+    const file = new File([blob], filename, { type: blob.type });
+    const share = $('preview-share');
+    let canShare = false;
+    try { canShare = !!(ready && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { /* partage indisponible */ }
+    share.hidden = !canShare;
+    share.querySelector('span').textContent = image && iOS() ? tr('Enregistrer dans Photos') : tr('Enregistrer ou partager');
+    share.onclick = async () => {
+      try { await navigator.share({ files: [file] }); saveStatus(tr`Enregistré : ${filename}`); } catch (e) {
+        if (e && e.name === 'AbortError') return;
+        console.error(e);
+        notice(tr('Le partage n’a pas abouti : touchez « Télécharger le fichier ».'));
+      }
+    };
+    $('preview-dl').onclick = () => { anchorDownload(blob, filename); saveStatus(tr`Téléchargement lancé : ${filename}`); };
     $('preview-name').textContent = `${filename} · ${Math.round(blob.size / 1024)} Ko`;
     box.hidden = false;
     document.body.classList.add('editing');

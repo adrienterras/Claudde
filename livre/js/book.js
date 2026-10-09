@@ -644,11 +644,19 @@
     if (!window.jspdf) { status(tr('La bibliothèque PDF n’a pas pu être chargée. Rechargez la page.')); return; }
     const btn = $('export');
     btn.disabled = true;
+    $('export-ready').hidden = true;
     state.busy = true;
     try {
       const blob = await buildPdf(async (i, n) => { status(tr`Mise en page ${i + 1} / ${n}…`); await tick(); });
-      saveFile(blob, fileName());
-      status(tr`Livre prêt : ${fileName()} (${fmtNum(blob.size / 1024 / 1024)} Mo).`);
+      const name = fileName();
+      // Sur téléphone et tablette, le PDF arrive longtemps après le toucher : Safari ignore alors un
+      // téléchargement lancé tout seul. Un second toucher, sur le livre prêt, l'enregistre.
+      if (navigator.maxTouchPoints > 0) {
+        const ready = $('export-ready');
+        ready.hidden = false;
+        ready.onclick = () => saveFile(blob, name);
+      } else saveFile(blob, name);
+      status(tr`Livre prêt : ${name} (${fmtNum(blob.size / 1024 / 1024)} Mo).`);
       track('Livre', { etape: 'export', pages: bookPages().length, qualite: state.settings.quality });
     } catch (e) {
       console.error(e);
@@ -690,7 +698,7 @@
     try { await dbPut(`d:${d.id}`, { id: d.id, name: d.name, w: d.w, h: d.h, data: await d.blob.arrayBuffer(), orig: d.orig ? await d.orig.arrayBuffer() : null }); } catch (e) { console.warn('dessin non gardé', e); }
   }
   let metaTimer = 0;
-  function saveMetaSoon() { clearTimeout(metaTimer); metaTimer = setTimeout(saveMeta, 600); }
+  function saveMetaSoon() { $('export-ready').hidden = true; clearTimeout(metaTimer); metaTimer = setTimeout(saveMeta, 600); }
   async function saveMeta() {
     clearTimeout(metaTimer);
     if (!state.drawings.length) return;
