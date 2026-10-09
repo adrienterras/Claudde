@@ -1599,7 +1599,19 @@
       const sub = t ? `« ${esc(t)} »` : (pr.comp.total ? tr`${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
       b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${sub}</small>`;
       b.onclick = () => selectProposal(i);
-      box.appendChild(b);
+      // (à côté de la carte, pas dedans : un bouton ne contient pas de bouton)
+      const wrap = document.createElement('div');
+      wrap.className = 'proposal-wrap';
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'proposal-cart';
+      add.title = tr('Ajouter au panier');
+      add.setAttribute('aria-label', tr`Ajouter « ${pr.style.name} » au panier`);
+      add.innerHTML = '<svg class="ico"><use href="#i-cart"/></svg>';
+      // la proposition affichée est prise telle que retouchée ; une autre, telle que proposée
+      add.onclick = () => openCartAdd(i === state.active ? state.comp : pr.comp, t || pr.style.name, pr.style.name);
+      wrap.append(b, add);
+      box.appendChild(wrap);
     });
   }
 
@@ -3064,7 +3076,7 @@ Réponds uniquement avec ce JSON :
     clearTimeout(draftTimer);
     draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire le brouillon effacé
     dbDel(DRAFT_ID).catch(() => {});
-    filesClear().then(() => { storedKeys = new Set(); }).catch(() => {});
+    pruneFiles();
     $('draft-offer').hidden = true;
     if ($('empty-resume')) $('empty-resume').hidden = true;
   }
@@ -3128,7 +3140,14 @@ Réponds uniquement avec ce JSON :
   const filesPut = (key, v) => fileReq('readwrite', (st) => { st.put(v, key); });
   const filesKeys = () => fileReq('readonly', (st) => st.getAllKeys());
   const filesDel = (keys) => fileReq('readwrite', (st) => { keys.forEach((k) => st.delete(k)); });
-  const filesClear = () => fileReq('readwrite', (st) => { st.clear(); });
+  // efface les images qui ne servent plus qu'au brouillon abandonné (celles du panier restent)
+  async function pruneFiles() {
+    const keep = cartRefs();
+    const all = await filesKeys().catch(() => []);
+    const drop = all.filter((k) => !keep.has(k));
+    if (drop.length) await filesDel(drop).catch(() => {});
+    storedKeys = new Set(all.filter((k) => keep.has(k)));
+  }
   function dbDel(id) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).delete(id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
   const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
 
@@ -3152,7 +3171,7 @@ Réponds uniquement avec ce JSON :
       rec.id = DRAFT_ID;
       await dbPut(rec);
       // images de dessins retirés depuis : effacées (d'après le magasin lui-même)
-      const used = new Set(rec.drawings.map((x) => x.ref));
+      const used = new Set([...rec.drawings.map((x) => x.ref), ...cartRefs()]);
       const stale = (await filesKeys().catch(() => [])).filter((k) => !used.has(k));
       if (stale.length) { await filesDel(stale).catch(() => {}); stale.forEach((k) => storedKeys.delete(k)); }
     } catch (e) { console.warn('brouillon non enregistré', e); }
@@ -3169,7 +3188,7 @@ Réponds uniquement avec ce JSON :
   function forgetDraft() {
     $('draft-offer').hidden = true;
     dbDel(DRAFT_ID).catch(() => {});
-    filesClear().then(() => { storedKeys = new Set(); }).catch(() => {});
+    pruneFiles();
     try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ }
   }
   async function resumeDraft(manual) {
@@ -3314,7 +3333,7 @@ Réponds uniquement avec ce JSON :
   async function snapshotComposition(name, opts) {
     const refs = !!(opts && opts.refs);
     if (refs && !storedKeys) storedKeys = new Set(await filesKeys().catch(() => []));
-    const comp = state.comp;
+    const comp = (opts && opts.comp) || state.comp;
     const drawings = [];
     for (const d of state.drawings) {
       // image stockée en octets bruts (ArrayBuffer) : les Blob relus depuis IndexedDB sont
@@ -3401,7 +3420,7 @@ Réponds uniquement avec ce JSON :
     const A = window.Account;
     const accounts = !!(A && A.enabled);
     const signed = accounts && !!A.user();
-    if (!accounts) { try { list = (await dbAll()).filter((r) => r.id !== DRAFT_ID).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; } }
+    if (!accounts) { try { list = (await dbAll()).filter((r) => r.id !== DRAFT_ID && !r.cart).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; } }
     if (signed) {
       try { list = await A.cloud.list(); } catch (e) { console.error(e); savedStatus(`Compositions du compte indisponibles : ${e.message}`); }
     }
@@ -3890,6 +3909,246 @@ Réponds uniquement avec ce JSON :
 
   fillFormats();
   fillGround();
+
+  // ---------- Panier ----------
+  /*
+   * Le panier garde des compositions et le produit choisi pour chacune (catalogue de la page Tarifs).
+   * Chaque composition y est figée telle quelle (mise en place, retouches, réglages) dans IndexedDB,
+   * ses images partagées avec le brouillon (écrites une seule fois) ; la liste elle-même, légère, est
+   * dans localStorage. « Commander » sauvegarde les compositions dans le compte, puis prépare le
+   * message de commande avec le récapitulatif.
+   */
+  const CART_KEY = 'atelier-gribouille:panier', ORDERS_KEY = 'atelier-gribouille:commandes';
+  const ORDER_MAIL = 'bonjour@atelier-gribouille.com';
+  const SIZES = { '30x40': [30, 40], '50x70': [50, 70], '70x100': [70, 100] };
+  const PRICES = {
+    hd: 14.9, guide: 24.9, kit: 89,
+    print: { papier: { '30x40': 39, '50x70': 59, '70x100': 89 }, cadre: { '30x40': 79, '50x70': 129, '70x100': 199 }, toile: { '30x40': 69, '50x70': 109, '70x100': 169 } },
+  };
+  const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée'), toile: tr('sur toile') };
+  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : PRICES[it.product]);
+  const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
+  const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
+  function productLabel(it) {
+    if (it.product === 'print') return tr`Impression ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
+    return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD'), kit: tr('Kit DIY 50 × 70') }[it.product];
+  }
+  function loadCart() { try { const c = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); return Array.isArray(c) ? c : []; } catch (e) { return []; } }
+  function saveCart(items) { try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch (e) { /* stockage plein */ } renderCartButton(); }
+  // images dont le panier a besoin (à ne pas effacer avec le brouillon)
+  const cartRefs = () => new Set(loadCart().flatMap((it) => it.refs || []));
+  function renderCartButton() {
+    const n = loadCart().reduce((s, it) => s + it.qty, 0);
+    document.querySelectorAll('.cart-btn').forEach((b) => {
+      b.hidden = !n;
+      b.querySelector('.cart-count').textContent = String(n);
+      b.setAttribute('aria-label', tr`Panier : ${n} article(s)`);
+    });
+  }
+
+  // fenêtres
+  const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
+  const closeModal = (el) => { el.hidden = true; };
+  ['cart-add', 'cart'].forEach((id) => {
+    const el = $(id);
+    el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
+    el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(el); });
+  });
+
+  // la taille du commerce la plus proche du format de la composition
+  function suggestedSize(W, H) {
+    const long = Math.max(W, H);
+    return Object.keys(SIZES).reduce((best, k) => (Math.abs(SIZES[k][1] - long) < Math.abs(SIZES[best][1] - long) ? k : best), '30x40');
+  }
+
+  let pending = null; // composition à ajouter : { comp, title, styleName }
+  const choice = { product: 'print', finish: 'cadre', size: '50x70', qty: 1 };
+  function renderCartAdd() {
+    const box = $('cart-add'), { comp } = pending;
+    box.querySelector('.cart-what img').src = pending.thumb;
+    box.querySelector('.cart-what-name').textContent = pending.title;
+    box.querySelector('.cart-what-size').textContent = tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
+    box.querySelectorAll('input[name="cart-prod"]').forEach((r) => { r.checked = r.value === choice.product; r.closest('.cart-prod').classList.toggle('on', r.checked); });
+    box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(PRICES.print.papier['30x40'])}`;
+    ['hd', 'guide', 'kit'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
+    box.querySelector('.cart-print').hidden = choice.product !== 'print';
+    box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
+    box.querySelectorAll('[data-size]').forEach((b) => {
+      b.classList.toggle('on', b.dataset.size === choice.size);
+      b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
+    });
+    // un produit numérique ne se commande qu'une fois
+    const digital = choice.product === 'hd' || choice.product === 'guide';
+    if (digital) choice.qty = 1;
+    box.querySelector('.cart-qty-row').hidden = digital;
+    box.querySelector('.cart-qty output').textContent = String(choice.qty);
+    // proportions : l'œuvre est imprimée entière, centrée, avec un passe-partout blanc si besoin
+    const fit = box.querySelector('.cart-fit');
+    if (choice.product === 'print') {
+      const [a, b] = SIZES[choice.size], pw = comp.W >= comp.H ? b : a, ph = comp.W >= comp.H ? a : b;
+      const k = Math.min(pw / comp.W, ph / comp.H), dw = Math.abs(pw - comp.W * k), dh = Math.abs(ph - comp.H * k);
+      fit.hidden = dw < 0.6 && dh < 0.6;
+      fit.textContent = tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) sera imprimée entière sur ${sizeLabel(choice.size, comp.W, comp.H)}, avec une marge blanche pour garder ses proportions.`;
+    } else fit.hidden = true;
+    const it = Object.assign({ W: comp.W, H: comp.H }, choice);
+    box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
+  }
+  function openCartAdd(comp, title, styleName) {
+    if (!comp) return;
+    pending = { comp, title, styleName, thumb: thumbOfComp(comp) };
+    choice.size = suggestedSize(comp.W, comp.H);
+    choice.qty = 1;
+    renderCartAdd();
+    openModal($('cart-add'));
+  }
+  (function cartAddUi() {
+    const box = $('cart-add');
+    box.querySelectorAll('input[name="cart-prod"]').forEach((r) => (r.onchange = () => { choice.product = r.value; renderCartAdd(); }));
+    box.querySelectorAll('[data-finish]').forEach((b) => (b.onclick = () => { choice.finish = b.dataset.finish; renderCartAdd(); }));
+    box.querySelectorAll('[data-size]').forEach((b) => (b.onclick = () => { choice.size = b.dataset.size; renderCartAdd(); }));
+    box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, 20); renderCartAdd(); }));
+    $('cart-add-ok').onclick = addPendingToCart;
+  })();
+
+  async function addPendingToCart() {
+    if (!pending) return;
+    const btn = $('cart-add-ok');
+    btn.disabled = true;
+    try {
+      const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      // la composition est figée telle qu'elle est maintenant (images partagées, écrites une fois)
+      const rec = await snapshotComposition(pending.title, { refs: true, comp: pending.comp });
+      rec.id = `panier-${id}`;
+      rec.cart = true;
+      await dbPut(rec);
+      const it = { id, recId: rec.id, refs: rec.drawings.map((x) => x.ref), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: choice.qty };
+      it.unit = unitPrice(it);
+      const items = loadCart();
+      items.push(it);
+      saveCart(items);
+      window.Atelier.track('Panier', { produit: it.product === 'print' ? `${it.finish} ${it.size}` : it.product });
+      closeModal($('cart-add'));
+      openCart(tr`« ${it.title} » est dans votre panier.`);
+    } catch (e) {
+      console.error(e);
+      notice(tr`Impossible d’ajouter au panier : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
+    } finally { btn.disabled = false; }
+  }
+
+  function cartStatus(txt) { const el = $('cart').querySelector('.cart-status'); el.textContent = txt || ''; el.hidden = !txt; }
+  function renderCart() {
+    const box = $('cart'), items = loadCart(), list = box.querySelector('.cart-list');
+    list.innerHTML = '';
+    items.forEach((it) => {
+      const li = document.createElement('li');
+      li.className = 'cart-item';
+      li.innerHTML = `<img src="${safeData(it.thumb)}" alt="">
+        <div class="cart-item-main"><b>${esc(it.title)}</b><small>${esc(productLabel(it))}</small>
+          <span class="cart-item-actions"><button type="button" class="link" data-review>${tr('Revoir')}</button> · <button type="button" class="link" data-remove>${tr('Retirer')}</button></span></div>
+        <div class="cart-item-side">${it.product === 'hd' || it.product === 'guide' ? '' : `<span class="cart-qty"><button type="button" data-qty="-1" aria-label="${tr('Moins')}">−</button><output>${it.qty}</output><button type="button" data-qty="1" aria-label="${tr('Plus')}">+</button></span>`}
+          <b class="cart-item-price">${euros(it.unit * it.qty)}</b></div>`;
+      li.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => {
+        const all = loadCart(), x = all.find((y) => y.id === it.id);
+        if (!x) return;
+        x.qty = clamp(x.qty + Number(b.dataset.qty), 1, 20);
+        saveCart(all); renderCart();
+      }));
+      li.querySelector('[data-remove]').onclick = () => {
+        saveCart(loadCart().filter((y) => y.id !== it.id));
+        dbDel(it.recId).catch(() => {});
+        renderCart();
+      };
+      li.querySelector('[data-review]').onclick = async () => {
+        closeModal(box);
+        // la composition revient dans l'atelier, telle qu'elle a été ajoutée
+        await restoreComposition(it.recId);
+        selectTab('compose-section');
+      };
+      list.appendChild(li);
+    });
+    const total = items.reduce((s, it) => s + it.unit * it.qty, 0);
+    box.querySelector('.cart-empty').hidden = items.length > 0;
+    box.querySelector('.cart-total').hidden = !items.length;
+    box.querySelector('.cart-total b').textContent = euros(total);
+    box.querySelector('.cart-note').hidden = !items.length;
+    $('cart-order').hidden = !items.length;
+  }
+  function openCart(msg) {
+    renderCart();
+    cartStatus(msg || '');
+    openModal($('cart'));
+  }
+  document.querySelectorAll('.cart-btn').forEach((b) => (b.onclick = () => openCart()));
+
+  // Commander : compositions sauvegardées dans le compte, puis message de commande prêt à envoyer.
+  async function placeOrder() {
+    const items = loadCart();
+    if (!items.length) return;
+    const btn = $('cart-order');
+    btn.disabled = true;
+    try {
+      const A = window.Account;
+      const cloud = !!(A && A.enabled && A.user());
+      const now = new Date();
+      const ref = `AG-${now.toISOString().slice(2, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      const lines = [];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        let saved = '';
+        if (cloud) {
+          cartStatus(tr`Enregistrement des compositions dans votre compte : ${i + 1} / ${items.length}…`);
+          const rec = await dbGet(it.recId);
+          if (rec) {
+            for (const sd of rec.drawings) {
+              if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
+              delete sd.ref;
+            }
+            rec.name = `${ref} · ${it.title}`.slice(0, 80);
+            delete rec.cart;
+            saved = await A.cloud.put(rec);
+          }
+        }
+        lines.push(`${i + 1}. ${it.title} (${it.styleName}, ${fmt(it.W)} × ${fmt(it.H)} cm) — ${productLabel(it)} × ${it.qty} = ${euros(it.unit * it.qty)}${saved ? ` [${saved}]` : ''}`);
+      }
+      const total = items.reduce((s, it) => s + it.unit * it.qty, 0);
+      const who = cloud ? (A.user().email || '') : '';
+      const body = [
+        tr`Bonjour,`, '', tr`Je souhaite commander :`, '', ...lines, '', tr`Total TTC : ${euros(total)}`,
+        tr`Référence : ${ref}`, who ? tr`Compte : ${who}` : '', '', tr`Adresse de livraison :`, '', '', tr`Merci !`,
+      ].join('\n');
+      const orders = (() => { try { return JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]'); } catch (e) { return []; } })();
+      orders.push({ ref, date: now.toISOString(), total, items: items.map((it) => ({ title: it.title, product: productLabel(it), qty: it.qty, unit: it.unit })) });
+      try { localStorage.setItem(ORDERS_KEY, JSON.stringify(orders.slice(-30))); } catch (e) { /* ignoré */ }
+      window.Atelier.track('Commande', { articles: items.length, total: Math.round(total) });
+      // panier vidé (les compositions commandées sont dans le compte, et dans « Mes compositions »)
+      items.forEach((it) => dbDel(it.recId).catch(() => {}));
+      saveCart([]);
+      if (cloud) renderSaved();
+      renderCart();
+      $('cart').querySelector('.cart-empty').hidden = true;
+      cartStatus(tr`Commande ${ref} prête : votre messagerie s’ouvre avec le récapitulatif. Ajoutez l’adresse de livraison et envoyez le message pour la confirmer.`);
+      location.href = `mailto:${ORDER_MAIL}?subject=${encodeURIComponent(tr`Commande ${ref}`)}&body=${encodeURIComponent(body)}`;
+    } catch (e) {
+      console.error(e);
+      cartStatus(tr`La commande n’a pas pu être préparée : ${(e && e.message) || e}`);
+    } finally { btn.disabled = false; }
+  }
+  const orderFlow = requireAccount(tr('commander'), () => { openCart(); placeOrder(); });
+  $('cart-order').onclick = () => {
+    // la fenêtre de connexion passe devant : le panier se rouvre ensuite de lui-même
+    const A = window.Account;
+    if (A && A.enabled && !A.user()) closeModal($('cart'));
+    orderFlow();
+  };
+
+  // ajouter la composition en cours (étape Exporter)
+  $('add-cart').onclick = () => {
+    if (!state.comp) return;
+    const st = STYLES.find((x) => x.id === state.comp.style);
+    openCartAdd(state.comp, titleFor(state.comp.style) || (st ? st.name : tr('Composition')), st ? st.name : '');
+  };
+  renderCartButton();
 
   // accès pour le débogage depuis la console
   window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, undo, redo };

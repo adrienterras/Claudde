@@ -196,4 +196,33 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#acc-status')).toContainText('enregistré');
     await expect(page.locator('#profile-box')).toBeVisible();
   });
+
+  test('commander depuis le panier : connexion demandée, puis compositions enregistrées dans le compte', async ({ acc }) => {
+    const { page } = acc;
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="toile"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    // pas connecté : la connexion passe devant, puis la commande reprend d'elle-même
+    await page.locator('#cart-order').click();
+    await expect(page.locator('#cart')).toBeHidden();
+    await expect(page.locator('#acc-status')).toContainText('commander');
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-name', 'Sam');
+    await page.fill('#auth-email', 'sam@example.org');
+    await page.fill('#auth-password', 'Bleu-Nuage-77');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#cart .cart-status')).toContainText('prête', { timeout: 60000 });
+    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
+    expect(uploads).toBe(2); // les deux dessins de la composition commandée
+    const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
+    expect(orders).toHaveLength(1);
+    await page.locator('#cart [data-close]').first().click();
+    // la composition commandée est dans le compte, sous la référence de la commande
+    await page.evaluate(() => document.querySelector('#saved-section > h2') && document.querySelector('#saved-section').classList.contains('collapsed') && document.querySelector('#saved-section > h2').click());
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1, { timeout: 30000 });
+    await expect(page.locator('#saved-list .saved').first()).toContainText(orders[0].ref);
+  });
 });

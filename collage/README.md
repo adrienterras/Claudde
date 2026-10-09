@@ -75,6 +75,17 @@ cd collage && python3 -m http.server 8000
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
+   - **panier** : chaque proposition (bouton sur sa vignette) ou la composition en cours (étape
+     Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs : fichier HD
+     (14,90 €), impression papier / encadrée / toile en 30 × 40, 50 × 70 ou 70 × 100 (39 à 199 €),
+     guide DIY (24,90 €) ou kit DIY 50 × 70 (89 €), et la quantité. La composition y est figée telle
+     quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
+     brouillon ; la liste est dans localStorage et survit au rechargement. Le panier (bouton en haut,
+     avec le nombre d'articles) permet de changer les quantités, de retirer un article, de « Revoir »
+     une composition dans l'atelier ; « Commander » (compte demandé) enregistre chaque composition
+     dans le compte sous la référence de la commande (AG-AAMMJJ-XXXX), garde la commande dans
+     l'historique local et ouvre le message de commande (bonjour@atelier-gribouille.com) avec le
+     récapitulatif. Le paiement en ligne n'est pas encore branché ;
    - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
      enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
      taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), les retouches de découpe faites à la main

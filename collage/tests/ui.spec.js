@@ -596,3 +596,71 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 });
+
+test.describe('Panier', () => {
+  test('ajouter des propositions, régler, retirer, retrouver après rechargement, revoir et commander', async ({ page }) => {
+    test.setTimeout(240000);
+    const { fixture } = require('./helpers');
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('.cart-btn-desk')).toBeHidden(); // panier vide : pas de bouton
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const euros = (t) => Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
+    // une proposition (pas celle affichée), en tableau encadré
+    const style1 = await page.evaluate(() => AtelierGribouille.state.proposals[1].style.id);
+    await page.locator('.proposal-cart').nth(1).click();
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await page.locator('#cart-add [data-finish="cadre"]').click();
+    await page.locator('#cart-add [data-size="50x70"]').click();
+    expect(euros(await page.locator('.cart-add-total').textContent())).toBe(129);
+    await page.locator('#cart-add [data-qty="1"]').click();
+    expect(euros(await page.locator('.cart-add-total').textContent())).toBe(258);
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart')).toBeVisible();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    await page.locator('#cart [data-close]').first().click();
+    // la composition en cours, depuis l'étape Exporter, en fichier HD (quantité fixe)
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add input[value="hd"]').check();
+    await expect(page.locator('#cart-add .cart-qty-row')).toBeHidden();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(2);
+    expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 14.9, 2);
+    await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('3');
+    // quantité −, puis retirer le fichier HD
+    await page.locator('#cart .cart-item').first().locator('[data-qty="-1"]').click();
+    expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(129 + 14.9, 2);
+    await page.locator('#cart .cart-item').nth(1).locator('[data-remove]').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    expect(euros(await page.locator('#cart .cart-total b').textContent())).toBe(129);
+    await page.locator('#cart [data-close]').first().click();
+    // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
+    await page.locator('#restart').click();
+    await page.waitForTimeout(800);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('1');
+    await page.locator('.cart-btn-desk').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    await expect(page.locator('#cart .cart-item small')).toContainText('70 × 50');
+    // revoir : la composition revient dans l'atelier, telle qu'ajoutée
+    await page.locator('#cart [data-review]').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style1);
+    // commander (sans comptes ici) : récapitulatif prêt, panier vidé, commande gardée
+    await page.locator('.cart-btn-desk').click();
+    await page.locator('#cart-order').click();
+    await expect(page.locator('#cart .cart-status')).toContainText('prête');
+    const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
+    expect(orders).toHaveLength(1);
+    expect(orders[0].total).toBe(129);
+    expect(orders[0].ref).toMatch(/^AG-\d{6}-[A-Z0-9]{4}$/);
+    await expect(page.locator('.cart-btn-desk')).toBeHidden();
+    expect(errors).toEqual([]);
+    await page.evaluate(() => new Promise((r) => { localStorage.clear(); const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+});
