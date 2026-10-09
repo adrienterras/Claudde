@@ -22,6 +22,10 @@
     return c;
   }
 
+  // Un canevas qui ne sert plus est vidé tout de suite : Safari (iPhone) compte la mémoire des
+  // canevas jusqu'à leur ramassage, et efface la page quand la limite est dépassée.
+  function release(c) { if (c && c.width) { c.width = 0; c.height = 0; } }
+
   function ctx2d(c) {
     return c.getContext('2d', { willReadFrequently: true });
   }
@@ -329,6 +333,7 @@
     const work = scaleTo(src, 640);
     const w = work.width, h = work.height;
     const d = ctx2d(work).getImageData(0, 0, w, h).data;
+    release(work);
     // cases fines (≈ 1/100 de la page) : l’ombre d’un pli est une bande étroite
     const cell = Math.max(4, Math.round(Math.max(w, h) / 100));
     const gw = Math.ceil(w / cell), gh = Math.ceil(h / cell), G = gw * gh;
@@ -434,9 +439,10 @@
   }
 
   // Ramène le papier au blanc partout (voir illumination) ; la page est rendue telle quelle si
-  // l'éclairage ne peut pas être estimé.
+  // l'éclairage ne peut pas être estimé. inPlace : corrige la page elle-même, sans en faire de copie
+  // (la mémoire des images est comptée au plus juste sur téléphone).
   const PAPER_WHITE = 250;
-  function flatten(src) {
+  function flatten(src, inPlace) {
     const ill = illumination(src);
     flatten.debug = null;
     if (!ill) return src;
@@ -449,9 +455,9 @@
       if (k % 3 === 1) { lo = Math.min(lo, bg[k]); hi = Math.max(hi, bg[k]); }
     }
     flatten.debug = { lo: Math.round(lo), hi: Math.round(hi) };
-    const out = makeCanvas(src.width, src.height);
+    const out = inPlace ? src : makeCanvas(src.width, src.height);
     const ctx = ctx2d(out);
-    ctx.drawImage(src, 0, 0);
+    if (!inPlace) ctx.drawImage(src, 0, 0);
     const W = out.width, H = out.height;
     const img = ctx.getImageData(0, 0, W, H), px = img.data;
     for (let y = 0; y < H; y++) {
@@ -624,6 +630,17 @@
       });
   }
 
+  // Indicateurs d'une page comme fond (couleur, colorée, calme), calculés sur une petite copie :
+  // ils servent à choisir les fonds sans fabriquer la texture pleine de chaque page.
+  function textureStats(page) {
+    const mx = page.width * 0.015, my = page.height * 0.015;
+    const small = scaleTo(crop(page, mx, my, page.width - 2 * mx, page.height - 2 * my), 256);
+    const t = textureFrom(small);
+    release(small); release(t.canvas);
+    delete t.canvas;
+    return t;
+  }
+
   function textureFrom(page) {
     // on rogne un peu les bords du scan (ombres, bord de feuille)
     const mx = page.width * 0.015, my = page.height * 0.015;
@@ -666,6 +683,7 @@
     const fine = scaleTo(src, 1600);
     const W = fine.width, H = fine.height, N = W * H;
     const d = ctx2d(fine).getImageData(0, 0, W, H).data;
+    release(fine);
     const kx = cw / W, ky = ch / H;
     const M = new Uint8Array(N);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) M[y * W + x] = coarse[Math.min(ch - 1, Math.floor((y + 0.5) * ky)) * cw + Math.min(cw - 1, Math.floor((x + 0.5) * kx))];
@@ -1185,7 +1203,7 @@
       const cleaned = removeSurface(src, !!opts.force);
       if (cleaned && cleaned.object) {
         // objet découpé posé sur la surface : sa silhouette entière est la pièce
-        const page = flatten(cleaned.canvas);
+        const page = flatten(cleaned.canvas, true);
         const r = { page, paper: [250, 250, 250], texture: null, kind: 'cutout', paperFrac: 1, objectAlpha: cleaned.object };
         r.pieces = objectPieces(page, cleaned.object.alpha, cleaned.object.W, cleaned.object.H);
         if (r.pieces.length) { r.photo = cleaned.surface; r.original = src; return r; }
@@ -1198,7 +1216,7 @@
       }
     }
     // éclairage égalisé : le papier est blanc partout avant de chercher le dessin
-    if (!opts.flat) { src = flatten(src); opts = Object.assign({}, opts, { flat: true }); }
+    if (!opts.flat) { src = flatten(src, true); opts = Object.assign({}, opts, { flat: true }); }
     const seg = segment(src);
     const big = seg.comps[0];
     if (depth === 0 && big) {
@@ -1227,5 +1245,5 @@
     return result;
   }
 
-  window.Extract = { analyze, flatten, recut, rotated, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, flatten, recut, rotated, textureStats, release, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();

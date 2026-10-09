@@ -76,6 +76,8 @@
     'Réouverture de votre œuvre en cours…': 'Reopening your work in progress…',
     'L’œuvre en cours n’a pas pu être rouverte.': 'The work in progress could not be reopened.',
     'Oublier cette œuvre': 'Forget this work',
+    'Reprendre': 'Resume',
+    'La dernière réouverture de votre œuvre ({0} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.': 'The last reopening of your work ({0} drawings) did not finish: the page may have closed for lack of memory.',
     ' (plus de place sur les étagères)': ' (no room left on the shelves)',
     'Touchez un dessin pour régler son rôle et sa taille réelle.': 'Tap a drawing to set its role and its real size.',
     'le sujet est détouré, puis collé sur la toile': 'the subject is cut out, then glued on the canvas',

@@ -21,7 +21,8 @@ test.describe('Compositions sauvegardées', () => {
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await page.locator('.saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
+    await expect(page.locator('#saved-status')).toContainText('« Essai automatique » rouverte', { timeout: 120000 });
     const after = await page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
       return { style: c.style, n: c.items.length, bg: c.bg.length, first: [c.items[0].x, c.items[0].y, c.items[0].rot], W: c.W, H: c.H, drawings: AtelierGribouille.state.drawings.length };
@@ -150,7 +151,8 @@ test.describe('Dessin dupliqué', () => {
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await page.locator('.saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
+    await expect(page.locator('#saved-status')).toContainText('« Avec copie » rouverte', { timeout: 120000 });
     const s2 = await state();
     expect(s2.map((x) => x.copy)).toEqual([false, true]);
     expect(Math.abs(s2[0].opaque - s0[0].opaque) / s0[0].opaque).toBeLessThan(0.02);
@@ -199,7 +201,7 @@ test.describe('Réouverture fidèle des retouches', () => {
     await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(3);
     const draft = () => page.evaluate(() => new Promise((res) => {
-      const q = indexedDB.open('atelier-gribouille', 1);
+      const q = indexedDB.open('atelier-gribouille');
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
       q.onerror = () => res(null);
     }));
@@ -230,7 +232,7 @@ test.describe('Réouverture fidèle des retouches', () => {
     for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings[0].pieceEdits.some(Boolean)) break; await page.waitForTimeout(500); }
     await page.waitForTimeout(3000);
     await page.evaluate(() => new Promise((res) => {
-      const q = indexedDB.open('atelier-gribouille', 1);
+      const q = indexedDB.open('atelier-gribouille');
       q.onsuccess = () => {
         const st = q.result.transaction('compositions', 'readwrite').objectStore('compositions');
         const g = st.get('brouillon');

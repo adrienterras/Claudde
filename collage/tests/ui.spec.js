@@ -88,7 +88,7 @@ test.describe('Interface', () => {
 
 // attend que le brouillon soit bien écrit dans IndexedDB (il part 2,5 s après le dernier changement)
 const hasDraft = (page) => page.evaluate(() => new Promise((res) => {
-  const r = indexedDB.open('atelier-gribouille', 1);
+  const r = indexedDB.open('atelier-gribouille');
   r.onsuccess = () => { const db = r.result; try { const g = db.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => { db.close(); res(!!(g.result && g.result.drawings && g.result.drawings.length)); }; g.onerror = () => { db.close(); res(false); }; } catch (e) { db.close(); res(false); } };
   r.onerror = () => res(false);
 }));
@@ -260,6 +260,30 @@ test.describe('Brouillon', () => {
     await page.locator('#detail [data-role="texture"]').click();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(otherStyle);
+    // les images sont écrites une seule fois, à part : le brouillon ne garde que leurs références
+    const store = await page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille');
+      q.onsuccess = () => {
+        const db = q.result;
+        const g = db.transaction('compositions').objectStore('compositions').get('brouillon');
+        g.onsuccess = () => {
+          const k = db.transaction('brouillon-images').objectStore('brouillon-images').getAllKeys();
+          k.onsuccess = () => { db.close(); res({ refs: g.result.drawings.map((d) => d.ref), data: g.result.drawings.some((d) => d.data), keys: k.result }); };
+        };
+      };
+    }));
+    expect(store.data).toBe(false);
+    expect(store.keys.sort()).toEqual(store.refs.slice().sort());
+    // une réouverture qui n'a pas abouti (page fermée faute de mémoire) est proposée, pas relancée d'office
+    // (un plantage ne passe pas par une sortie normale : la marque est encore là au démarrage suivant)
+    await page.addInitScript(() => localStorage.setItem('atelier-gribouille:reouverture', String(Date.now())));
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#draft-offer')).toContainText('n’a pas abouti');
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    await page.locator('#draft-resume').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#draft-offer')).toBeHidden();
     // repartir de zéro efface le brouillon
     await page.locator('#restart').click();
     for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
@@ -552,8 +576,18 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
     let type = null;
     for (let i = 0; i < 60 && !type; i++) {
       type = await page.evaluate(() => new Promise((res) => {
-        const q = indexedDB.open('atelier-gribouille', 1);
-        q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result ? g.result.drawings[0].type : null); g.onerror = () => res(null); };
+        const q = indexedDB.open('atelier-gribouille');
+        q.onsuccess = () => {
+          // le brouillon garde la référence de l'image, écrite une fois dans le magasin des images
+          const db = q.result, g = db.transaction('compositions').objectStore('compositions').get('brouillon');
+          g.onsuccess = () => {
+            const ref = g.result && g.result.drawings[0].ref;
+            if (!ref || !db.objectStoreNames.contains('brouillon-images')) { res(null); return; }
+            const f = db.transaction('brouillon-images').objectStore('brouillon-images').get(ref);
+            f.onsuccess = () => res(f.result ? f.result.type : null); f.onerror = () => res(null);
+          };
+          g.onerror = () => res(null);
+        };
         q.onerror = () => res(null);
       }));
       if (!type) await page.waitForTimeout(500);

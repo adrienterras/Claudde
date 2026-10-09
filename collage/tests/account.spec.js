@@ -143,7 +143,8 @@ test.describe('Comptes utilisateurs', () => {
     await page.reload();
     await page.waitForFunction(() => window.Account && window.Account.user() && document.querySelectorAll('#saved-list .saved').length === 1);
     await page.locator('#saved-list .saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
+    await expect(page.locator('#saved-status')).toContainText('« Dans le cloud » rouverte', { timeout: 120000 });
     const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
     expect(after.n).toBe(before.n);
     expect(after.x).toBeCloseTo(before.x, 3);

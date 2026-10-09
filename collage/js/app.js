@@ -292,6 +292,8 @@
         const src = await pages[i].render(want > 0 ? want : max);
         // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
         Extract.removeSurface.debug = null;
+        // qualité mesurée sur l'image reçue, avant que l'analyse n'égalise l'éclairage (sur place)
+        const q = Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null });
         const analysis = Extract.analyze(src.canvas, 0, { photo: true });
         const photoDebug = Extract.removeSurface.debug;
         const d = {
@@ -304,7 +306,7 @@
           sizeCm: 29.7, sizeMode: 'auto',
           // qualité pour l'impression (voir js/quality.js) : pixels réels et mesures faites ici une fois
           pxLong: src.pxLong || null,
-          q: Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null }),
+          q,
         };
         preparePieces(analysis.pieces, d);
         loadSize(d);
@@ -558,8 +560,8 @@
   function bgMerit(d) {
     const a = d.analysis;
     const painted = 1 - (a.paperFrac === undefined ? 0.5 : a.paperFrac); // part de la page peinte
-    const t = a.texture || Extract.textureFrom(a.page);
-    a.texture = t;
+    // (indicateurs sur une petite copie : la texture pleine n'est faite que pour un vrai fond)
+    const t = a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page));
     const ps = a.pieces || [];
     const main = ps.reduce((x, b) => (!x || b.frac > x.frac ? b : x), null);
     const subject = main ? main.frac * (0.3 + main.colorful) : 0; // force du sujet à découper
@@ -636,7 +638,8 @@
       const mode = allIn() ? 'fond' : paleMode;
       const share = mode === 'fond' ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
       const nPaleLeft = Math.round(paleLeft.length * share);
-      paleLeft.slice().sort((a, b) => (b.analysis.texture ? b.analysis.texture.colorful : 0) - (a.analysis.texture ? a.analysis.texture.colorful : 0))
+      const colorfulOf = (d) => { const a = d.analysis; return (a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page))).colorful || 0; };
+      paleLeft.slice().sort((a, b) => colorfulOf(b) - colorfulOf(a))
         .forEach((d, i) => { d.auto = i < nPaleLeft ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
       state.paleCount = paleLeft.length;
     }
@@ -644,7 +647,7 @@
     // une feuille blanche avec un petit dessin reste une découpe
     const bgEligible = (d) => {
       const a = d.analysis;
-      const t = a.texture || (a.texture = Extract.textureFrom(a.page));
+      const t = a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page));
       const painted = 1 - (a.paperFrac === undefined ? 0.5 : a.paperFrac);
       // un sujet net et coloré (une bougie photographiée sur du parquet) reste une découpe
       const main = (a.pieces || []).reduce((x, b) => (!x || b.frac > x.frac ? b : x), null);
@@ -3061,6 +3064,7 @@ Réponds uniquement avec ce JSON :
     clearTimeout(draftTimer);
     draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire le brouillon effacé
     dbDel(DRAFT_ID).catch(() => {});
+    filesClear().then(() => { storedKeys = new Set(); }).catch(() => {});
     $('draft-offer').hidden = true;
     if ($('empty-resume')) $('empty-resume').hidden = true;
   }
@@ -3093,18 +3097,38 @@ Réponds uniquement avec ce JSON :
   }
 
   // ---------- Compositions sauvegardées (IndexedDB, dans ce navigateur) ----------
-  const DB_NAME = 'atelier-gribouille', DB_STORE = 'compositions';
+  // FILES_STORE : les images du brouillon, écrites une seule fois par dessin (le brouillon, enregistré
+  // à chaque pause, ne réécrit que la mise en place : sur téléphone, recopier toutes les images à
+  // chaque fois saturait la mémoire)
+  const DB_NAME = 'atelier-gribouille', DB_STORE = 'compositions', FILES_STORE = 'brouillon-images';
   function openDb() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE, { keyPath: 'id' }); };
-      req.onsuccess = () => resolve(req.result);
+      const req = indexedDB.open(DB_NAME, 2);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(FILES_STORE)) db.createObjectStore(FILES_STORE);
+      };
+      req.onsuccess = () => { const db = req.result; db.onversionchange = () => db.close(); resolve(db); };
       req.onerror = () => reject(req.error);
     });
   }
   function dbAll() { return openDb().then((db) => new Promise((res, rej) => { const r = db.transaction(DB_STORE).objectStore(DB_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); })); }
   function dbPut(rec) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).put(rec); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
   function dbGet(id) { return openDb().then((db) => new Promise((res, rej) => { const r = db.transaction(DB_STORE).objectStore(DB_STORE).get(id); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+  const fileReq = (mode, fn) => openDb().then((db) => new Promise((res, rej) => {
+    const t = db.transaction(FILES_STORE, mode), st = t.objectStore(FILES_STORE);
+    let out;
+    const r = fn(st);
+    if (r) r.onsuccess = () => { out = r.result; };
+    t.oncomplete = () => res(out);
+    t.onerror = () => rej(t.error);
+  }));
+  const filesGet = (key) => fileReq('readonly', (st) => st.get(key));
+  const filesPut = (key, v) => fileReq('readwrite', (st) => { st.put(v, key); });
+  const filesKeys = () => fileReq('readonly', (st) => st.getAllKeys());
+  const filesDel = (keys) => fileReq('readwrite', (st) => { keys.forEach((k) => st.delete(k)); });
+  const filesClear = () => fileReq('readwrite', (st) => { st.clear(); });
   function dbDel(id) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).delete(id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
   const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
 
@@ -3123,22 +3147,49 @@ Réponds uniquement avec ce JSON :
     draftBusy = true;
     try {
       const epoch = draftEpoch;
-      const rec = await snapshotComposition(tr('Œuvre en cours'));
+      const rec = await snapshotComposition(tr('Œuvre en cours'), { refs: true });
       if (epoch !== draftEpoch) return; // « nouvelle œuvre » demandée pendant l'instantané : on n'écrit pas
       rec.id = DRAFT_ID;
       await dbPut(rec);
+      // images de dessins retirés depuis : effacées (d'après le magasin lui-même)
+      const used = new Set(rec.drawings.map((x) => x.ref));
+      const stale = (await filesKeys().catch(() => [])).filter((k) => !used.has(k));
+      if (stale.length) { await filesDel(stale).catch(() => {}); stale.forEach((k) => storedKeys.delete(k)); }
     } catch (e) { console.warn('brouillon non enregistré', e); }
     finally { draftBusy = false; if (draftAgain) { draftAgain = false; scheduleDraft(); } }
   }
   const AFTER_AUTH_KEY = 'atelier-gribouille:after-auth';
   // Au chargement de la page, l'œuvre en cours (brouillon) est rouverte d'elle-même : actualiser la
   // page ne fait rien perdre. « Commencez une nouvelle œuvre » l'efface pour repartir de zéro.
-  async function resumeDraft() {
+  // Une réouverture en cours est notée : si la page a planté pendant (mémoire du téléphone), la
+  // visite suivante ne la relance pas d'elle-même — elle la propose, pour ne pas planter en boucle.
+  const RESUME_KEY = 'atelier-gribouille:reouverture';
+  // une sortie normale de la page (actualiser, changer de page) n'est pas un plantage
+  window.addEventListener('pagehide', () => { try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ } });
+  function forgetDraft() {
+    $('draft-offer').hidden = true;
+    dbDel(DRAFT_ID).catch(() => {});
+    filesClear().then(() => { storedKeys = new Set(); }).catch(() => {});
+    try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ }
+  }
+  async function resumeDraft(manual) {
     const box = $('draft-offer');
     if (!box) return;
     let rec = null;
     try { rec = await dbGet(DRAFT_ID); } catch (e) { rec = null; }
     if (!rec || !rec.drawings || !rec.drawings.length || state.drawings.length) return;
+    let crashed = false;
+    try { crashed = Date.now() - Number(localStorage.getItem(RESUME_KEY) || 0) < 15 * 60e3; } catch (e) { crashed = false; }
+    if (crashed && !manual) {
+      box.querySelector('span').textContent = tr`La dernière réouverture de votre œuvre (${rec.drawings.length} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.`;
+      box.hidden = false;
+      $('draft-resume').hidden = false;
+      $('draft-forget').hidden = false;
+      $('draft-resume').onclick = () => { $('draft-resume').hidden = true; $('draft-forget').hidden = true; resumeDraft(true); };
+      $('draft-forget').onclick = forgetDraft;
+      return;
+    }
+    try { localStorage.setItem(RESUME_KEY, String(Date.now())); } catch (e) { /* ignoré */ }
     // retour d'une connexion Google : on revient ensuite à l'export, avec l'action demandée rappelée
     let after = null;
     try { after = sessionStorage.getItem(AFTER_AUTH_KEY); sessionStorage.removeItem(AFTER_AUTH_KEY); } catch (e) { after = null; }
@@ -3150,12 +3201,14 @@ Réponds uniquement avec ce JSON :
     $('empty-sample').hidden = true;
     state.resuming = true;
     try { await restoreComposition(DRAFT_ID); } finally { state.resuming = false; }
+    // (la marque reste quelques secondes : un plantage juste après la réouverture compte aussi)
+    setTimeout(() => { try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ } }, 8000);
     if (big) big.hidden = true;
     if (!state.comp || !state.drawings.length) {
       // relecture impossible : on le dit, et on laisse effacer ce brouillon pour ne pas buter dessus à chaque visite
       box.querySelector('span').textContent = tr('L’œuvre en cours n’a pas pu être rouverte.');
       $('draft-forget').hidden = false;
-      $('draft-forget').onclick = () => { box.hidden = true; dbDel(DRAFT_ID).catch(() => {}); };
+      $('draft-forget').onclick = forgetDraft;
       return;
     }
     box.hidden = true;
@@ -3251,20 +3304,37 @@ Réponds uniquement avec ce JSON :
     p.edited = true;
     p.thumb = thumbOf(p.canvas, 120, true);
   }
-  async function snapshotComposition(name) {
+  // clé de l'image d'un dessin dans le magasin du brouillon (fichier + page)
+  const draftKey = (d) => (d.fileKey ? `${d.fileKey}#${(d.source && d.source.index) || 0}` : `dessin-${d.id}`);
+  let storedKeys = null; // clés déjà écrites (relues une fois au premier brouillon)
+  /*
+   * opts.refs (brouillon) : chaque image n'est écrite qu'une fois dans FILES_STORE, le brouillon ne
+   * garde que sa clé ; une composition sauvegardée garde ses images avec elle.
+   */
+  async function snapshotComposition(name, opts) {
+    const refs = !!(opts && opts.refs);
+    if (refs && !storedKeys) storedKeys = new Set(await filesKeys().catch(() => []));
     const comp = state.comp;
     const drawings = [];
     for (const d of state.drawings) {
       // image stockée en octets bruts (ArrayBuffer) : les Blob relus depuis IndexedDB sont
       // parfois vides ou illisibles sur certains navigateurs (Safari notamment). On garde la source
       // en haute définition : le fichier image tel quel, ou la page du PDF rendue à 300 dpi (A4).
-      const { data, type } = await sourceBytes(d);
+      let data = null, type = null, ref = null;
+      if (refs) {
+        ref = draftKey(d);
+        if (!storedKeys.has(ref)) {
+          const b = await sourceBytes(d);
+          await filesPut(ref, b);
+          storedKeys.add(ref);
+        }
+      } else ({ data, type } = await sourceBytes(d));
       // retouches de découpe : le masque de chaque pièce retouchée (PNG de sa transparence), avec sa
       // position dans la page, pour être rejoué sur la page réimportée
       const edits = [];
       for (const p of d.analysis.pieces || []) edits.push(p.edited ? await editOf(p, d) : null);
       drawings.push({
-        name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null, work: d.srcLong,
+        name: d.name, data, type, ref, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null, work: d.srcLong,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
         pieceEdits: edits,
@@ -3444,6 +3514,9 @@ Réponds uniquement avec ce JSON :
       : await dbGet(id);
     if (!rec) { savedStatus(fromCloud ? tr('Composition introuvable dans votre compte.') : tr('Composition introuvable dans ce navigateur.')); return; }
     if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette sauvegarde ne contient aucun dessin.')); return; }
+    for (const sd of rec.drawings) {
+      if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
+    }
     const bytesOf = (d) => d.data || d.blob || null;
     const sizeOf = (d) => { const b = bytesOf(d); return b ? (b.byteLength !== undefined ? b.byteLength : b.size) : 0; };
     const empty = rec.drawings.filter((d) => !sizeOf(d)).length;
