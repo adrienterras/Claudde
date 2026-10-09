@@ -312,7 +312,7 @@
         loadSize(d);
         loadOrient(d);
         loadTone(d);
-        if (sizes && sizes[d.name]) { d.sizeCm = sizes[d.name]; d.sizeMode = 'manual'; }
+        if (sizes && sizes[d.name]) { d.sizeCm = clampCm(sizes[d.name]); d.sizeMode = 'manual'; }
         state.drawings.push(d);
       } catch (e) {
         console.error(e);
@@ -400,9 +400,11 @@
       const row = document.createElement('label');
       row.className = 'sizes-row';
       row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
-        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="300" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
+        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
       const apply = (cm) => {
         if (!(cm > 0)) return;
+        cm = clampCm(cm);
+        input.value = String(cm);
         d.sizeCm = cm;
         d.sizeMode = 'manual';
         saveSize(d);
@@ -419,13 +421,16 @@
   }
 
   const cmPerPx = (d) => d.sizeCm / d.srcLong;
+  // tailles limitées à 200 cm (feuille d'un dessin comme toile)
+  const MAX_CM = 200;
+  const clampCm = (cm) => Math.max(3, Math.min(MAX_CM, Math.round(cm * 2) / 2));
 
   // Les tailles corrigées à la main sont mémorisées dans ce navigateur (clé : fichier + page).
   const sizeKey = (d) => `atelier-collage:taille:${d.name}:${Math.round(d.origLong)}`;
   function loadSize(d) {
     try {
       const v = Number(localStorage.getItem(sizeKey(d)));
-      if (v > 0) { d.sizeCm = v; d.sizeMode = 'manual'; }
+      if (v > 0) { d.sizeCm = clampCm(v); d.sizeMode = 'manual'; }
     } catch (e) { /* stockage indisponible : on garde l'estimation */ }
   }
   function saveSize(d) {
@@ -885,7 +890,7 @@
           </div>
         </div>
         <label class="row" data-custom ${std ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
-          <input type="number" min="3" max="200" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
+          <input type="number" min="3" max="${MAX_CM}" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>
         <div class="row">${tr('Orientation')}
           <span class="orient">
@@ -978,6 +983,7 @@
     const custom = box.querySelector('[data-custom]');
     const setSize = (cm) => {
       if (!(cm > 0)) return;
+      cm = clampCm(cm);
       d.sizeCm = cm;
       d.sizeMode = 'manual';
       saveSize(d);
@@ -1204,6 +1210,9 @@
       const m = state.bgMin || { long: 0, short: 0 };
       const k = Math.max(1, m.long / Math.max(w, h), m.short / Math.min(w, h));
       w *= k; h *= k;
+      // jamais plus de 200 cm de côté : au-delà, moins de dessins tiennent sur la toile
+      const cap = Math.min(1, MAX_CM / Math.max(w, h));
+      w *= cap; h *= cap;
       return { w: Math.round(w), h: Math.round(h), auto: true };
     }
     const [a, b] = v.split('x').map(Number);

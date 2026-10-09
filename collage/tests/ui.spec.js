@@ -152,6 +152,16 @@ test.describe('Fiche d’un dessin sur téléphone', () => {
     await expect(page.locator('#detail [data-cm="42"]')).toHaveClass(/on/);
     await page.locator('#detail [data-cm="custom"]').click();
     await expect(page.locator('#detail [data-custom]')).toBeVisible();
+    // au plus 200 cm, pour la feuille comme pour la toile calculée
+    await page.locator('#detail [data-custom] input').fill('350');
+    await page.locator('#detail [data-custom] input').dispatchEvent('change');
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].sizeCm)).toBe(200);
+    await page.evaluate(() => { const A = AtelierGribouille; A.state.drawings.forEach((d) => { d.sizeCm = 200; d.sizeMode = 'manual'; }); A.regenerate(); });
+    await page.waitForTimeout(300);
+    const cv = await page.evaluate(() => AtelierGribouille.state.canvasSize);
+    expect(Math.max(cv.w, cv.h)).toBeLessThanOrEqual(200);
+    await page.locator('#detail [data-cm="42"]').click();
+    await page.locator('#detail [data-cm="custom"]').click();
     // orientation : un quart de tour à droite, puis retour à l'automatique
     await page.locator('#detail [data-rot="90"]').click();
     const o = await page.evaluate(() => AtelierGribouille.state.drawings[0].orient);
