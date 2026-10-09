@@ -291,9 +291,19 @@
     const ink = new Uint8Array(n);
     const stack = [];
     const S2 = strongT * strongT, W2 = weakT * weakT;
+    const pl = lum(paper);
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = d[i] - paper[0], dg = d[i + 1] - paper[1], db = d[i + 2] - paper[2];
       const q = dr * dr + dg * dg + db * db;
+      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      if (mx - mn < 0.15 * mx) {
+        // gris neutre : un reste d'ombre (pli, bord) reste à moins de ≈ 30 du papier ; un trait de
+        // crayon descend plus bas
+        const dl = pl - (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
+        if (dl > 30) weak[p] = 1;
+        if (dl > 45) { ink[p] = 1; stack.push(p); }
+        continue;
+      }
       if (q > W2) weak[p] = 1;
       if (q > S2) { ink[p] = 1; stack.push(p); }
     }
@@ -304,6 +314,160 @@
       for (let k = 0; k < 4; k++) { const q = nb[k]; if (q >= 0 && weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
     }
     return ink;
+  }
+
+  /*
+   * Éclairage inégal d'un scan ou d'une photo de feuille : ombre d'un pli, bord ombré, lumière qui
+   * baisse d'un côté. On estime, case par case, la couleur du papier (les plus clairs des pixels peu
+   * saturés de la case), on écarte les cases nettement plus sombres que leurs voisines (un aplat noir
+   * n'est pas du papier), on complète les cases sans papier visible à partir de leurs voisines, on
+   * lisse, puis on ramène partout le papier au blanc : les ombres disparaissent et ne sont plus prises
+   * pour du dessin. Rend null si la page n'a pas assez de papier visible (page peinte) : elle est
+   * alors laissée telle quelle.
+   */
+  function illumination(src) {
+    const work = scaleTo(src, 640);
+    const w = work.width, h = work.height;
+    const d = ctx2d(work).getImageData(0, 0, w, h).data;
+    // cases fines (≈ 1/100 de la page) : l’ombre d’un pli est une bande étroite
+    const cell = Math.max(4, Math.round(Math.max(w, h) / 100));
+    const gw = Math.ceil(w / cell), gh = Math.ceil(h / cell), G = gw * gh;
+    const bg = new Float32Array(G * 3), ok = new Uint8Array(G), L = new Float32Array(G);
+    const idx = [], lv = [];
+    for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+      idx.length = 0; lv.length = 0;
+      let total = 0;
+      for (let y = gy * cell; y < Math.min(h, (gy + 1) * cell); y++) for (let x = gx * cell; x < Math.min(w, (gx + 1) * cell); x++) {
+        total++;
+        const i = (y * w + x) * 4, c = [d[i], d[i + 1], d[i + 2]];
+        const l = lum(c);
+        if (l > 60 && sat(c) < 0.32) { idx.push(i); lv.push(l); }
+      }
+      if (idx.length < total * 0.15) continue;
+      const order = lv.map((l, k) => k).sort((p, q) => lv[p] - lv[q]);
+      // du papier (même dans l'ombre) est lisse : entre la médiane et le haut de la case, la clarté
+      // varie peu ; un lavis ou une matière (aquarelle grise, crayon) est granuleux
+      const lMed = lv[order[order.length >> 1]], lTop = lv[order[Math.floor(order.length * 0.95)]];
+      if ((lTop - lMed) / Math.max(1, lTop) > 0.09) continue;
+      let r = 0, g = 0, b = 0, m = 0;
+      for (let k = Math.floor(order.length * 0.8); k < order.length; k++) { const i = idx[order[k]]; r += d[i]; g += d[i + 1]; b += d[i + 2]; m++; }
+      const c0 = gy * gw + gx;
+      bg[c0 * 3] = r / m; bg[c0 * 3 + 1] = g / m; bg[c0 * 3 + 2] = b / m;
+      L[c0] = lum([r / m, g / m, b / m]);
+      ok[c0] = 1;
+    }
+    let nOk = 0;
+    for (let c = 0; c < G; c++) nOk += ok[c];
+    if (nOk < G * 0.2) return null;
+    // papier de référence : la moitié la plus claire des cases (papier bien éclairé)
+    const okL = [];
+    for (let c = 0; c < G; c++) if (ok[c]) okL.push(c);
+    okL.sort((p, q) => L[q] - L[p]);
+    const top = okL.slice(0, Math.max(1, okL.length >> 1));
+    const med = (f) => { const v = top.map(f).sort((a, b) => a - b); return v[v.length >> 1]; };
+    const chr = (c, k) => bg[c * 3 + k] / Math.max(1, bg[c * 3] + bg[c * 3 + 1] + bg[c * 3 + 2]);
+    const refL = med((c) => L[c]), refR = med((c) => chr(c, 0)), refG = med((c) => chr(c, 1));
+    // le papier de référence doit être blanc ou crème : une page peinte en couleur pâle (un ciel) n'a
+    // pas de papier visible, on n'y touche pas
+    const refRGB = [refR, refG, 1 - refR - refG].map((v) => v * 3 * refL);
+    if (refL < 150 || sat(refRGB) > 0.14) return null;
+    // une case franchement sombre est un aplat neutre (feutre noir, crayon appuyé), pas du papier
+    // dans l’ombre : l’ombre d’un pli reste claire (au-dessus de ≈ 62 % du papier voisin)
+    const keep = ok.slice();
+    for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+      const c = gy * gw + gx;
+      if (!ok[c]) continue;
+      const near = [];
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const yy = gy + dy, xx = gx + dx;
+        if (yy < 0 || xx < 0 || yy >= gh || xx >= gw) continue;
+        const q = yy * gw + xx;
+        if (ok[q]) near.push(L[q]);
+      }
+      near.sort((p, q) => p - q);
+      const ref = near[Math.floor(near.length * 0.75)];
+      if (L[c] < 100 || L[c] < ref * 0.62) { keep[c] = 0; continue; }
+      // une ombre sur le papier fonce et se réchauffe à la fois ; une matière plus froide (feutrine
+      // bleue), d'une autre teinte, ou colorée sans être sombre (aplat pâle) n'est pas du papier
+      const dark = Math.max(0, 1 - L[c] / refL);
+      const dr = chr(c, 0) - refR, dg = chr(c, 1) - refG;
+      if (dr < -0.015 || Math.abs(dg) > 0.02 || dr > 0.2 * dark + 0.012) keep[c] = 0;
+    }
+    // il faut voir du papier sur une bonne part de la page (sinon : page peinte, nuages blancs…)
+    let nKeep = 0;
+    for (let c = 0; c < G; c++) nKeep += keep[c];
+    if (nKeep < G * 0.3) return null;
+    // cases sans papier : complétées de proche en proche par la moyenne de leurs voisines connues
+    const known = keep.slice();
+    for (let pass = 0; pass < gw + gh; pass++) {
+      const add = [];
+      for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+        const c = gy * gw + gx;
+        if (known[c]) continue;
+        let r = 0, g = 0, b = 0, m = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const yy = gy + dy, xx = gx + dx;
+          if (yy < 0 || xx < 0 || yy >= gh || xx >= gw) continue;
+          const q = yy * gw + xx;
+          if (known[q]) { r += bg[q * 3]; g += bg[q * 3 + 1]; b += bg[q * 3 + 2]; m++; }
+        }
+        if (m) add.push([c, r / m, g / m, b / m]);
+      }
+      if (!add.length) break;
+      add.forEach(([c, r, g, b]) => { bg[c * 3] = r; bg[c * 3 + 1] = g; bg[c * 3 + 2] = b; known[c] = 1; });
+    }
+    // lissage léger (une passe 3 × 3)
+    for (let pass = 0; pass < 1; pass++) {
+      const nb = new Float32Array(bg.length);
+      for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+        let r = 0, g = 0, b = 0, m = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const q = Math.min(gh - 1, Math.max(0, gy + dy)) * gw + Math.min(gw - 1, Math.max(0, gx + dx));
+          r += bg[q * 3]; g += bg[q * 3 + 1]; b += bg[q * 3 + 2]; m++;
+        }
+        const c = gy * gw + gx;
+        nb[c * 3] = r / m; nb[c * 3 + 1] = g / m; nb[c * 3 + 2] = b / m;
+      }
+      bg.set(nb);
+    }
+    return { gw, gh, cell: cell * (src.width / w), bg };
+  }
+
+  // Ramène le papier au blanc partout (voir illumination) ; la page est rendue telle quelle si
+  // l'éclairage ne peut pas être estimé.
+  const PAPER_WHITE = 250;
+  function flatten(src) {
+    const ill = illumination(src);
+    flatten.debug = null;
+    if (!ill) return src;
+    const { gw, gh, cell, bg } = ill;
+    // gain par case, borné (une case très sombre ne doit pas exploser)
+    const gain = new Float32Array(bg.length);
+    let lo = Infinity, hi = 0;
+    for (let k = 0; k < bg.length; k++) {
+      gain[k] = Math.min(2.5, PAPER_WHITE / Math.max(40, bg[k]));
+      if (k % 3 === 1) { lo = Math.min(lo, bg[k]); hi = Math.max(hi, bg[k]); }
+    }
+    flatten.debug = { lo: Math.round(lo), hi: Math.round(hi) };
+    const out = makeCanvas(src.width, src.height);
+    const ctx = ctx2d(out);
+    ctx.drawImage(src, 0, 0);
+    const W = out.width, H = out.height;
+    const img = ctx.getImageData(0, 0, W, H), px = img.data;
+    for (let y = 0; y < H; y++) {
+      const fy = Math.min(gh - 1, Math.max(0, y / cell - 0.5)), y0 = Math.floor(fy), y1 = Math.min(gh - 1, y0 + 1), ty = fy - y0;
+      for (let x = 0; x < W; x++) {
+        const fx = Math.min(gw - 1, Math.max(0, x / cell - 0.5)), x0 = Math.floor(fx), x1 = Math.min(gw - 1, x0 + 1), tx = fx - x0;
+        const a = (y0 * gw + x0) * 3, b = (y0 * gw + x1) * 3, c = (y1 * gw + x0) * 3, e = (y1 * gw + x1) * 3;
+        const i = (y * W + x) * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          const top = gain[a + ch] + (gain[b + ch] - gain[a + ch]) * tx, bot = gain[c + ch] + (gain[e + ch] - gain[c + ch]) * tx;
+          px[i + ch] = px[i + ch] * (top + (bot - top) * ty);
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return out;
   }
 
   // Blanchit le papier et ravive les couleurs, comme une photo bien exposée.
@@ -490,6 +654,231 @@
     return { canvas: c, color, lum: lum(color), colorful: s / (d.length / 4), calm: cells ? flat / cells : 0 };
   }
 
+
+  /*
+   * Bord précis d'un objet photographié sur une surface. Le masque grossier (grille d'analyse) est
+   * repris à une résolution fine, dans une bande le long de son bord : chaque pixel de la bande est
+   * attribué à l'objet ou à la surface selon les couleurs de l'un et de l'autre (histogrammes
+   * appris juste à l'intérieur et juste à l'extérieur de la bande), puis lissé. Rend un masque
+   * 0..1 (Float32Array) à la résolution fine, et cette résolution.
+   */
+  function refineAlpha(src, coarse, cw, ch) {
+    const fine = scaleTo(src, 1600);
+    const W = fine.width, H = fine.height, N = W * H;
+    const d = ctx2d(fine).getImageData(0, 0, W, H).data;
+    const kx = cw / W, ky = ch / H;
+    const M = new Uint8Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) M[y * W + x] = coarse[Math.min(ch - 1, Math.floor((y + 0.5) * ky)) * cw + Math.min(cw - 1, Math.floor((x + 0.5) * kx))];
+    const band = Math.max(4, Math.round(Math.max(W, H) * 0.012));
+    const inv = new Uint8Array(N);
+    for (let p = 0; p < N; p++) inv[p] = M[p] ? 0 : 1;
+    const dOut = distanceField(M, W, H);   // distance à l'objet (pour les pixels de surface)
+    const dIn = distanceField(inv, W, H);  // distance à la surface (pour les pixels d'objet)
+    // histogrammes de couleur (16 niveaux par canal) de l'objet et de la surface voisine
+    const bin = (i) => ((d[i] >> 4) << 8) | ((d[i + 1] >> 4) << 4) | (d[i + 2] >> 4);
+    const hf = new Float32Array(4096), hb = new Float32Array(4096);
+    let nf = 0, nb = 0;
+    // (la surface est apprise sur le pourtour de la photo, loin de l'objet : une partie de l'objet
+    // perdue par le masque grossier, juste à côté de lui, ne doit pas passer pour du sol)
+    const edge = Math.max(2, Math.round(Math.min(W, H) * 0.06));
+    for (let p = 0, i = 0; p < N; p++, i += 4) {
+      const x = p % W, y = (p - x) / W;
+      if (M[p] && dIn[p] > band && dIn[p] < band * 6) { hf[bin(i)]++; nf++; }
+      else if (!M[p] && dOut[p] > band * 2 && (x < edge || y < edge || x >= W - edge || y >= H - edge)) { hb[bin(i)]++; nb++; }
+    }
+    if (nf < 200 || nb < 200) return null;
+    // lissage des histogrammes (une couleur voisine compte un peu)
+    const smooth = (h, n) => {
+      const out = new Float32Array(4096);
+      for (let r = 0; r < 16; r++) for (let g = 0; g < 16; g++) for (let b = 0; b < 16; b++) {
+        let s = 0, w = 0;
+        for (let dr = -1; dr <= 1; dr++) for (let dg = -1; dg <= 1; dg++) for (let db = -1; db <= 1; db++) {
+          const rr = r + dr, gg = g + dg, bb = b + db;
+          if (rr < 0 || gg < 0 || bb < 0 || rr > 15 || gg > 15 || bb > 15) continue;
+          const k = (dr || dg || db) ? 0.35 : 1;
+          s += h[(rr << 8) | (gg << 4) | bb] * k; w += k;
+        }
+        out[(r << 8) | (g << 4) | b] = (s / w + 0.02) / n;
+      }
+      return out;
+    };
+    const pf = smooth(hf, nf), pb = smooth(hb, nb);
+    // décision dans la bande : vraisemblance des couleurs, avec un léger a priori pour le masque grossier
+    const lab = M.slice();
+    for (let p = 0, i = 0; p < N; p++, i += 4) {
+      const inBand = M[p] ? dIn[p] <= band : dOut[p] <= band;
+      if (!inBand) continue;
+      const k = bin(i);
+      const prior = M[p] ? 1.4 : 1 / 1.4;
+      lab[p] = pf[k] * prior > pb[k] ? 1 : 0;
+    }
+    // ce que le masque grossier a perdu (une partie de l'objet de la couleur du sol) : on étend l'objet,
+    // de proche en proche depuis son bord, aux pixels dont la couleur est nettement plus celle de
+    // l’objet que celle de la surface, sans s’éloigner de plus de ≈ 4,5 % de la photo
+    const reach = Math.round(Math.max(W, H) * 0.045);
+    const grow = [];
+    for (let p = 0; p < N; p++) if (lab[p]) grow.push(p);
+    const strong = (p) => { const k = bin(p * 4); return pf[k] > pb[k] * 4; };
+    while (grow.length) {
+      const p = grow.pop();
+      const x = p % W;
+      const nb = [x > 0 ? p - 1 : -1, x < W - 1 ? p + 1 : -1, p >= W ? p - W : -1, p < N - W ? p + W : -1];
+      for (const q of nb) {
+        if (q < 0 || lab[q] || M[q] || dOut[q] > reach || !strong(q)) continue;
+        lab[q] = 1;
+        grow.push(q);
+      }
+    }
+    // lissage : vote majoritaire 5 × 5, deux fois, le long des bords
+    let cur = lab;
+    for (let pass = 0; pass < 2; pass++) {
+      const nx = cur.slice();
+      for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+        const p = y * W + x;
+        if (M[p] ? dIn[p] > band + 3 : (dOut[p] > band + 3 && !lab[p])) continue;
+        let s = 0;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) s += cur[p + dy * W + dx];
+        nx[p] = s >= 13 ? 1 : 0;
+      }
+      cur = nx;
+    }
+    cur = fillHoles(cur, W, H);
+    // on ne garde que ce qui touche l'intérieur sûr de l'objet (pas de taches détachées dans la surface)
+    const { labels } = components(cur, W, H);
+    const keepIds = new Set();
+    for (let p = 0; p < N; p++) if (labels[p] && M[p] && dIn[p] > band) keepIds.add(labels[p]);
+    const alpha = new Float32Array(N);
+    for (let p = 0; p < N; p++) alpha[p] = labels[p] && keepIds.has(labels[p]) ? 1 : 0;
+    // bord adouci d'un pixel (anti-crénelage)
+    const soft = new Float32Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let s = 0, c = 0;
+      for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= H) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= W) continue; s += alpha[yy * W + xx]; c++; } }
+      soft[y * W + x] = s / c;
+    }
+    return { alpha: soft, W, H };
+  }
+
+  // Part de son rectangle englobant (le mieux orienté) que remplit une forme : ≈ 1 pour une feuille
+  // posée de travers, nettement moins pour une découpe (cœur, bougie, ovale).
+  function rectangularity(mask, w, h) {
+    const pts = [];
+    let area = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (mask[y * w + x]) { area++; if (!((x + y) & 3)) pts.push([x, y]); }
+    if (!area) return 0;
+    let best = Infinity;
+    for (let a = 0; a < 90; a += 2) {
+      const c = Math.cos((a * Math.PI) / 180), s = Math.sin((a * Math.PI) / 180);
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+      for (const [x, y] of pts) { const u = x * c + y * s, v = -x * s + y * c; if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v; }
+      best = Math.min(best, (u1 - u0 + 1) * (v1 - v0 + 1));
+    }
+    return area / best;
+  }
+
+  /*
+   * Pièces d'un objet découpé photographié (cœur, bougie, ovale sur un bâton…) : l'objet entier, tel
+   * qu'il est posé, est la pièce — sa silhouette exacte, papier blanc compris. alpha : masque 0..1
+   * (Float32Array, aw × ah) couvrant la page.
+   */
+  function objectPieces(page, alpha, aw, ah) {
+    const w = Math.max(1, Math.round(page.width * Math.min(1, WORK_MAX / Math.max(page.width, page.height))));
+    const h = Math.max(1, Math.round(w * page.height / page.width));
+    const coarse = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) coarse[y * w + x] = alpha[Math.min(ah - 1, Math.floor((y + 0.5) * ah / h)) * aw + Math.min(aw - 1, Math.floor((x + 0.5) * aw / w))] > 0.5 ? 1 : 0;
+    const { labels, comps } = components(coarse, w, h);
+    comps.sort((a, b) => b.area - a.area);
+    const keep = comps.filter((c) => c.area >= w * h * 0.006).slice(0, MAX_PIECES_PER_PAGE);
+    const paper = [250, 250, 250];
+    const enhanced = enhance(page, paper);
+    const k = page.width / w;
+    // masque à la résolution de la page (pour découper les pixels)
+    const am = makeCanvas(aw, ah);
+    const ai = ctx2d(am).createImageData(aw, ah);
+    for (let p = 0; p < alpha.length; p++) ai.data[p * 4 + 3] = Math.round(alpha[p] * 255);
+    ctx2d(am).putImageData(ai, 0, 0);
+    const md = ctx2d(scaleTo(page, WORK_MAX)).getImageData(0, 0, w, h).data;
+    return keep.map((c) => {
+      const pad = 2;
+      const x0 = Math.max(0, c.x0 - pad), y0 = Math.max(0, c.y0 - pad), x1 = Math.min(w - 1, c.x1 + pad), y1 = Math.min(h - 1, c.y1 + pad);
+      const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+      const pw = Math.max(1, Math.round(bw * k)), ph = Math.max(1, Math.round(bh * k));
+      const pc = makeCanvas(pw, ph);
+      const ctx = ctx2d(pc);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(am, x0 * aw / w, y0 * ah / h, bw * aw / w, bh * ah / h, 0, 0, pw, ph);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.drawImage(enhanced, x0 * k, y0 * k, bw * k, bh * k, 0, 0, pw, ph);
+      ctx.globalCompositeOperation = 'source-over';
+      // seule cette forme compte : les autres objets éventuels du même rectangle sont effacés
+      const hit = new Uint8Array(bw * bh);
+      let r = 0, g = 0, b = 0, cnt = 0, satSum = 0;
+      for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+        const p = (y0 + y) * w + x0 + x;
+        if (labels[p] !== c.id) continue;
+        hit[y * bw + x] = 1;
+        const i = p * 4, px = [md[i], md[i + 1], md[i + 2]], s = sat(px);
+        r += px[0] * s; g += px[1] * s; b += px[2] * s; satSum += s; cnt++;
+      }
+      // (zone gardée un peu élargie, pour ne pas rogner le bord fin)
+      const keepMask = dilate(hit, bw, bh, 3);
+      const oc = makeCanvas(bw, bh), oi = ctx2d(oc).createImageData(bw, bh);
+      for (let p = 0; p < hit.length; p++) oi.data[p * 4 + 3] = keepMask[p] ? 0 : 255;
+      ctx2d(oc).putImageData(oi, 0, 0);
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.drawImage(oc, 0, 0, pw, ph);
+      ctx.globalCompositeOperation = 'source-over';
+      return {
+        canvas: pc,
+        hit: { w: bw, h: bh, data: hit },
+        frac: c.area / (w * h),
+        color: satSum > 0 ? [r / satSum, g / satSum, b / satSum] : [200, 200, 200],
+        colorful: cnt ? satSum / cnt : 0,
+        base: baseRatio(hit, bw, bh),
+        object: true,
+        src: { x: x0 * k, y: y0 * k, w: pw, h: ph, paper },
+      };
+    });
+  }
+
+  function rotateCanvas(src, deg) {
+    const swap = deg === 90 || deg === 270;
+    const c = makeCanvas(swap ? src.height : src.width, swap ? src.width : src.height);
+    const ctx = ctx2d(c);
+    ctx.translate(c.width / 2, c.height / 2);
+    ctx.rotate((deg * Math.PI) / 180);
+    ctx.drawImage(src, -src.width / 2, -src.height / 2);
+    return c;
+  }
+  /*
+   * Page analysée, tournée d'un quart de tour (ou d'un demi-tour) : un objet photographié garde sa
+   * silhouette (tournée avec la page) ; un dessin sur papier est simplement réanalysé dans le bon sens.
+   */
+  function rotated(a, deg) {
+    if (!deg) return a;
+    const page = rotateCanvas(a.page, deg);
+    if (a.objectAlpha) {
+      const { alpha, W, H } = a.objectAlpha;
+      const ac = makeCanvas(W, H), ai = ctx2d(ac).createImageData(W, H);
+      for (let p = 0; p < alpha.length; p++) ai.data[p * 4 + 3] = Math.round(alpha[p] * 255);
+      ctx2d(ac).putImageData(ai, 0, 0);
+      const rc = rotateCanvas(ac, deg);
+      const rd = ctx2d(rc).getImageData(0, 0, rc.width, rc.height).data;
+      const ra = new Float32Array(rc.width * rc.height);
+      for (let p = 0; p < ra.length; p++) ra[p] = rd[p * 4 + 3] / 255;
+      const objectAlpha = { alpha: ra, W: rc.width, H: rc.height };
+      return { page, paper: a.paper, texture: null, kind: 'cutout', paperFrac: 1, objectAlpha, pieces: objectPieces(page, ra, rc.width, rc.height), photo: a.photo, original: a.original };
+    }
+    // (la page est déjà égalisée)
+    return analyze(page, 0, { flat: true });
+  }
+
+  // Découpe d'office d'une page analysée : l'objet photographié, ou les sujets dessinés.
+  function recut(a) {
+    if (a.objectAlpha) return objectPieces(a.page, a.objectAlpha.alpha, a.objectAlpha.W, a.objectAlpha.H);
+    return cutPieces(a.page, a.seg);
+  }
 
   /*
    * Photo d'un dessin posé sur un sol ou une table (parquet, carrelage, bois, plan de travail…).
@@ -703,14 +1092,19 @@
           const nx = x + dx, ny = y + dy;
           if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
           const q = ny * w + nx;
-          if (woodish[q] && !seen[q]) { seen[q] = 1; stack.push(q); }
+          // (on ne franchit pas un net changement de couleur : le bord d'un objet orangé ou brun)
+          if (woodish[q] && !seen[q] && Math.abs(d[q * 4] - d[p * 4]) + Math.abs(d[q * 4 + 1] - d[p * 4 + 1]) + Math.abs(d[q * 4 + 2] - d[p * 4 + 2]) < 70) { seen[q] = 1; stack.push(q); }
         });
       }
       for (let p = 0; p < n; p++) if (seen[p]) finMask[p] = 0;
     }
     const fin = erode(finMask, w, h, unit * 0.004);
+    // bord précis : repris à pleine résolution le long du contour (couleurs de l'objet et de la surface)
+    const ref = refineAlpha(src, fin, w, h);
+    const rectFill = rectangularity(fin, w, h);
+    Object.assign(removeSurface.debug, { rect: +rectFill.toFixed(2), refined: !!ref });
 
-    // page nettoyée à la résolution d'origine : hors du dessin, du papier blanc
+    // page nettoyée à la résolution d'origine : hors du dessin, du papier blanc (en fondu sur le bord)
     const k = src.width / w;
     const m = Math.round(0.03 * Math.max(x1 - x0, y1 - y0) * k);
     const cx0 = Math.max(0, Math.round(x0 * k) - m), cy0 = Math.max(0, Math.round(y0 * k) - m);
@@ -720,15 +1114,29 @@
     ctx.drawImage(src, cx0, cy0, out.width, out.height, 0, 0, out.width, out.height);
     const img = ctx.getImageData(0, 0, out.width, out.height);
     const od = img.data;
-    for (let y = 0; y < out.height; y++) {
-      const wy = Math.min(h - 1, Math.floor((y + cy0) / k));
-      for (let x = 0; x < out.width; x++) {
-        const wx = Math.min(w - 1, Math.floor((x + cx0) / k));
-        if (!fin[wy * w + wx]) { const i = (y * out.width + x) * 4; od[i] = 248; od[i + 1] = 246; od[i + 2] = 241; od[i + 3] = 255; }
+    // masque de l'objet à la résolution de la page nettoyée
+    const OW = out.width, OH = out.height;
+    const oa = new Float32Array(OW * OH);
+    for (let y = 0; y < OH; y++) {
+      for (let x = 0; x < OW; x++) {
+        let a;
+        if (ref) {
+          const fx = ((x + cx0 + 0.5) / src.width) * ref.W - 0.5, fy = ((y + cy0 + 0.5) / src.height) * ref.H - 0.5;
+          const xa = Math.max(0, Math.min(ref.W - 1, Math.floor(fx))), ya = Math.max(0, Math.min(ref.H - 1, Math.floor(fy)));
+          const xb = Math.min(ref.W - 1, xa + 1), yb = Math.min(ref.H - 1, ya + 1), tx = Math.max(0, Math.min(1, fx - xa)), ty = Math.max(0, Math.min(1, fy - ya));
+          const A = ref.alpha;
+          a = (A[ya * ref.W + xa] * (1 - tx) + A[ya * ref.W + xb] * tx) * (1 - ty) + (A[yb * ref.W + xa] * (1 - tx) + A[yb * ref.W + xb] * tx) * ty;
+        } else {
+          a = fin[Math.min(h - 1, Math.floor((y + cy0) / k)) * w + Math.min(w - 1, Math.floor((x + cx0) / k))];
+        }
+        oa[y * OW + x] = a;
+        if (a < 1) { const i = (y * OW + x) * 4; od[i] = od[i] * a + 248 * (1 - a); od[i + 1] = od[i + 1] * a + 246 * (1 - a); od[i + 2] = od[i + 2] * a + 241 * (1 - a); od[i + 3] = 255; }
       }
     }
     ctx.putImageData(img, 0, 0);
-    return { canvas: out, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac } };
+    // une découpe (forme libre) est la pièce elle-même ; une feuille rectangulaire garde son dessin à découper
+    const cutShape = rectFill < 0.9;
+    return { canvas: out, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac }, object: cutShape ? { alpha: oa, W: OW, H: OH } : null };
   }
 
   /*
@@ -775,6 +1183,13 @@
     if (depth === 0 && opts.photo) {
       // photo d'un dessin posé sur un sol ou une table : on retire la surface
       const cleaned = removeSurface(src, !!opts.force);
+      if (cleaned && cleaned.object) {
+        // objet découpé posé sur la surface : sa silhouette entière est la pièce
+        const page = flatten(cleaned.canvas);
+        const r = { page, paper: [250, 250, 250], texture: null, kind: 'cutout', paperFrac: 1, objectAlpha: cleaned.object };
+        r.pieces = objectPieces(page, cleaned.object.alpha, cleaned.object.W, cleaned.object.H);
+        if (r.pieces.length) { r.photo = cleaned.surface; r.original = src; return r; }
+      }
       if (cleaned) {
         const r = analyze(cleaned.canvas, 0, {});
         r.photo = cleaned.surface;
@@ -782,6 +1197,8 @@
         return r;
       }
     }
+    // éclairage égalisé : le papier est blanc partout avant de chercher le dessin
+    if (!opts.flat) { src = flatten(src); opts = Object.assign({}, opts, { flat: true }); }
     const seg = segment(src);
     const big = seg.comps[0];
     if (depth === 0 && big) {
@@ -792,7 +1209,7 @@
         const k = src.width / seg.w;
         const inset = 0.012 * Math.max(bw, bh);
         const sheet = crop(src, (big.x0 + inset) * k, (big.y0 + inset) * k, (bw - 2 * inset) * k, (bh - 2 * inset) * k);
-        return analyze(sheet, 1);
+        return analyze(sheet, 1, opts);
       }
     }
     const result = { page: src, paper: seg.paper, texture: null, pieces: null, kind: 'cutout', paperFrac: seg.paperFrac };
@@ -810,5 +1227,5 @@
     return result;
   }
 
-  window.Extract = { analyze, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, flatten, recut, rotated, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
 })();

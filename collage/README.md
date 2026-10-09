@@ -16,6 +16,13 @@ cd collage && python3 -m http.server 8000
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc.
+   Avant la découpe, l'**éclairage est égalisé** (`Extract.flatten`) : la couleur du papier est
+   estimée case par case (1/100 de la page), les ombres d'un pli ou d'un bord sont ramenées au blanc
+   et ne sont plus prises pour du dessin. Une case n'est retenue comme papier que si elle est lisse,
+   pas trop sombre (≥ 62 % du papier voisin) et si sa teinte suit son assombrissement (une ombre fonce
+   et se réchauffe ; une feutrine bleue, un lavis gris foncé ou un aplat pâle ne sont pas du papier) ;
+   rien n'est corrigé sur une page sans papier blanc visible (≥ 30 % des cases). Un gris neutre resté
+   à moins de 30 du papier n'est pas un trait (les traits de couleur pâle gardent leurs seuils).
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **orientation** de la feuille
    (automatique, droite, couchée à droite, tête en bas, couchée à gauche ; en automatique, une page de
    fond trop haute pour la toile est couchée), **luminosité, contraste et saturation** (−50 à +50,
@@ -85,7 +92,12 @@ cd collage && python3 -m http.server 8000
      de couleur ne le sont pas) ; une feuille photographiée de près, qui touche les bords, est
      acceptée si un bord entier montre encore la surface, dont la couleur est alors lue hors du
      papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface ; la surface
-     est alors retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. C'est
+     est alors retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. Le bord de
+     l'objet est repris à pleine résolution (≈ 1600 px) le long du contour, d'après les couleurs de
+     l'objet et de la surface (apprise sur le pourtour de la photo), avec une extension mesurée aux
+     parties de l'objet de la couleur du sol. Un **objet découpé** (forme libre : cœur, bougie,
+     ovale…) devient lui-même la pièce, papier blanc compris ; une feuille rectangulaire garde son
+     dessin à découper. C'est
      signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
      une bordure blanche et n'est pas concerné) ; si elle ne reconnaît pas la surface, le bouton

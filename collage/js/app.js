@@ -465,17 +465,6 @@
     } catch (e) { /* ignoré */ }
   }
 
-  function rotatedPage(page, deg) {
-    if (!deg) return page;
-    const swap = deg === 90 || deg === 270;
-    const c = Extract.makeCanvas(swap ? page.height : page.width, swap ? page.width : page.height);
-    const ctx = c.getContext('2d');
-    ctx.translate(c.width / 2, c.height / 2);
-    ctx.rotate((deg * Math.PI) / 180);
-    ctx.drawImage(page, -page.width / 2, -page.height / 2);
-    return c;
-  }
-
   // Orientation retenue : celle de l'utilisateur, sinon droite, sauf une page de fond trop haute
   // pour la toile, qu'on couche.
   function effectiveOrient(d) {
@@ -496,7 +485,7 @@
     d.orientDeg = deg;
     if (deg === 0) d.analysis = d.base;
     else {
-      const a = Extract.analyze(rotatedPage(d.base.page, deg));
+      const a = Extract.rotated(d.base, deg);
       // la page tournée garde la découpe ou le fond décidés pour la page droite
       a.kind = d.base.kind;
       d.analysis = a;
@@ -723,7 +712,7 @@
     const a = d.analysis;
     const role = roleOf(d);
     if (role === 'cutout' && !a.pieces) {
-      a.pieces = Extract.cutPieces(a.page, a.seg);
+      a.pieces = Extract.recut(a);
       preparePieces(a.pieces, d);
     }
     if (role === 'texture' && !a.texture) a.texture = Extract.textureFrom(a.page);
@@ -2073,7 +2062,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
       autoPiece: () => {
         const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
-        return k >= 0 ? Extract.cutPieces(d.analysis.page, d.analysis.seg)[k] || null : null;
+        return k >= 0 ? Extract.recut(d.analysis)[k] || null : null;
       },
       onTone: (t) => {
         if (t && (t.b || t.c || t.s)) d.tone = t; else delete d.tone;
@@ -2580,14 +2569,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (K0 <= 1.05) continue;
         const mode = d.photoMode;
         let a = Extract.analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' });
-        if (d.orientDeg) { const b = Extract.analyze(rotatedPage(a.page, d.orientDeg)); b.kind = a.kind; a = b; }
+        if (d.orientDeg) { const b = Extract.rotated(a, d.orientDeg); b.kind = a.kind; a = b; }
         const page = d.analysis.page;
         const K = a.page.width / page.width;
         // la page retrouvée doit être la même (même recadrage) : sinon on garde la version de travail
         if (K < 1.05 || Math.abs(a.page.width / a.page.height - page.width / page.height) > 0.03) continue;
         const pieces = comp.items.filter((L) => L.piece && L.piece.drawing === d);
         if (pieces.length) {
-          if (!a.pieces) a.pieces = Extract.cutPieces(a.page, a.seg);
+          if (!a.pieces) a.pieces = Extract.recut(a);
           pieces.forEach((L) => {
             const p = L.piece;
             const needLong = Math.ceil(Math.max(L.w, L.h) * s * 1.02);
