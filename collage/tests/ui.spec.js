@@ -520,7 +520,7 @@ test.describe('Réglage automatique de l’image', () => {
 });
 
 test.describe('Liste des dessins et photos de l’iPhone', () => {
-  test('choisir un dessin dans la liste ne sélectionne rien sur l’œuvre ; une photo HEIC est importée et sauvegardée en JPEG', async ({ page }) => {
+  test('choisir un dessin dans la liste le sélectionne aussi sur l’œuvre ; une photo HEIC est importée et sauvegardée en JPEG', async ({ page }) => {
     const fs = require('fs');
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -534,13 +534,20 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
       { name: 'page-two.png', mimeType: 'image/png', buffer: fs.readFileSync(fixture('page-two.png')) },
     ]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // sélection sur l'œuvre, puis un dessin choisi dans la liste : plus rien n'est sélectionné
-    await page.evaluate(() => { const s = AtelierGribouille.state; s.selected = s.comp.items[0]; AtelierGribouille.render(); });
+    // un dessin choisi dans la liste est sélectionné sur l'œuvre (cadre, poignée, barre d'outils)
     await page.locator('#drawings-section > h2').click();
+    for (const i of [1, 0]) {
+      await page.locator('#drawings .thumb').nth(i).click();
+      await expect(page.locator('#detail')).toBeVisible();
+      expect(await page.evaluate((i) => { const s = AtelierGribouille.state; return !!s.selected && s.selected.piece && s.selected.piece.drawing === s.drawings[i]; }, i)).toBe(true);
+      await expect(page.locator('#toolbar [data-act="flip"]')).toBeEnabled();
+    }
+    // dessin suivant avec ‹ › : la sélection suit
+    await page.locator('#detail [data-nav="1"]').click();
+    expect(await page.evaluate(() => { const s = AtelierGribouille.state; return s.selected && s.selected.piece.drawing === s.drawings[1]; })).toBe(true);
+    // refermer la fiche (re-clic sur la vignette) retire la sélection
     await page.locator('#drawings .thumb').nth(1).click();
-    await expect(page.locator('#detail')).toBeVisible();
     expect(await page.evaluate(() => AtelierGribouille.state.selected)).toBeNull();
-    await expect(page.locator('#toolbar [data-act="dup"]')).toBeDisabled();
     // le brouillon garde la photo HEIC en JPEG, lisible sur n'importe quel navigateur
     let type = null;
     for (let i = 0; i < 60 && !type; i++) {

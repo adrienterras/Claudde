@@ -831,8 +831,8 @@
       el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
-        // choisir un dessin dans la liste ne sélectionne rien sur l'œuvre (et retire la sélection en cours)
-        if (state.selected) { state.selected = null; updateToolbar(); render(); }
+        // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
+        selectOnArt(state.current);
         refreshLists();
         // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier
         if (state.current && mobileQuery.matches) {
@@ -937,6 +937,7 @@
       const next = state.drawings[idx + Number(b.dataset.nav)];
       if (!next) return;
       state.current = next;
+      selectOnArt(next);
       refreshLists();
       const nb = $('detail').querySelector(`[data-nav="${b.dataset.nav}"]`);
       if (nb && !nb.disabled) nb.focus({ preventScroll: true });
@@ -1004,6 +1005,23 @@
     return [a.texture ? a.texture.canvas : a.page];
   }
   const toneText = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
+
+  // Sélectionne sur l'œuvre le calque d'un dessin : sa pièce principale (ou la plus grande de ses
+  // pièces posées, copies comprises), sinon sa page de fond ; rien s'il n'est pas dans l'œuvre.
+  function selectOnArt(d) {
+    const comp = state.comp;
+    let L = null;
+    if (d && comp) {
+      const main = mainPiece(d);
+      const items = comp.items.filter((x) => x.piece && x.piece.drawing === d);
+      const area = (x) => x.w * x.h;
+      L = items.find((x) => (x.piece.copyOf || x.piece) === main) || items.sort((a, b) => area(b) - area(a))[0] || null;
+      if (!L && d.analysis.texture) L = comp.bg.filter((x) => x.src === d.analysis.texture.canvas).sort((a, b) => area(b) - area(a))[0] || null;
+    }
+    state.selected = L;
+    updateToolbar();
+    render();
+  }
 
   function mainPiece(d) {
     if (roleOf(d) !== 'cutout') return null;
