@@ -221,7 +221,7 @@ test.describe('Éditeur de découpe sur téléphone', () => {
 });
 
 test.describe('Brouillon', () => {
-  test('l’œuvre en cours est gardée d’elle-même et proposée après un rechargement', async ({ page }) => {
+  test('l’œuvre en cours est gardée d’elle-même et rouverte toute seule après un rechargement', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
@@ -230,17 +230,17 @@ test.describe('Brouillon', () => {
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await waitDraft(page);
+    const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille);
-    await expect(page.locator('#draft-offer')).toBeVisible();
-    await expect(page.locator('#draft-offer')).toContainText('2 dessins');
+    // sans rien demander : l'œuvre revient, avec un message pendant la réouverture
     await expect(page.locator('#empty-resume')).toBeVisible();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
+    await expect(page.locator('#draft-offer')).toBeHidden();
+    await expect(page.locator('#empty-resume')).toBeHidden();
+    await expect(page.locator('#compose-section')).toBeVisible();
     // le brouillon n'est pas listé parmi les compositions sauvegardées
     await expect(page.locator('#saved-list .saved')).toHaveCount(0);
-    await page.locator('#draft-resume').click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await expect(page.locator('#draft-offer')).toBeHidden();
-    await expect(page.locator('#compose-section')).toBeVisible();
     // retour d'une connexion externe (Google) : l'œuvre reprend d'elle-même, sur l'étape Exporter
     await waitDraft(page);
     await page.evaluate(() => sessionStorage.setItem('atelier-gribouille:after-auth', 'télécharger votre œuvre'));
@@ -268,6 +268,7 @@ test.describe('Brouillon', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.waitForTimeout(500);
     await expect(page.locator('#draft-offer')).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
   });
 });
 

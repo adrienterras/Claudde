@@ -59,6 +59,9 @@ cd collage && python3 -m http.server 8000
      régulières, restant de côté) ou de les coller en fond (c'est
      alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
      fond ; les pages de fond restent entières ;
+   - **œuvre en cours** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
+     **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
+     œuvre » l'efface ;
    - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
      enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
      taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), les retouches de découpe faites à la main

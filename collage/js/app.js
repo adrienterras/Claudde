@@ -3044,7 +3044,7 @@ Réponds uniquement avec ce JSON :
   const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
 
   // Brouillon : l'œuvre en cours est gardée d'elle-même dans ce navigateur (dessins compris), pour
-  // survivre à un rechargement ou à un onglet fermé par le téléphone. Proposée à la prochaine visite.
+  // survivre à un rechargement ou à un onglet fermé par le téléphone. Rouverte à la prochaine visite.
   const DRAFT_ID = 'brouillon';
   let draftTimer = 0, draftBusy = false, draftAgain = false, draftEpoch = 0;
   function scheduleDraft() {
@@ -3066,44 +3066,41 @@ Réponds uniquement avec ce JSON :
     finally { draftBusy = false; if (draftAgain) { draftAgain = false; scheduleDraft(); } }
   }
   const AFTER_AUTH_KEY = 'atelier-gribouille:after-auth';
-  async function offerDraft() {
+  // Au chargement de la page, l'œuvre en cours (brouillon) est rouverte d'elle-même : actualiser la
+  // page ne fait rien perdre. « Commencez une nouvelle œuvre » l'efface pour repartir de zéro.
+  async function resumeDraft() {
     const box = $('draft-offer');
     if (!box) return;
     let rec = null;
     try { rec = await dbGet(DRAFT_ID); } catch (e) { rec = null; }
     if (!rec || !rec.drawings || !rec.drawings.length || state.drawings.length) return;
-    // retour d'une connexion Google : l'œuvre reprend sans rien demander, puis on revient à l'export
+    // retour d'une connexion Google : on revient ensuite à l'export, avec l'action demandée rappelée
     let after = null;
     try { after = sessionStorage.getItem(AFTER_AUTH_KEY); sessionStorage.removeItem(AFTER_AUTH_KEY); } catch (e) { after = null; }
-    if (after) {
-      notice(tr('Connexion terminée : votre œuvre est rouverte…'));
-      await restoreComposition(DRAFT_ID);
-      if (state.comp) {
-        selectTab('export-section');
-        const sec = $('export-section');
-        if (sec && sec._expand) sec._expand();
-        notice('');
-        saveStatus(after === '1' ? tr('Votre œuvre est de retour.') : tr`Votre œuvre est de retour : touchez le bouton pour ${after}.`);
-      }
+    const big = $('empty-resume');
+    box.querySelector('span').textContent = after ? tr('Connexion terminée : votre œuvre est rouverte…') : tr('Réouverture de votre œuvre en cours…');
+    box.hidden = false;
+    $('draft-forget').hidden = true;
+    if (big) big.hidden = false; // aussi sur la scène vide, visible sans ouvrir le tiroir sur téléphone
+    $('empty-sample').hidden = true;
+    state.resuming = true;
+    try { await restoreComposition(DRAFT_ID); } finally { state.resuming = false; }
+    if (big) big.hidden = true;
+    if (!state.comp || !state.drawings.length) {
+      // relecture impossible : on le dit, et on laisse effacer ce brouillon pour ne pas buter dessus à chaque visite
+      box.querySelector('span').textContent = tr('L’œuvre en cours n’a pas pu être rouverte.');
+      $('draft-forget').hidden = false;
+      $('draft-forget').onclick = () => { box.hidden = true; dbDel(DRAFT_ID).catch(() => {}); };
       return;
     }
-    const when = new Date(rec.date);
-    box.querySelector('span').textContent = tr`Œuvre en cours retrouvée : ${rec.drawings.length} dessins, ${when.toLocaleString(I18n.locale, { dateStyle: 'medium', timeStyle: 'short' })}.`;
-    box.hidden = false;
-    const big = $('empty-resume');
-    if (big) big.hidden = false; // aussi sur la scène vide, visible sans ouvrir le tiroir sur téléphone
-    const resume = async () => {
-      box.querySelector('span').textContent = tr('Réouverture de l’œuvre en cours…');
-      $('draft-resume').hidden = true; $('draft-forget').hidden = true;
-      if (big) big.disabled = true;
-      await restoreComposition(DRAFT_ID);
-      box.hidden = true;
-      if (big) { big.hidden = true; big.disabled = false; }
-      $('draft-resume').hidden = false; $('draft-forget').hidden = false;
-    };
-    $('draft-resume').onclick = resume;
-    if (big) big.onclick = resume;
-    $('draft-forget').onclick = () => { box.hidden = true; if (big) big.hidden = true; dbDel(DRAFT_ID).catch(() => {}); };
+    box.hidden = true;
+    if (after) {
+      selectTab('export-section');
+      const sec = $('export-section');
+      if (sec && sec._expand) sec._expand();
+      notice('');
+      saveStatus(after === '1' ? tr('Votre œuvre est de retour.') : tr`Votre œuvre est de retour : touchez le bouton pour ${after}.`);
+    } else selectTab('compose-section');
   }
 
   // La composition courante, sérialisée : dessins (images d'origine et réglages) et mise en place.
@@ -3335,7 +3332,14 @@ Réponds uniquement avec ce JSON :
     return () => { on = false; };
   }
 
-  async function restoreComposition(id, anchor) {
+  // une réouverture à la fois : ouvrir une composition sauvegardée pendant que l'œuvre en cours
+  // revient d'elle-même attend la fin de celle-ci (la dernière demandée l'emporte)
+  let restoreChain = Promise.resolve();
+  function restoreComposition(id, anchor) {
+    restoreChain = restoreChain.then(() => restoreOne(id, anchor));
+    return restoreChain;
+  }
+  async function restoreOne(id, anchor) {
     const release = keepAnchored(anchor);
     try { await restoreCompositionInner(id); }
     catch (e) { state.restoring = false; console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
@@ -3446,7 +3450,7 @@ Réponds uniquement avec ce JSON :
   $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
   $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
-  offerDraft();
+  resumeDraft();
 
   // ---------- Compte utilisateur (voir js/account.js) ----------
   (function accountUi() {
@@ -3514,7 +3518,7 @@ Réponds uniquement avec ce JSON :
       catch (e) { console.error(e); status(e.message || 'Une erreur est survenue.', true); }
     };
     // La connexion Google quitte la page : l'œuvre en cours est mise en brouillon juste avant, et
-    // reprise d'elle-même au retour (voir offerDraft), avec l'action demandée rappelée.
+    // reprise d'elle-même au retour (voir resumeDraft), avec l'action demandée rappelée.
     document.querySelectorAll('.social-btn').forEach((b) => { b.onclick = () => {
       window.Atelier.track('Inscription', { via: b.dataset.provider });
       busy(async () => {
@@ -3733,7 +3737,8 @@ Réponds uniquement avec ce JSON :
     }
     if (!m || !m.pages || !m.pages.length) return;
     state.sampleManifest = m;
-    ['sample-offer', 'empty-sample'].forEach((id) => { const el = $(id); if (el) el.hidden = false; });
+    $('sample-offer').hidden = false;
+    if (!state.resuming) $('empty-sample').hidden = false; // pas pendant la réouverture de l'œuvre en cours
     let busy = false;
     const go = async () => { if (busy) return; busy = true; try { await loadSamples(m); } finally { busy = false; } };
     $('load-sample').onclick = go;
