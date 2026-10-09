@@ -396,6 +396,7 @@
     '{0} dessins sur {1}': '{0} drawings of {1}',
     'Scène : sans Claude, les sujets sont placés d’après leur forme (tout au sol, nuages au ciel).': 'Scene: without Claude, subjects are placed by their shape (everything on the ground, clouds in the sky).',
     'Scène composée par Claude : {0} éléments placés{1}.': 'Scene composed by Claude: {0} elements placed{1}.',
+    'Scène composée par Claude ; l’œuvre affichée garde vos retouches.': 'Scene composed by Claude; the artwork shown keeps your changes.',
     'Scène : Claude a regardé {0} éléments découpés et placé chacun (ciel, sol, premier plan…).': 'Scene: Claude looked at {0} cut-out elements and placed each one (sky, ground, foreground…).',
     'autorisation refusée': 'permission denied',
     'trop de demandes, réessayez plus tard': 'too many requests, try again later',

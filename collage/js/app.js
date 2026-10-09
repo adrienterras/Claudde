@@ -1060,6 +1060,7 @@
   function togglePiece(p) {
     if (!state.comp) return;
     commit();
+    touched();
     const inArt = state.comp.items.some((L) => L.piece === p);
     if (inArt) {
       const L = state.comp.items.find((x) => x.piece === p);
@@ -1512,6 +1513,17 @@
     updateLabel();
   }
 
+  // Les réponses de Claude arrivent après coup (plusieurs secondes, voire une minute) : si la composition
+  // affichée a déjà été retouchée à la main entre-temps, elle reste telle quelle ; seules les autres
+  // propositions profitent des nouveaux réglages.
+  const touched = () => { if (state.comp) state.comp.touched = true; };
+  function regenerateAfterAI() {
+    const kept = !!(state.comp && state.comp.touched && !state.pinned);
+    if (kept) state.pinned = state.comp;
+    regenerate();
+    return kept;
+  }
+
   // Réglages sans objet pour le style actif : la Galerie a un fond blanc, sans finition toile.
   function updateSettingsFor(comp) {
     const white = !!(comp && comp.style === 'galerie');
@@ -1643,12 +1655,12 @@
       curate();
       planCoverage();
       const keep = state.active;
-      if (n) { regenerate(); if (state.active !== keep) selectProposal(keep); }
+      if (n) { regenerateAfterAI(); if (state.active !== keep) selectProposal(keep); }
       // puis Claude compose la scène lui-même : où va chaque élément, sur la toile
       const laid = await composeScene(sample, limits);
       if (laid) {
-        aiStatus(tr`Scène composée par Claude : ${laid} éléments placés${state.sceneLayout.titre ? ` · « ${state.sceneLayout.titre} »` : ''}.`);
-        regenerate();
+        const kept = regenerateAfterAI();
+        aiStatus(kept ? tr('Scène composée par Claude ; l’œuvre affichée garde vos retouches.') : tr`Scène composée par Claude : ${laid} éléments placés${state.sceneLayout.titre ? ` · « ${state.sceneLayout.titre} »` : ''}.`);
         if (state.active !== keep) selectProposal(keep);
       } else aiStatus(tr`Scène : Claude a regardé ${n} éléments découpés et placé chacun (ciel, sol, premier plan…).`);
     } catch (e) {
@@ -1890,6 +1902,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   const touches = new Map(); // doigts / pointeurs posés sur la toile
   let pinch = null;
   let selectionBefore = null;
+  let gestureEnd = 0; // fin du dernier déplacement ou pincement : un toucher qui suit de près n'est pas un double-toucher
 
   // ---------- Zoom sur l'œuvre ----------
 
@@ -2025,10 +2038,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   const endDrag = (e) => {
     touches.delete(e.pointerId);
+    if (pinch) gestureEnd = Date.now();
     if (touches.size < 2) pinch = null;
     if (drag && drag.mode !== 'pan') {
       if (drag.L && drag.L.kind === 'bg') state.bgCache = null;
       const moved = drag.mode === 'move' ? (drag.L.x !== drag.x0 || drag.L.y !== drag.y0) : drag.L.rot !== drag.r0;
+      if (moved) { touched(); gestureEnd = Date.now(); }
       if (moved && drag.snap) { history.past.push(drag.snap); if (history.past.length > history.max) history.past.shift(); history.future = []; history.lastTag = null; updateHistoryButtons(); }
       refreshActiveThumb();
     }
@@ -2049,13 +2064,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       return;
     }
     commit('wheel');
+    touched();
     L.rot += e.deltaY * 0.002;
     render();
   }, { passive: false });
 
   // double-clic / double-tap : sur une pièce, on la retouche ; ailleurs, on zoome ou on revient
   canvas.addEventListener('dblclick', (e) => {
-    if (!state.comp) return;
+    if (!state.comp || Date.now() - gestureEnd < 500) return;
     const hit = hitAt(toComp(e));
     if (hit) { state.selected = hit; if (hit.kind === 'piece') editPiece(hit.piece); render(); return; }
     if (state.zoom.z > 1.05) resetZoom();
@@ -2212,7 +2228,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (name === 'redo') { redo(); return; }
     const comp = state.comp, L = state.selected;
     if (!comp || !L) return;
-    if (name !== 'edit') commit();
+    if (name !== 'edit') { commit(); touched(); }
     if (L.kind === 'bg') {
       // page de fond : on la met devant ou derrière les autres pages, on la retourne, on la retire
       if (name === 'bigger' || name === 'smaller') {
@@ -3083,7 +3099,7 @@ Réponds uniquement avec ce JSON :
       curate();
       planCoverage();
       refreshLists();
-      regenerate();
+      regenerateAfterAI();
       // second passage : chaque élément découpé, un par un
       let np = 0;
       let pieceErr = '';
@@ -3092,7 +3108,7 @@ Réponds uniquement avec ce JSON :
       planCoverage();
       aiStatus(tr`Direction artistique : Claude a reconnu ${n} dessins sur ${all.length}${np ? tr` et ${np} éléments découpés` : pieceErr ? tr` (éléments découpés non regardés : ${pieceErr})` : ''}, et placé chacun dans la scène.`);
       refreshLists();
-      regenerate();
+      regenerateAfterAI();
     } catch (e) {
       const why = { not_granted: tr('autorisation refusée'), rate_limited: tr('trop de demandes, réessayez plus tard'), refused: tr('demande refusée') }[e && e.code];
       aiStatus(tr`Composition automatique avec les règles intégrées${why ? ` (Claude : ${why})` : ''}.`);
@@ -4208,7 +4224,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, undo, redo };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, undo, redo, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

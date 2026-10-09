@@ -778,3 +778,46 @@ test.describe('Baguette magique', () => {
     await ctx.close();
   });
 });
+
+test.describe('Réponses tardives de Claude', () => {
+  test('une œuvre déplacée à la main n’est pas refaite quand Claude répond ensuite', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    // Claude simulé : la direction artistique répond tout de suite, le regard sur les découpes attend un signal
+    await page.addInitScript(() => {
+      let release;
+      window.__late = new Promise((r) => { release = r; });
+      window.__release = () => release();
+      const sample = {
+        limits: async () => ({ images: { maxCount: 4 } }),
+        json: async (prompt) => {
+          if (/directeur artistique/.test(prompt)) return { dessins: [1, 2, 3].map((n) => ({ n, sujet: 'dessin', role: 'decoupe', zone: 'milieu' })) };
+          await window.__late;
+          return { elements: [] };
+        },
+      };
+      window.claude = { use: async (k) => (k === 'sample' ? sample : null) };
+    });
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden);
+    await expect(page.locator('#ai-status')).toContainText('éléments découpés', { timeout: 30000 });
+    // on déplace une pièce à la souris pendant que Claude regarde encore
+    const pt = await page.evaluate(() => {
+      const A = AtelierGribouille, v = A.view, L = A.state.comp.items[0];
+      const r = document.getElementById('canvas').getBoundingClientRect();
+      return { x: r.left + (L.x * v.s + v.ox) / v.dpr, y: r.top + (L.y * v.s + v.oy) / v.dpr };
+    });
+    await page.mouse.move(pt.x, pt.y);
+    await page.mouse.down();
+    await page.mouse.move(pt.x + 40, pt.y + 25, { steps: 6 });
+    await page.mouse.up();
+    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; window.__comp = c; return c.items.map((L) => [L.x, L.y, L.rot]); });
+    await page.evaluate(() => window.__release());
+    await expect(page.locator('#ai-status')).toContainText('Direction artistique', { timeout: 30000 });
+    const after = await page.evaluate(() => ({ same: AtelierGribouille.state.comp === window.__comp, items: AtelierGribouille.state.comp.items.map((L) => [L.x, L.y, L.rot]) }));
+    expect(after.same).toBe(true);
+    expect(after.items).toEqual(before);
+  });
+});
