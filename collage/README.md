@@ -19,8 +19,9 @@ cd collage && python3 -m http.server 8000
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **orientation** de la feuille
    (automatique, droite, couchée à droite, tête en bas, couchée à gauche ; en automatique, une page de
    fond trop haute pour la toile est couchée), **luminosité, contraste et saturation** (−50 à +50,
-   appliqués en direct à l'œuvre, aux vignettes et à l'export ; mémorisés par dessin, « Rétablir »
-   revient au scan). **« Ajuster automatiquement »** les règle d'après les pixels réellement collés :
+   réglés dans la fenêtre de retouche pour une découpe, dans la fiche pour une page de fond ;
+   appliqués à l'œuvre, aux vignettes et à l'export ; mémorisés par dessin, « Rétablir » revient au
+   scan). **« Ajuster automatiquement »** les règle d'après les pixels réellement collés :
    papier éclairci jusqu'au blanc (s'il y en a assez de visible, jamais assombri), traits pâles foncés
    d'un tiers, couleurs ternes ravivées (jamais sur le crayon gris, avec retenue si le papier a une
    teinte) ; voir `Compose.autoTone`
@@ -221,8 +222,11 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
 5. **Retoucher une découpe** : bouton « Retoucher » (ou double-clic sur une pièce de l'œuvre, ou ciseaux
    sur la vignette d'une pièce). Éditeur plein écran avec zoom (molette, pincement, + / −), gomme,
    pinceau « restaurer » qui remet le dessin d'origine (y compris autour de la découpe initiale),
-   défaire / refaire (Ctrl+Z), retour à la découpe d'origine. Le trait de coupe magenta est affiché
-   en direct ; en validant, la pièce est mise à jour dans les trois propositions sans bouger sur la toile.
+   défaire / refaire (Ctrl+Z), retour à la découpe d'origine, et panneau **« Lumière et couleurs »**
+   (luminosité, contraste, saturation, ajustement automatique) avec aperçu direct. Le trait de coupe
+   magenta est affiché en direct ; en validant, la pièce est mise à jour dans les trois propositions
+   sans bouger sur la toile, et le réglage de lumière s'applique à tout le dessin (« Fermer sans
+   enregistrer » l'oublie).
    Une pièce **dupliquée** sur l'œuvre est une copie indépendante : retoucher sa découpe ne touche ni
    l'originale ni les autres copies (la découpe de la copie est sauvegardée et rejouée à la réouverture).
 6. **Guide de création (PDF)** pour réaliser l'œuvre avec les originaux :

@@ -382,8 +382,8 @@ test.describe('Dessins d’exemple', () => {
   });
 });
 
-test.describe('Luminosité et contraste', () => {
-  test('réglés dans la fiche d’un dessin, l’œuvre suit sans recomposer, mémorisés, et Rétablir revient au scan', async ({ page }) => {
+test.describe('Luminosité, contraste et saturation', () => {
+  test('réglés dans la fenêtre de retouche : aperçu, appliqués à la validation, oubliés à l’annulation, mémorisés', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
@@ -396,48 +396,6 @@ test.describe('Luminosité et contraste', () => {
     });
     expect(px[0]).toBe(119);
     expect(px[3]).toBe(255);
-    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
-    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await page.locator('#drawings-section > h2').click();
-    await page.locator('#drawings .thumb').first().click();
-    await expect(page.locator('#detail [data-tone="b"]')).toBeVisible();
-    await expect(page.locator('#detail [data-tone-reset]')).toBeHidden();
-    // sur ordinateur, rien ne déborde de la fiche (valeurs, bouton automatique), réglages sous l'en-tête
-    const fit = await page.evaluate(() => {
-      const box = document.getElementById('detail').getBoundingClientRect();
-      const r = (q) => document.querySelector('#detail ' + q).getBoundingClientRect();
-      return ['output', '[data-tone-auto]', '.chips', '.seg'].every((q) => r(q).right <= box.right - 4 && r(q).left >= box.left + 4)
-        && r('.tone').width > box.width * 0.8;
-    });
-    expect(fit).toBe(true);
-    const mean = () => page.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => {
-      const c = document.getElementById('canvas');
-      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-      let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
-      res(s / (d.length / 4) / 3);
-    }))));
-    const comp = await page.evaluateHandle(() => AtelierGribouille.state.comp);
-    const m0 = await mean();
-    const slide = (k, v) => page.locator(`#detail [data-tone="${k}"]`).evaluate((r, v) => {
-      r.value = v; r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true }));
-    }, v);
-    await slide('b', -40);
-    const m1 = await mean();
-    expect(m1).toBeLessThan(m0 - 1);
-    await expect(page.locator('#detail [data-tone="b"] + output')).toHaveText('−40');
-    await slide('c', 30);
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toEqual({ b: -40, c: 30, s: 0 });
-    // pas de nouvelle composition : seul le rendu change
-    expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, comp)).toBe(true);
-    // les vignettes suivent, et le réglage est gardé dans ce navigateur
-    expect(await page.locator('#drawings .thumb').first().locator('img').evaluate((i) => i.style.filter)).toContain('brightness(0.6)');
-    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(true);
-    // Rétablir
-    await page.locator('#detail [data-tone-reset]').click();
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toBeUndefined();
-    await expect(page.locator('#detail [data-tone-reset]')).toBeHidden();
-    expect(Math.abs((await mean()) - m0)).toBeLessThan(0.5);
-    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(false);
     // saturation : même formule que saturate() en CSS
     const sat = await page.evaluate(() => {
       const c = document.createElement('canvas'); c.width = c.height = 1;
@@ -446,11 +404,84 @@ test.describe('Luminosité et contraste', () => {
     });
     const ref = [200, 100, 50], k = 1.5, m = [[0.213 + 0.787 * k, 0.715 - 0.715 * k, 0.072 - 0.072 * k], [0.213 - 0.213 * k, 0.715 + 0.285 * k, 0.072 - 0.072 * k], [0.213 - 0.213 * k, 0.715 - 0.715 * k, 0.072 + 0.928 * k]];
     m.forEach((row, i) => expect(Math.abs(sat[i] - Math.min(255, Math.max(0, row[0] * ref[0] + row[1] * ref[1] + row[2] * ref[2])))).toBeLessThanOrEqual(1));
-    // réglage automatique : les curseurs prennent les valeurs calculées, avec une explication
+
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#drawings-section > h2').click();
+    await page.locator('#drawings .thumb').first().click();
+    // une découpe : pas de curseurs dans la fiche, ils sont dans la fenêtre de retouche
+    await expect(page.locator('#detail [data-tone="b"]')).toHaveCount(0);
+    const fit = await page.evaluate(() => {
+      const box = document.getElementById('detail').getBoundingClientRect();
+      const r = (q) => document.querySelector('#detail ' + q).getBoundingClientRect();
+      return ['[data-edit]', '.chips', '.seg'].every((q) => r(q).right <= box.right - 4 && r(q).left >= box.left + 4);
+    });
+    expect(fit).toBe(true);
+    const mean = () => page.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const c = document.getElementById('canvas');
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
+      res(s / (d.length / 4) / 3);
+    }))));
+    const edMean = () => page.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const c = document.getElementById('ed-canvas');
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2];
+      res(s / (d.length / 4) / 3);
+    }))));
+    const slide = (k, v) => page.locator(`#ed-tone [data-ed-tone="${k}"]`).evaluate((r, v) => { r.value = v; r.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+    const comp = await page.evaluateHandle(() => AtelierGribouille.state.comp);
+    const m0 = await mean();
+
+    // annuler : rien ne change
+    await page.locator('#detail [data-edit]').click();
+    await expect(page.locator('#editor')).toBeVisible();
+    await expect(page.locator('#ed-tone')).toBeHidden();
+    await page.locator('#ed-tone-toggle').click();
+    await expect(page.locator('#ed-tone')).toBeVisible();
+    const e0 = await edMean();
+    await slide('b', -40);
+    expect(await edMean()).toBeLessThan(e0 - 1); // aperçu direct dans la fenêtre
+    await page.locator('#ed-cancel').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toBeUndefined();
+
+    // valider : l'œuvre suit, sans recomposer ni toucher la découpe
+    await page.locator('#detail [data-edit]').click();
+    await page.locator('#ed-tone-toggle').click();
+    await expect(page.locator('#ed-tone [data-ed-tone="b"]')).toHaveValue('0');
+    await slide('b', -40);
+    await slide('c', 30);
+    await expect(page.locator('#ed-tone [data-ed-tone="b"] + output')).toHaveText('−40');
+    await page.locator('#ed-apply').click();
+    await expect(page.locator('#editor')).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toEqual({ b: -40, c: 30, s: 0 });
+    expect(await page.evaluate(() => !!AtelierGribouille.state.drawings[0].analysis.pieces[0].edited)).toBe(false);
+    expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, comp)).toBe(true);
+    expect(await mean()).toBeLessThan(m0 - 1);
+    expect(await page.locator('#drawings .thumb').first().locator('img').evaluate((i) => i.style.filter)).toContain('brightness(0.6)');
+    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(true);
+
+    // en rouvrant, les curseurs reprennent le réglage ; automatique puis Rétablir
+    await page.locator('#detail [data-edit]').click();
+    await page.locator('#ed-tone-toggle').click();
+    await expect(page.locator('#ed-tone [data-ed-tone="b"]')).toHaveValue('-40');
+    await page.locator('#ed-tone-auto').click();
+    await expect(page.locator('#ed-tone-msg')).toBeVisible();
+    await slide('s', 10);
+    await page.locator('#ed-tone-reset').click();
+    await expect(page.locator('#ed-tone [data-ed-tone="c"]')).toHaveValue('0');
+    await page.locator('#ed-apply').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toBeUndefined();
+    expect(Math.abs((await mean()) - m0)).toBeLessThan(0.5);
+    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(false);
+
+    // une page de fond n'a pas de fenêtre de retouche : ses curseurs restent dans la fiche
+    await page.locator('#detail [data-role="texture"]').click();
+    await expect(page.locator('#detail [data-edit]')).toHaveCount(0);
+    await page.locator('#detail [data-tone="s"]').evaluate((r) => { r.value = 20; r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toEqual({ b: 0, c: 0, s: 20 });
     await page.locator('#detail [data-tone-auto]').click();
     await expect(page.locator('#detail [data-tone-msg]')).toBeVisible();
-    const auto = await page.evaluate(() => AtelierGribouille.state.drawings[0].tone || { b: 0, c: 0, s: 0 });
-    for (const k of ['b', 'c', 's']) expect(Number(await page.locator(`#detail [data-tone="${k}"]`).inputValue())).toBe(auto[k] || 0);
   });
 });
 

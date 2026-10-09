@@ -43,6 +43,7 @@
       <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
       <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
       <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6.5" cy="7" r="2.6"/><circle cx="6.5" cy="17" r="2.6"/><path d="M8.7 8.4L20 16.5M8.7 15.6L20 7.5"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
       <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7L5 11l4 4"/><path d="M5 11h9a5 5 0 0 1 0 10h-3"/></symbol>
       <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 7l4 4-4 4"/><path d="M19 11h-9a5 5 0 0 0 0 10h3"/></symbol>
       <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M8.5 19.5h11M4.8 14.7l8.9-8.9a2 2 0 0 1 2.8 0l3 3a2 2 0 0 1 0 2.8l-7.3 7.3a2 2 0 0 1-1.4.6H9.3a2 2 0 0 1-1.4-.6l-3.1-3.1a1.5 1.5 0 0 1 0-2.1z"/><path d="M9.5 10l5.8 5.8"/></symbol>
@@ -104,7 +105,7 @@
         <input id="file" type="file" multiple accept="application/pdf,image/*" hidden>
         <svg class="ico ico-lg"><use href="#i-upload"/></svg>
         <strong>Déposez vos scans</strong>
-        <span>PDF de plusieurs pages, JPG ou PNG · gros scans acceptés (100 Mo et plus)</span>
+        <span>PDF de plusieurs pages, JPG ou PNG</span>
       </label>
       <div id="progress" class="progress" hidden><div></div><span></span></div>
       <p id="notice" class="notice" role="status" hidden></p>
@@ -409,7 +410,7 @@
   <div id="editor" class="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title" hidden>
     <div class="ed-bar">
       <div class="ed-head">
-        <p class="ed-kicker">Retoucher la découpe</p>
+        <p class="ed-kicker">Retoucher le dessin</p>
         <h2 id="ed-title"></h2>
       </div>
       <div class="ed-tools seg" role="group" aria-label="Outil">
@@ -418,6 +419,7 @@
         <button data-tool="pan" title="Se déplacer (H ou barre d’espace)"><svg class="ico"><use href="#i-hand"/></svg><span>Déplacer</span></button>
       </div>
       <label class="ed-size">Pinceau <input id="ed-size" type="range" min="4" max="140" step="1" value="28"></label>
+      <button id="ed-tone-toggle" class="ed-btn ed-tone-toggle" aria-expanded="false" aria-controls="ed-tone"><svg class="ico"><use href="#i-sun"/></svg><span class="long">Lumière et couleurs</span><span class="short">Couleurs</span></button>
       <div class="ed-group">
         <button id="ed-zout" class="ed-btn" title="Dézoomer" aria-label="Dézoomer">−</button>
         <span id="ed-zval" class="ed-zval">100 %</span>
@@ -432,6 +434,17 @@
     </div>
     <div class="ed-stage">
       <canvas id="ed-canvas"></canvas>
+      <div id="ed-tone" class="ed-tone" role="group" aria-label="Lumière et couleurs" hidden>
+        <p class="ed-tone-title">Lumière et couleurs <small>· tout le dessin</small></p>
+        <label><span>Luminosité</span><input type="range" min="-50" max="50" step="1" value="0" data-ed-tone="b"><output>0</output></label>
+        <label><span>Contraste</span><input type="range" min="-50" max="50" step="1" value="0" data-ed-tone="c"><output>0</output></label>
+        <label><span>Saturation</span><input type="range" min="-50" max="50" step="1" value="0" data-ed-tone="s"><output>0</output></label>
+        <div class="ed-tone-actions">
+          <button type="button" id="ed-tone-auto" class="ed-btn"><svg class="ico"><use href="#i-spark"/></svg><span>Ajuster automatiquement</span></button>
+          <button type="button" id="ed-tone-reset" class="link">Rétablir</button>
+        </div>
+        <p id="ed-tone-msg" class="ed-tone-msg" hidden></p>
+      </div>
       <p id="ed-tip" class="ed-tip" hidden>Pincez pour zoomer · glissez à deux doigts pour vous déplacer</p>
       <p class="ed-legend"><span class="sw sw-cut"></span>trait de coupe · <span class="sw sw-faded"></span>dessin non utilisé, à restaurer au pinceau</p>
     </div>
@@ -439,7 +452,7 @@
       <p id="ed-msg" class="ed-msg" role="status"></p>
       <p class="hint ed-help">Molette ou pincement pour zoomer · barre d’espace ou deux doigts pour se déplacer · [ ] taille du pinceau</p>
       <button id="ed-cancel" class="btn"><span class="long">Fermer sans enregistrer</span><span class="short">Annuler</span></button>
-      <button id="ed-apply" class="btn btn-primary"><svg class="ico"><use href="#i-scissors"/></svg><span class="long">Valider la découpe</span><span class="short">Valider</span></button>
+      <button id="ed-apply" class="btn btn-primary"><svg class="ico"><use href="#i-scissors"/></svg><span class="long">Valider les retouches</span><span class="short">Valider</span></button>
     </div>
   </div>
 

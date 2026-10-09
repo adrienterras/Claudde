@@ -2,6 +2,8 @@
  * Éditeur de découpe : zoom sur le dessin, gomme pour retirer, pinceau « restaurer » pour
  * remettre du dessin d'origine (y compris au-delà de la découpe initiale), défaire / refaire.
  * Le masque de découpe est édité en pixels de la page ; à la validation, la pièce est recalculée.
+ * Lumière et couleurs (luminosité, contraste, saturation) se règlent aussi ici, avec un aperçu
+ * direct ; elles valent pour tout le dessin et ne sont appliquées qu'à la validation.
  */
 (function () {
   'use strict';
@@ -33,7 +35,8 @@
   }
 
   /*
-   * piece : la pièce à retoucher ; opts : { title, onApply(piece, oldSrc, newSrc) }
+   * piece : la pièce à retoucher ; opts : { title, onApply(piece, oldSrc, newSrc),
+   *   tone (réglage actuel du dessin), autoTone() → réglage proposé, onTone(tone) }
    */
   function open(piece, opts) {
     const d = piece.drawing;
@@ -58,7 +61,10 @@
       undo: [], redo: [],
       dirty: true, raf: 0,
       pointers: new Map(), stroke: null, pinch: null, space: false, cursor: null,
+      tone0: toneOf(opts.tone), tone: toneOf(opts.tone), timg: null,
     };
+    showTone(false);
+    syncTone('');
     $('ed-title').textContent = opts.title || tr('Découpe');
     $('ed-msg').textContent = '';
     $('editor').hidden = false;
@@ -72,6 +78,32 @@
       clearTimeout(tip._t);
       tip._t = setTimeout(() => { tip.classList.add('fade'); tip._t = setTimeout(() => { tip.hidden = true; }, 450); }, 3200);
     }
+  }
+
+  // ---------- Lumière et couleurs ----------
+
+  const toneOf = (t) => ({ b: (t && t.b) || 0, c: (t && t.c) || 0, s: (t && t.s) || 0 });
+  const toneKey = (t) => `${t.b}:${t.c}:${t.s}`;
+  const toneText = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
+  function showTone(on) {
+    $('ed-tone').hidden = !on;
+    $('ed-tone-toggle').classList.toggle('on', on);
+    $('ed-tone-toggle').setAttribute('aria-expanded', on ? 'true' : 'false');
+  }
+  function syncTone(msg) {
+    const t = S.tone;
+    document.querySelectorAll('#ed-tone [data-ed-tone]').forEach((r) => { r.value = t[r.dataset.edTone]; r.nextElementSibling.textContent = toneText(t[r.dataset.edTone]); });
+    $('ed-tone-reset').hidden = !(t.b || t.c || t.s);
+    $('ed-tone-msg').textContent = msg || '';
+    $('ed-tone-msg').hidden = !msg;
+  }
+  function setTone(t, msg) {
+    if (!S) return;
+    S.tone = toneOf(t);
+    S.timg = null; // recalculée au prochain dessin
+    S.dirty = true;
+    syncTone(msg);
+    render();
   }
 
   function close() {
@@ -115,7 +147,9 @@
   }
 
   function rebuild() {
-    const { cut, sil, img, mask } = S;
+    if (!S.timg) S.timg = window.Compose ? Compose.toned(S.img, S.tone) : S.img;
+    const { cut, sil, mask } = S;
+    const img = S.timg;
     const c = cut.getContext('2d');
     c.globalCompositeOperation = 'copy';
     c.drawImage(img, 0, 0);
@@ -149,7 +183,7 @@
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, S.R.w, S.R.h);
     ctx.globalAlpha = 0.4;
-    ctx.drawImage(S.img, 0, 0);
+    ctx.drawImage(S.timg || S.img, 0, 0);
     ctx.globalAlpha = 1;
     // trait de coupe magenta, d'épaisseur constante à l'écran
     const r = (2.4 * dpr) / S.z;
@@ -361,6 +395,16 @@
       }
     }
     if (maxX < 0) { $('ed-msg').textContent = tr('La découpe est vide : restaurez une partie du dessin avant de valider.'); return; }
+    const toneChanged = toneKey(S.tone) !== toneKey(S.tone0), tone = S.tone;
+    let same = a.length === S.initial.length;
+    for (let i = 0; same && i < a.length; i++) if (a[i] !== S.initial[i]) same = false;
+    if (same) {
+      // découpe inchangée : seule la lumière a pu changer, la pièce reste telle quelle
+      const o = S.opts;
+      close();
+      if (toneChanged && o.onTone) o.onTone(tone);
+      return;
+    }
     const bw = maxX - minX + 1, bh = maxY - minY + 1;
     const canvas = Extract.makeCanvas(bw, bh);
     const cx = canvas.getContext('2d');
@@ -388,6 +432,7 @@
     const opts = S.opts;
     close();
     opts.onApply && opts.onApply(piece, oldSrc, newSrc);
+    if (toneChanged && opts.onTone) opts.onTone(tone);
   }
 
   // ---------- Branchements ----------
@@ -416,6 +461,16 @@
     $('ed-redo').onclick = redo;
     $('ed-reset').onclick = reset;
     $('ed-cancel').onclick = close;
+    $('ed-tone-toggle').onclick = () => showTone($('ed-tone').hidden);
+    document.querySelectorAll('#ed-tone [data-ed-tone]').forEach((r) => {
+      r.addEventListener('input', () => { if (S) setTone(Object.assign({}, S.tone, { [r.dataset.edTone]: Number(r.value) })); });
+    });
+    $('ed-tone-auto').onclick = () => {
+      if (!S || !S.opts.autoTone) return;
+      const t = toneOf(S.opts.autoTone());
+      setTone(t, t.b || t.c || t.s ? tr('Réglé d’après le dessin : blanc du papier, traits et couleurs. Ajustez à votre goût.') : tr('Ce dessin est déjà bien exposé : rien à corriger.'));
+    };
+    $('ed-tone-reset').onclick = () => setTone(null);
     $('ed-apply').onclick = apply;
     window.addEventListener('resize', () => S && render());
     window.addEventListener('keydown', (e) => {

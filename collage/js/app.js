@@ -865,7 +865,7 @@
             <button type="button" data-rot="auto" class="${d.orient === 'auto' ? 'on' : ''}" title="${esc(orientName)}">${tr('Auto')}</button>
           </span>
         </div>
-        <div class="tone" role="group" aria-label="${tr('Luminosité, contraste et saturation')}">
+        ${main ? '' : `<div class="tone" role="group" aria-label="${tr('Luminosité, contraste et saturation')}">
           ${[['b', tr('Luminosité')], ['c', tr('Contraste')], ['s', tr('Saturation')]].map(([k, label]) => `<label class="row"><span>${label}</span>
             <input type="range" min="-50" max="50" step="1" value="${(d.tone && d.tone[k]) || 0}" data-tone="${k}"><output>${toneText((d.tone && d.tone[k]) || 0)}</output></label>`).join('')}
           <div class="tone-actions">
@@ -873,8 +873,8 @@
             <button type="button" class="link" data-tone-reset ${hasTone(d) ? '' : 'hidden'}>${tr('Rétablir')}</button>
           </div>
           <p class="hint" data-tone-msg hidden></p>
-        </div>
-        ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher la découpe')}</span></button>` : ''}
+        </div>`}
+        ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
         <p class="hint photo">${d.photo
           ? tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
           : d.photoMode === 'keep'
@@ -915,31 +915,34 @@
       const nb = $('detail').querySelector(`[data-nav="${b.dataset.nav}"]`);
       if (nb && !nb.disabled) nb.focus({ preventScroll: true });
     }));
-    // luminosité, contraste et saturation : l'œuvre suit en direct, sans recomposer
-    const applyTone = () => {
-      const t = d.tone || {};
-      box.querySelectorAll('[data-tone]').forEach((r) => { const v = t[r.dataset.tone] || 0; r.value = v; r.nextElementSibling.textContent = toneText(v); });
-      box.querySelector('[data-tone-reset]').hidden = !hasTone(d);
-      box.querySelector(':scope > img').style.filter = toneFilter(d);
-      const th = $('drawings').children[state.drawings.indexOf(d)];
-      if (th) th.querySelector('img').style.filter = toneFilter(d);
-      state.bgCache = null;
-      render();
-    };
-    const toneDone = () => { saveTone(d); refreshPieces(); refreshActiveThumb(); };
-    box.querySelectorAll('[data-tone]').forEach((r) => {
-      r.oninput = () => { d.tone = Object.assign({ b: 0, c: 0, s: 0 }, d.tone, { [r.dataset.tone]: Number(r.value) }); toneMsg(''); applyTone(); };
-      r.onchange = toneDone;
-    });
-    const toneMsg = (txt) => { const m = box.querySelector('[data-tone-msg]'); m.textContent = txt; m.hidden = !txt; };
-    box.querySelector('[data-tone-reset]').onclick = () => { delete d.tone; toneMsg(''); applyTone(); toneDone(); };
-    box.querySelector('[data-tone-auto]').onclick = () => {
-      const t = Compose.autoTone(toneSources(d));
-      if (t.b || t.c || t.s) d.tone = t; else delete d.tone;
-      toneMsg(hasTone(d) ? tr('Réglé d’après le dessin : blanc du papier, traits et couleurs. Ajustez à votre goût.') : tr('Ce dessin est déjà bien exposé : rien à corriger.'));
-      applyTone();
-      toneDone();
-    };
+    // luminosité, contraste et saturation d'une page de fond (une découpe se règle dans la fenêtre
+    // de retouche) : l'œuvre suit en direct, sans recomposer
+    if (!main) {
+      const applyTone = () => {
+        const t = d.tone || {};
+        box.querySelectorAll('[data-tone]').forEach((r) => { const v = t[r.dataset.tone] || 0; r.value = v; r.nextElementSibling.textContent = toneText(v); });
+        box.querySelector('[data-tone-reset]').hidden = !hasTone(d);
+        box.querySelector(':scope > img').style.filter = toneFilter(d);
+        const th = $('drawings').children[state.drawings.indexOf(d)];
+        if (th) th.querySelector('img').style.filter = toneFilter(d);
+        state.bgCache = null;
+        render();
+      };
+      const toneDone = () => { saveTone(d); refreshPieces(); refreshActiveThumb(); };
+      box.querySelectorAll('[data-tone]').forEach((r) => {
+        r.oninput = () => { d.tone = Object.assign({ b: 0, c: 0, s: 0 }, d.tone, { [r.dataset.tone]: Number(r.value) }); toneMsg(''); applyTone(); };
+        r.onchange = toneDone;
+      });
+      const toneMsg = (txt) => { const m = box.querySelector('[data-tone-msg]'); m.textContent = txt; m.hidden = !txt; };
+      box.querySelector('[data-tone-reset]').onclick = () => { delete d.tone; toneMsg(''); applyTone(); toneDone(); };
+      box.querySelector('[data-tone-auto]').onclick = () => {
+        const t = Compose.autoTone(toneSources(d));
+        if (t.b || t.c || t.s) d.tone = t; else delete d.tone;
+        toneMsg(hasTone(d) ? tr('Réglé d’après le dessin : blanc du papier, traits et couleurs. Ajustez à votre goût.') : tr('Ce dessin est déjà bien exposé : rien à corriger.'));
+        applyTone();
+        toneDone();
+      };
+    }
     const editBtn = box.querySelector('[data-edit]');
     if (editBtn) editBtn.onclick = () => editPiece(main);
     const custom = box.querySelector('[data-custom]');
@@ -2025,7 +2028,20 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   function editPiece(p) {
     if (!p || !p.src || !window.Editor) return;
-    Editor.open(p, { title: pieceName(p), onApply: applyPieceEdit });
+    const d = p.drawing;
+    Editor.open(p, {
+      title: pieceName(p), onApply: applyPieceEdit,
+      // lumière et couleurs : réglage du dessin entier, appliqué à la validation
+      tone: d.tone, autoTone: () => Compose.autoTone(toneSources(d)),
+      onTone: (t) => {
+        if (t && (t.b || t.c || t.s)) d.tone = t; else delete d.tone;
+        saveTone(d);
+        state.bgCache = null;
+        refreshLists();
+        refreshActiveThumb();
+        render();
+      },
+    });
   }
 
   // La pièce a changé de forme : on met à jour ses calques dans les trois propositions,
