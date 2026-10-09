@@ -195,6 +195,8 @@
     'Molette ou pincement pour zoomer · barre d’espace ou deux doigts pour se déplacer · [ ] taille du pinceau': 'Wheel or pinch to zoom · space bar or two fingers to pan · [ ] brush size',
     'Fermer sans enregistrer': 'Close without saving',
     'Valider la découpe': 'Apply the cut-out',
+    'Valider': 'Apply',
+    'Pincez pour zoomer · glissez à deux doigts pour vous déplacer': 'Pinch to zoom · drag with two fingers to move',
     'Changer de langue recharge la page : les dessins importés devront être réimportés. Continuer ?': 'Switching language reloads the page: the imported drawings will have to be imported again. Continue?',
 
     // ---------- app.js ----------

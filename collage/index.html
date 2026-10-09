@@ -428,13 +428,14 @@
     </div>
     <div class="ed-stage">
       <canvas id="ed-canvas"></canvas>
+      <p id="ed-tip" class="ed-tip" hidden>Pincez pour zoomer · glissez à deux doigts pour vous déplacer</p>
       <p class="ed-legend"><span class="sw sw-cut"></span>trait de coupe · <span class="sw sw-faded"></span>dessin non utilisé, à restaurer au pinceau</p>
     </div>
     <div class="ed-foot">
       <p id="ed-msg" class="ed-msg" role="status"></p>
       <p class="hint ed-help">Molette ou pincement pour zoomer · barre d’espace ou deux doigts pour se déplacer · [ ] taille du pinceau</p>
-      <button id="ed-cancel" class="btn">Fermer sans enregistrer</button>
-      <button id="ed-apply" class="btn btn-primary"><svg class="ico"><use href="#i-scissors"/></svg><span>Valider la découpe</span></button>
+      <button id="ed-cancel" class="btn"><span class="long">Fermer sans enregistrer</span><span class="short">Annuler</span></button>
+      <button id="ed-apply" class="btn btn-primary"><svg class="ico"><use href="#i-scissors"/></svg><span class="long">Valider la découpe</span><span class="short">Valider</span></button>
     </div>
   </div>
 

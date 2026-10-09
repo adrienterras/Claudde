@@ -124,6 +124,46 @@ test.describe('Téléphone, tiroir agrandi', () => {
   });
 });
 
+test.describe('Éditeur de découpe sur téléphone', () => {
+  test('Annuler et Valider en haut, outils en bas, loupe pendant le geste au doigt', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.comp.items[0].piece));
+    await expect(page.locator('#editor')).toBeVisible();
+    await expect(page.locator('#ed-tip')).toBeVisible();
+    await expect(page.locator('#ed-apply')).toHaveText(/Valider/);
+    const y = (id) => page.locator(id).evaluate((el) => el.getBoundingClientRect().top);
+    expect(await y('#ed-apply')).toBeLessThan(80);
+    expect(await y('#ed-cancel')).toBeLessThan(80);
+    expect(await y('#editor .ed-tools')).toBeGreaterThan(600);
+    const h = await page.locator('#ed-canvas').evaluate((el) => el.getBoundingClientRect().height);
+    expect(h).toBeGreaterThan(844 * 0.6);
+    // un trait au doigt : la loupe apparaît pendant le geste, disparaît après, et le geste se défait
+    const r = await page.locator('#ed-canvas').boundingBox();
+    await page.evaluate(([x, y]) => {
+      const c = document.getElementById('ed-canvas');
+      const ev = (t, X, Y) => c.dispatchEvent(new PointerEvent(t, { pointerId: 9, pointerType: 'touch', clientX: X, clientY: Y, bubbles: true, isPrimary: true }));
+      ev('pointerdown', x, y); for (let i = 1; i <= 6; i++) ev('pointermove', x + i * 5, y + i * 3);
+    }, [r.x + r.width / 2, r.y + r.height / 2]);
+    expect(await page.evaluate(() => Editor.loupe())).toBe(true);
+    await page.evaluate(([x, y]) => document.getElementById('ed-canvas').dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })), [r.x + r.width / 2 + 30, r.y + r.height / 2 + 18]);
+    expect(await page.evaluate(() => Editor.loupe())).toBe(false);
+    await expect(page.locator('#ed-undo')).toBeEnabled();
+    await page.locator('#ed-cancel').click();
+    await expect(page.locator('#editor')).toBeHidden();
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
+
 test.describe('Brouillon', () => {
   test('l’œuvre en cours est gardée d’elle-même et proposée après un rechargement', async ({ page }) => {
     const { fixture } = require('./helpers');

@@ -682,14 +682,32 @@ body.editing { overflow: hidden; }
 .ed-help { margin-right: auto; }
 .ed-msg { margin: 0; flex-basis: 100%; color: var(--danger); font-size: 0.84rem; }
 .ed-msg:empty { display: none; }
+.ed-foot .short { display: none; }
+.ed-tip {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 2; margin: 0;
+  padding: 8px 14px; border-radius: 999px; background: rgba(28, 27, 21, .82); color: #f8f5ef;
+  font-size: 0.8rem; white-space: nowrap; pointer-events: none; transition: opacity .4s;
+}
+.ed-tip.fade { opacity: 0; }
 
+/* Téléphone : Annuler · Valider en haut, le dessin au milieu, les outils en bas, à portée du pouce */
 @media (max-width: 860px) {
-  .ed-bar { padding: 10px 16px; gap: 8px 10px; }
-  .ed-head { flex-basis: 100%; }
-  .ed-tools button span, .ed-group .ed-btn span, .ed-help { display: none; }
-  .ed-size input { width: 90px; }
-  .ed-foot { padding: 10px 16px; }
-  .ed-foot .btn { flex: 1; }
+  .ed-foot { grid-row: 1; padding: 8px 12px; border-top: 0; border-bottom: 1px solid var(--line); gap: 8px; }
+  .ed-stage { grid-row: 2; }
+  .ed-bar { grid-row: 3; border-bottom: 0; border-top: 1px solid var(--line); padding: 10px 12px 12px; gap: 10px 8px; }
+  .ed-head, .ed-help, .ed-legend, #ed-zout, #ed-zin, .ed-zval { display: none; }
+  .ed-foot .long { display: none; }
+  .ed-foot .short { display: inline; }
+  .ed-foot .btn { flex: 0 0 auto; padding: 9px 18px; }
+  .ed-foot #ed-apply { margin-left: auto; }
+  .ed-msg { order: 3; }
+  .ed-tools { flex-basis: 100%; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .ed-tools button { justify-content: center; padding: 10px 6px; font-size: 0.86rem; }
+  .ed-size { flex-basis: 100%; }
+  .ed-size input { flex: 1; width: auto; min-width: 0; height: 28px; }
+  .ed-group .ed-btn { height: 38px; min-width: 38px; }
+  .ed-group .ed-btn span { display: none; }
+  .ed-group:last-child { margin-left: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

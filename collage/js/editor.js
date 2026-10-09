@@ -65,6 +65,13 @@
     document.body.classList.add('editing');
     setTool('erase');
     requestAnimationFrame(() => { fit(); history(); });
+    const tip = $('ed-tip');
+    if (tip && window.matchMedia('(max-width: 860px), (pointer: coarse)').matches) {
+      tip.hidden = false;
+      tip.classList.remove('fade');
+      clearTimeout(tip._t);
+      tip._t = setTimeout(() => { tip.classList.add('fade'); tip._t = setTimeout(() => { tip.hidden = true; }, 450); }, 3200);
+    }
   }
 
   function close() {
@@ -152,6 +159,38 @@
     }
     ctx.drawImage(S.cut, 0, 0);
     ctx.restore();
+    // loupe : la zone sous le doigt, grossie deux fois, au-dessus du doigt (ou dessous près du bord)
+    if (S.loupe && S.cursor) {
+      const R = 62 * dpr, k = 2, gap = 70 * dpr;
+      const { x: cx, y: cy } = S.cursor;
+      let ly = cy - R - gap;
+      if (ly < R + 6 * dpr) ly = cy + R + gap;
+      const lx = Math.min(w - R - 6 * dpr, Math.max(R + 6 * dpr, cx));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(lx, ly, R, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.clip();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(c, cx - R / k, cy - R / k, (2 * R) / k, (2 * R) / k, lx - R, ly - R, 2 * R, 2 * R);
+      ctx.restore();
+      ctx.beginPath();
+      ctx.arc(lx, ly, Math.min(R - 3 * dpr, ((S.size * dpr) / 2) * k), 0, Math.PI * 2);
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = S.tool === 'erase' ? '#e5007d' : cssVar('--accent', '#2f49d1');
+      ctx.setLineDash([4 * dpr, 3 * dpr]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(lx, ly, R, 0, Math.PI * 2);
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.lineWidth = 1 * dpr;
+      ctx.strokeStyle = 'rgba(0, 0, 0, .45)';
+      ctx.stroke();
+    }
     // aperçu du pinceau
     if (S.cursor && S.tool !== 'pan' && !S.space) {
       ctx.beginPath();
@@ -244,12 +283,12 @@
   function onDown(e) {
     if (!S) return;
     const c = $('ed-canvas');
-    c.setPointerCapture(e.pointerId);
+    try { c.setPointerCapture(e.pointerId); } catch (err) { /* pointeur déjà relâché */ }
     const p = toLocal(e);
     S.pointers.set(e.pointerId, p);
     if (S.pointers.size === 2) {
       // deux doigts : on abandonne le trait commencé et on passe en zoom / déplacement
-      if (S.stroke) { undo(); S.redo.pop(); history(); S.stroke = null; }
+      if (S.stroke) { undo(); S.redo.pop(); history(); S.stroke = null; S.loupe = false; }
       const [a, b] = [...S.pointers.values()];
       S.pinch = { d: Math.hypot(a.px - b.px, a.py - b.py), mx: (a.px + b.px) / 2, my: (a.py + b.py) / 2 };
       return;
@@ -258,6 +297,9 @@
     if (pan) { S.drag = { px: p.px, py: p.py }; c.style.cursor = 'grabbing'; return; }
     pushUndo();
     S.stroke = { tool: S.tool, last: p };
+    // au doigt, une loupe montre au-dessus ce qui est sous le doigt
+    S.loupe = e.pointerType === 'touch' || e.pointerType === 'pen';
+    S.cursor = { x: p.px, y: p.py };
     paint(p, p);
   }
 
@@ -295,6 +337,7 @@
     S.pointers.delete(e.pointerId);
     if (S.pointers.size < 2) S.pinch = null;
     S.stroke = null;
+    if (S.loupe) { S.loupe = false; if (e.pointerType === 'touch') S.cursor = null; render(); }
     if (S.drag) { S.drag = null; $('ed-canvas').style.cursor = S.tool === 'pan' ? 'grab' : 'none'; }
   }
 
@@ -401,5 +444,5 @@
   }
 
   init();
-  window.Editor = { open, isOpen: () => !!S };
+  window.Editor = { open, isOpen: () => !!S, loupe: () => !!(S && S.loupe) };
 })();
