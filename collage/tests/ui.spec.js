@@ -158,6 +158,10 @@ test.describe('Fiche d’un dessin sur téléphone', () => {
     expect(o).not.toBe('auto');
     await page.locator('#detail [data-rot="auto"]').click();
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].orient)).toBe('auto');
+    // la croix ne recouvre pas la flèche ›
+    const boxes = await page.evaluate(() => ['.detail-close', '[data-nav="1"]'].map((q) => document.querySelector('#detail ' + q).getBoundingClientRect().toJSON()));
+    const [x, nx] = boxes;
+    expect(x.left >= nx.right || nx.left >= x.right || x.top >= nx.bottom || nx.top >= x.bottom).toBe(true);
     // dessin suivant sans fermer la fiche
     await expect(page.locator('#detail [data-nav="-1"]')).toBeDisabled();
     await page.locator('#detail [data-nav="1"]').click();

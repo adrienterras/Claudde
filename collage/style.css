@@ -485,6 +485,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .detail .detail-close { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--ink-2); font-size: 1.25rem; line-height: 1; cursor: pointer; }
 .detail .detail-close:hover { background: var(--line); color: var(--ink); }
 .detail .name { padding-right: 30px; }
+/* la croix est en haut à droite : la ligne ‹ › s'arrête avant elle */
+.detail .detail-nav { margin-right: 36px; }
 .detail > img { width: 84px; height: 84px; object-fit: contain; background: var(--surface-2); border-radius: var(--r-sm); }
 .detail > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .detail .name { margin: 0; font-weight: 600; font-size: 0.9rem; overflow-wrap: anywhere; }
