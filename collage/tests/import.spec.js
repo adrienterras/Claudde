@@ -77,3 +77,10 @@ test.describe('Import des scans', () => {
     expect(after[0].bg).toBeGreaterThanOrEqual(before[0].bg);
   });
 });
+
+test('les bibliothèques PDF ne sont chargées qu’au besoin', async ({ app }) => {
+  const { page } = app;
+  expect(await page.evaluate(() => ({ lire: !!window.pdfjsLib, creer: !!window.jspdf }))).toEqual({ lire: false, creer: false });
+  await app.import(['two-pages.pdf'], 2);
+  expect(await page.evaluate(() => !!window.pdfjsLib)).toBe(true);
+});

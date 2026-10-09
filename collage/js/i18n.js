@@ -423,6 +423,7 @@
     'Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.': 'File too large for this device: choose “Screen” as quality.',
     'Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.': 'A save dialog is already open. Finish it, then try again.',
     'Téléchargement lancé : {0}': 'Download started: {0}',
+    'module introuvable ({0})': 'module not found ({0})',
     'Fichier prêt : {0}': 'File ready: {0}',
     'Votre image est prête': 'Your image is ready',
     'Votre fichier est prêt': 'Your file is ready',

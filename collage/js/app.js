@@ -49,7 +49,26 @@
     window.AtelierErrors = { show, get detail() { return detail; } };
   })();
 
-  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = window.PDFJS_WORKER_SRC || 'vendor/pdf.worker.min.js';
+  // Bibliothèques lourdes chargées à la demande (lire un PDF, en créer un) : 680 Ko de moins à
+  // charger et compiler à l'ouverture de la page. (La page publiée sur Claude les embarque déjà.)
+  const scripts = new Map();
+  function loadScript(src) {
+    if (!scripts.has(src)) {
+      scripts.set(src, new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src;
+        el.onload = () => resolve();
+        el.onerror = () => { scripts.delete(src); el.remove(); reject(new Error(tr`module introuvable (${src})`)); };
+        document.head.appendChild(el);
+      }));
+    }
+    return scripts.get(src);
+  }
+  async function needPdfJs() {
+    if (!window.pdfjsLib) await loadScript('vendor/pdf.min.js');
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc = window.PDFJS_WORKER_SRC || 'vendor/pdf.worker.min.js';
+  }
+  const needJsPdf = async () => { if (!window.jspdf) await loadScript('vendor/jspdf.umd.min.js'); };
 
   // Message affiché dans le panneau (les boîtes de dialogue du navigateur ne sont pas toujours disponibles).
   function notice(text) {
@@ -96,6 +115,7 @@
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
       // Gros scans (100 Mo et plus) : le fichier est lu en une fois, mais chaque page est rendue
       // à son tour à la résolution de travail, puis libérée, pour que la mémoire reste stable.
+      await needPdfJs();
       const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
       for (let i = 1; i <= pdf.numPages; i++) {
         pages.push({
@@ -1786,12 +1806,57 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   let raf = 0;
 
   function render() {
+    fullPending = true;
     if (!raf) raf = requestAnimationFrame(draw);
     scheduleDraft();
+  }
+  // Pendant qu'on fait glisser ou tourner une pièce, seul le rectangle qu'elle quitte et celui
+  // qu'elle occupe changent : on ne redessine que lui, avec exactement les mêmes opérations (fond,
+  // pièces, grain, sélection), découpées au rectangle. Le reste de l'image ne bouge pas.
+  let fullPending = false, dirty = null, lastView = null;
+  function renderRect(r) {
+    if (!fullPending) dirty = dirty ? [Math.min(dirty[0], r[0]), Math.min(dirty[1], r[1]), Math.max(dirty[2], r[2]), Math.max(dirty[3], r[3])] : r;
+    if (!raf) raf = requestAnimationFrame(draw);
+    scheduleDraft();
+  }
+  // rectangle (pixels de la toile) d'un calque posé, avec son cadre de sélection et sa poignée
+  function layerRect(L) {
+    const { s, ox, oy, dpr } = view;
+    const c = Math.abs(Math.cos(L.rot)), sn = Math.abs(Math.sin(L.rot));
+    const hw = ((L.w * c + L.h * sn) / 2) * s, hh = ((L.w * sn + L.h * c) / 2) * s;
+    const m = 16 * dpr;
+    const cx = ox + L.x * s, cy = oy + L.y * s;
+    return [cx - hw - m, cy - hh - m, cx + hw + m, cy + hh + m];
   }
 
   function draw() {
     raf = 0;
+    const part = fullPending ? null : dirty;
+    fullPending = false; dirty = null;
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.clientWidth * dpr, ch = canvas.clientHeight * dpr;
+    const before = lastView;
+    let clip = null;
+    if (part && before && canvas.width === cw && canvas.height === ch) {
+      const x0 = Math.max(0, Math.floor(part[0])), y0 = Math.max(0, Math.floor(part[1]));
+      const x1 = Math.min(cw, Math.ceil(part[2])), y1 = Math.min(ch, Math.ceil(part[3]));
+      if (x1 <= x0 || y1 <= y0) return;
+      clip = [x0, y0, x1 - x0, y1 - y0];
+    }
+    if (clip) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(clip[0], clip[1], clip[2], clip[3]);
+      ctx.clip();
+    }
+    try { drawScene(); } finally { if (clip) ctx.restore(); }
+    lastView = view;
+    // la vue a changé entre-temps (taille, zoom) : le rectangle ne suffit pas, on refait tout
+    if (clip && before && (view.s !== before.s || view.ox !== before.ox || view.oy !== before.oy)) render();
+  }
+
+  function drawScene() {
     const dpr = window.devicePixelRatio || 1;
     const cw = canvas.clientWidth * dpr, ch = canvas.clientHeight * dpr;
     if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
@@ -2027,13 +2092,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     const p = toComp(e);
     const L = drag.L;
+    const r0 = layerRect(L);
     if (drag.mode === 'move') {
       L.x = p.X - drag.dx;
       L.y = p.Y - drag.dy;
     } else {
       L.rot = drag.r0 + Math.atan2(p.Y - L.y, p.X - L.x) - drag.a0;
     }
-    render();
+    if (L.kind === 'bg' && !state.bgMode) { render(); return; }
+    const r1 = layerRect(L);
+    renderRect([Math.min(r0[0], r1[0]), Math.min(r0[1], r1[1]), Math.max(r0[2], r1[2]), Math.max(r0[3], r1[3])]);
   });
 
   const endDrag = (e) => {
@@ -2533,6 +2601,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Guide de création : planches de découpe à taille réelle et ordre de collage.
   async function exportGuide() {
     if (!state.comp) return;
+    try { await needJsPdf(); } catch (e) { console.warn(e); }
     if (!window.Guide || !window.jspdf) { notice(tr('Le module de création du guide n’a pas pu se charger. Rechargez la page.')); return; }
     const btn = $('guide');
     const label = btn.querySelector('span');
@@ -2750,6 +2819,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   async function exportPdf(comp, s) {
+    await needJsPdf();
     const { jsPDF } = window.jspdf;
     const W = comp.W, H = comp.H;
     const doc = new jsPDF({ unit: 'cm', format: [W, H], orientation: W >= H ? 'landscape' : 'portrait', compress: true });
@@ -4256,7 +4326,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, undo, redo, get view() { return view; } };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

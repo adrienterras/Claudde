@@ -84,8 +84,11 @@
     };
   }
 
+  // toujours le même papier (germe fixe) : calculé une fois, partagé par toutes les propositions
+  let paperTex = null;
   function paperTexture() {
-    const c = Extract.makeCanvas(1024, 1024);
+    if (paperTex && paperTex.width) return paperTex;
+    const c = paperTex = Extract.makeCanvas(1024, 1024);
     const ctx = c.getContext('2d');
     const img = ctx.createImageData(c.width, c.height);
     const R = rng(7);

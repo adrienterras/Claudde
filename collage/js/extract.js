@@ -110,7 +110,12 @@
   // les bords, et la surface (sol, table) n'occupe alors qu'une partie de la bordure.
   function surfaceBorder(d, w, h) {
     const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
-    const paperLike = (p) => { const i = p * 4, c = [d[i], d[i + 1], d[i + 2]]; return lum(c) > 205 && sat(c) < 0.16; };
+    const paperLike = (p) => {
+      const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      if (!(0.299 * r + 0.587 * g + 0.114 * b > 205)) return false;
+      const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      return (mx === 0 ? 0 : (mx - mn) / mx) < 0.16;
+    };
     let n = 0, paper = 0;
     forEachBorder(w, h, band, (p) => { n++; if (paperLike(p)) paper++; });
     const share = paper / Math.max(1, n);
@@ -125,32 +130,71 @@
     const D2 = Math.SQRT2;
     const d = new Float32Array(w * h);
     for (let i = 0; i < d.length; i++) d[i] = src[i] ? 0 : INF;
+    // (le minimum des mêmes candidats que Math.min, sans les tests de bord au milieu des lignes :
+    // c'est le calcul le plus répété de l'analyse)
+    let t, v, i;
     for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = y * w + x;
-        let v = d[i];
-        if (v === 0) continue;
-        if (x > 0) v = Math.min(v, d[i - 1] + 1);
-        if (y > 0) {
-          v = Math.min(v, d[i - w] + 1);
-          if (x > 0) v = Math.min(v, d[i - w - 1] + D2);
-          if (x < w - 1) v = Math.min(v, d[i - w + 1] + D2);
-        }
+      const row = y * w;
+      if (y === 0) {
+        for (let x = 1; x < w; x++) { i = x; v = d[i]; if (v === 0) continue; t = d[i - 1] + 1; if (t < v) d[i] = t; }
+        continue;
+      }
+      // x = 0
+      i = row; v = d[i];
+      if (v !== 0) {
+        t = d[i - w] + 1; if (t < v) v = t;
+        if (w > 1) { t = d[i - w + 1] + D2; if (t < v) v = t; }
         d[i] = v;
+      }
+      for (let x = 1; x < w - 1; x++) {
+        i = row + x; v = d[i];
+        if (v === 0) continue;
+        t = d[i - 1] + 1; if (t < v) v = t;
+        t = d[i - w] + 1; if (t < v) v = t;
+        t = d[i - w - 1] + D2; if (t < v) v = t;
+        t = d[i - w + 1] + D2; if (t < v) v = t;
+        d[i] = v;
+      }
+      if (w > 1) {
+        i = row + w - 1; v = d[i];
+        if (v !== 0) {
+          t = d[i - 1] + 1; if (t < v) v = t;
+          t = d[i - w] + 1; if (t < v) v = t;
+          t = d[i - w - 1] + D2; if (t < v) v = t;
+          d[i] = v;
+        }
       }
     }
     for (let y = h - 1; y >= 0; y--) {
-      for (let x = w - 1; x >= 0; x--) {
-        const i = y * w + x;
-        let v = d[i];
-        if (v === 0) continue;
-        if (x < w - 1) v = Math.min(v, d[i + 1] + 1);
-        if (y < h - 1) {
-          v = Math.min(v, d[i + w] + 1);
-          if (x < w - 1) v = Math.min(v, d[i + w + 1] + D2);
-          if (x > 0) v = Math.min(v, d[i + w - 1] + D2);
-        }
+      const row = y * w;
+      if (y === h - 1) {
+        for (let x = w - 2; x >= 0; x--) { i = row + x; v = d[i]; if (v === 0) continue; t = d[i + 1] + 1; if (t < v) d[i] = t; }
+        continue;
+      }
+      // x = w - 1
+      i = row + w - 1; v = d[i];
+      if (v !== 0) {
+        t = d[i + w] + 1; if (t < v) v = t;
+        if (w > 1) { t = d[i + w - 1] + D2; if (t < v) v = t; }
         d[i] = v;
+      }
+      for (let x = w - 2; x >= 1; x--) {
+        i = row + x; v = d[i];
+        if (v === 0) continue;
+        t = d[i + 1] + 1; if (t < v) v = t;
+        t = d[i + w] + 1; if (t < v) v = t;
+        t = d[i + w + 1] + D2; if (t < v) v = t;
+        t = d[i + w - 1] + D2; if (t < v) v = t;
+        d[i] = v;
+      }
+      if (w > 1) {
+        i = row; v = d[i];
+        if (v !== 0) {
+          t = d[i + 1] + 1; if (t < v) v = t;
+          t = d[i + w] + 1; if (t < v) v = t;
+          t = d[i + w + 1] + D2; if (t < v) v = t;
+          d[i] = v;
+        }
       }
     }
     return d;
@@ -175,14 +219,15 @@
   // Bouche les trous : tout ce qui n'est pas relié au bord par du vide devient plein.
   function fillHoles(mask, w, h) {
     const seen = new Uint8Array(w * h);
-    const stack = [];
+    const stack = new Int32Array(w * h); // chaque pixel n'y entre qu'une fois
+    let top = 0;
     const push = (i) => {
-      if (!mask[i] && !seen[i]) { seen[i] = 1; stack.push(i); }
+      if (!mask[i] && !seen[i]) { seen[i] = 1; stack[top++] = i; }
     };
     for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
     for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
-    while (stack.length) {
-      const i = stack.pop();
+    while (top) {
+      const i = stack[--top];
       const x = i % w;
       if (x > 0) push(i - 1);
       if (x < w - 1) push(i + 1);
@@ -197,30 +242,52 @@
   function components(mask, w, h) {
     const labels = new Int32Array(w * h);
     const comps = [];
-    const stack = [];
+    const stack = new Int32Array(w * h); // chaque pixel n'y entre qu'une fois
     let next = 1;
     for (let start = 0; start < mask.length; start++) {
       if (!mask[start] || labels[start]) continue;
-      const c = { id: next, area: 0, x0: w, y0: h, x1: 0, y1: 0 };
+      let area = 0, x0 = w, y0 = h, x1 = 0, y1 = 0, top = 0;
       labels[start] = next;
-      stack.push(start);
-      while (stack.length) {
-        const i = stack.pop();
+      stack[top++] = start;
+      while (top) {
+        const i = stack[--top];
         const x = i % w, y = (i - x) / w;
-        c.area++;
-        if (x < c.x0) c.x0 = x;
-        if (x > c.x1) c.x1 = x;
-        if (y < c.y0) c.y0 = y;
-        if (y > c.y1) c.y1 = y;
-        const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1];
-        for (const j of nb) {
-          if (j >= 0 && mask[j] && !labels[j]) { labels[j] = next; stack.push(j); }
-        }
+        area++;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+        let j;
+        if (x > 0) { j = i - 1; if (mask[j] && !labels[j]) { labels[j] = next; stack[top++] = j; } }
+        if (x < w - 1) { j = i + 1; if (mask[j] && !labels[j]) { labels[j] = next; stack[top++] = j; } }
+        if (y > 0) { j = i - w; if (mask[j] && !labels[j]) { labels[j] = next; stack[top++] = j; } }
+        if (y < h - 1) { j = i + w; if (mask[j] && !labels[j]) { labels[j] = next; stack[top++] = j; } }
       }
-      comps.push(c);
+      comps.push({ id: next, area, x0, y0, x1, y1 });
       next++;
     }
     return { labels, comps };
+  }
+
+  // Moyenne 3 × 3 d'un masque 0/1 (bord adouci d'un pixel) : les sommes sont entières, donc exactes
+  // quel que soit l'ordre ; seuls les bords de l'image ont moins de 9 voisins.
+  function softEdge(m, w, h) {
+    const out = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const edgeRow = y === 0 || y === h - 1;
+      for (let x = 0; x < w; x++) {
+        if (edgeRow || x === 0 || x === w - 1) {
+          let s = 0, c = 0;
+          for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= h) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= w) continue; s += m[yy * w + xx]; c++; } }
+          out[y * w + x] = s / c;
+          continue;
+        }
+        const i = y * w + x;
+        if (!(m[i - w - 1] | m[i - w] | m[i - w + 1] | m[i - 1] | m[i] | m[i + 1] | m[i + w - 1] | m[i + w] | m[i + w + 1])) continue; // 0 / 9 = 0
+        out[i] = (m[i - w - 1] + m[i - w] + m[i - w + 1] + m[i - 1] + m[i] + m[i + 1] + m[i + w - 1] + m[i + w] + m[i + w + 1]) / 9;
+      }
+    }
+    return out;
   }
 
   function boxBlur(a, w, h) {
@@ -299,7 +366,8 @@
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = d[i] - paper[0], dg = d[i + 1] - paper[1], db = d[i + 2] - paper[2];
       const q = dr * dr + dg * dg + db * db;
-      const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]);
+      const R = d[i], G = d[i + 1], B = d[i + 2];
+      const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
       if (mx - mn < 0.15 * mx) {
         // gris neutre : un reste d'ombre (pli, bord) reste à moins de ≈ 30 du papier ; un trait de
         // crayon descend plus bas
@@ -314,8 +382,11 @@
     while (stack.length) {
       const p = stack.pop();
       const x = p % w;
-      const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p >= w ? p - w : -1, p < n - w ? p + w : -1];
-      for (let k = 0; k < 4; k++) { const q = nb[k]; if (q >= 0 && weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
+      let q;
+      if (x > 0) { q = p - 1; if (weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
+      if (x < w - 1) { q = p + 1; if (weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
+      if (p >= w) { q = p - w; if (weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
+      if (p < n - w) { q = p + w; if (weak[q] && !ink[q]) { ink[q] = 1; stack.push(q); } }
     }
     return ink;
   }
@@ -344,9 +415,11 @@
       let total = 0;
       for (let y = gy * cell; y < Math.min(h, (gy + 1) * cell); y++) for (let x = gx * cell; x < Math.min(w, (gx + 1) * cell); x++) {
         total++;
-        const i = (y * w + x) * 4, c = [d[i], d[i + 1], d[i + 2]];
-        const l = lum(c);
-        if (l > 60 && sat(c) < 0.32) { idx.push(i); lv.push(l); }
+        const i = (y * w + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+        const l = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (l <= 60) continue;
+        const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+        if ((mx === 0 ? 0 : (mx - mn) / mx) < 0.32) { idx.push(i); lv.push(l); }
       }
       if (idx.length < total * 0.15) continue;
       const order = lv.map((l, k) => k).sort((p, q) => lv[p] - lv[q]);
@@ -460,16 +533,35 @@
     if (!inPlace) ctx.drawImage(src, 0, 0);
     const W = out.width, H = out.height;
     const img = ctx.getImageData(0, 0, W, H), px = img.data;
+    const X0 = new Int32Array(W), X1 = new Int32Array(W), TX = new Float64Array(W);
+    for (let x = 0; x < W; x++) {
+      const fx = Math.min(gw - 1, Math.max(0, x / cell - 0.5)), x0 = Math.floor(fx);
+      X0[x] = x0; X1[x] = Math.min(gw - 1, x0 + 1); TX[x] = fx - x0;
+    }
+    // gains interpolés en x le long des deux rangées de cases encadrant la ligne : recalculés quand
+    // ces rangées changent (toutes les ≈ 25 lignes), avec les mêmes opérations qu'avant
+    const TOP = new Float64Array(W * 3), BOT = new Float64Array(W * 3);
+    let rowY0 = -1, rowY1 = -1;
     for (let y = 0; y < H; y++) {
       const fy = Math.min(gh - 1, Math.max(0, y / cell - 0.5)), y0 = Math.floor(fy), y1 = Math.min(gh - 1, y0 + 1), ty = fy - y0;
-      for (let x = 0; x < W; x++) {
-        const fx = Math.min(gw - 1, Math.max(0, x / cell - 0.5)), x0 = Math.floor(fx), x1 = Math.min(gw - 1, x0 + 1), tx = fx - x0;
-        const a = (y0 * gw + x0) * 3, b = (y0 * gw + x1) * 3, c = (y1 * gw + x0) * 3, e = (y1 * gw + x1) * 3;
-        const i = (y * W + x) * 4;
-        for (let ch = 0; ch < 3; ch++) {
-          const top = gain[a + ch] + (gain[b + ch] - gain[a + ch]) * tx, bot = gain[c + ch] + (gain[e + ch] - gain[c + ch]) * tx;
-          px[i + ch] = px[i + ch] * (top + (bot - top) * ty);
+      if (y0 !== rowY0 || y1 !== rowY1) {
+        rowY0 = y0; rowY1 = y1;
+        for (let x = 0; x < W; x++) {
+          const x0 = X0[x], x1 = X1[x], tx = TX[x];
+          const a = (y0 * gw + x0) * 3, b = (y0 * gw + x1) * 3, c = (y1 * gw + x0) * 3, e = (y1 * gw + x1) * 3;
+          for (let ch = 0; ch < 3; ch++) {
+            TOP[x * 3 + ch] = gain[a + ch] + (gain[b + ch] - gain[a + ch]) * tx;
+            BOT[x * 3 + ch] = gain[c + ch] + (gain[e + ch] - gain[c + ch]) * tx;
+          }
         }
+      }
+      for (let x = 0, i = y * W * 4, k = 0; x < W; x++, i += 4, k += 3) {
+        let top = TOP[k], bot = BOT[k];
+        px[i] = px[i] * (top + (bot - top) * ty);
+        top = TOP[k + 1]; bot = BOT[k + 1];
+        px[i + 1] = px[i + 1] * (top + (bot - top) * ty);
+        top = TOP[k + 2]; bot = BOT[k + 2];
+        px[i + 2] = px[i + 2] * (top + (bot - top) * ty);
       }
     }
     ctx.putImageData(img, 0, 0);
@@ -561,7 +653,9 @@
     // zone autorisée : le sujet trouvé, un peu élargi (le reste de la page appartient à d'autres sujets)
     const kf = fw / bw;
     const region = new Uint8Array(fw * fh);
-    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) { const p = Math.min(bh - 1, Math.floor(y / kf)) * bw + Math.min(bw - 1, Math.floor(x / kf)); region[y * fw + x] = a[p]; }
+    const colF = new Int32Array(fw);
+    for (let x = 0; x < fw; x++) colF[x] = Math.min(bw - 1, Math.floor(x / kf));
+    for (let y = 0; y < fh; y++) { const r0 = Math.min(bh - 1, Math.floor(y / kf)) * bw, o = y * fw; for (let x = 0; x < fw; x++) region[o + x] = a[r0 + colF[x]]; }
     const funit = Math.max(fw, fh) / Math.max(bw, bh) * Math.max(seg.w, seg.h); // taille de la page entière, en pixels fins
     const allowed = dilate(region, fw, fh, funit * 0.012);
     const inkF = inkMask(fd, fw, fh, seg.paper, INK_DIST, seg.weakT || 30);
@@ -576,12 +670,7 @@
     const useFine = fmCount > regCount * 0.12;
     const alpha = useFine ? fm : region;
     // bord légèrement adouci (anti-crénelage), sans halo
-    const soft = new Float32Array(alpha.length);
-    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
-      let sum = 0, cnt = 0;
-      for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= fh) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= fw) continue; sum += alpha[yy * fw + xx]; cnt++; } }
-      soft[y * fw + x] = sum / cnt;
-    }
+    const soft = softEdge(alpha, fw, fh);
     const mc = makeCanvas(fw, fh);
     const mctx = ctx2d(mc);
     const mimg = mctx.createImageData(fw, fh);
@@ -699,8 +788,7 @@
     // (la surface est apprise sur le pourtour de la photo, loin de l'objet : une partie de l'objet
     // perdue par le masque grossier, juste à côté de lui, ne doit pas passer pour du sol)
     const edge = Math.max(2, Math.round(Math.min(W, H) * 0.06));
-    for (let p = 0, i = 0; p < N; p++, i += 4) {
-      const x = p % W, y = (p - x) / W;
+    for (let y = 0, p = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, p++, i += 4) {
       if (M[p] && dIn[p] > band && dIn[p] < band * 6) { hf[bin(i)]++; nf++; }
       else if (!M[p] && dOut[p] > band * 2 && (x < edge || y < edge || x >= W - edge || y >= H - edge)) { hb[bin(i)]++; nb++; }
     }
@@ -737,15 +825,14 @@
     const grow = [];
     for (let p = 0; p < N; p++) if (lab[p]) grow.push(p);
     const strong = (p) => { const k = bin(p * 4); return pf[k] > pb[k] * 4; };
+    const tryGrow = (q) => { if (!lab[q] && !M[q] && dOut[q] <= reach && strong(q)) { lab[q] = 1; grow.push(q); } };
     while (grow.length) {
       const p = grow.pop();
       const x = p % W;
-      const nb = [x > 0 ? p - 1 : -1, x < W - 1 ? p + 1 : -1, p >= W ? p - W : -1, p < N - W ? p + W : -1];
-      for (const q of nb) {
-        if (q < 0 || lab[q] || M[q] || dOut[q] > reach || !strong(q)) continue;
-        lab[q] = 1;
-        grow.push(q);
-      }
+      if (x > 0) tryGrow(p - 1);
+      if (x < W - 1) tryGrow(p + 1);
+      if (p >= W) tryGrow(p - W);
+      if (p < N - W) tryGrow(p + W);
     }
     // lissage : vote majoritaire 5 × 5, deux fois, le long des bords
     let cur = lab;
@@ -768,13 +855,7 @@
     const alpha = new Float32Array(N);
     for (let p = 0; p < N; p++) alpha[p] = labels[p] && keepIds.has(labels[p]) ? 1 : 0;
     // bord adouci d'un pixel (anti-crénelage)
-    const soft = new Float32Array(N);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let s = 0, c = 0;
-      for (let dy = -1; dy <= 1; dy++) { const yy = y + dy; if (yy < 0 || yy >= H) continue; for (let dx = -1; dx <= 1; dx++) { const xx = x + dx; if (xx < 0 || xx >= W) continue; s += alpha[yy * W + xx]; c++; } }
-      soft[y * W + x] = s / c;
-    }
-    return { alpha: soft, W, H };
+    return { alpha: softEdge(alpha, W, H), W, H };
   }
 
   // Part de son rectangle englobant (le mieux orienté) que remplit une forme : ≈ 1 pour une feuille
@@ -988,10 +1069,12 @@
     const obj = new Uint8Array(n), joint = new Uint8Array(n);
     let surfCount = 0, paperCount = 0;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
-      const c = chroma(i);
-      const dch = Math.hypot(c[0] - cr, c[1] - cg);
-      const l = lum([d[i], d[i + 1], d[i + 2]]);
-      const s = sat([d[i], d[i + 1], d[i + 2]]);
+      const R = d[i], G = d[i + 1], B = d[i + 2];
+      const t = R + G + B || 1;
+      const dch = Math.hypot(R / t - cr, G / t - cg);
+      const l = 0.299 * R + 0.587 * G + 0.114 * B;
+      const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
+      const s = mx === 0 ? 0 : (mx - mn) / mx;
       // même teinte que la surface, pas plus clair que sa tolérance ; en plus foncé on accepte
       // large (ombres portées, joints, veines) ; les joints très sombres perdent leur teinte
       const dark = l < L * 0.6 && (s < 0.45 || dch < cTol * 1.5) && dch < cTol * 2.2;
@@ -1047,11 +1130,12 @@
     const ownFill = (c) => c.area / ((c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1));
     const keep = comps.filter((c) => c.area >= 0.03 * n && (c === biggest || (c.area >= 0.3 * biggest.area && ownFill(c) >= 0.35)));
     if (!keep.length) return null;
-    const ids = new Set(keep.map((c) => c.id));
     // un dessin posé sur un sol est une forme pleine (feuille ou découpe) ; des traits sur une feuille
     // de couleur ne remplissent qu'une petite part de la forme que la fermeture leur donne
+    const kept = new Uint8Array(comps.length + 2); // étiquette → forme gardée
+    keep.forEach((c) => { kept[c.id] = 1; });
     let raw = 0, closed = 0;
-    for (let p = 0; p < n; p++) if (mask[p] && ids.has(labels[p])) { closed++; if (obj[p]) raw++; }
+    for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) { closed++; if (obj[p]) raw++; }
     const solid = raw / Math.max(1, closed);
     Object.assign(removeSurface.debug, { solid: +solid.toFixed(2) });
     if (solid < 0.6 && !force) return null;
@@ -1086,33 +1170,35 @@
     const fillBox = area / ((x1 - x0 + 1) * (y1 - y0 + 1));
     if (!force && fillBox < 0.4 && !(fillBox >= 0.2 && solid >= 0.85 && lines >= 1)) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
-    const finMask = new Uint8Array(mask.map((v, i) => (v && ids.has(labels[i]) ? 1 : 0)));
+    const finMask = new Uint8Array(n);
+    for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) finMask[p] = 1;
     if (wood) {
       // du bois clair pris pour du papier : tout ce qui a la teinte du bois et touche le bord de la photo
       // par une chaîne de pixels de bois est rendu à la surface (un trait orange sur la feuille, isolé
       // dans le blanc, n'est pas touché)
       const woodish = new Uint8Array(n);
       for (let p = 0, i = 0; p < n; p++, i += 4) {
-        const c = [d[i], d[i + 1], d[i + 2]];
-        const mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
-        if (mx === mn || sat(c) < 0.28 || lum(c) > 235) continue;
-        let hh = mx === c[0] ? ((c[1] - c[2]) / (mx - mn)) % 6 : mx === c[1] ? (c[2] - c[0]) / (mx - mn) + 2 : (c[0] - c[1]) / (mx - mn) + 4;
+        const R = d[i], G = d[i + 1], B = d[i + 2];
+        const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
+        if (mx === mn || (mx === 0 ? 0 : (mx - mn) / mx) < 0.28 || 0.299 * R + 0.587 * G + 0.114 * B > 235) continue;
+        let hh = mx === R ? ((G - B) / (mx - mn)) % 6 : mx === G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
         hh = (hh * 60 + 360) % 360;
         if (hh >= 8 && hh <= 52) woodish[p] = 1;
       }
       const seen = new Uint8Array(n);
       const stack = [];
       forEachBorder(w, h, 1, (p) => { if (woodish[p] && !seen[p]) { seen[p] = 1; stack.push(p); } });
+      // (on ne franchit pas un net changement de couleur : le bord d'un objet orangé ou brun)
+      const step = (p, q) => {
+        if (woodish[q] && !seen[q] && Math.abs(d[q * 4] - d[p * 4]) + Math.abs(d[q * 4 + 1] - d[p * 4 + 1]) + Math.abs(d[q * 4 + 2] - d[p * 4 + 2]) < 70) { seen[q] = 1; stack.push(q); }
+      };
       while (stack.length) {
         const p = stack.pop();
         const x = p % w, y = (p - x) / w;
-        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
-          const nx = x + dx, ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
-          const q = ny * w + nx;
-          // (on ne franchit pas un net changement de couleur : le bord d'un objet orangé ou brun)
-          if (woodish[q] && !seen[q] && Math.abs(d[q * 4] - d[p * 4]) + Math.abs(d[q * 4 + 1] - d[p * 4 + 1]) + Math.abs(d[q * 4 + 2] - d[p * 4 + 2]) < 70) { seen[q] = 1; stack.push(q); }
-        });
+        if (x + 1 < w) step(p, p + 1);
+        if (x > 0) step(p, p - 1);
+        if (y + 1 < h) step(p, p + w);
+        if (y > 0) step(p, p - w);
       }
       for (let p = 0; p < n; p++) if (seen[p]) finMask[p] = 0;
     }

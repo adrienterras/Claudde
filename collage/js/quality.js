@@ -44,10 +44,25 @@
     return { g, w, h, neutral };
   }
 
+  // Centile : la valeur de rang k du tableau trié, trouvée par sélection (sans trier le tout).
   function percentile(arr, p) {
     if (!arr.length) return NaN;
-    const a = Float32Array.from(arr).sort();
-    return a[Math.min(a.length - 1, Math.max(0, Math.floor(p * (a.length - 1))))];
+    const a = Float32Array.from(arr);
+    const k = Math.min(a.length - 1, Math.max(0, Math.floor(p * (a.length - 1))));
+    let lo = 0, hi = a.length - 1;
+    while (lo < hi) {
+      const pivot = a[(lo + hi) >> 1];
+      let i = lo, j = hi;
+      while (i <= j) {
+        while (a[i] < pivot) i++;
+        while (a[j] > pivot) j--;
+        if (i <= j) { const t = a[i]; a[i] = a[j]; a[j] = t; i++; j--; }
+      }
+      if (k <= j) hi = j;
+      else if (k >= i) lo = i;
+      else break; // entre j et i : des valeurs égales au pivot
+    }
+    return a[k];
   }
 
   // Netteté : médiane, sur les 3 % de pixels au plus fort gradient, de gradient / amplitude 5×5.

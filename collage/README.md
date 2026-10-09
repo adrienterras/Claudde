@@ -309,7 +309,19 @@ Exporter. Rien n’est jamais bloqué.
   Palette : craie #F8F5EF, lin #DCCBB8, blush #D9A7A0, argile #C26F56, olive #6B6F4E ; typographies
   Playfair Display et Montserrat.
 - `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (Apache 2.0) pour lire les PDF,
-  [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide.
+  [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide. Chargés à la demande
+  (premier PDF importé, premier PDF exporté) : la page s'ouvre sans ces 680 Ko.
+
+### Performances
+
+Les optimisations ne changent aucun pixel :
+- analyse : les boucles par pixel (distance aux formes, composantes, égalisation de la lumière,
+  détection de la surface) calculent les mêmes valeurs, sans tableau créé par pixel ni test de bord
+  au milieu des lignes ; un centile est trouvé par sélection plutôt que par un tri complet. Contrôle :
+  empreinte de chaque page et de chaque découpe sur un jeu de vrais scans, identique avant et après ;
+- propositions : la texture du papier (toujours la même) est calculée une fois ;
+- glissement d'une pièce : seul le rectangle qu'elle quitte et celui qu'elle occupe sont redessinés,
+  avec les mêmes opérations découpées au rectangle (test : image identique à un rendu complet).
 
 ## Mise en ligne
 

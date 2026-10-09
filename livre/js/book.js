@@ -20,7 +20,25 @@
   const track = (name, props) => { try { if (window.Atelier && window.Atelier.track) window.Atelier.track(name, props); } catch (e) { /* ignoré */ } };
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const fmtNum = (v) => (Math.round(v * 10) / 10).toLocaleString(window.I18n ? I18n.locale : 'fr-FR');
-  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = '../atelier/vendor/pdf.worker.min.js';
+  // Bibliothèques PDF chargées à la demande : la page s'ouvre sans elles (680 Ko de moins)
+  const scripts = new Map();
+  function loadScript(src) {
+    if (!scripts.has(src)) {
+      scripts.set(src, new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src;
+        el.onload = () => resolve();
+        el.onerror = () => { scripts.delete(src); el.remove(); reject(new Error(src)); };
+        document.head.appendChild(el);
+      }));
+    }
+    return scripts.get(src);
+  }
+  async function needPdfJs() {
+    if (!window.pdfjsLib) await loadScript('../atelier/vendor/pdf.min.js');
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc = '../atelier/vendor/pdf.worker.min.js';
+  }
+  const needJsPdf = async () => { if (!window.jspdf) await loadScript('../atelier/vendor/jspdf.umd.min.js'); };
 
   const FORMATS = {
     a4p: { w: 21, h: 29.7, name: tr('A4 portrait') },
@@ -104,6 +122,7 @@
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
     const base = file.name.replace(/\.[a-z0-9]+$/i, '');
     if (isPdf) {
+      try { await needPdfJs(); } catch (e) { console.warn(e); }
       if (!window.pdfjsLib) throw new Error(tr('lecteur PDF indisponible'));
       const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
       const out = [];
@@ -641,6 +660,9 @@
 
   $('export').onclick = async () => {
     if (!state.drawings.length || state.busy) return;
+    state.busy = true; // (un second clic pendant le chargement de la bibliothèque ne relance rien)
+    try { await needJsPdf(); } catch (e) { console.warn(e); }
+    state.busy = false;
     if (!window.jspdf) { status(tr('La bibliothèque PDF n’a pas pu être chargée. Rechargez la page.')); return; }
     const btn = $('export');
     btn.disabled = true;

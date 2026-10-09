@@ -821,3 +821,35 @@ test.describe('Réponses tardives de Claude', () => {
     expect(after.items).toEqual(before);
   });
 });
+
+test.describe('Rendu pendant un glissement', () => {
+  test('ne redessiner que la zone de la pièce donne exactement l’image complète', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const pixels = () => page.evaluate(async () => {
+      const c = document.getElementById('canvas');
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      const h = await crypto.subtle.digest('SHA-1', d);
+      return [...new Uint8Array(h)].map((x) => x.toString(16).padStart(2, '0')).join('');
+    });
+    for (const style of ['paysage', 'tournesol']) {
+      await app.select(style);
+      await frames();
+      const pt = await page.evaluate(() => {
+        const A = AtelierGribouille, v = A.view, L = A.state.comp.items[0];
+        const r = document.getElementById('canvas').getBoundingClientRect();
+        return { x: r.left + (L.x * v.s + v.ox) / v.dpr, y: r.top + (L.y * v.s + v.oy) / v.dpr };
+      });
+      await page.mouse.move(pt.x, pt.y);
+      await page.mouse.down();
+      for (let j = 1; j <= 12; j++) { await page.mouse.move(pt.x + j * 9, pt.y + j * 5); await frames(); }
+      await page.mouse.up();
+      await frames();
+      const partial = await pixels();
+      await page.evaluate(() => AtelierGribouille.render());
+      await frames();
+      expect(await pixels()).toBe(partial);
+    }
+  });
+});
