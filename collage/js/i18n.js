@@ -48,7 +48,7 @@
     'Se déconnecter': 'Sign out',
     'Supprimer le compte efface définitivement vos compositions et dessins enregistrés dans le cloud. Les sauvegardes de cet appareil ne sont pas touchées.': 'Deleting the account permanently erases the compositions and drawings stored in the cloud. The saves on this device are not affected.',
     'Importer': 'Import',
-    'Déposez vos scans': 'Drop your scans',
+    'Déposez les photos ou les scans des dessins': 'Drop the photos or scans of the drawings',
     'PDF de plusieurs pages, JPG ou PNG': 'Multi-page PDF, JPG or PNG',
     'Pas de scans sous la main ?': 'No scans at hand?',
     'Essayer avec les dessins d’exemple': 'Try the sample drawings',

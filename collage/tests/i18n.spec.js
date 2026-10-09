@@ -10,7 +10,7 @@ test.describe('langues', () => {
     await page.waitForFunction(() => window.AtelierGribouille && window.I18n);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('#import-section h2')).toContainText('Import');
-    await expect(page.locator('#drop strong')).toHaveText('Drop your scans');
+    await expect(page.locator('#drop strong')).toHaveText('Drop the photos or scans of the drawings');
     await expect(page.locator('#export')).toContainText('Download the artwork');
     // deux sélecteurs : celui du carnet (grand écran) et celui du bandeau (téléphone)
     await expect(page.locator('.brand [data-lang="en"]')).toHaveAttribute('aria-pressed', 'true');
