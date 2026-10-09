@@ -72,13 +72,7 @@
     document.body.classList.add('editing');
     setTool('erase');
     requestAnimationFrame(() => { fit(); history(); });
-    const tip = $('ed-tip');
-    if (tip && window.matchMedia('(max-width: 860px), (pointer: coarse)').matches) {
-      tip.hidden = false;
-      tip.classList.remove('fade');
-      clearTimeout(tip._t);
-      tip._t = setTimeout(() => { tip.classList.add('fade'); tip._t = setTimeout(() => { tip.hidden = true; }, 450); }, 3200);
-    }
+    if (window.matchMedia('(max-width: 860px), (pointer: coarse)').matches) tip(tr('Pincez pour zoomer · glissez à deux doigts pour vous déplacer'));
   }
 
   // ---------- Lumière et couleurs ----------
@@ -227,7 +221,7 @@
       ctx.stroke();
     }
     // aperçu du pinceau
-    if (S.cursor && S.tool !== 'pan' && !S.space) {
+    if (S.cursor && S.tool !== 'pan' && S.tool !== 'wand' && !S.space) {
       ctx.beginPath();
       ctx.arc(S.cursor.x, S.cursor.y, (S.size * dpr) / 2, 0, Math.PI * 2);
       ctx.lineWidth = 1.5 * dpr;
@@ -248,8 +242,74 @@
       b.classList.toggle('on', b.dataset.tool === t);
       b.setAttribute('aria-pressed', b.dataset.tool === t ? 'true' : 'false');
     });
-    $('ed-canvas').style.cursor = t === 'pan' ? 'grab' : 'none';
+    $('ed-canvas').style.cursor = toolCursor();
+    // la baguette se règle en sensibilité, la gomme et le pinceau en taille
+    document.querySelector('#editor .ed-size:not(.ed-tol)').hidden = t === 'wand';
+    document.querySelector('#editor .ed-tol').hidden = t !== 'wand';
+    if (t === 'wand') tip(tr('Touchez une zone : dans la découpe, elle est retirée ; à côté, elle est ajoutée.'));
     render();
+  }
+
+  const toolCursor = () => (S && S.tool === 'pan' ? 'grab' : S && S.tool === 'wand' ? 'crosshair' : 'none');
+
+  // ---------- Baguette magique ----------
+
+  // Message bref en haut du dessin
+  function tip(text) {
+    const el = $('ed-tip');
+    if (!el) return;
+    el.textContent = text;
+    el.hidden = false;
+    el.classList.remove('fade');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.classList.add('fade'); el._t = setTimeout(() => { el.hidden = true; }, 450); }, 3200);
+  }
+
+  /*
+   * Comme dans Photoshop : à partir du point touché, toute la zone d'un seul tenant dont la couleur
+   * reste proche de celle du point (écart inférieur à la sensibilité) est prise. Touchée dans la
+   * découpe, la zone en est retirée (élargie d'un pixel, pour ne pas laisser de liseré) ; touchée à
+   * côté, elle y est ajoutée.
+   */
+  function wand(x, y) {
+    const { R } = S;
+    const xi = Math.floor(x), yi = Math.floor(y);
+    if (xi < 0 || yi < 0 || xi >= R.w || yi >= R.h) return 0;
+    if (!S.imgData) S.imgData = S.img.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, R.w, R.h).data;
+    const d = S.imgData, W = R.w, N = R.w * R.h;
+    const mctx = S.mask.getContext('2d', { willReadFrequently: true });
+    const mimg = mctx.getImageData(0, 0, W, R.h), ma = mimg.data;
+    const seed = yi * W + xi;
+    const remove = ma[seed * 4 + 3] > 127;
+    const tol = Number($('ed-tol').value) * 1.8, T2 = tol * tol;
+    const r0 = d[seed * 4], g0 = d[seed * 4 + 1], b0 = d[seed * 4 + 2];
+    const sel = new Uint8Array(N);
+    const stack = [seed];
+    sel[seed] = 1;
+    let n = 0;
+    while (stack.length) {
+      const p = stack.pop();
+      n++;
+      const px = p % W;
+      const nb = [px > 0 ? p - 1 : -1, px < W - 1 ? p + 1 : -1, p >= W ? p - W : -1, p < N - W ? p + W : -1];
+      for (const q of nb) {
+        if (q < 0 || sel[q]) continue;
+        const i = q * 4, dr = d[i] - r0, dg = d[i + 1] - g0, db = d[i + 2] - b0;
+        if (dr * dr + dg * dg + db * db <= T2) { sel[q] = 1; stack.push(q); }
+      }
+    }
+    pushUndo();
+    for (let p = 0; p < N; p++) {
+      if (sel[p]) { ma[p * 4 + 3] = remove ? 0 : 255; continue; }
+      if (!remove) continue;
+      // retrait élargi d'un pixel
+      const px = p % W;
+      if ((px > 0 && sel[p - 1]) || (px < W - 1 && sel[p + 1]) || (p >= W && sel[p - W]) || (p < N - W && sel[p + W])) ma[p * 4 + 3] = 0;
+    }
+    mctx.putImageData(mimg, 0, 0);
+    S.dirty = true;
+    render();
+    return remove ? -n : n;
   }
 
   function history() {
@@ -329,6 +389,7 @@
     const p = toLocal(e);
     S.pointers.set(e.pointerId, p);
     if (S.pointers.size === 2) {
+      S.wandTap = null;
       // deux doigts : on abandonne le trait commencé et on passe en zoom / déplacement
       if (S.stroke) { undo(); S.redo.pop(); history(); S.stroke = null; S.loupe = false; }
       const [a, b] = [...S.pointers.values()];
@@ -337,6 +398,7 @@
     }
     const pan = S.tool === 'pan' || S.space || e.button === 1 || e.button === 2;
     if (pan) { S.drag = { px: p.px, py: p.py }; c.style.cursor = 'grabbing'; return; }
+    if (S.tool === 'wand') { S.wandTap = { id: e.pointerId, px: p.px, py: p.py, x: p.x, y: p.y }; return; }
     pushUndo();
     S.stroke = { tool: S.tool, last: p };
     // au doigt, une loupe montre au-dessus ce qui est sous le doigt
@@ -376,11 +438,18 @@
 
   function onUp(e) {
     if (!S) return;
+    const tap = S.wandTap;
+    if (tap && tap.id === e.pointerId) {
+      S.wandTap = null;
+      const p = toLocal(e);
+      const dpr = window.devicePixelRatio || 1;
+      if (Math.hypot(p.px - tap.px, p.py - tap.py) < 12 * dpr) wand(tap.x, tap.y);
+    }
     S.pointers.delete(e.pointerId);
     if (S.pointers.size < 2) S.pinch = null;
     S.stroke = null;
     if (S.loupe) { S.loupe = false; if (e.pointerType === 'touch') S.cursor = null; render(); }
-    if (S.drag) { S.drag = null; $('ed-canvas').style.cursor = S.tool === 'pan' ? 'grab' : 'none'; }
+    if (S.drag) { S.drag = null; $('ed-canvas').style.cursor = toolCursor(); }
   }
 
   // ---------- Validation ----------
@@ -461,6 +530,7 @@
     }, { passive: false });
     document.querySelectorAll('#editor [data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
     $('ed-size').addEventListener('input', (e) => { if (S) { S.size = Number(e.target.value); render(); } });
+    $('ed-tol').addEventListener('input', (e) => { $('ed-tol-val').textContent = e.target.value; });
     const center = (f) => { const { w, h } = canvasSize(); zoomAt(f, w / 2, h / 2); };
     $('ed-zin').onclick = () => center(1.3);
     $('ed-zout').onclick = () => center(1 / 1.3);
@@ -493,6 +563,7 @@
       else if (e.key === 'e' || e.key === 'E') setTool('erase');
       else if (e.key === 'r' || e.key === 'R') setTool('restore');
       else if (e.key === 'h' || e.key === 'H') setTool('pan');
+      else if (e.key === 'w' || e.key === 'W') setTool('wand');
       else if (e.key === '[' || e.key === ']') {
         const s = $('ed-size');
         s.value = Math.max(Number(s.min), Math.min(Number(s.max), Number(s.value) + (e.key === ']' ? 6 : -6)));
@@ -502,10 +573,10 @@
       e.stopPropagation();
     }, true);
     window.addEventListener('keyup', (e) => {
-      if (S && e.key === ' ') { S.space = false; $('ed-canvas').style.cursor = S.tool === 'pan' ? 'grab' : 'none'; render(); }
+      if (S && e.key === ' ') { S.space = false; $('ed-canvas').style.cursor = toolCursor(); render(); }
     });
   }
 
   init();
-  window.Editor = { open, isOpen: () => !!S, loupe: () => !!(S && S.loupe) };
+  window.Editor = { open, isOpen: () => !!S, loupe: () => !!(S && S.loupe), wand: (x, y) => (S ? wand(x, y) : 0) };
 })();

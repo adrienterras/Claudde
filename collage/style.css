@@ -745,6 +745,8 @@ body.editing { overflow: hidden; }
 .ed-tools button.on { background: var(--ink); color: var(--on-ink); font-weight: 600; }
 .ed-size { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--ink-2); }
 .ed-size input { width: 120px; }
+.ed-size[hidden] { display: none; }
+.ed-tol output { min-width: 2ch; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.78rem; }
 .ed-group { display: inline-flex; align-items: center; gap: 4px; }
 .ed-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -777,7 +779,7 @@ body.editing { overflow: hidden; }
 .ed-tip {
   position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 2; margin: 0;
   padding: 8px 14px; border-radius: 999px; background: rgba(28, 27, 21, .82); color: #f8f5ef;
-  font-size: 0.8rem; white-space: nowrap; pointer-events: none; transition: opacity .4s;
+  font-size: 0.8rem; width: max-content; max-width: calc(100% - 24px); box-sizing: border-box; text-align: center; pointer-events: none; transition: opacity .4s;
 }
 .ed-tip.fade { opacity: 0; }
 .ed-tone-toggle.on, .ed-tone-toggle.on:hover:not(:disabled) { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
@@ -809,8 +811,8 @@ body.editing { overflow: hidden; }
   .ed-foot .btn { flex: 0 0 auto; padding: 9px 18px; }
   .ed-foot #ed-apply { margin-left: auto; }
   .ed-msg { order: 3; }
-  .ed-tools { flex-basis: 100%; display: grid; grid-template-columns: repeat(3, 1fr); }
-  .ed-tools button { justify-content: center; padding: 10px 6px; font-size: 0.86rem; }
+  .ed-tools { flex-basis: 100%; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .ed-tools button { justify-content: center; gap: 4px; padding: 10px 2px; font-size: 0.8rem; }
   .ed-size { flex-basis: 100%; }
   .ed-size input { flex: 1; width: auto; min-width: 0; height: 28px; }
   .ed-group .ed-btn { height: 38px; min-width: 38px; }

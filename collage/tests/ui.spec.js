@@ -702,3 +702,79 @@ test.describe('Panier relu du navigateur', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('Baguette magique', () => {
+  test('dans la découpe une zone de couleur est retirée, à côté elle est ajoutée ; la sensibilité règle son étendue', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const big = () => page.evaluate(() => { const ps = AtelierGribouille.state.drawings[0].analysis.pieces; return ps.indexOf(ps.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
+    const k = await big();
+    const opaque = () => page.evaluate((k) => {
+      const c = AtelierGribouille.state.drawings[0].analysis.pieces[k].canvas;
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 127) n++; return n;
+    }, k);
+    const open = () => page.evaluate((k) => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[k]), k);
+    // un point de la pièce, en pixels de page : le rouge du corps, et un point de papier hors découpe
+    const pts = await page.evaluate((k) => {
+      const d = AtelierGribouille.state.drawings[0], p = d.analysis.pieces[k], c = p.canvas;
+      const px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let red = null;
+      for (let y = 0; y < c.height && !red; y += 2) for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; if (px[i + 3] > 250 && px[i] > 180 && px[i + 1] < 90 && px[i + 2] < 90) { red = { x: p.src.x + x, y: p.src.y + y }; break; } }
+      return { red, paper: { x: 8, y: 8 } };
+    }, k);
+    expect(pts.red).not.toBeNull();
+    const n0 = await opaque();
+    await open();
+    await page.locator('#editor [data-tool="wand"]').click();
+    await expect(page.locator('#ed-tol')).toBeVisible();
+    await expect(page.locator('#ed-size')).toBeHidden();
+    await page.locator('#ed-tol').fill('20');
+    // dans la découpe : retirée
+    expect(await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red)).toBeLessThan(0);
+    await page.locator('#ed-apply').click();
+    const n1 = await opaque();
+    expect(n1).toBeLessThan(n0 * 0.95);
+    // annuler dans la fenêtre : rien ne change à la validation
+    await open();
+    await page.locator('#editor [data-tool="wand"]').click();
+    await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red);
+    await page.locator('#ed-undo').click();
+    await page.locator('#ed-apply').click();
+    expect(Math.abs((await opaque()) - n1)).toBeLessThan(n1 * 0.01);
+    // à côté, sur le papier : ajoutée (et d'autant plus large que la sensibilité est forte)
+    await open();
+    await page.locator('#editor [data-tool="wand"]').click();
+    await page.locator('#ed-tol').fill('5');
+    const small = await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.paper);
+    await page.locator('#ed-undo').click();
+    await page.locator('#ed-tol').fill('40');
+    const large = await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.paper);
+    expect(small).toBeGreaterThan(0);
+    expect(large).toBeGreaterThanOrEqual(small);
+    await page.locator('#ed-cancel').click();
+  });
+
+  test('sur téléphone : un toucher sur le dessin applique la baguette', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
+    await page.locator('#editor [data-tool="wand"]').click();
+    await expect(page.locator('#ed-tip')).toContainText('retirée');
+    await expect(page.locator('#ed-undo')).toBeDisabled();
+    const box = await page.locator('#ed-canvas').boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(page.locator('#ed-undo')).toBeEnabled(); // la baguette a agi (défaire possible)
+    await ctx.close();
+  });
+});

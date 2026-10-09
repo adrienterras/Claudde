@@ -250,6 +250,9 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
 5. **Retoucher une découpe** : bouton « Retoucher » (ou double-clic sur une pièce de l'œuvre, ou ciseaux
    sur la vignette d'une pièce). Éditeur plein écran avec zoom (molette, pincement, + / −), gomme,
    pinceau « restaurer » qui remet le dessin d'origine (y compris autour de la découpe initiale),
+   **baguette magique** (W) réglable en sensibilité : la zone d'un seul tenant de couleur proche du
+   point touché est retirée de la découpe si on la touche dedans (élargie d'un pixel, sans liseré),
+   ajoutée si on la touche à côté ; sur téléphone elle agit au relâché d'un toucher immobile,
    défaire / refaire (Ctrl+Z), « Découpe automatique » (revient à la découpe faite par l'atelier), et panneau **« Lumière et couleurs »**
    (luminosité, contraste, saturation, ajustement automatique) avec aperçu direct. Le trait de coupe
    magenta est affiché en direct ; en validant, la pièce est mise à jour dans les trois propositions
