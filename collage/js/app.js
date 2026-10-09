@@ -134,7 +134,7 @@
           release: () => pdf.destroy(),
         });
       }
-    } else if (file.type.startsWith('image/')) {
+    } else if ((file.type || '').startsWith('image/') || isHeic(file)) {
       pages.push({
         name: file.name,
         source: { file, index: 0 },
@@ -163,8 +163,11 @@
 
   // Décode une image en respectant l'orientation EXIF. Les très grandes images passent par un
   // élément <img>, que le navigateur sait décoder sans tout garder en mémoire, sinon par ImageBitmap.
+  // Les photos HEIC de l'iPhone arrivent telles quelles (sans conversion par le téléphone, qui
+  // faisait patienter le sélecteur de photos) : Safari les décode, de préférence par <img>.
+  const isHeic = (f) => /^image\/hei[cf]/i.test(f.type || '') || /\.hei[cf]$/i.test(f.name || '');
   async function decodeImage(file) {
-    if (file.size > 12e6) {
+    const viaImg = async () => {
       const url = URL.createObjectURL(file);
       try {
         const img = new Image();
@@ -172,13 +175,17 @@
         img.src = url;
         await img.decode();
         return { img, w: img.naturalWidth, h: img.naturalHeight, close: () => { img.src = ''; URL.revokeObjectURL(url); } };
-      } catch (e) {
-        URL.revokeObjectURL(url);
-        console.warn('décodage <img> impossible, essai ImageBitmap', e);
-      }
+      } catch (e) { URL.revokeObjectURL(url); throw e; }
+    };
+    const viaBitmap = async () => {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      return { img: bmp, w: bmp.width, h: bmp.height, close: () => bmp.close && bmp.close() };
+    };
+    const [first, second] = file.size > 12e6 || isHeic(file) ? [viaImg, viaBitmap] : [viaBitmap, viaImg];
+    try { return await first(); } catch (e) {
+      console.warn('premier décodage impossible, second essai', e);
+      return second();
     }
-    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    return { img: bmp, w: bmp.width, h: bmp.height, close: () => bmp.close && bmp.close() };
   }
 
   // Vignette ; en PNG pour les pièces découpées, qui ont un fond transparent.
@@ -835,6 +842,8 @@
       el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
+        // choisir un dessin dans la liste ne sélectionne rien sur l'œuvre (et retire la sélection en cours)
+        if (state.selected) { state.selected = null; updateToolbar(); render(); }
         refreshLists();
         // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier
         if (state.current && mobileQuery.matches) {
@@ -3156,12 +3165,18 @@ Réponds uniquement avec ce JSON :
   const HD_SAVE = 3508; // page de PDF sauvegardée à 300 dpi sur un A4
   async function sourceBytes(d) {
     const src = d.source;
-    if (src && src.file && src.file.type && src.file.type.startsWith('image/')) return { data: await src.file.arrayBuffer(), type: src.file.type };
+    if (src && src.file && src.file.type && src.file.type.startsWith('image/') && !isHeic(src.file)) return { data: await src.file.arrayBuffer(), type: src.file.type };
+    // une photo HEIC est sauvegardée en JPEG (lisible partout, y compris sur un autre ordinateur),
+    // convertie une seule fois
+    if (d.savedJpeg) return d.savedJpeg;
     if (src && src.file) {
       try {
-        const r = await renderSource(src, Math.min(HD_SOURCE_MAX(), HD_SAVE));
-        const blob = await toBlob(r.canvas, 'image/jpeg', 0.92);
-        return { data: await blob.arrayBuffer(), type: 'image/jpeg' };
+        const heic = isHeic(src.file);
+        const r = await renderSource(src, Math.min(HD_SOURCE_MAX(), HD_SAVE, heic ? 3000 : Infinity));
+        const blob = await toBlob(r.canvas, 'image/jpeg', heic ? 0.9 : 0.92);
+        const out = { data: await blob.arrayBuffer(), type: 'image/jpeg' };
+        if (heic) d.savedJpeg = out;
+        return out;
       } catch (e) { console.warn('source haute définition illisible, image de travail sauvegardée', e); }
     }
     const blob = await toBlob(d.original, 'image/jpeg', 0.92);

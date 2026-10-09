@@ -518,3 +518,40 @@ test.describe('Réglage automatique de l’image', () => {
     for (const t of [r.terne, r.crayon]) for (const k of ['b', 'c']) expect(Math.abs(t[k])).toBeLessThanOrEqual(35);
   });
 });
+
+test.describe('Liste des dessins et photos de l’iPhone', () => {
+  test('choisir un dessin dans la liste ne sélectionne rien sur l’œuvre ; une photo HEIC est importée et sauvegardée en JPEG', async ({ page }) => {
+    const fs = require('fs');
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    // le sélecteur accepte les HEIC tels quels (l'iPhone ne les convertit plus avant de rendre la main)
+    expect(await page.locator('#file').getAttribute('accept')).toContain('image/heic');
+    // (Chromium ne lit pas le HEIC : un PNG déclaré HEIC suffit à vérifier le chemin suivi)
+    await page.setInputFiles('#file', [
+      { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: fs.readFileSync(fixture('page-cutout.png')) },
+      { name: 'page-two.png', mimeType: 'image/png', buffer: fs.readFileSync(fixture('page-two.png')) },
+    ]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // sélection sur l'œuvre, puis un dessin choisi dans la liste : plus rien n'est sélectionné
+    await page.evaluate(() => { const s = AtelierGribouille.state; s.selected = s.comp.items[0]; AtelierGribouille.render(); });
+    await page.locator('#drawings-section > h2').click();
+    await page.locator('#drawings .thumb').nth(1).click();
+    await expect(page.locator('#detail')).toBeVisible();
+    expect(await page.evaluate(() => AtelierGribouille.state.selected)).toBeNull();
+    await expect(page.locator('#toolbar [data-act="dup"]')).toBeDisabled();
+    // le brouillon garde la photo HEIC en JPEG, lisible sur n'importe quel navigateur
+    let type = null;
+    for (let i = 0; i < 60 && !type; i++) {
+      type = await page.evaluate(() => new Promise((res) => {
+        const q = indexedDB.open('atelier-gribouille', 1);
+        q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result ? g.result.drawings[0].type : null); g.onerror = () => res(null); };
+        q.onerror = () => res(null);
+      }));
+      if (!type) await page.waitForTimeout(500);
+    }
+    expect(type).toBe('image/jpeg');
+    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+});

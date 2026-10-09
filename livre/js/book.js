@@ -129,7 +129,7 @@
       }
       return out;
     }
-    if (file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(file.name)) {
+    if (file.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|hei[cf])$/i.test(file.name)) {
       return [{
         name: base,
         render: async () => {
