@@ -869,7 +869,7 @@
           ${[['b', tr('Luminosité')], ['c', tr('Contraste')], ['s', tr('Saturation')]].map(([k, label]) => `<label class="row"><span>${label}</span>
             <input type="range" min="-50" max="50" step="1" value="${(d.tone && d.tone[k]) || 0}" data-tone="${k}"><output>${toneText((d.tone && d.tone[k]) || 0)}</output></label>`).join('')}
           <div class="tone-actions">
-            <button type="button" class="btn btn-sm" data-tone-auto title="${tr('Régler luminosité, contraste et saturation d’après l’analyse du dessin')}"><svg class="ico"><use href="#i-spark"/></svg><span>${tr('Ajuster automatiquement')}</span></button>
+            <button type="button" class="btn btn-sm tone-auto" data-tone-auto title="${tr('Régler luminosité, contraste et saturation d’après l’analyse du dessin')}"><svg class="ico"><use href="#i-spark"/></svg><span>${tr('Ajuster automatiquement')}</span></button>
             <button type="button" class="link" data-tone-reset ${hasTone(d) ? '' : 'hidden'}>${tr('Rétablir')}</button>
           </div>
           <p class="hint" data-tone-msg hidden></p>

@@ -402,6 +402,14 @@ test.describe('Luminosité et contraste', () => {
     await page.locator('#drawings .thumb').first().click();
     await expect(page.locator('#detail [data-tone="b"]')).toBeVisible();
     await expect(page.locator('#detail [data-tone-reset]')).toBeHidden();
+    // sur ordinateur, rien ne déborde de la fiche (valeurs, bouton automatique), réglages sous l'en-tête
+    const fit = await page.evaluate(() => {
+      const box = document.getElementById('detail').getBoundingClientRect();
+      const r = (q) => document.querySelector('#detail ' + q).getBoundingClientRect();
+      return ['output', '[data-tone-auto]', '.chips', '.seg'].every((q) => r(q).right <= box.right - 4 && r(q).left >= box.left + 4)
+        && r('.tone').width > box.width * 0.8;
+    });
+    expect(fit).toBe(true);
     const mean = () => page.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => {
       const c = document.getElementById('canvas');
       const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
