@@ -107,12 +107,29 @@
             const vp = page.getViewport({ scale: max / long });
             const c = Extract.makeCanvas(vp.width, vp.height);
             await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+            // pixels réels de la page : ceux de la plus grande image qu'elle contient (un scan est
+            // une image posée sur la page) ; une page sans image (vectorielle) n'a pas de limite
+            let pxLong = null;
+            try {
+              const ops = await page.getOperatorList();
+              const O = pdfjsLib.OPS;
+              for (let k = 0; k < ops.fnArray.length; k++) {
+                const fn = ops.fnArray[k], a = ops.argsArray[k];
+                let im = null;
+                if (fn === O.paintInlineImageXObject) im = a[0];
+                else if (fn === O.paintImageXObject) {
+                  const id = a[0];
+                  if (typeof id === 'string') im = page.objs.has(id) ? page.objs.get(id) : (page.commonObjs.has(id) ? page.commonObjs.get(id) : null);
+                }
+                if (im && im.width && im.height) pxLong = Math.max(pxLong || 0, im.width, im.height);
+              }
+            } catch (e) { pxLong = null; }
             page.cleanup();
             // Un PDF de scanner à plat donne la vraie taille de la feuille ;
             // un scan de téléphone donne seulement une taille en pixels.
             const short = Math.min(vp0.width, vp0.height);
             const physical = PHYSICAL_PT.some(([a, b]) => Math.abs(short / a - 1) < 0.012 && Math.abs(long / b - 1) < 0.012);
-            return { canvas: c, origLong: long, origShort: short, physCm: physical ? (long / 72) * 2.54 : null };
+            return { canvas: c, origLong: long, origShort: short, physCm: physical ? (long / 72) * 2.54 : null, pxLong };
           },
           release: () => pdf.destroy(),
         });
@@ -130,10 +147,14 @@
           src.close();
           // Un scanner écrit sa résolution (150, 300, 600 dpi) dans le JPEG ou le PNG : elle donne
           // la taille réelle de la feuille. Les valeurs par défaut (72, 96) ne veulent rien dire.
-          let dpi = null;
-          try { dpi = readDpi(await file.slice(0, 256 * 1024).arrayBuffer()); } catch (e) { dpi = null; }
+          let dpi = null, jpegQ = null;
+          try {
+            const head = await file.slice(0, 256 * 1024).arrayBuffer();
+            dpi = readDpi(head);
+            if (window.Quality) jpegQ = Quality.jpegQuality(head);
+          } catch (e) { dpi = null; }
           const physCm = dpi ? (origLong / dpi) * 2.54 : null;
-          return { canvas: c, origLong, origShort, physCm: physCm && physCm >= 8 && physCm <= 150 ? physCm : null, physSource: physCm ? `${dpi} dpi` : null };
+          return { canvas: c, origLong, origShort, physCm: physCm && physCm >= 8 && physCm <= 150 ? physCm : null, physSource: physCm ? `${dpi} dpi` : null, pxLong: origLong, jpegQ };
         },
       });
     }
@@ -246,6 +267,9 @@
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm, physSource: src.physSource || (src.physCm ? 'PDF' : null),
           sizeCm: 29.7, sizeMode: 'auto',
+          // qualité pour l'impression (voir js/quality.js) : pixels réels et mesures faites ici une fois
+          pxLong: src.pxLong || null,
+          q: Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null }),
         };
         preparePieces(analysis.pieces, d);
         loadSize(d);
@@ -713,9 +737,44 @@
       ${tr('Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour les coller en fond, réglez « Feuilles pâles » ; pour en garder une en découpe, ouvrez-la et choisissez « découpe ».')}`;
   }
 
+  // ---------- Qualité pour l'impression (js/quality.js) ----------
+
+  const qualityOf = (d) => (window.Quality ? Quality.assess(Object.assign({}, d, { auto: d.auto })) : { level: 'ok', issues: [] });
+  function qualityBadge(d) {
+    if (roleOf(d) === 'off') return '';
+    const q = qualityOf(d);
+    if (q.level === 'ok') return '';
+    return `<i class="q ${q.level}" title="${esc(q.issues.map((x) => x.title).join(' · '))}" aria-label="${esc(q.level === 'bad' ? tr('Qualité insuffisante pour l’impression') : tr('Qualité à vérifier'))}">!</i>`;
+  }
+  function qualityBlock(d) {
+    const q = qualityOf(d);
+    if (q.level === 'ok') return '';
+    return `<div class="quality ${q.level}">${q.issues.map((x) => `<p><b>${esc(x.title)}</b> ${esc(x.text)}<br><span>${esc(x.tip)}</span></p>`).join('')}</div>`;
+  }
+  // bandeau dans Propositions et rappel au moment d'exporter
+  function renderQuality() {
+    const list = state.drawings.filter((d) => roleOf(d) !== 'off').map((d) => ({ d, q: qualityOf(d) })).filter((x) => x.q.level !== 'ok');
+    const bad = list.filter((x) => x.q.level === 'bad').length;
+    const box = $('quality-alert');
+    if (box) {
+      box.hidden = !list.length;
+      box.classList.toggle('bad', bad > 0);
+      box.querySelector('span').textContent = !list.length ? ''
+        : bad ? (bad === 1 ? tr('1 dessin risque d’être flou à l’impression.') : tr`${bad} dessins risquent d’être flous à l’impression.`) + (list.length > bad ? ' ' + tr`${list.length - bad} autre(s) à vérifier.` : '')
+          : (list.length === 1 ? tr('1 dessin a une qualité à vérifier pour l’impression.') : tr`${list.length} dessins ont une qualité à vérifier pour l’impression.`);
+    }
+    const note = $('export-quality');
+    if (note) {
+      note.hidden = !bad;
+      note.textContent = bad ? tr`Attention : ${bad} dessin(s) de l’œuvre seront flous en impression. Remplacez-les par un scan à 300 dpi ou une photo d’origine, ou choisissez une impression plus petite.` : '';
+    }
+    state.qualityList = list.map((x) => x.d);
+  }
+
   function refreshLists() {
     renderUncertain();
     renderAside();
+    renderQuality();
     const dEl = $('drawings');
     dEl.innerHTML = '';
     state.drawings.forEach((d) => {
@@ -723,7 +782,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         refreshLists();
@@ -776,6 +835,7 @@
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
+        ${qualityBlock(d)}
         <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>
       </div>`;
@@ -1555,6 +1615,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // sur téléphone, l'œuvre prend toute la largeur disponible
     const pad = (document.body.classList.contains('stage-full') ? 12 : mobileQuery.matches ? 8 : 36) * dpr;
     const fitS = Math.min((cw - 2 * pad) / comp.W, (ch - 2 * pad) / comp.H);
+    // zone de l'œuvre trop petite (tiroir du téléphone agrandi) : rien à dessiner pour l'instant
+    if (!(fitS > 0)) return;
     const Z = state.zoom;
     const s = fitS * Z.z;
     // on garde toujours un morceau de l'œuvre à l'écran
@@ -2027,6 +2089,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   });
 
   window.addEventListener('resize', render);
+  // la zone de l'œuvre change aussi de taille sans que la fenêtre bouge (tiroir du téléphone agrandi ou réduit)
+  if (window.ResizeObserver) new ResizeObserver(() => render()).observe(canvas);
 
   // ---------- Export ----------
 
@@ -2580,6 +2644,16 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     if (box) box.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
   $('partial-add').onclick = includeAll;
+  $('quality-alert-go').onclick = () => {
+    const d = (state.qualityList || [])[0];
+    if (!d) return;
+    const sec = $('drawings-section');
+    if (mobileQuery.matches) selectTab('drawings-section'); else if (sec._expand) sec._expand();
+    state.current = d;
+    refreshLists();
+    const box = $('detail');
+    if (box) setTimeout(() => box.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+  };
   $('guide').onclick = requireAccount(tr('créer le guide'), exportGuide);
 
   // ---------- Direction artistique par Claude ----------

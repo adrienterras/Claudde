@@ -451,6 +451,19 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .thumb .tag { position: absolute; left: 4px; bottom: 4px; }
 .thumb .size { position: absolute; right: 4px; top: 4px; font-style: normal; font-family: var(--f-mono); font-size: 0.6rem; background: var(--glass); color: var(--ink); padding: 1px 5px; border-radius: 4px; }
 .thumb.current { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* qualité pour l'impression : pastille sur la vignette, détail dans la fiche */
+.thumb .q { position: absolute; left: 4px; top: 4px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.7rem; font-weight: 700; color: #fff; box-shadow: 0 0 0 2px var(--surface); }
+.thumb .q.warn { background: #c98a1b; }
+.thumb .q.bad { background: var(--danger); }
+.quality { display: flex; flex-direction: column; gap: 6px; padding: 9px 11px; border-radius: var(--r-sm); font-size: 0.8rem; line-height: 1.45; }
+.quality p { margin: 0; }
+.quality span { color: var(--ink-2); }
+.quality.warn { background: rgba(201, 138, 27, 0.12); border: 1px solid rgba(201, 138, 27, 0.45); }
+.quality.bad { background: var(--danger-soft); border: 1px solid var(--danger); }
+.quality.bad b { color: var(--danger); }
+.alert.quality-alert { border-color: #c98a1b; background: rgba(201, 138, 27, 0.12); }
+.alert.quality-alert.bad { border-color: var(--danger); background: var(--danger-soft); }
+.quality-note { color: var(--danger); }
 
 .tag { display: inline-block; font-size: 0.64rem; font-weight: 600; padding: 1px 6px; border-radius: 999px; letter-spacing: .01em; }
 .tag.cutout { background: var(--accent); color: var(--on-ink); }
@@ -729,7 +742,7 @@ body.editing { overflow: hidden; }
   body.stage-full .panel { display: none; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
-  .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: calc(100% - 56px - var(--sheet) - 44px); }
+  .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }
   body.stage-full .stage { padding-bottom: 0; }
   .stage-tip { display: none; }
   .empty { bottom: var(--sheet); padding: 16px 56px 16px 16px; }

@@ -223,6 +223,23 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
      numérotés, une règle en cm sur les bords et les cotes de chaque morceau (taille, distance aux
      bords), à reporter sur l'original avant de découper.
 
+## Qualité pour l’impression (`js/quality.js`)
+
+À l’import, chaque dessin est mesuré une fois, sans rien envoyer :
+
+| Mesure | Comment | Alerte | Qualité insuffisante |
+|---|---|---|---|
+| Définition | pixels réels (pour un PDF, ceux de l’image qu’il contient) rapportés à la taille réelle | sous 140 dpi | sous 100 dpi |
+| Compression | qualité JPEG estimée d’après les tables de quantification du fichier | sous 60 | sous 40 |
+| Netteté | sur les bords les plus marqués, pente du contraste rapportée à son amplitude | sous 0,30 | sous 0,26 |
+| Éclairage | pente de luminosité du papier d’un coin à l’autre, si elle est régulière (ombre, lampe) | au-dessus de 45 | au-dessus de 85 |
+
+Seuils réglés sur de vrais scans de dessins (aucune alerte de netteté ni d’éclairage) et sur
+leurs versions floues ou assombries. La définition suit la taille réelle choisie : la même image
+peut suffire en A6 et pas en A3. Affichage : pastille sur la vignette, raison et conseil dans la
+fiche du dessin, bandeau « N dessins risquent d’être flous » dans Propositions, rappel dans
+Exporter. Rien n’est jamais bloqué.
+
 ## Fonctionnement
 
 - `js/extract.js` : estimation de la couleur du papier sur les bords, recadrage sur la feuille quand le scan

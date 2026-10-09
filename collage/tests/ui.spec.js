@@ -97,6 +97,33 @@ const waitDraft = async (page) => {
   throw new Error('brouillon jamais écrit');
 };
 
+test.describe('Téléphone, tiroir agrandi', () => {
+  test('régler la taille dans la fiche d’un dessin ne plante pas, et l’œuvre revient à la fermeture', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
+    await page.locator('#drawings .thumb').first().click();
+    await expect(page.locator('body')).toHaveClass(/sheet-tall/);
+    await page.locator('#detail [data-size]').selectOption({ index: 2 });
+    await page.waitForTimeout(300);
+    await expect(page.locator('#fatal')).toBeHidden();
+    await page.locator('#detail .detail-close').click();
+    await page.waitForTimeout(400);
+    const painted = await page.evaluate(() => { const c = document.getElementById('canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n; });
+    expect(painted).toBeGreaterThan(100);
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
+
 test.describe('Brouillon', () => {
   test('l’œuvre en cours est gardée d’elle-même et proposée après un rechargement', async ({ page }) => {
     const { fixture } = require('./helpers');

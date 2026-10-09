@@ -1420,6 +1420,7 @@
     ctx.fillRect(0, 0, w, h);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'multiply';
+    if (!(w > 0 && h > 0)) { ctx.restore(); return; }
     const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.hypot(w, h) / 2);
     g.addColorStop(0, 'rgba(255,255,255,0)');
     g.addColorStop(1, 'rgba(225,210,190,1)');

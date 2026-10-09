@@ -114,6 +114,7 @@
       <h2><span class="num">02</span> Propositions</h2>
       <p class="hint">Choisissez une proposition : elle s’affiche sur la toile, prête à retoucher ou à télécharger.</p>
       <p id="sizes-alert" class="alert" hidden><span></span> <button type="button" class="link" id="sizes-alert-go">Vérifier</button></p>
+      <p id="quality-alert" class="alert quality-alert" hidden><span></span> <button type="button" class="link" id="quality-alert-go">Voir lesquels</button></p>
       <div id="proposals" class="proposals"></div>
       <p id="partial-note" class="hint partial" hidden><span></span> <button type="button" class="link" id="partial-add">Tout inclure</button></p>
       <p id="ai-status" class="hint ai"></p>
@@ -190,6 +191,7 @@
         </label>
       </div>
       <p id="export-info" class="hint mono-note"></p>
+      <p id="export-quality" class="hint quality-note" hidden></p>
       <p id="export-account" class="hint account-note" hidden><svg class="ico"><use href="#i-user"/></svg><span>Le téléchargement en haute définition et la sauvegarde demandent un compte gratuit : il garde vos œuvres sur tous vos appareils. L’aperçu ci-dessous est libre.</span></p>
       <button id="export" class="btn btn-primary"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <button id="export-free" class="btn" hidden><svg class="ico"><use href="#i-eye"/></svg><span>Aperçu sans compte <small>basse définition, filigrane</small></span></button>
@@ -442,6 +444,7 @@
   <script src="config.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/analytics.js"></script>
+  <script src="js/quality.js"></script>
   <script src="js/account.js"></script>
   <script src="js/extract.js"></script>
   <script src="js/compose.js"></script>
