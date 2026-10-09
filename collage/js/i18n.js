@@ -340,6 +340,7 @@
     'Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes': 'Background only: drag a background page to move it · handle or wheel to rotate · “Show all” to bring the cut-outs back',
     'Quitter le plein écran': 'Exit full screen',
     '{0} · pièce {1}': '{0} · piece {1}',
+    '{0} · copie': '{0} · copy',
     'PDF d’une page de {0} × {1} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à {2} dpi), cadres et traits en vecteurs.': 'One-page PDF of {0} × {1} cm, at 1:1 scale: every paper placed exactly where it goes (images at {2} dpi), frames and lines as vectors.',
     '{0} × {1} px pour une toile de {2} × {3} cm{4}': '{0} × {1} px for a {2} × {3} cm canvas{4}',
     ' (taille limitée sur cet appareil)': ' (size limited on this device)',

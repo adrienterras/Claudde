@@ -1987,7 +1987,19 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const n = state.drawings.indexOf(d) + 1;
     const base = d.ai && d.ai.sujet ? d.ai.sujet.charAt(0).toUpperCase() + d.ai.sujet.slice(1) : `Dessin ${n}`;
     const ps = d.analysis.pieces || [];
-    return ps.length > 1 ? tr`${base} · pièce ${ps.indexOf(p) + 1}` : base;
+    const name = ps.length > 1 ? tr`${base} · pièce ${ps.indexOf(p.copyOf || p) + 1}` : base;
+    return p.copyOf ? tr`${name} · copie` : name;
+  }
+
+  /*
+   * Une pièce dupliquée sur l'œuvre est une copie indépendante : même image au départ, mais sa
+   * propre découpe — la retoucher ne change ni l'originale ni les autres copies. Les copies ne vivent
+   * que dans la composition (pas dans la liste des pièces du dessin, ni dans les autres propositions).
+   */
+  function copyPiece(p) {
+    const c = Object.assign({}, p, { copyOf: p.copyOf || p });
+    delete c.hd;
+    return c;
   }
 
   function editPiece(p) {
@@ -2014,6 +2026,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (p.wcm) { p.wcm *= newSrc.w / oldSrc.w; p.hcm *= newSrc.h / oldSrc.h; }
     p.edited = true; // la retouche est sauvegardée avec la composition et rejouée à la réouverture
     p.thumb = thumbOf(p.canvas, 120, true);
+    delete p.hd;
     refreshPieces();
     renderProposals();
     render();
@@ -2127,7 +2140,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (name === 'back') { comp.items.splice(i, 1); comp.items.unshift(L); }
     if (name === 'flip') L.flip = !L.flip;
     if (name === 'dup') {
-      const c = Object.assign({}, L, { x: L.x + L.w * 0.15, y: L.y + L.h * 0.15, rot: L.rot + 0.1 });
+      const c = Object.assign({}, L, { piece: copyPiece(L.piece), x: L.x + L.w * 0.15, y: L.y + L.h * 0.15, rot: L.rot + 0.1 });
       comp.items.push(c);
       state.selected = c;
     }
@@ -2513,7 +2526,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
               p.hd = Extract.scaleTo(img, needLong);
               return;
             }
-            const k = (d.analysis.pieces || []).indexOf(p);
+            const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
             const hp = k >= 0 ? a.pieces[k] : null;
             if (!hp) return;
             const same = Math.abs(hp.frac - p.frac) < 0.03 && Math.abs(hp.canvas.width / hp.canvas.height - p.canvas.width / p.canvas.height) < 0.06;
@@ -2533,6 +2546,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (need.size) saveStatus('');
   }
   function releaseHD() {
+    if (state.comp) state.comp.items.forEach((L) => { if (L.piece) delete L.piece.hd; }); // copies comprises
     state.drawings.forEach((d) => {
       (d.analysis.pieces || []).forEach((p) => { delete p.hd; });
       if (d.analysis.texture) delete d.analysis.texture.canvas.hd;
@@ -3150,7 +3164,13 @@ Réponds uniquement avec ce JSON :
     const idx = (d) => state.drawings.indexOf(d);
     const texOwner = (src) => state.drawings.findIndex((d) => d.analysis.texture && d.analysis.texture.canvas === src);
     const pick = (L, keys) => { const o = {}; keys.forEach((k) => { if (L[k] !== undefined) o[k] = L[k]; }); return o; };
-    const items = comp.items.map((L) => Object.assign({ d: idx(L.piece.drawing), p: L.piece.drawing.analysis.pieces.indexOf(L.piece) }, pick(L, ['x', 'y', 'w', 'h', 'rot', 'flip', 'scale', 'plan', 'frame'])));
+    const items = [];
+    for (const L of comp.items) {
+      const p = L.piece, orig = p.copyOf || p;
+      const it = Object.assign({ d: idx(p.drawing), p: p.drawing.analysis.pieces.indexOf(orig) }, pick(L, ['x', 'y', 'w', 'h', 'rot', 'flip', 'scale', 'plan', 'frame']));
+      if (p.copyOf) it.copy = { edit: p.canvas !== orig.canvas ? await editOf(p, p.drawing) : null };
+      items.push(it);
+    }
     const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale']), { items, bg });
     return {
@@ -3379,13 +3399,20 @@ Réponds uniquement avec ce JSON :
       comp.bg.push(Object.assign({ kind: 'bg' }, L, { src: t.canvas, sw: L.sw || t.canvas.width, sh: L.sh || t.canvas.height, sx: L.sx || 0, sy: L.sy || 0 }));
     });
     comp.bg = comp.bg.filter((L) => L.src);
-    c.items.forEach((L) => {
+    for (const L of c.items) {
       const d = state.drawings[L.d];
-      const p = d && d.analysis.pieces ? d.analysis.pieces[L.p] : null;
-      if (!p) return;
+      let p = d && d.analysis.pieces ? d.analysis.pieces[L.p] : null;
+      if (!p) continue;
       p.enabled = true; p.placed = true;
-      comp.items.push(Object.assign({ kind: 'piece', piece: p }, L));
-    });
+      // copie dupliquée sur l'œuvre : sa propre découpe, rejouée sur elle seule
+      if (L.copy) {
+        p = copyPiece(p);
+        if (L.copy.edit) try { await applySavedEdit(p, d, L.copy.edit); } catch (err) { console.warn(`découpe de copie non rejouée sur « ${d.name} »`, err); }
+      }
+      const item = Object.assign({ kind: 'piece', piece: p }, L);
+      delete item.copy;
+      comp.items.push(item);
+    }
     state.pinned = comp;
     regenerate();
     const i = STYLES.findIndex((st) => st.id === comp.style);

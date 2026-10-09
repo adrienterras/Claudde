@@ -216,6 +216,8 @@ Dessins et Mise en scène sont repliées à la première visite (le choix de cha
    pinceau « restaurer » qui remet le dessin d'origine (y compris autour de la découpe initiale),
    défaire / refaire (Ctrl+Z), retour à la découpe d'origine. Le trait de coupe magenta est affiché
    en direct ; en validant, la pièce est mise à jour dans les trois propositions sans bouger sur la toile.
+   Une pièce **dupliquée** sur l'œuvre est une copie indépendante : retoucher sa découpe ne touche ni
+   l'originale ni les autres copies (la découpe de la copie est sauvegardée et rejouée à la réouverture).
 6. **Guide de création (PDF)** pour réaliser l'œuvre avec les originaux :
    - couverture (taille de la toile, matériel, mode d'emploi), **plan de pose** quadrillé tous les 10 cm
      avec le numéro de chaque élément ;
