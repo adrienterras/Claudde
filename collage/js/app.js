@@ -33,7 +33,8 @@
       const key = what + msg;
       if (seen.has(key)) return;
       seen.add(key);
-      detail = `${what} : ${msg}\n${stack}\n\n${navigator.userAgent}\n${location.href}`;
+      // (l'adresse sans sa partie « ?… » : un code de connexion n'a pas à figurer dans le rapport)
+      detail = `${what} : ${msg}\n${stack}\n\n${navigator.userAgent}\n${location.origin}${location.pathname}`;
       box.querySelector('.fatal-text').textContent = tr`Une erreur inattendue s’est produite (${msg}). L’app peut continuer ; si elle ne répond plus, rechargez la page. Le détail copié m’aide à corriger.`;
       box.hidden = false;
     };
@@ -3583,7 +3584,7 @@ Réponds uniquement avec ce JSON :
       if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
       if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
       if (sd.tone) d.tone = sd.tone; else delete d.tone;
-      d.role = sd.role; // rôle effectif figé : la composition compte dessus
+      d.role = ROLES.includes(sd.role) ? sd.role : 'auto'; // rôle effectif figé : la composition compte dessus
       ensureMaterial(d);
       (d.analysis.pieces || []).forEach((p, k) => { if (sd.enabled && sd.enabled[k] !== undefined) p.enabled = sd.enabled[k]; if (sd.pieceAi && sd.pieceAi[k]) p.ai = sd.pieceAi[k]; });
     });
@@ -3806,7 +3807,7 @@ Réponds uniquement avec ce JSON :
     let saved = [];
     // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, exporter)
     const DEFAULT_COLLAPSED = ['drawings-section', 'room-section'];
-    try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); } catch (e) { saved = DEFAULT_COLLAPSED; }
+    try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); if (!Array.isArray(saved)) saved = DEFAULT_COLLAPSED; } catch (e) { saved = DEFAULT_COLLAPSED; }
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const h = sec.querySelector(':scope > h2');
       if (!h || !sec.id) return;
@@ -3942,7 +3943,21 @@ Réponds uniquement avec ce JSON :
     if (it.product === 'print') return tr`Impression ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
     return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD'), kit: tr('Kit DIY 50 × 70') }[it.product];
   }
-  function loadCart() { try { const c = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); return Array.isArray(c) ? c : []; } catch (e) { return []; } }
+  // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
+  // d'après le catalogue — jamais celui qui a été stocké)
+  const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^panier-[a-z0-9]+$/.test(it.recId)
+    && ['print', 'hd', 'guide', 'kit'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
+    && Number.isFinite(Number(it.W)) && Number.isFinite(Number(it.H));
+  function loadCart() {
+    let c;
+    try { c = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch (e) { c = []; }
+    if (!Array.isArray(c)) return [];
+    return c.filter(validItem).map((it) => Object.assign(it, {
+      qty: clamp(Math.round(Number(it.qty)) || 1, 1, 20), W: Number(it.W), H: Number(it.H),
+      title: String(it.title || ''), styleName: String(it.styleName || ''), refs: Array.isArray(it.refs) ? it.refs.map(String) : [],
+      unit: unitPrice(it),
+    }));
+  }
   function saveCart(items) { try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch (e) { /* stockage plein */ } renderCartButton(); }
   // images dont le panier a besoin (à ne pas effacer avec le brouillon)
   const cartRefs = () => new Set(loadCart().flatMap((it) => it.refs || []));
@@ -3987,10 +4002,6 @@ Réponds uniquement avec ce JSON :
       b.classList.toggle('on', b.dataset.size === choice.size);
       b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
     });
-    // un produit numérique ne se commande qu'une fois
-    const digital = choice.product === 'hd' || choice.product === 'guide';
-    if (digital) choice.qty = 1;
-    box.querySelector('.cart-qty-row').hidden = digital;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
     // proportions : l'œuvre est imprimée entière, centrée, avec un passe-partout blanc si besoin
     const fit = box.querySelector('.cart-fit');
@@ -4055,7 +4066,7 @@ Réponds uniquement avec ce JSON :
       li.innerHTML = `<img src="${safeData(it.thumb)}" alt="">
         <div class="cart-item-main"><b>${esc(it.title)}</b><small>${esc(productLabel(it))}</small>
           <span class="cart-item-actions"><button type="button" class="link" data-review>${tr('Revoir')}</button> · <button type="button" class="link" data-remove>${tr('Retirer')}</button></span></div>
-        <div class="cart-item-side">${it.product === 'hd' || it.product === 'guide' ? '' : `<span class="cart-qty"><button type="button" data-qty="-1" aria-label="${tr('Moins')}">−</button><output>${it.qty}</output><button type="button" data-qty="1" aria-label="${tr('Plus')}">+</button></span>`}
+        <div class="cart-item-side"><span class="cart-qty"><button type="button" data-qty="-1" aria-label="${tr('Moins')}" ${it.qty <= 1 ? 'disabled' : ''}>−</button><output aria-label="${tr('Quantité')}">${it.qty}</output><button type="button" data-qty="1" aria-label="${tr('Plus')}" ${it.qty >= 20 ? 'disabled' : ''}>+</button></span>
           <b class="cart-item-price">${euros(it.unit * it.qty)}</b></div>`;
       li.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => {
         const all = loadCart(), x = all.find((y) => y.id === it.id);

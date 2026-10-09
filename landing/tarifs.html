@@ -135,6 +135,11 @@
       .door.star { order: -1; }
       .faq { grid-template-columns: 1fr; }
       table { display: block; overflow-x: auto; }
+      /* la grille des impressions tient sur l'écran d'un téléphone, sans défilement de côté */
+      table.grid-prices { display: table; table-layout: fixed; font-size: .82rem; }
+      .grid-prices th, .grid-prices td { padding: 10px 7px; }
+      .grid-prices th { font-size: .6rem; letter-spacing: .06em; }
+      .grid-prices td.p { font-size: 1.02rem; }
     }
   </style>
 </head>
@@ -185,7 +190,7 @@
             <li>Le fichier HD offert avec chaque commande</li>
           </ul>
           <p class="muted">Aussi en 30 × 40 et 70 × 100, sur papier seul ou sur toile : grille ci-dessous.</p>
-          <a class="btn btn-primary" href="mailto:bonjour@atelier-gribouille.com?subject=Commande%20%E2%80%94%20tableau%20encadr%C3%A9">Commander</a>
+          <a class="btn btn-primary" href="atelier/">Commander</a>
         </article>
 
         <article class="door">
@@ -198,7 +203,7 @@
             <li>Vous découpez et collez vos dessins originaux, livraison incluse</li>
           </ul>
           <p class="muted">Guide seul, en PDF avec le fichier HD : 24,90 €.</p>
-          <a class="btn btn-ghost" href="mailto:bonjour@atelier-gribouille.com?subject=Commande%20%E2%80%94%20kit%20DIY%2050%20%C3%97%2070">Commander le kit</a>
+          <a class="btn btn-ghost" href="atelier/">Commander le kit</a>
         </article>
 
         <article class="door">
@@ -220,7 +225,7 @@
       <div class="wrap">
         <h2>Imprimée et livrée chez vous</h2>
         <p>Prix TTC, livraison standard incluse en France métropolitaine. Le fichier HD est inclus avec chaque commande.</p>
-        <table>
+        <table class="grid-prices">
           <thead><tr><th>Taille</th><th>Papier premium, sans cadre</th><th>Encadré, prêt à accrocher</th><th>Toile sur châssis</th></tr></thead>
           <tbody>
             <tr><td>30 × 40 cm</td><td class="p">39 €</td><td class="p">79 €</td><td class="p">69 €</td></tr>
@@ -245,7 +250,7 @@
         </table>
         <p class="note">Un après-midi en famille, et une œuvre unique faite de leurs vrais traits. Livraison standard incluse en France métropolitaine pour le kit.</p>
         <div class="actions" style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
-          <a class="btn btn-primary" href="mailto:bonjour@atelier-gribouille.com?subject=Commande%20%E2%80%94%20kit%20DIY%2050%20%C3%97%2070">Commander le kit</a>
+          <a class="btn btn-primary" href="atelier/">Commander le kit</a>
           <a class="btn btn-ghost" href="atelier/">Composer d’abord</a>
         </div>
       </div>

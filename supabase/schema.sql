@@ -52,7 +52,7 @@ create policy "drawings: own folder" on storage.objects
   with check (bucket_id = 'drawings' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- Suppression du compte par l'utilisateur lui-même (bouton « Supprimer mon compte ») :
--- efface ses fichiers, ses compositions (cascade) et son compte.
+-- efface ses compositions (cascade) et son compte ; ses fichiers sont effacés avant par l'application.
 create or replace function public.delete_account()
 returns void
 language plpgsql
@@ -63,7 +63,8 @@ begin
   if auth.uid() is null then
     raise exception 'non connecté';
   end if;
-  delete from storage.objects where bucket_id = 'drawings' and (storage.foldername(name))[1] = auth.uid()::text;
+  -- (les fichiers du stockage sont effacés par l'application juste avant, avec l'API Storage :
+  -- Supabase interdit de les effacer en SQL ; les lignes des tables partent en cascade)
   delete from auth.users where id = auth.uid();
 end;
 $$;

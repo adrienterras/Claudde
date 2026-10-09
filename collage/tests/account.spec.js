@@ -224,5 +224,13 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => document.querySelector('#saved-section > h2') && document.querySelector('#saved-section').classList.contains('collapsed') && document.querySelector('#saved-section > h2').click());
     await expect(page.locator('#saved-list .saved')).toHaveCount(1, { timeout: 30000 });
     await expect(page.locator('#saved-list .saved').first()).toContainText(orders[0].ref);
+    // supprimer le compte efface aussi ses fichiers (dessins de la composition commandée)
+    const uid = await page.evaluate(() => window.Account.user().id);
+    expect(await page.evaluate((uid) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(uid + '/')).length, uid)).toBeGreaterThan(0);
+    await page.locator('#acc-menu').click();
+    await page.locator('#acc-delete').click();
+    await page.locator('#acc-delete').click();
+    await expect(page.locator('#acc-status')).toContainText('Compte supprimé');
+    expect(await page.evaluate((uid) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(uid + '/')).length, uid)).toBe(0);
   });
 });

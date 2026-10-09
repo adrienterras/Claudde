@@ -636,9 +636,14 @@ test.describe('Panier', () => {
     // la composition en cours, depuis l'étape Exporter, en fichier HD (quantité fixe)
     await page.locator('#add-cart').click();
     await page.locator('#cart-add input[value="hd"]').check();
-    await expect(page.locator('#cart-add .cart-qty-row')).toBeHidden();
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(2);
+    // chaque article a sa quantité, fichier HD compris
+    await expect(page.locator('#cart .cart-item').nth(1).locator('.cart-qty output')).toHaveText('1');
+    await expect(page.locator('#cart .cart-item').nth(1).locator('[data-qty="-1"]')).toBeDisabled();
+    await page.locator('#cart .cart-item').nth(1).locator('[data-qty="1"]').click();
+    expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 29.8, 2);
+    await page.locator('#cart .cart-item').nth(1).locator('[data-qty="-1"]').click();
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 14.9, 2);
     await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('3');
     // quantité −, puis retirer le fichier HD
@@ -672,5 +677,28 @@ test.describe('Panier', () => {
     await expect(page.locator('.cart-btn-desk')).toBeHidden();
     expect(errors).toEqual([]);
     await page.evaluate(() => new Promise((r) => { localStorage.clear(); const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+});
+
+test.describe('Panier relu du navigateur', () => {
+  test('un prix modifié à la main est recalculé, un article invalide écarté, sans casser le panier', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.addInitScript(() => localStorage.setItem('atelier-gribouille:panier', JSON.stringify([
+      { id: 'a1', recId: 'panier-a1', refs: [], title: '<img src=x onerror=alert(1)>', styleName: 'Frise', thumb: 'javascript:alert(1)', W: 36, H: 25, product: 'print', finish: 'cadre', size: '50x70', qty: '3abc', unit: 1 },
+      { id: 'a2', recId: 'panier-a2', title: 'cassé', W: 36, H: 25, product: 'print', finish: 'or', size: '1x1', qty: 2, unit: 1 },
+      'n’importe quoi',
+    ])));
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('dialog', (d) => { errors.push('dialog ' + d.message()); d.dismiss(); });
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('1');
+    await page.locator('.cart-btn-desk').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    await expect(page.locator('#cart .cart-item b').first()).toHaveText('<img src=x onerror=alert(1)>'); // affiché comme du texte
+    expect(Number((await page.locator('#cart .cart-total b').textContent()).replace(/[^\d,]/g, '').replace(',', '.'))).toBe(129);
+    expect(await page.locator('#cart .cart-item img').getAttribute('src')).toBe('');
+    expect(errors).toEqual([]);
   });
 });

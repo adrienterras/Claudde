@@ -77,8 +77,39 @@ bas ; il reste quelques réglages à faire dans les tableaux de bord Supabase et
   propres données ; les vulnérabilités connues (déni de service par expression régulière) n'ont
   pas d'impact ici.
 
+## Audit d'octobre 2026 (panier, réouverture automatique)
+
+Corrigé :
+- **Suppression du compte** : les projets Supabase récents interdisent d'effacer les fichiers du
+  stockage en SQL ; `delete_account()` échouait ou laissait les images. L'application efface
+  maintenant elle-même compositions, exports et fichiers restants (API Storage, sous-dossiers
+  compris) avant d'appeler `delete_account()`, qui ne supprime plus que le compte
+  (`supabase/schema.sql` mis à jour ; l'ancienne version reste compatible, il n'y a plus rien à
+  effacer). Test : le faux Supabase ne supprime plus les fichiers lui-même.
+- **Statistiques** : Umami n'enregistre plus la partie « ?… » des adresses (codes de connexion au
+  retour d'un lien e-mail) ; le rapport d'erreur à copier ne la contient plus non plus.
+- **Panier** : relu du navigateur, chaque article est vérifié (produit, finition, taille, identifiant)
+  et son prix recalculé d'après le catalogue à chaque affichage et à la commande (un prix modifié
+  à la main dans `localStorage` n'a pas d'effet) ; quantité entière de 1 à 20 ; un article
+  invalide est écarté sans bloquer le panier. Le rôle d'un dessin relu d'une sauvegarde est
+  vérifié contre la liste des rôles.
+
+À faire côté réglages (hors du code) :
+- **Supabase → Authentication → URL Configuration** : ne garder que
+  `https://ateliergribouille.art/**` dans les adresses de retour autorisées en production
+  (retirer `adrienterras.github.io/**` et les `localhost`) ; utiliser un projet séparé pour les essais.
+- **Umami** : le script est chargé sans version figée depuis cloud.umami.is, sur la même origine que
+  la session ; l'auto-héberger (copie figée dans `vendor/`) puis poser une CSP en `<meta>`
+  (`script-src 'self'`, `connect-src` limité à Supabase et Umami, `img-src 'self' data: blob:`,
+  `worker-src 'self' blob:`).
+- **GitHub Actions** : figer les actions sur un SHA de commit plutôt que `@v4`.
+- **jsPDF** : passer à une version récente (dénis de service connus, sans impact sur les données
+  d'autrui).
+- Une ancienne branche (`d12bf53`, projet Firebase « tie-break ») contient une configuration Firebase
+  publique : restreindre cette clé aux domaines autorisés dans Google Cloud.
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.
 - `grep -n "innerHTML" collage/js/app.js` : chaque interpolation de donnée passe par `esc()`.
-- `npm test` dans `collage/` : 41 tests, dont l'absence d'erreur de page.
+- `npm test` dans `collage/` : 73 tests, dont l'absence d'erreur de page.

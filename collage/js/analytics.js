@@ -20,6 +20,8 @@
   if (cfg.provider === 'umami' && cfg.websiteId) {
     s.src = (cfg.host || 'https://cloud.umami.is') + '/script.js';
     s.dataset.websiteId = cfg.websiteId;
+    // sans la partie « ?… » des adresses : les codes de connexion (retour d'un lien e-mail) n'en sortent pas
+    s.dataset.excludeSearch = 'true';
     window.Atelier.track = (name, props) => { try { if (window.umami) window.umami.track(name, props); } catch (e) { /* ignoré */ } };
   } else if (cfg.provider === 'plausible' && cfg.domain) {
     s.src = (cfg.host || 'https://plausible.io') + '/js/script.outbound-links.js';

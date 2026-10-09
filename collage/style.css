@@ -412,12 +412,13 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .chips.cart-sizes { grid-template-columns: repeat(3, 1fr); border-radius: 14px; }
 .cart-sizes button { display: grid; gap: 1px; padding: 7px 2px; border-radius: 11px; }
 .cart-sizes button small { font-weight: 500; font-size: 0.7rem; opacity: .75; }
-.cart-sizes button.on small { opacity: 1; }
+.cart-sizes button.on small { opacity: .9; color: var(--on-ink); }
 .cart-qty-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.86rem; }
 .cart-qty-row[hidden] { display: none; }
 .cart-qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .cart-qty button { width: 32px; height: 30px; border: 0; background: var(--surface); color: var(--ink); font-size: 1rem; cursor: pointer; }
-.cart-qty button:hover { background: var(--accent-soft); }
+.cart-qty button:hover:not(:disabled) { background: var(--accent-soft); }
+.cart-qty button:disabled { opacity: .35; cursor: default; }
 .cart-qty output { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.86rem; }
 .cart-fit { margin: 0; }
 #cart-add-ok { justify-content: center; }
@@ -884,6 +885,8 @@ body.editing { overflow: hidden; }
   .panel.tabbed > .step.tab-on h2 { cursor: default; }
   .account { margin-top: 0; }
   body.stage-full .panel { display: none; }
+  /* plein écran : plus de tiroir, l'œuvre prend toute la hauteur */
+  body.stage-full { --sheet: 0px; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
   .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }

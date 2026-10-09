@@ -117,7 +117,26 @@
     const { error } = await client.auth.signOut();
     err(error);
   }
+  // Tous les fichiers du dossier de l'utilisateur (compositions, masques, exports), sous-dossiers compris.
+  async function sweep(prefix, depth) {
+    const store = client.storage.from(BUCKET);
+    const { data } = await store.list(prefix, { limit: 1000 });
+    const files = [];
+    for (const f of data || []) {
+      const path = `${prefix}/${f.name}`;
+      // (un dossier n'a pas d'identifiant : on y descend)
+      if (f.id === null && depth < 3) files.push(...await sweep(path, depth + 1));
+      else files.push(path);
+    }
+    return files;
+  }
   async function deleteAccount() {
+    // Les fichiers d'abord : la base ne peut pas effacer elle-même les fichiers du stockage (bloqué
+    // sur les projets Supabase récents) ; sans cela, les dessins resteraient après la suppression.
+    for (const c of await cloudList()) await cloudDel(c.id);
+    for (const e of await exportsList()) await exportDel(e.id, e.path);
+    const rest = await sweep(user.id, 0);
+    if (rest.length) { const { error: e2 } = await client.storage.from(BUCKET).remove(rest); err(e2); }
     const { error } = await client.rpc('delete_account');
     err(error);
     try { await client.auth.signOut(); } catch (e) { /* le compte n'existe plus */ }

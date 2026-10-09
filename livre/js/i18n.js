@@ -15,7 +15,7 @@
     "Importer les dessins": "Import the drawings",
     "Reprendre": "Resume",
     "Oublier": "Forget",
-    "Déposez vos scans ou vos photos": "Drop your scans or photos",
+    "Déposez les photos ou les scans des dessins": "Drop the photos or scans of the drawings",
     "PDF de plusieurs pages, JPG ou PNG · un dessin par page": "Multi-page PDF, JPG or PNG · one drawing per page",
     "Pas de scans sous la main ?": "No scans at hand?",
     "Essayer avec les dessins d’exemple": "Try the sample drawings",

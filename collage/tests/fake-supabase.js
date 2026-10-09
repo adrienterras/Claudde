@@ -73,8 +73,9 @@
   const rpc = (name) => {
     if (name !== 'delete_account') return ko('unknown function');
     const u = db.session && db.session.user; if (!u) return ko('non connecté');
+    // (comme le vrai Supabase : les lignes partent en cascade, mais pas les fichiers du stockage,
+    // que l'application doit effacer elle-même avant)
     db.rows = db.rows.filter((r) => r.user_id !== u.id);
-    Object.keys(db.files).forEach((p) => { if (p.startsWith(u.id + '/')) delete db.files[p]; });
     delete db.users[u.email]; db.session = null; persist();
     return ok(null);
   };
