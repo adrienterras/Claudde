@@ -788,7 +788,8 @@
         refreshLists();
         // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier
         if (state.current && mobileQuery.matches) {
-          document.body.classList.add('sheet-tall');
+          document.body.classList.remove('sheet-tall');
+          document.body.classList.add('sheet-detail');
           const panel = document.querySelector('.panel'), box = $('detail');
           if (panel && box) setTimeout(() => { panel.scrollTo({ top: Math.max(0, box.offsetTop - 12), behavior: 'smooth' }); }, 60);
         }
@@ -810,26 +811,39 @@
     const ar = d.analysis.page.width / d.analysis.page.height;
     const longOnArt = d.sizeCm * k;
     const [aw, ah] = ar >= 1 ? [longOnArt, longOnArt / ar] : [longOnArt * ar, longOnArt];
+    const idx = state.drawings.indexOf(d), n = state.drawings.length;
+    const std = SHEETS.find(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05);
+    const deg = d.orient === 'auto' ? (d.orientDeg || 0) : Number(d.orient);
+    const orientName = (ORIENTS.find(([k]) => k === (d.orient === 'auto' ? 'auto' : String(deg))) || ORIENTS[0])[1];
+    const main = mainPiece(d);
     box.innerHTML = `
       <button type="button" class="detail-close" aria-label="${tr('Fermer')}" title="${tr('Fermer')}">×</button>
       <img src="${d.thumb}" alt="">
       <div>
         <p class="name">${d.ai ? `${esc(d.ai.sujet)} <small>· ${esc(d.ai.zone)}</small><br>` : ''}<small>${esc(d.name)}</small></p>
+        <div class="detail-nav">
+          <button type="button" data-nav="-1" ${idx <= 0 ? 'disabled' : ''} aria-label="${tr('Dessin précédent')}" title="${tr('Dessin précédent')}"><svg class="ico"><use href="#i-prev"/></svg></button>
+          <span>${tr`Dessin ${idx + 1} sur ${n}`}</span>
+          <button type="button" data-nav="1" ${idx >= n - 1 ? 'disabled' : ''} aria-label="${tr('Dessin suivant')}" title="${tr('Dessin suivant')}"><svg class="ico"><use href="#i-next"/></svg></button>
+        </div>
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
-        <label class="row">${tr('Orientation')}
-          <select data-orient>
-            ${ORIENTS.map(([k, label]) => `<option value="${k}" ${d.orient === k ? 'selected' : ''}>${label}${k === 'auto' ? ` (${d.orientDeg ? d.orientDeg + '°' : tr('droite')})` : ''}</option>`).join('')}
-          </select>
-        </label>
-        <label class="row">${tr('Taille réelle')}
-          <select data-size>
-            ${SHEETS.map(([n, cm]) => `<option value="${cm}" ${Math.abs(cm - d.sizeCm) < 0.05 ? 'selected' : ''}>${n} · ${fmt(cm)}</option>`).join('')}
-            <option value="custom" ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? '' : 'selected'}>${tr('Autre…')}</option>
-          </select>
-        </label>
-        <label class="row" data-custom ${SHEETS.some(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05) ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
+        <div class="row stack">${tr('Taille réelle')}
+          <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
+            ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}
+            <button type="button" data-cm="custom" class="${std ? '' : 'on'}">${tr('Autre…')}</button>
+          </div>
+        </div>
+        <label class="row" data-custom ${std ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
           <input type="number" min="3" max="200" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>
+        <div class="row">${tr('Orientation')}
+          <span class="orient">
+            <button type="button" data-rot="-90" aria-label="${tr('Tourner à gauche')}" title="${tr('Tourner à gauche')}"><svg class="ico"><use href="#i-rot-left"/></svg></button>
+            <button type="button" data-rot="90" aria-label="${tr('Tourner à droite')}" title="${tr('Tourner à droite')}"><svg class="ico"><use href="#i-rot-right"/></svg></button>
+            <button type="button" data-rot="auto" class="${d.orient === 'auto' ? 'on' : ''}" title="${esc(orientName)}">${tr('Auto')}</button>
+          </span>
+        </div>
+        ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher la découpe')}</span></button>` : ''}
         <p class="hint photo">${d.photo
           ? tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
           : d.photoMode === 'keep'
@@ -843,7 +857,7 @@
       state.current = null;
       refreshLists();
       // téléphone : le tiroir reprend sa hauteur normale et montre la liste
-      if (mobileQuery.matches) { document.body.classList.remove('sheet-tall'); const panel = document.querySelector('.panel'); if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' }); }
+      if (mobileQuery.matches) { document.body.classList.remove('sheet-tall', 'sheet-detail'); const panel = document.querySelector('.panel'); if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
@@ -853,14 +867,25 @@
       refreshLists();
       regenerate();
     }));
-    box.querySelector('[data-orient]').onchange = (e) => {
-      d.orient = e.target.value;
+    box.querySelectorAll('[data-rot]').forEach((b) => (b.onclick = () => {
+      const r = b.dataset.rot;
+      d.orient = r === 'auto' ? 'auto' : String((((deg + Number(r)) % 360) + 360) % 360);
       saveOrient(d);
       state.pinned = null;
       regenerate();
       refreshLists();
-    };
-    const sel = box.querySelector('[data-size]');
+    }));
+    // dessin précédent / suivant, sans fermer la fiche
+    box.querySelectorAll('[data-nav]').forEach((b) => (b.onclick = () => {
+      const next = state.drawings[idx + Number(b.dataset.nav)];
+      if (!next) return;
+      state.current = next;
+      refreshLists();
+      const nb = $('detail').querySelector(`[data-nav="${b.dataset.nav}"]`);
+      if (nb && !nb.disabled) nb.focus({ preventScroll: true });
+    }));
+    const editBtn = box.querySelector('[data-edit]');
+    if (editBtn) editBtn.onclick = () => editPiece(main);
     const custom = box.querySelector('[data-custom]');
     const setSize = (cm) => {
       if (!(cm > 0)) return;
@@ -872,11 +897,21 @@
       refreshLists();
       regenerate();
     };
-    sel.onchange = () => {
-      if (sel.value === 'custom') { custom.hidden = false; custom.querySelector('input').focus(); return; }
-      setSize(Number(sel.value));
-    };
+    box.querySelectorAll('[data-cm]').forEach((b) => (b.onclick = () => {
+      if (b.dataset.cm === 'custom') {
+        box.querySelectorAll('[data-cm]').forEach((x) => x.classList.toggle('on', x === b));
+        custom.hidden = false;
+        custom.querySelector('input').focus();
+        return;
+      }
+      setSize(Number(b.dataset.cm));
+    }));
     custom.querySelector('input').onchange = (e) => setSize(Number(e.target.value));
+  }
+
+  function mainPiece(d) {
+    if (roleOf(d) !== 'cutout') return null;
+    return (d.analysis.pieces || []).reduce((a, b) => (!a || b.canvas.width * b.canvas.height > a.canvas.width * a.canvas.height ? b : a), null);
   }
 
   function refreshPieces() {
@@ -3518,6 +3553,8 @@ Réponds uniquement avec ce JSON :
     const btn = tabs.querySelector(`[data-tab="${id}"]`);
     if (!btn || (!TAB_OF[id] && $(id).hidden)) return;
     btn.disabled = false;
+    // la fiche d'un dessin (tiroir à mi-hauteur) ne reste ouverte que dans l'onglet Dessins
+    document.body.classList.toggle('sheet-detail', id === 'drawings-section' && !!state.current);
     panel.classList.add('tabbed');
     panel.dataset.tab = id;
     tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));

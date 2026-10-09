@@ -196,6 +196,12 @@
     'Fermer sans enregistrer': 'Close without saving',
     'Valider la découpe': 'Apply the cut-out',
     'Valider': 'Apply',
+    'Dessin précédent': 'Previous drawing',
+    'Dessin suivant': 'Next drawing',
+    'Dessin {0} sur {1}': 'Drawing {0} of {1}',
+    'Tourner à gauche': 'Rotate left',
+    'Tourner à droite': 'Rotate right',
+    'Auto': 'Auto',
     'Pincez pour zoomer · glissez à deux doigts pour vous déplacer': 'Pinch to zoom · drag with two fingers to move',
     'Changer de langue recharge la page : les dessins importés devront être réimportés. Continuer ?': 'Switching language reloads the page: the imported drawings will have to be imported again. Continue?',
 

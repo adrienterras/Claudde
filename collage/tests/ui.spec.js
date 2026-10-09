@@ -71,10 +71,10 @@ test.describe('Interface', () => {
     // la fiche d'un dessin s'ouvre dans un tiroir agrandi et se ferme par sa croix
     await page.locator('#drawings .thumb').first().click();
     await expect(page.locator('#detail')).toBeVisible();
-    await expect(page.locator('body')).toHaveClass(/sheet-tall/);
+    await expect(page.locator('body')).toHaveClass(/sheet-detail/);
     await page.locator('#detail .detail-close').click();
     await expect(page.locator('#detail')).toBeHidden();
-    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    await expect(page.locator('body')).not.toHaveClass(/sheet-detail/);
     await page.waitForTimeout(300);
     // l'œuvre reste visible au-dessus du tiroir
     const canvasBottom = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().bottom);
@@ -111,14 +111,66 @@ test.describe('Téléphone, tiroir agrandi', () => {
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
     await page.locator('#drawings .thumb').first().click();
-    await expect(page.locator('body')).toHaveClass(/sheet-tall/);
-    await page.locator('#detail [data-size]').selectOption({ index: 2 });
+    await expect(page.locator('body')).toHaveClass(/sheet-detail/);
+    // tiroir agrandi à fond (glissement vers le haut) : la zone de l'œuvre n'a presque plus de place
+    await page.evaluate(() => document.body.classList.add('sheet-tall'));
+    await page.locator('#detail [data-cm="42"]').click();
     await page.waitForTimeout(300);
     await expect(page.locator('#fatal')).toBeHidden();
     await page.locator('#detail .detail-close').click();
     await page.waitForTimeout(400);
     const painted = await page.evaluate(() => { const c = document.getElementById('canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n; });
     expect(painted).toBeGreaterThan(100);
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
+
+test.describe('Fiche d’un dessin sur téléphone', () => {
+  test('à mi-hauteur avec l’œuvre visible, dessin suivant, taille et orientation en boutons, retouche', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png'), fixture('page-texture.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
+    await page.locator('#drawings .thumb').first().click();
+    await expect(page.locator('#detail')).toBeVisible();
+    await page.waitForTimeout(300);
+    // l'œuvre reste visible au-dessus de la fiche
+    const canvasH = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().height);
+    expect(canvasH).toBeGreaterThan(150);
+    await expect(page.locator('.density-bar')).toBeVisible();
+    // taille en boutons
+    await page.locator('#detail [data-cm="42"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].sizeCm)).toBe(42);
+    await expect(page.locator('#detail [data-cm="42"]')).toHaveClass(/on/);
+    await page.locator('#detail [data-cm="custom"]').click();
+    await expect(page.locator('#detail [data-custom]')).toBeVisible();
+    // orientation : un quart de tour à droite, puis retour à l'automatique
+    await page.locator('#detail [data-rot="90"]').click();
+    const o = await page.evaluate(() => AtelierGribouille.state.drawings[0].orient);
+    expect(o).not.toBe('auto');
+    await page.locator('#detail [data-rot="auto"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].orient)).toBe('auto');
+    // dessin suivant sans fermer la fiche
+    await expect(page.locator('#detail [data-nav="-1"]')).toBeDisabled();
+    await page.locator('#detail [data-nav="1"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.indexOf(AtelierGribouille.state.current))).toBe(1);
+    await expect(page.locator('#detail')).toContainText('2');
+    // retoucher la découpe depuis la fiche (dessin découpé)
+    await page.locator('#detail [data-nav="-1"]').click();
+    await page.locator('#detail [data-edit]').click();
+    await expect(page.locator('#editor')).toBeVisible();
+    await page.locator('#ed-cancel').click();
+    // changer d'onglet referme le tiroir à mi-hauteur
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await expect(page.locator('body')).not.toHaveClass(/sheet-detail/);
     expect(errors).toEqual([]);
     await ctx.close();
   });
