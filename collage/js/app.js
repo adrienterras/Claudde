@@ -274,6 +274,7 @@
         preparePieces(analysis.pieces, d);
         loadSize(d);
         loadOrient(d);
+        loadTone(d);
         if (sizes && sizes[d.name]) { d.sizeCm = sizes[d.name]; d.sizeMode = 'manual'; }
         state.drawings.push(d);
       } catch (e) {
@@ -406,6 +407,27 @@
   }
   function saveOrient(d) {
     try { localStorage.setItem(orientKey(d), d.orient); } catch (e) { /* ignoré */ }
+  }
+
+  // ---------- Luminosité et contraste ----------
+
+  // { b, c } en % (−50 à +50) ; absent ou nul : le dessin tel que scanné
+  const toneKey = (d) => `atelier-gribouille:tons:${d.name}:${Math.round(d.origLong)}`;
+  const hasTone = (d) => !!(d.tone && (d.tone.b || d.tone.c));
+  // même rendu que l'œuvre (voir Compose.toned), pour les vignettes
+  const toneFilter = (d) => (d && hasTone(d) ? `brightness(${1 + d.tone.b / 100}) contrast(${1 + d.tone.c / 100})` : '');
+  const toneStyle = (d) => (hasTone(d || {}) ? ` style="filter: ${toneFilter(d)}"` : '');
+  function loadTone(d) {
+    try {
+      const v = JSON.parse(localStorage.getItem(toneKey(d)) || 'null');
+      if (v && (v.b || v.c)) d.tone = { b: Number(v.b) || 0, c: Number(v.c) || 0 };
+    } catch (e) { /* stockage indisponible */ }
+  }
+  function saveTone(d) {
+    try {
+      if (hasTone(d)) localStorage.setItem(toneKey(d), JSON.stringify(d.tone));
+      else localStorage.removeItem(toneKey(d));
+    } catch (e) { /* ignoré */ }
   }
 
   function rotatedPage(page, deg) {
@@ -782,7 +804,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         refreshLists();
@@ -818,7 +840,7 @@
     const main = mainPiece(d);
     box.innerHTML = `
       <button type="button" class="detail-close" aria-label="${tr('Fermer')}" title="${tr('Fermer')}">×</button>
-      <img src="${d.thumb}" alt="">
+      <img src="${d.thumb}" alt=""${toneStyle(d)}>
       <div>
         <p class="name">${d.ai ? `${esc(d.ai.sujet)} <small>· ${esc(d.ai.zone)}</small><br>` : ''}<small>${esc(d.name)}</small></p>
         <div class="detail-nav">
@@ -842,6 +864,11 @@
             <button type="button" data-rot="90" aria-label="${tr('Tourner à droite')}" title="${tr('Tourner à droite')}"><svg class="ico"><use href="#i-rot-right"/></svg></button>
             <button type="button" data-rot="auto" class="${d.orient === 'auto' ? 'on' : ''}" title="${esc(orientName)}">${tr('Auto')}</button>
           </span>
+        </div>
+        <div class="tone" role="group" aria-label="${tr('Luminosité et contraste')}">
+          ${[['b', tr('Luminosité')], ['c', tr('Contraste')]].map(([k, label]) => `<label class="row"><span>${label}</span>
+            <input type="range" min="-50" max="50" step="1" value="${(d.tone && d.tone[k]) || 0}" data-tone="${k}"><output>${toneText((d.tone && d.tone[k]) || 0)}</output></label>`).join('')}
+          <button type="button" class="link" data-tone-reset ${hasTone(d) ? '' : 'hidden'}>${tr('Rétablir')}</button>
         </div>
         ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher la découpe')}</span></button>` : ''}
         <p class="hint photo">${d.photo
@@ -884,6 +911,23 @@
       const nb = $('detail').querySelector(`[data-nav="${b.dataset.nav}"]`);
       if (nb && !nb.disabled) nb.focus({ preventScroll: true });
     }));
+    // luminosité et contraste : l'œuvre suit en direct, sans recomposer
+    const applyTone = () => {
+      const t = d.tone || { b: 0, c: 0 };
+      box.querySelectorAll('[data-tone]').forEach((r) => { r.value = t[r.dataset.tone]; r.nextElementSibling.textContent = toneText(t[r.dataset.tone]); });
+      box.querySelector('[data-tone-reset]').hidden = !hasTone(d);
+      box.querySelector(':scope > img').style.filter = toneFilter(d);
+      const th = $('drawings').children[state.drawings.indexOf(d)];
+      if (th) th.querySelector('img').style.filter = toneFilter(d);
+      state.bgCache = null;
+      render();
+    };
+    const toneDone = () => { saveTone(d); refreshPieces(); refreshActiveThumb(); };
+    box.querySelectorAll('[data-tone]').forEach((r) => {
+      r.oninput = () => { d.tone = Object.assign({ b: 0, c: 0 }, d.tone, { [r.dataset.tone]: Number(r.value) }); applyTone(); };
+      r.onchange = toneDone;
+    });
+    box.querySelector('[data-tone-reset]').onclick = () => { delete d.tone; applyTone(); toneDone(); };
     const editBtn = box.querySelector('[data-edit]');
     if (editBtn) editBtn.onclick = () => editPiece(main);
     const custom = box.querySelector('[data-custom]');
@@ -909,6 +953,8 @@
     custom.querySelector('input').onchange = (e) => setSize(Number(e.target.value));
   }
 
+  const toneText = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
+
   function mainPiece(d) {
     if (roleOf(d) !== 'cutout') return null;
     return (d.analysis.pieces || []).reduce((a, b) => (!a || b.canvas.width * b.canvas.height > a.canvas.width * a.canvas.height ? b : a), null);
@@ -924,6 +970,7 @@
       el.className = `thumb${p.enabled ? '' : ' off'}${unplaced ? ' unplaced' : ''}`;
       el.title = !p.enabled ? tr('Retirée — cliquer pour l’ajouter') : unplaced ? tr('Pas de place à cette échelle — cliquer pour l’ajouter quand même') : tr('Dans l’œuvre — cliquer pour la retirer');
       el.innerHTML = tr`<img src="${p.thumb}" alt=""><button class="edit-piece" title="Retoucher la découpe" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg></button>`;
+      el.querySelector('img').style.filter = toneFilter(p.drawing);
       el.onclick = () => togglePiece(p);
       el.querySelector('.edit-piece').onclick = (e) => { e.stopPropagation(); editPiece(p); };
       pEl.appendChild(el);
@@ -1605,8 +1652,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // après une retouche, la vignette de la proposition active suit
   let thumbTimer = 0;
   // Ouvre le panneau du dessin dont vient une pièce ou une page de l'œuvre.
+  const drawingOfLayer = (L) => (L.kind === 'piece' ? L.piece.drawing : L.src ? state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src) : null);
+  Compose.setTone((L) => { const d = drawingOfLayer(L); return d && d.tone; });
   function showDrawingOf(L) {
-    const d = L.kind === 'piece' ? L.piece.drawing : state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src);
+    const d = drawingOfLayer(L);
     if (!d || state.current === d) return;
     state.current = d;
     const sec = $('drawings-section');
@@ -2517,7 +2566,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const c = Extract.makeCanvas(cw, ch);
         const ctx = c.getContext('2d');
         ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(L.src, L.sx, L.sy, L.sw, L.sh, 0, 0, cw, ch);
+        ctx.drawImage(Compose.toned(L.src, (drawingOfLayer(L) || {}).tone), L.sx, L.sy, L.sw, L.sh, 0, 0, cw, ch);
         const cs = Math.cos(L.rot), sn = Math.sin(L.rot);
         const tlx = L.x - (L.w / 2) * cs + (L.h / 2) * sn, tly = L.y - (L.w / 2) * sn - (L.h / 2) * cs;
         // jsPDF place une image tournée à partir de l'ordonnée « retournée » (H − y − h) : vérifié
@@ -3092,7 +3141,7 @@ Réponds uniquement avec ce JSON :
       const edits = [];
       for (const p of d.analysis.pieces || []) edits.push(p.edited ? await editOf(p, d) : null);
       drawings.push({
-        name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode,
+        name: d.name, data, type, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
         pieceEdits: edits,
@@ -3296,6 +3345,7 @@ Réponds uniquement avec ce JSON :
       d.ai = sd.ai || null;
       if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
       if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
+      if (sd.tone) d.tone = sd.tone; else delete d.tone;
       d.role = sd.role; // rôle effectif figé : la composition compte dessus
       ensureMaterial(d);
       (d.analysis.pieces || []).forEach((p, k) => { if (sd.enabled && sd.enabled[k] !== undefined) p.enabled = sd.enabled[k]; if (sd.pieceAi && sd.pieceAi[k]) p.ai = sd.pieceAi[k]; });

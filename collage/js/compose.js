@@ -1227,6 +1227,33 @@
 
   // ---------- Rendu ----------
 
+  /*
+   * Luminosité et contraste réglés par dessin : l'application dit quel réglage s'applique à un
+   * calque ({ b, c } en %, 0 = inchangé). Même formule que les filtres CSS brightness() puis
+   * contrast(), pour que les vignettes (filtrées en CSS) ressemblent à l'œuvre. L'image corrigée
+   * est calculée une fois par image et par réglage, puis gardée.
+   */
+  let toneOf = () => null;
+  const tonedCache = new WeakMap();
+  function toned(img, t) {
+    if (!img || !t || (!t.b && !t.c)) return img;
+    const key = `${t.b}:${t.c}`;
+    const hit = tonedCache.get(img);
+    if (hit && hit.key === key) return hit.canvas;
+    const lut = new Uint8ClampedArray(256);
+    const kb = 1 + (t.b || 0) / 100, kc = 1 + (t.c || 0) / 100;
+    for (let v = 0; v < 256; v++) lut[v] = Math.round((v * kb - 127.5) * kc + 127.5);
+    const c = Extract.makeCanvas(img.width, img.height);
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0);
+    const im = x.getImageData(0, 0, c.width, c.height), px = im.data;
+    for (let i = 0; i < px.length; i += 4) { px[i] = lut[px[i]]; px[i + 1] = lut[px[i + 1]]; px[i + 2] = lut[px[i + 2]]; }
+    x.putImageData(im, 0, 0);
+    tonedCache.set(img, { key, canvas: c });
+    return c;
+  }
+  function setTone(fn) { toneOf = fn || (() => null); }
+
   function drawLayer(ctx, L, s, shadows) {
     ctx.save();
     ctx.translate(L.x * s, L.y * s);
@@ -1256,9 +1283,9 @@
         ctx.shadowOffsetY = 0.18 * s;
       }
       // à l'export, une version haute définition de la découpe ou de la page peut être fournie
-      ctx.drawImage(L.piece.hd || L.piece.canvas, -w / 2, -h / 2, w, h);
+      ctx.drawImage(toned(L.piece.hd || L.piece.canvas, toneOf(L)), -w / 2, -h / 2, w, h);
     } else {
-      const img = L.src.hd || L.src;
+      const img = toned(L.src.hd || L.src, toneOf(L));
       const kk = img.width / L.src.width;
       ctx.drawImage(img, L.sx * kk, L.sy * kk, L.sw * kk, L.sh * kk, -w / 2, -h / 2, w, h);
     }
@@ -1442,5 +1469,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { galleryCount, galleryGrid, galleryShape, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, hitItem, rng, paperLayer };
+  window.Compose = { galleryCount, galleryGrid, galleryShape, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, toned, setTone, hitItem, rng, paperLayer };
 })();
