@@ -2230,8 +2230,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function editPiece(p) {
     if (!p || !p.src || !window.Editor) return;
     const d = p.drawing;
+    const before = pieceState(p); // pour Défaire : la pièce telle qu'elle était avant la retouche
     Editor.open(p, {
-      title: pieceName(p), onApply: applyPieceEdit,
+      title: pieceName(p), onApply: (piece, oldSrc, newSrc) => applyPieceEdit(piece, oldSrc, newSrc, before),
       // lumière et couleurs : réglage du dessin entier, appliqué à la validation
       tone: d.tone, autoTone: () => Compose.autoTone(toneSources(d)),
       // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
@@ -2252,20 +2253,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // La pièce a changé de forme : on met à jour ses calques dans les trois propositions,
   // sans la déplacer sur la toile (le dessin reste exactement au même endroit).
-  function applyPieceEdit(p, oldSrc, newSrc) {
-    const dcx = newSrc.x + newSrc.w / 2 - (oldSrc.x + oldSrc.w / 2);
-    const dcy = newSrc.y + newSrc.h / 2 - (oldSrc.y + oldSrc.h / 2);
-    (state.proposals || []).forEach((pr) => pr.comp.items.forEach((L) => {
-      if (L.piece !== p) return;
-      const u = L.w / oldSrc.w; // cm sur la toile par pixel de page
-      let sx = dcx * u;
-      const sy = dcy * u;
-      if (L.flip) sx = -sx;
-      L.x += sx * Math.cos(L.rot) - sy * Math.sin(L.rot);
-      L.y += sx * Math.sin(L.rot) + sy * Math.cos(L.rot);
-      L.w = newSrc.w * u;
-      L.h = newSrc.h * u;
-    }));
+  function applyPieceEdit(p, oldSrc, newSrc, before) {
+    // une étape d'historique : la mise en place et la pièce telles qu'avant la retouche
+    if (state.comp && before) {
+      const snap = snapshot();
+      snap.pieces.set(p, before);
+      history.past.push(snap);
+      if (history.past.length > history.max) history.past.shift();
+      history.future = []; history.lastTag = null;
+      updateHistoryButtons();
+    }
+    fitLayers(p, oldSrc, newSrc, (state.proposals || []).map((pr) => pr.comp));
     if (p.wcm) { p.wcm *= newSrc.w / oldSrc.w; p.hcm *= newSrc.h / oldSrc.h; }
     p.edited = true; // la retouche est sauvegardée avec la composition et rejouée à la réouverture
     p.thumb = thumbOf(p.canvas, 120, true);
@@ -2278,15 +2276,39 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   /*
    * Historique : avant chaque action sur l'œuvre (déplacer, tourner, retourner, devant/derrière,
    * dupliquer, retirer, ajouter une pièce, changer de proposition, nouvelles propositions), on garde
-   * un instantané de la mise en place ; Défaire et Refaire y naviguent. Les retouches de découpe
-   * et les réglages des dessins (rôle, taille) n'en font pas partie.
+   * un instantané de la mise en place ; Défaire et Refaire y naviguent. Une retouche de découpe en
+   * est une étape (l'instantané garde aussi la découpe des pièces) ; les réglages des dessins (rôle,
+   * lumière) n'en font pas partie.
    */
   const history = { past: [], future: [], max: 60, lastTag: null, lastAt: 0 };
+  // Calques d'une pièce dont la découpe passe de « from » à « to » (pixels de page) : même place sur
+  // la toile, même échelle ; le cadre suit la nouvelle découpe.
+  function fitLayers(p, from, to, comps) {
+    const dcx = to.x + to.w / 2 - (from.x + from.w / 2);
+    const dcy = to.y + to.h / 2 - (from.y + from.h / 2);
+    comps.forEach((comp) => comp.items.forEach((L) => {
+      if (L.piece !== p) return;
+      const u = L.w / from.w; // cm sur la toile par pixel de page
+      let sx = dcx * u;
+      const sy = dcy * u;
+      if (L.flip) sx = -sx;
+      L.x += sx * Math.cos(L.rot) - sy * Math.sin(L.rot);
+      L.y += sx * Math.sin(L.rot) + sy * Math.cos(L.rot);
+      L.w = to.w * u;
+      L.h = to.h * u;
+    }));
+  }
+  // ce que la retouche d'une découpe change sur la pièce (Défaire le remet avec la mise en place)
+  const PIECE_KEYS = ['canvas', 'hit', 'src', 'frac', 'edited', 'thumb', 'wcm', 'hcm'];
+  function pieceState(p) { const o = {}; PIECE_KEYS.forEach((k) => { o[k] = p[k]; }); return o; }
+
   function snapshot() {
     const comp = state.comp;
     const enabled = new Map();
     activePieces().forEach((p) => enabled.set(p, !!p.enabled));
-    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, enabled };
+    const pieces = new Map();
+    comp.items.forEach((L) => { if (L.piece && !pieces.has(L.piece)) pieces.set(L.piece, pieceState(L.piece)); });
+    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, enabled, pieces };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -2301,6 +2323,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   function restoreSnapshot(s) {
     const comp = s.comp;
+    // pièces retouchées entre-temps : leur découpe d'alors revient ; dans les autres propositions,
+    // leurs calques suivent (la proposition rétablie a déjà ses calques d'alors)
+    if (s.pieces) s.pieces.forEach((st, p) => {
+      if (p.canvas === st.canvas && p.src === st.src) return;
+      if (p.src && st.src) fitLayers(p, p.src, st.src, (state.proposals || []).map((pr) => pr.comp).filter((c) => c !== comp));
+      Object.assign(p, st);
+      delete p.hd;
+    });
     comp.items = s.items.map((L) => Object.assign({}, L));
     comp.bg = s.bg.map((L) => Object.assign({}, L));
     comp.reduced = s.reduced;

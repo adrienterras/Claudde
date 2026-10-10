@@ -911,3 +911,53 @@ test.describe('Taille d’un dessin changée sur l’œuvre', () => {
     undone.all.forEach((L, i) => expect(L.w).toBeCloseTo(before.all[i].w, 6));
   });
 });
+
+test.describe('Défaire une retouche', () => {
+  test('la copie retouchée revient telle qu’avant, sans être déformée, et Refaire rétablit la retouche', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await page.evaluate(() => {
+      const A = AtelierGribouille, p0 = A.state.drawings[0].analysis.pieces[0];
+      A.state.selected = A.state.comp.items.find((L) => L.piece === p0); A.render();
+    });
+    await page.locator('#toolbar [data-act="dup"]').click();
+    const copyState = () => page.evaluate(() => {
+      const A = AtelierGribouille, L = A.state.comp.items.find((x) => x.piece.copyOf);
+      return { cw: L.piece.canvas.width, ch: L.piece.canvas.height, w: L.w, h: L.h, x: L.x, y: L.y, edited: !!L.piece.edited };
+    });
+    const s0 = await copyState();
+    // retoucher la copie : toute la moitié gauche effacée, la découpe change de forme
+    await page.locator('#toolbar [data-act="edit"]').click();
+    await expect(page.locator('#editor')).toBeVisible();
+    await page.locator('#ed-size').fill('140');
+    const box = await page.locator('#ed-canvas').boundingBox();
+    for (const fx of [0.05, 0.15, 0.25, 0.35, 0.45]) {
+      await page.mouse.move(box.x + box.width * fx, box.y + 2);
+      await page.mouse.down();
+      for (let i = 1; i <= 20; i++) await page.mouse.move(box.x + box.width * fx, box.y + box.height * i / 20 - 2);
+      await page.mouse.up();
+    }
+    await page.locator('#ed-apply').click();
+    await expect(page.locator('#editor')).toBeHidden();
+    const s1 = await copyState();
+    expect(s1.edited).toBe(true);
+    expect(Math.abs(s1.cw / s1.ch - s0.cw / s0.ch)).toBeGreaterThan(0.05); // la forme a changé
+    const ratio = (s) => (s.w / s.h) / (s.cw / s.ch); // 1 : l'image n'est pas déformée
+    expect(ratio(s1)).toBeCloseTo(1, 2);
+    // Défaire : la copie d'avant, à sa place, sans déformation
+    await page.locator('#toolbar [data-act="undo"]').click();
+    const s2 = await copyState();
+    expect(s2.cw).toBe(s0.cw);
+    expect(s2.ch).toBe(s0.ch);
+    expect(s2.w).toBeCloseTo(s0.w, 6);
+    expect(s2.x).toBeCloseTo(s0.x, 6);
+    expect(s2.edited).toBe(false);
+    expect(ratio(s2)).toBeCloseTo(1, 2);
+    // Refaire : la retouche revient
+    await page.locator('#toolbar [data-act="redo"]').click();
+    const s3 = await copyState();
+    expect(s3.cw).toBe(s1.cw);
+    expect(s3.w).toBeCloseTo(s1.w, 6);
+    expect(ratio(s3)).toBeCloseTo(1, 2);
+  });
+});
