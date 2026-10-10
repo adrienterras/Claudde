@@ -4036,15 +4036,18 @@ Réponds uniquement avec ce JSON :
   (function sheetTabs() {
     const tabs = $('sheet-tabs');
     if (!tabs) return;
-    tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => selectTab(b.dataset.tab); });
+    // en plein écran, il ne reste que cette barre : choisir une section fait remonter le tiroir
+    const leaveFull = () => { if (document.body.classList.contains('stage-full')) $('zoom-full').click(); };
+    tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => { leaveFull(); selectTab(b.dataset.tab); }; });
     // la poignée (double-clic ou glissement vertical) agrandit ou réduit le tiroir
-    tabs.addEventListener('dblclick', () => document.body.classList.toggle('sheet-tall'));
+    tabs.addEventListener('dblclick', () => { if (!document.body.classList.contains('stage-full')) document.body.classList.toggle('sheet-tall'); });
     let ty = null;
     tabs.addEventListener('touchstart', (e) => { ty = e.touches[0].clientY; }, { passive: true });
     tabs.addEventListener('touchend', (e) => {
       if (ty === null) return;
       const dy = e.changedTouches[0].clientY - ty; ty = null;
       if (Math.abs(dy) < 48) return; // un vrai glissement, pas un début de défilement
+      if (document.body.classList.contains('stage-full')) { if (dy < 0) leaveFull(); return; }
       document.body.classList.toggle('sheet-tall', dy < 0);
     }, { passive: true });
     const obs = new MutationObserver(syncTabs);

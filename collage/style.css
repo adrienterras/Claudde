@@ -855,7 +855,7 @@ body.editing { overflow: hidden; }
   .stage { order: 1; height: auto; min-height: 0; padding-bottom: var(--sheet); box-sizing: border-box; }
   /* le carnet devient un tiroir fixe en bas de l'écran : l'œuvre reste visible pendant qu'on règle */
   .panel {
-    order: 2; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; height: var(--sheet); box-sizing: border-box;
+    order: 2; position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; height: var(--sheet); box-sizing: border-box; transition: height .3s ease;
     border-right: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: var(--tabs) 16px calc(24px + env(safe-area-inset-bottom, 0px)); gap: 22px;
     box-shadow: 0 -12px 30px -20px rgba(0, 0, 0, .5); overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;
   }
@@ -872,7 +872,7 @@ body.editing { overflow: hidden; }
   .panel .brand { display: none; }
   /* la barre d'onglets est fixée au bord haut du tiroir (pas de « sticky », que Safari perd parfois) */
   .sheet-tabs {
-    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: calc(var(--sheet) - var(--tabs)); height: var(--tabs); z-index: 7; margin: 0; padding: 6px 6px 0; box-sizing: border-box;
+    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: calc(var(--sheet) - var(--tabs)); height: var(--tabs); z-index: 7; margin: 0; padding: 6px 6px 0; box-sizing: border-box; transition: bottom .3s ease;
     background: var(--surface); border-bottom: 1px solid var(--line); border-radius: 18px 18px 0 0;
   }
   .sheet-tabs::before { content: ""; position: absolute; top: 4px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line); }
@@ -889,9 +889,13 @@ body.editing { overflow: hidden; }
   .panel.tabbed > .step.tab-on h2 .chev { display: none; }
   .panel.tabbed > .step.tab-on h2 { cursor: default; }
   .account { margin-top: 0; }
-  body.stage-full .panel { display: none; }
-  /* plein écran : plus de tiroir, l'œuvre prend toute la hauteur */
-  body.stage-full { --sheet: 0px; }
+  /* plein écran : le tiroir glisse vers le bas, il ne reste que la barre des sections (un toucher
+     sur l'une d'elles le fait remonter) ; l'œuvre prend toute la hauteur au-dessus */
+  body.stage-full, body.stage-full.sheet-tall, body.stage-full.sheet-detail { --sheet: calc(var(--tabs) + env(safe-area-inset-bottom, 0px)); }
+  body.stage-full .panel { z-index: 41; overflow: hidden; padding-bottom: 0; }
+  body.stage-full .sheet-tabs { z-index: 42; }
+  body.stage-full .stage { bottom: var(--sheet); }
+  body.stage-full .stage canvas { height: calc(100% - 60px - env(safe-area-inset-top, 0px)); }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
   .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }

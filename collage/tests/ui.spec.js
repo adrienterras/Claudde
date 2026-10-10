@@ -853,3 +853,24 @@ test.describe('Rendu pendant un glissement', () => {
     }
   });
 });
+
+test.describe('Plein écran sur téléphone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('le tiroir descend jusqu’à la barre des sections ; une section touchée le fait remonter', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.locator('#zoom-full').click();
+    await expect(page.locator('body')).toHaveClass(/stage-full/);
+    await page.waitForTimeout(450); // fin du glissement
+    const tabs = await page.locator('#sheet-tabs').boundingBox();
+    const panel = await page.locator('.panel').boundingBox();
+    const canvas = await page.locator('#canvas').boundingBox();
+    expect(Math.round(tabs.y + tabs.height)).toBe(844); // barre posée en bas de l'écran
+    expect(panel.height).toBeLessThanOrEqual(tabs.height + 1); // rien d'autre du tiroir
+    expect(canvas.y + canvas.height).toBeLessThanOrEqual(tabs.y + 1); // l'œuvre au-dessus de la barre
+    await expect(page.locator('#sheet-tabs [data-tab="drawings-section"]')).toBeVisible();
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
+    await expect(page.locator('body')).not.toHaveClass(/stage-full/);
+    await expect(page.locator('#drawings-section')).toBeVisible();
+  });
+});
