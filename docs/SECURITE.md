@@ -108,8 +108,52 @@ Corrigé :
 - Une ancienne branche (`d12bf53`, projet Firebase « tie-break ») contient une configuration Firebase
   publique : restreindre cette clé aux domaines autorisés dans Google Cloud.
 
+## Audit du 10 octobre 2026 (site complet)
+
+Relu : tout le code publié (atelier, livre, accueil, tarifs, article), le schéma Supabase, les
+workflows et l'historique Git complet (toutes branches). Aucune faille exploitable trouvée :
+- aucun secret (`service_role`, `sb_secret`, clés d'API, jetons GitHub, clés privées) dans le code
+  ni dans l'historique ; seule la clé publique Supabase est présente, comme prévu ;
+- toutes les insertions HTML de données (noms, titres, vignettes, panier, comptes) passent par
+  `esc()` ou `safeData()`, ou par `textContent` dans le livre ; les vignettes viennent du canvas ;
+- règles d'accès par ligne et par dossier inchangées et correctes ; supabase-js 2.117 (à jour).
+
+Corrigé :
+- **Politique de sécurité du contenu (CSP)** en balise `<meta>` sur l'atelier, le livre, l'accueil,
+  les tarifs, l'article et la page de confidentialité : scripts limités au site et à Umami (aucun
+  script inline sauf celui de la page de confidentialité, autorisé par son empreinte), connexions
+  limitées au site, à Supabase et à Umami, images au site, aux data/blob et aux avatars Google,
+  `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. Une injection de script ne
+  s'exécuterait plus et ne pourrait rien envoyer ailleurs : c'est la protection qui manquait au
+  jeton de session gardé dans `localStorage`. Test `tests/csp.spec.js` : politique présente partout,
+  empreintes à jour, aucun parcours (import PDF, export PDF, guide, livre) ne la viole, et un script
+  injecté est bien bloqué.
+- **jsPDF 2.5.1 → 4.2.1** : corrige les dénis de service connus (CVE-2025-29907, CVE-2025-57810) et
+  les failles corrigées depuis dans les versions 3 et 4. Le PDF produit est identique (mêmes opérations de
+  dessin, rotations comprises, comparées entre les deux versions).
+- **Actions GitHub figées sur leur commit** (SHA) au lieu d'une étiquette `@v4` qu'on pourrait
+  déplacer.
+- **`delete_account()`** : droit d'exécution retiré au rôle `anon` (la fonction refusait déjà ces
+  appels ; à rejouer dans l'éditeur SQL de Supabase, une ligne).
+
+Vérifications à faire en ligne (impossibles depuis l'environnement de l'audit, sans accès réseau
+au site ni à Supabase) :
+1. Après la mise en ligne, ouvrir l'atelier, se connecter, sauvegarder, rouvrir une composition :
+   la console du navigateur ne doit afficher aucune erreur « Content Security Policy ». Vérifier
+   dans Umami que les visites arrivent toujours.
+2. Avec la clé publique seule, `GET https://yfrerlyndrpfgerkbkyr.supabase.co/rest/v1/compositions?select=id`
+   doit répondre `[]` (aucune ligne visible sans connexion), de même pour `exports`.
+3. Les réglages listés plus haut (adresses de retour, longueur des mots de passe, protection
+   contre les mots de passe fuités, double authentification GitHub / Spaceship / Umami).
+
+Restent acceptés : pdf.js 3.11 (la faille connue CVE-2024-4367 est neutralisée par
+`isEvalSupported: false`) ; le script Umami chargé depuis cloud.umami.is sans version figée ;
+pas d'en-têtes HTTP (`frame-ancestors`, HSTS) possibles sur GitHub Pages ; la commande par e-mail
+reprend le total calculé dans le navigateur, que le client peut modifier dans son e-mail :
+toujours recalculer le prix d'après le catalogue avant d'encaisser.
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.
 - `grep -n "innerHTML" collage/js/app.js` : chaque interpolation de donnée passe par `esc()`.
-- `npm test` dans `collage/` : 73 tests, dont l'absence d'erreur de page.
+- `npm test` dans `collage/` : 98 tests, dont l'absence d'erreur de page et `tests/csp.spec.js`.

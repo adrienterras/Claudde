@@ -69,4 +69,6 @@ begin
 end;
 $$;
 revoke all on function public.delete_account() from public;
+-- Supabase donne aussi le droit d'exécution au rôle anon par défaut : on le retire (la fonction refusait déjà ces appels)
+revoke execute on function public.delete_account() from anon;
 grant execute on function public.delete_account() to authenticated;
