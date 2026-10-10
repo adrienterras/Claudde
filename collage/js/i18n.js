@@ -5,7 +5,7 @@
  * la traduction dans la langue active (le français tel quel). Au chargement, le DOM est traduit
  * (nœuds de texte et attributs title / placeholder / aria-label / alt).
  *
- * Langue active : ?lang=fr|en dans l'URL (mémorisé), sinon le choix mémorisé, sinon la langue
+ * Langue active : ?lang=fr|en dans l'URL (mémorisé), sinon le choix mémorisé, sinon le français (ancien : la langue
  * du navigateur (français → fr, tout le reste → en).
  */
 (function () {
@@ -13,7 +13,7 @@
 
   const EN = {
     // ---------- index.html ----------
-    'Atelier Gribouille — l’atelier': 'Atelier Gribouille — the studio',
+    'Créer un tableau avec les dessins de vos enfants | Atelier Gribouille': 'Make a canvas of your children’s drawings | Atelier Gribouille',
     'Importez les dessins scannés de vos enfants : l’atelier les découpe à leur taille réelle et compose sept propositions, à imprimer sur toile en 300 dpi ou à réaliser à la main avec les originaux.': 'Import your children’s scanned drawings: the studio cuts them out at their real size and composes seven proposals, to print on canvas at 300 dpi or to make by hand with the originals.',
     'Les dessins d’enfants': 'Children’s drawings',
     'deviennent des œuvres d’art': 'become works of art',
@@ -59,8 +59,6 @@
     'Nouvelles propositions': 'New proposals',
     'Réglages avancés': 'Advanced settings',
     'fond, feuilles pâles, finition': 'background, pale sheets, finish',
-    'Ce site existe aussi en français.': 'This site also exists in French.',
-    'Voir en français': 'View in French',
     'Étapes': 'Steps',
     'Plus': 'More',
     'Ajoutez d’autres scans à cette œuvre, ou': 'Add more scans to this artwork, or',
@@ -421,6 +419,9 @@
     'Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.': 'File too large for this device: choose “Screen” as quality.',
     'Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.': 'A save dialog is already open. Finish it, then try again.',
     'Téléchargement lancé : {0}': 'Download started: {0}',
+    // (bandeau proposant l'anglais : déjà en anglais)
+    'This site is also available in English.': 'This site is also available in English.',
+    'View in English': 'View in English',
     'Touchez une zone pour la sélectionner, puis gommez-la ou restaurez-la.': 'Tap an area to select it, then erase or restore it.',
     'Touchez d’autres zones pour les ajouter à la sélection.': 'Tap other areas to add them to the selection.',
     'Zone sélectionnée': 'Selected area',
@@ -671,7 +672,9 @@
     try { q = new URLSearchParams(location.search).get('lang'); } catch (e) { /* ignoré */ }
     if (LANGS.includes(q)) { try { localStorage.setItem(KEY, q); } catch (e) { /* ignoré */ } return q; }
     try { const v = localStorage.getItem(KEY); if (LANGS.includes(v)) return v; } catch (e) { /* ignoré */ }
-    return /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en';
+    // sans choix explicite, le français (langue d'origine du site, et celle que les moteurs de
+    // recherche doivent indexer) ; un bandeau ou le bouton FR / EN propose l'anglais
+    return 'fr';
   }
 
   const lang = pick();
@@ -723,6 +726,13 @@
       t.nodeValue = lead + v + tail;
     });
     document.documentElement.lang = lang;
+    // la version anglaise a sa propre adresse (?lang=en), déclarée aux moteurs par hreflang
+    if (lang === 'en') {
+      const canon = document.querySelector('link[rel="canonical"]');
+      if (canon) { const u = new URL(canon.href); u.searchParams.set('lang', 'en'); canon.href = u.toString(); }
+      const loc = document.querySelector('meta[property="og:locale"]');
+      if (loc) loc.content = 'en_GB';
+    }
   }
 
   function set(next) {

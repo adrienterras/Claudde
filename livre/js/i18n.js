@@ -7,7 +7,7 @@
   'use strict';
 
   const EN = {
-    "Atelier Gribouille — le livre de dessins": "Atelier Gribouille — the drawing book",
+    "Livre de dessins d’enfants à imprimer, gratuit | Atelier Gribouille": "Printable book of children’s drawings, free | Atelier Gribouille",
     "Rassemblez les dessins de vos enfants dans un vrai livre : couverture, légendes, mise en page soignée, et un PDF prêt à imprimer en 300 dpi.": "Gather your children’s drawings in a real book: a cover, captions, a careful layout, and a print-ready 300 dpi PDF.",
     "Accueil Atelier Gribouille": "Atelier Gribouille home",
     "Le livre de dessins": "The drawing book",
@@ -146,7 +146,9 @@
     try { q = new URLSearchParams(location.search).get('lang'); } catch (e) { /* ignoré */ }
     if (LANGS.includes(q)) { try { localStorage.setItem(KEY, q); } catch (e) { /* ignoré */ } return q; }
     try { const v = localStorage.getItem(KEY); if (LANGS.includes(v)) return v; } catch (e) { /* ignoré */ }
-    return /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en';
+    // sans choix explicite, le français (langue d'origine du site, et celle que les moteurs de
+    // recherche doivent indexer) ; un bandeau ou le bouton FR / EN propose l'anglais
+    return 'fr';
   }
 
   const lang = pick();
@@ -198,6 +200,13 @@
       t.nodeValue = lead + v + tail;
     });
     document.documentElement.lang = lang;
+    // la version anglaise a sa propre adresse (?lang=en), déclarée aux moteurs par hreflang
+    if (lang === 'en') {
+      const canon = document.querySelector('link[rel="canonical"]');
+      if (canon) { const u = new URL(canon.href); u.searchParams.set('lang', 'en'); canon.href = u.toString(); }
+      const loc = document.querySelector('meta[property="og:locale"]');
+      if (loc) loc.content = 'en_GB';
+    }
   }
 
   function set(next) {

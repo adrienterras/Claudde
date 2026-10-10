@@ -1,8 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://ateliergribouille.art/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://ateliergribouille.art/atelier/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://ateliergribouille.art/livre/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://ateliergribouille.art/tarifs.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://ateliergribouille.art/confidentialite.html</loc><changefreq>yearly</changefreq><priority>0.2</priority></url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://ateliergribouille.art/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/?lang=en</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/atelier/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/atelier/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/atelier/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/atelier/"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/atelier/?lang=en</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/atelier/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/atelier/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/atelier/"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/livre/</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/livre/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/livre/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/livre/"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/livre/?lang=en</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/livre/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/livre/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/livre/"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/tarifs.html</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/tarifs.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/tarifs.html?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/tarifs.html"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/tarifs.html?lang=en</loc>
+    <lastmod>2026-10-10</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/tarifs.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/tarifs.html?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/tarifs.html"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/idees-dessins-enfants.html</loc>
+    <lastmod>2026-10-10</lastmod>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/confidentialite.html</loc>
+    <lastmod>2026-10-10</lastmod>
+  </url>
 </urlset>

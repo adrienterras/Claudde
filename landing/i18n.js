@@ -1,7 +1,40 @@
-// Page d'accueil : traduction anglaise (le français est écrit dans index.html). Langue : ?lang=, choix mémorisé, sinon celle du navigateur.
+// Page d'accueil : traduction anglaise (le français est écrit dans index.html). Langue : ?lang=, choix mémorisé, sinon le français.
 (function () {
   'use strict';
   var EN = {
+    "Tarifs : tableau, toile et livre avec les dessins d’enfants | Atelier Gribouille": "Prices: canvas, print and book of children’s drawings | Atelier Gribouille",
+    "Tableau avec les dessins de vos enfants | Atelier Gribouille": "A canvas of your children’s drawings | Atelier Gribouille",
+    "Transformez les dessins de vos enfants en tableau : découpés à leur taille réelle, réunis en une œuvre unique à imprimer sur toile, encadrée ou à réaliser à la main. Gratuit pour composer.": "Turn your children’s drawings into a canvas: cut out at their real size, gathered into a unique artwork to print on canvas, framed or made by hand. Free to compose.",
+    "Atelier Gribouille — les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — children’s drawings become works of art",
+    "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon": "A canvas made of cut-out children’s drawings, hanging on a living-room wall",
+    "Que faire des dessins de ses enfants ?": "What can I do with my children’s drawings?",
+    "Choisissez les plus beaux, scannez-les ou prenez-les en photo, puis réunissez-les dans une œuvre à accrocher ou dans un livre de dessins. L’atelier compose les deux gratuitement, et vous pouvez garder les originaux ou les coller vous-même sur la toile.": "Pick the best ones, scan or photograph them, then gather them into an artwork to hang or into a drawing book. The studio composes both for free, and you can keep the originals or glue them onto the canvas yourself.",
+    "Comment transformer un dessin d’enfant en tableau ?": "How do I turn a child’s drawing into a canvas?",
+    "Importez les dessins dans l’atelier : il les détoure comme avec des ciseaux, à leur taille réelle, et propose sept compositions avec tous les dessins. Choisissez-en une, ajustez-la, puis téléchargez le fichier haute définition ou commandez le tableau imprimé et encadré.": "Import the drawings into the studio: it cuts them out as if with scissors, at their real size, and offers seven compositions using all of them. Pick one, adjust it, then download the high-definition file or order the printed, framed artwork.",
+    "Combien coûte un tableau avec les dessins de mes enfants ?": "How much does a canvas of my children’s drawings cost?",
+    "Composer est gratuit. Le fichier haute définition coûte 14,90 €. Imprimée et livrée en France métropolitaine, l’œuvre coûte dès 39 € sur papier premium, dès 69 € sur toile et dès 79 € encadrée. Le kit à réaliser soi-même est à 89 € et l’œuvre faite à la main avec les originaux dès 490 €.": "Composing is free. The high-definition file costs €14.90. Printed and delivered in mainland France, the artwork starts at €39 on premium paper, €69 on canvas and €79 framed. The do-it-yourself kit is €89 and the handmade artwork with the originals starts at €490.",
+    "Faut-il un scanner ?": "Do I need a scanner?",
+    "Non : une photo prise au téléphone suffit. L’atelier retire la table ou le sol autour du dessin et égalise l’éclairage. Pour un grand format, un scan à 300 dpi donne les traits les plus nets.": "No: a phone photo is enough. The studio removes the table or floor around the drawing and evens out the lighting. For a large format, a 300 dpi scan gives the sharpest lines.",
+    "Combien de dessins peut-on réunir sur une toile ?": "How many drawings can go on one canvas?",
+    "De quelques dessins à plusieurs dizaines : chaque proposition les utilise tous, à leur taille réelle, sur une toile jusqu’à 200 cm. Vous pouvez en retirer, en dupliquer, les déplacer et les retoucher.": "From a few drawings to several dozen: each proposal uses all of them, at their real size, on a canvas up to 200 cm. You can remove, duplicate, move and retouch them.",
+    "Que deviennent les dessins que j’importe ?": "What happens to the drawings I import?",
+    "Ils restent dans votre navigateur. Si vous créez un compte gratuit, vos compositions sont gardées dans votre espace, hébergé en Europe, et vous pouvez tout supprimer à tout moment. Les dessins ne servent à rien d’autre qu’à votre œuvre.": "They stay in your browser. If you create a free account, your compositions are kept in your space, hosted in Europe, and you can delete everything at any time. The drawings are used for nothing but your artwork.",
+    "Peut-on faire un livre avec les dessins de ses enfants ?": "Can I make a book of my children’s drawings?",
+    "Oui, avec le livre de dessins : une couverture à leur nom, un ou plusieurs dessins par page avec leur titre et leur âge, en A4 ou en carré. Il est gratuit et donne un PDF en 300 dpi, prêt pour un service d’albums photo.": "Yes, with the drawing book: a cover with their name, one or more drawings per page with their title and age, in A4 or square. It is free and gives a 300 dpi PDF, ready for a photo book service.",
+    "Est-ce une bonne idée de cadeau ?": "Is it a good gift idea?",
+    "C’est l’un des cadeaux les plus touchants pour des grands-parents, pour la fête des mères ou des pères, ou pour Noël. Prévoyez quelques jours pour l’impression et la livraison d’un tableau encadré ; le fichier haute définition et le livre se téléchargent tout de suite.": "It is one of the most touching gifts for grandparents, for Mother’s or Father’s Day, or for Christmas. Allow a few days for printing and delivery of a framed artwork; the high-definition file and the book download right away.",
+    "Tableau de dessins d’enfants, composition Paysage : ciel, milieu et sol": "Canvas of children’s drawings, Landscape composition: sky, middle and ground",
+    "Tableau de dessins d’enfants, composition Frise : les dessins à la suite, en bande": "Canvas of children’s drawings, Frieze composition: the drawings in a row, as a band",
+    "Tableau de dessins d’enfants, composition Nuage : dispersés sur un fond uni": "Canvas of children’s drawings, Cloud composition: scattered on a plain background",
+    "Tableau de dessins d’enfants, composition Tournesol : en spirale depuis le cœur": "Canvas of children’s drawings, Sunflower composition: in a spiral from the heart",
+    "Tableau de dessins d’enfants, composition Courtepointe : en patchwork": "Canvas of children’s drawings, Quilt composition: as a patchwork",
+    "Tableau de dessins d’enfants, composition Cabinet de curiosités : en rangées": "Canvas of children’s drawings, Cabinet of curiosities composition: in rows",
+    "Tableau de dessins d’enfants, composition Galerie : un dessin par cadre": "Canvas of children’s drawings, Gallery composition: one drawing per frame",
+    "Questions fréquentes": "Frequently asked questions",
+    "Tout ce qu’on nous demande avant de transformer les dessins en tableau.": "Everything people ask us before turning the drawings into a canvas.",
+    "Encore des idées pour leurs dessins :": "More ideas for their drawings:",
+    "que faire des dessins de ses enfants ? 9 idées": "what to do with your children’s drawings? 9 ideas (in French)",
+    "Idées": "Ideas",
     "Le deuxième atelier": "The second studio",
     "Le livre de dessins": "The drawing book",
     "Tous leurs dessins réunis dans un vrai livre, comme un album photo : une couverture à leur nom, un dessin par page ou plusieurs, avec son titre et leur âge.": "All their drawings gathered in a real book, like a photo album: a cover with their name, one drawing per page or several, with its title and their age.",
@@ -87,7 +120,7 @@
     "Langue / Language": "Language",
     // page tarifs
     "Tarifs — Atelier Gribouille": "Pricing — Atelier Gribouille",
-    "Composer est gratuit. Téléchargez votre œuvre en haute définition à partir de 14,90 €, recevez-la imprimée et encadrée dès 79 €, ou confiez-nous les dessins originaux pour une œuvre réalisée à la main.": "Composing is free. Download your artwork in high definition from €14.90, receive it printed and framed from €79, or entrust us with the original drawings for a handmade artwork.",
+    "Composer est gratuit. Votre tableau de dessins d’enfants en fichier HD dès 14,90 €, imprimé et encadré dès 79 €, ou réalisé à la main avec les originaux dès 490 €.": "Composing is free. Your canvas of children’s drawings as an HD file from €14.90, printed and framed from €79, or made by hand with the originals from €490.",
     "Tarifs": "Pricing",
     "À télécharger dès 14,90 €, à accrocher dès 79 €, réalisé à la main dès 490 €.": "To download from €14.90, to hang from €79, handmade from €490.",
     "Composer est gratuit.": "Composing is free.",
@@ -187,7 +220,9 @@
     try { q = new URLSearchParams(location.search).get('lang'); } catch (e) { /* ignoré */ }
     if (q === 'fr' || q === 'en') { try { localStorage.setItem(KEY, q); } catch (e) { /* ignoré */ } return q; }
     try { var v = localStorage.getItem(KEY); if (v === 'fr' || v === 'en') return v; } catch (e) { /* ignoré */ }
-    return /^fr\b/i.test(navigator.language || '') ? 'fr' : 'en';
+    // sans choix explicite, le français (langue d'origine du site, et celle que les moteurs de
+    // recherche doivent indexer) ; un bandeau ou le bouton FR / EN propose l'anglais
+    return 'fr';
   }
   var lang = pick();
   function translate() {
@@ -213,6 +248,13 @@
     document.querySelectorAll('svg[aria-label]').forEach(function (s) { var v = s.getAttribute('aria-label'); if (EN[v] !== undefined) s.setAttribute('aria-label', EN[v]); });
     document.querySelectorAll('a[href^="atelier/"], a[href^="livre/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
     document.documentElement.lang = 'en';
+    // la version anglaise a sa propre adresse (?lang=en), déclarée aux moteurs par hreflang
+    var canon = document.querySelector('link[rel="canonical"]');
+    if (canon) { var u = new URL(canon.href); u.searchParams.set('lang', 'en'); canon.href = u.toString(); }
+    var ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) { var o = new URL(ogUrl.content); o.searchParams.set('lang', 'en'); ogUrl.content = o.toString(); }
+    var loc = document.querySelector('meta[property="og:locale"]');
+    if (loc) loc.content = 'en_GB';
   }
   function wire() {
     document.querySelectorAll('[data-lang]').forEach(function (b) {

@@ -4156,19 +4156,17 @@ Réponds uniquement avec ce JSON :
     syncTabs();
   })();
 
-  // Navigateur en anglais mais français parmi ses langues (ou fuseau francophone) : on propose la
-  // version française, une seule fois.
+  // L'atelier s'ouvre en français ; un navigateur sans le français parmi ses langues se voit proposer
+  // la version anglaise, une seule fois (pas de bascule automatique : l'adresse sans paramètre reste
+  // la page française, celle que les moteurs de recherche indexent).
   (function langOffer() {
     const el = $('lang-offer');
-    if (!el || !window.I18n || I18n.lang !== 'en') return;
+    if (!el || !window.I18n || I18n.lang !== 'fr') return;
     let chosen = null, seen = null;
     try { chosen = localStorage.getItem('atelier-gribouille:lang'); seen = localStorage.getItem('atelier-gribouille:lang-offer'); } catch (e) { /* ignoré */ }
     if (chosen || seen) return;
     const langs = navigator.languages || [navigator.language];
-    let tz = '';
-    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { tz = ''; }
-    const french = langs.some((l) => /^fr\b/i.test(l)) || /^Europe\/(Paris|Brussels|Zurich|Luxembourg|Monaco)$|^America\/Montreal$/.test(tz);
-    if (!french) return;
+    if (langs.some((l) => /^fr\b/i.test(l))) return;
     el.hidden = false;
     document.body.classList.add('has-lang-offer');
     $('lang-offer-close').onclick = () => { el.hidden = true; document.body.classList.remove('has-lang-offer'); try { localStorage.setItem('atelier-gribouille:lang-offer', '1'); } catch (e) { /* ignoré */ } };
