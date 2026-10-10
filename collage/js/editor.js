@@ -63,7 +63,9 @@
       dirty: true, raf: 0,
       pointers: new Map(), stroke: null, pinch: null, space: false, cursor: null,
       tone0: toneOf(opts.tone), tone: toneOf(opts.tone), timg: null,
+      sel: null, selSeeds: [], selAdd: false, selFill: null, selHalo: null,
     };
+    syncSel();
     showTone(false);
     syncTone('');
     $('ed-title').textContent = opts.title || tr('Découpe');
@@ -187,6 +189,12 @@
       ctx.drawImage(S.sil, Math.cos(a) * r, Math.sin(a) * r);
     }
     ctx.drawImage(S.cut, 0, 0);
+    // sélection de la baguette : contour sombre autour, voile bleu dedans
+    if (S.sel && S.selFill) {
+      const hr = (1.6 * dpr) / S.z;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; ctx.drawImage(S.selHalo, Math.cos(a) * hr, Math.sin(a) * hr); }
+      ctx.drawImage(S.selFill, 0, 0);
+    }
     ctx.restore();
     // loupe : la zone sous le doigt, grossie deux fois, au-dessus du doigt (ou dessous près du bord)
     if (S.loupe && S.cursor) {
@@ -246,7 +254,7 @@
     // la baguette se règle en sensibilité, la gomme et le pinceau en taille
     document.querySelector('#editor .ed-size:not(.ed-tol)').hidden = t === 'wand';
     document.querySelector('#editor .ed-tol').hidden = t !== 'wand';
-    if (t === 'wand') tip(tr('Touchez une zone : dans la découpe, elle est retirée ; à côté, elle est ajoutée.'));
+    if (t === 'wand') tip(tr('Touchez une zone pour la sélectionner, puis gommez-la ou restaurez-la.'));
     render();
   }
 
@@ -267,49 +275,107 @@
 
   /*
    * Comme dans Photoshop : à partir du point touché, toute la zone d'un seul tenant dont la couleur
-   * reste proche de celle du point (écart inférieur à la sensibilité) est prise. Touchée dans la
-   * découpe, la zone en est retirée (élargie d'un pixel, pour ne pas laisser de liseré) ; touchée à
-   * côté, elle y est ajoutée.
+   * reste proche de celle du point (écart inférieur à la sensibilité) est sélectionnée. On choisit
+   * ensuite de la gommer ou de la restaurer ; « Ajouter » (ou Maj + clic) ajoute d'autres zones.
+   * Changer la sensibilité recalcule la sélection depuis les mêmes points.
    */
-  function wand(x, y) {
+  function wand(x, y, add) {
     const { R } = S;
     const xi = Math.floor(x), yi = Math.floor(y);
     if (xi < 0 || yi < 0 || xi >= R.w || yi >= R.h) return 0;
+    const seed = { x: xi, y: yi };
+    S.selSeeds = (add || S.selAdd) && S.sel ? S.selSeeds.concat([seed]) : [seed];
+    return computeSel();
+  }
+
+  function computeSel() {
+    const { R } = S;
+    if (!S.selSeeds.length) { clearSel(); return 0; }
     if (!S.imgData) S.imgData = S.img.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, R.w, R.h).data;
     const d = S.imgData, W = R.w, N = R.w * R.h;
-    const mctx = S.mask.getContext('2d', { willReadFrequently: true });
-    const mimg = mctx.getImageData(0, 0, W, R.h), ma = mimg.data;
-    const seed = yi * W + xi;
-    const remove = ma[seed * 4 + 3] > 127;
     const tol = Number($('ed-tol').value) * 1.8, T2 = tol * tol;
-    const r0 = d[seed * 4], g0 = d[seed * 4 + 1], b0 = d[seed * 4 + 2];
     const sel = new Uint8Array(N);
-    const stack = [seed];
-    sel[seed] = 1;
-    let n = 0;
-    while (stack.length) {
-      const p = stack.pop();
-      n++;
-      const px = p % W;
-      const nb = [px > 0 ? p - 1 : -1, px < W - 1 ? p + 1 : -1, p >= W ? p - W : -1, p < N - W ? p + W : -1];
-      for (const q of nb) {
-        if (q < 0 || sel[q]) continue;
+    const stack = [];
+    S.selSeeds.forEach(({ x, y }) => {
+      const seed = y * W + x;
+      if (sel[seed]) return;
+      const r0 = d[seed * 4], g0 = d[seed * 4 + 1], b0 = d[seed * 4 + 2];
+      sel[seed] = 1;
+      stack.push(seed);
+      const tryAdd = (q) => {
+        if (sel[q]) return;
         const i = q * 4, dr = d[i] - r0, dg = d[i + 1] - g0, db = d[i + 2] - b0;
         if (dr * dr + dg * dg + db * db <= T2) { sel[q] = 1; stack.push(q); }
+      };
+      while (stack.length) {
+        const p = stack.pop();
+        const px = p % W;
+        if (px > 0) tryAdd(p - 1);
+        if (px < W - 1) tryAdd(p + 1);
+        if (p >= W) tryAdd(p - W);
+        if (p < N - W) tryAdd(p + W);
       }
-    }
-    pushUndo();
+    });
+    let n = 0;
+    for (let p = 0; p < N; p++) n += sel[p];
+    S.sel = sel;
+    // calques d'affichage : le voile et le contour
+    const fill = S.selFill || Extract.makeCanvas(R.w, R.h), halo = S.selHalo || Extract.makeCanvas(R.w, R.h);
+    const fx = fill.getContext('2d'), hx = halo.getContext('2d');
+    const im = fx.createImageData(R.w, R.h), hm = hx.createImageData(R.w, R.h);
     for (let p = 0; p < N; p++) {
-      if (sel[p]) { ma[p * 4 + 3] = remove ? 0 : 255; continue; }
-      if (!remove) continue;
-      // retrait élargi d'un pixel
+      const i = p * 4;
+      // voile bleu vif dedans (lisible sur le papier comme sur les couleurs)
+      if (sel[p]) { im.data[i] = 30; im.data[i + 1] = 110; im.data[i + 2] = 255; im.data[i + 3] = 120; continue; }
+      // contour sombre : l'anneau de pixels juste autour de la zone
+      const px = p % W;
+      if ((px > 0 && sel[p - 1]) || (px < W - 1 && sel[p + 1]) || (p >= W && sel[p - W]) || (p < N - W && sel[p + W])) { hm.data[i] = 20; hm.data[i + 1] = 24; hm.data[i + 2] = 40; hm.data[i + 3] = 255; }
+    }
+    fx.putImageData(im, 0, 0); hx.putImageData(hm, 0, 0);
+    S.selFill = fill; S.selHalo = halo;
+    syncSel();
+    render();
+    return n;
+  }
+
+  function clearSel() {
+    if (!S) return;
+    S.sel = null; S.selSeeds = [];
+    syncSel();
+    render();
+  }
+
+  // la barre d'actions de la sélection ne se montre que quand une zone est sélectionnée
+  function syncSel() {
+    const bar = $('ed-selbar');
+    if (!bar) return;
+    bar.hidden = !(S && S.sel);
+    $('ed-sel-add').setAttribute('aria-pressed', S && S.selAdd ? 'true' : 'false');
+    $('ed-sel-add').classList.toggle('on', !!(S && S.selAdd));
+  }
+
+  // Gommer ou restaurer la zone sélectionnée (un pas de « Défaire »), puis désélectionner.
+  function applySel(mode) {
+    if (!S || !S.sel) return 0;
+    const { R, sel } = S;
+    const W = R.w, N = R.w * R.h;
+    const mctx = S.mask.getContext('2d', { willReadFrequently: true });
+    const mimg = mctx.getImageData(0, 0, W, R.h), ma = mimg.data;
+    const erase = mode === 'erase';
+    pushUndo();
+    let n = 0;
+    for (let p = 0; p < N; p++) {
+      if (sel[p]) { const v = erase ? 0 : 255; if (ma[p * 4 + 3] !== v) n++; ma[p * 4 + 3] = v; continue; }
+      if (!erase) continue;
+      // gomme élargie d'un pixel, pour ne pas laisser de liseré
       const px = p % W;
       if ((px > 0 && sel[p - 1]) || (px < W - 1 && sel[p + 1]) || (p >= W && sel[p - W]) || (p < N - W && sel[p + W])) ma[p * 4 + 3] = 0;
     }
     mctx.putImageData(mimg, 0, 0);
     S.dirty = true;
-    render();
-    return remove ? -n : n;
+    S.selAdd = false;
+    clearSel();
+    return n;
   }
 
   function history() {
@@ -398,7 +464,7 @@
     }
     const pan = S.tool === 'pan' || S.space || e.button === 1 || e.button === 2;
     if (pan) { S.drag = { px: p.px, py: p.py }; c.style.cursor = 'grabbing'; return; }
-    if (S.tool === 'wand') { S.wandTap = { id: e.pointerId, px: p.px, py: p.py, x: p.x, y: p.y }; return; }
+    if (S.tool === 'wand') { S.wandTap = { id: e.pointerId, px: p.px, py: p.py, x: p.x, y: p.y, add: e.shiftKey }; return; }
     pushUndo();
     S.stroke = { tool: S.tool, last: p };
     // au doigt, une loupe montre au-dessus ce qui est sous le doigt
@@ -443,7 +509,7 @@
       S.wandTap = null;
       const p = toLocal(e);
       const dpr = window.devicePixelRatio || 1;
-      if (Math.hypot(p.px - tap.px, p.py - tap.py) < 12 * dpr) wand(tap.x, tap.y);
+      if (Math.hypot(p.px - tap.px, p.py - tap.py) < 12 * dpr) wand(tap.x, tap.y, tap.add);
     }
     S.pointers.delete(e.pointerId);
     if (S.pointers.size < 2) S.pinch = null;
@@ -530,7 +596,11 @@
     }, { passive: false });
     document.querySelectorAll('#editor [data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
     $('ed-size').addEventListener('input', (e) => { if (S) { S.size = Number(e.target.value); render(); } });
-    $('ed-tol').addEventListener('input', (e) => { $('ed-tol-val').textContent = e.target.value; });
+    $('ed-tol').addEventListener('input', (e) => { $('ed-tol-val').textContent = e.target.value; if (S && S.sel) computeSel(); });
+    $('ed-sel-erase').onclick = () => applySel('erase');
+    $('ed-sel-restore').onclick = () => applySel('restore');
+    $('ed-sel-add').onclick = () => { if (S) { S.selAdd = !S.selAdd; syncSel(); if (S.selAdd) tip(tr('Touchez d’autres zones pour les ajouter à la sélection.')); } };
+    $('ed-sel-clear').onclick = () => { if (S) { S.selAdd = false; clearSel(); } };
     const center = (f) => { const { w, h } = canvasSize(); zoomAt(f, w / 2, h / 2); };
     $('ed-zin').onclick = () => center(1.3);
     $('ed-zout').onclick = () => center(1 / 1.3);
@@ -557,7 +627,8 @@
       if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
       if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
       if (e.target.tagName === 'INPUT') return;
-      if (e.key === 'Escape') { e.preventDefault(); close(); }
+      if (e.key === 'Escape') { e.preventDefault(); if (S.sel) { S.selAdd = false; clearSel(); } else close(); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) { e.preventDefault(); applySel('erase'); }
       else if (e.key === 'Enter') { e.preventDefault(); apply(); }
       else if (e.key === ' ') { e.preventDefault(); S.space = true; $('ed-canvas').style.cursor = 'grab'; render(); }
       else if (e.key === 'e' || e.key === 'E') setTool('erase');
@@ -578,5 +649,10 @@
   }
 
   init();
-  window.Editor = { open, isOpen: () => !!S, loupe: () => !!(S && S.loupe), wand: (x, y) => (S ? wand(x, y) : 0) };
+  window.Editor = {
+    open, isOpen: () => !!S, loupe: () => !!(S && S.loupe),
+    wand: (x, y, add) => (S ? wand(x, y, add) : 0),
+    applySelection: (mode) => (S ? applySel(mode) : 0),
+    selection: () => (S && S.sel ? S.sel.reduce((a, v) => a + v, 0) : 0),
+  };
 })();

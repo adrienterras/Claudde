@@ -704,7 +704,7 @@ test.describe('Panier relu du navigateur', () => {
 });
 
 test.describe('Baguette magique', () => {
-  test('dans la découpe une zone de couleur est retirée, à côté elle est ajoutée ; la sensibilité règle son étendue', async ({ page }) => {
+  test('elle sélectionne une zone de couleur ; on la gomme ou on la restaure ; la sensibilité règle son étendue', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
@@ -734,32 +734,47 @@ test.describe('Baguette magique', () => {
     await expect(page.locator('#ed-tol')).toBeVisible();
     await expect(page.locator('#ed-size')).toBeHidden();
     await page.locator('#ed-tol').fill('20');
-    // dans la découpe : retirée
-    expect(await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red)).toBeLessThan(0);
+    // la baguette sélectionne seulement : la découpe ne change pas encore
+    expect(await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red)).toBeGreaterThan(0);
+    await expect(page.locator('#ed-selbar')).toBeVisible();
+    await expect(page.locator('#ed-undo')).toBeDisabled();
+    // gommer la sélection
+    await page.locator('#ed-sel-erase').click();
+    await expect(page.locator('#ed-selbar')).toBeHidden();
+    await expect(page.locator('#ed-undo')).toBeEnabled();
     await page.locator('#ed-apply').click();
     const n1 = await opaque();
     expect(n1).toBeLessThan(n0 * 0.95);
-    // annuler dans la fenêtre : rien ne change à la validation
+    // désélectionner ne change rien ; défaire après gommer non plus
     await open();
     await page.locator('#editor [data-tool="wand"]').click();
     await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red);
+    await page.locator('#ed-sel-clear').click();
+    await expect(page.locator('#ed-selbar')).toBeHidden();
+    await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red);
+    await page.locator('#ed-sel-erase').click();
     await page.locator('#ed-undo').click();
     await page.locator('#ed-apply').click();
     expect(Math.abs((await opaque()) - n1)).toBeLessThan(n1 * 0.01);
-    // à côté, sur le papier : ajoutée (et d'autant plus large que la sensibilité est forte)
+    // à côté, sur le papier : la sélection suit la sensibilité, « Ajouter » l'agrandit, Restaurer l'ajoute à la découpe
     await open();
     await page.locator('#editor [data-tool="wand"]').click();
     await page.locator('#ed-tol').fill('5');
     const small = await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.paper);
-    await page.locator('#ed-undo').click();
     await page.locator('#ed-tol').fill('40');
-    const large = await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.paper);
+    const large = await page.evaluate(() => Editor.selection());
     expect(small).toBeGreaterThan(0);
     expect(large).toBeGreaterThanOrEqual(small);
-    await page.locator('#ed-cancel').click();
+    await page.locator('#ed-sel-add').click();
+    await expect(page.locator('#ed-sel-add')).toHaveAttribute('aria-pressed', 'true');
+    const both = await page.evaluate(({ x, y }) => Editor.wand(x, y), pts.red);
+    expect(both).toBeGreaterThan(large);
+    await page.locator('#ed-sel-restore').click();
+    await page.locator('#ed-apply').click();
+    expect(await opaque()).toBeGreaterThan(n1);
   });
 
-  test('sur téléphone : un toucher sur le dessin applique la baguette', async ({ browser }) => {
+  test('sur téléphone : un toucher sélectionne, puis « Gommer » applique', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
@@ -770,11 +785,14 @@ test.describe('Baguette magique', () => {
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
     await page.locator('#editor [data-tool="wand"]').click();
-    await expect(page.locator('#ed-tip')).toContainText('retirée');
+    await expect(page.locator('#ed-tip')).toContainText('sélectionner');
     await expect(page.locator('#ed-undo')).toBeDisabled();
     const box = await page.locator('#ed-canvas').boundingBox();
     await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-    await expect(page.locator('#ed-undo')).toBeEnabled(); // la baguette a agi (défaire possible)
+    await expect(page.locator('#ed-selbar')).toBeVisible();
+    await expect(page.locator('#ed-undo')).toBeDisabled(); // rien n'est encore changé
+    await page.locator('#ed-sel-erase').tap();
+    await expect(page.locator('#ed-undo')).toBeEnabled(); // la zone a été gommée (défaire possible)
     await ctx.close();
   });
 });

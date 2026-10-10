@@ -797,6 +797,23 @@ body.editing { overflow: hidden; }
 .ed-msg { margin: 0; flex-basis: 100%; color: var(--danger); font-size: 0.84rem; }
 .ed-msg:empty { display: none; }
 .ed-foot .short { display: none; }
+/* barre de la sélection (baguette) : en bas du dessin, au-dessus de la légende */
+.ed-selbar {
+  position: absolute; left: 0; right: 0; bottom: 44px; margin: 0 auto; z-index: 3; width: max-content;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; padding: 6px; max-width: calc(100% - 20px); box-sizing: border-box;
+  border-radius: 999px; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 10px 24px -18px rgba(0, 0, 0, .5);
+}
+.ed-selbar[hidden] { display: none; }
+.ed-selbar .btn { width: auto; margin: 0; padding: 8px 14px; font-size: 0.84rem; gap: 6px; }
+.ed-selbar .btn .ico { width: 16px; height: 16px; }
+.ed-selbar .btn.on { background: var(--ink); color: var(--on-ink, #fff); }
+#ed-sel-clear { padding: 8px 12px; font-size: 1.05rem; line-height: 1; }
+@media (max-width: 600px) {
+  .ed-selbar { gap: 4px; padding: 5px; flex-wrap: nowrap; }
+  .ed-selbar .btn { padding: 7px 10px; font-size: 0.8rem; gap: 4px; flex: none; }
+  #ed-sel-clear { padding: 7px 10px; }
+}
 .ed-tip {
   position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 2; margin: 0;
   padding: 8px 14px; border-radius: 999px; background: rgba(28, 27, 21, .82); color: #f8f5ef;
