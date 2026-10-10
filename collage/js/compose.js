@@ -886,8 +886,52 @@
     return galleryGrid(1, ratio);
   }
 
+  /*
+   * Grille de cases carrées avec le même bord des quatre côtés. Pour cols × rows cases de côté s,
+   * espacées de g, avec un bord m : W = 2m + cols·s + (cols−1)·g et H = 2m + rows·s + (rows−1)·g.
+   * D'où le pas s + g = (W − H) / (cols − rows) : chaque grille impose son pas ; l'espace g
+   * (1,2 à 3 cm) est choisi pour un bord au plus près de 3 cm, et le bord doit rester raisonnable.
+   * Rend la grille la plus fournie (au plus « target » cases), sinon null.
+   */
+  function squareGrid(W, H, target) {
+    // un bord ordinaire d'abord ; avec peu de cases, si aucune grille ne tombe juste, un bord large
+    // (bord large : le plus étroit possible d'abord, sinon de toutes petites cases noyées dans le blanc)
+    return squareGridWithin(W, H, target, Math.max(5, 0.14 * Math.min(W, H)), false) || squareGridWithin(W, H, target, 0.35 * Math.min(W, H), true);
+  }
+  function squareGridWithin(W, H, target, MMAX, narrowFirst) {
+    const M0 = 3, G0 = 1.6, GMIN = 1.2, GMAX = 3, MMIN = 1.5;
+    let best = null;
+    const byCount = (a, b) => (a.n !== b.n ? a.n > b.n : null);
+    const byBorder = (a, b) => (Math.abs(a.m - M0) !== Math.abs(b.m - M0) ? Math.abs(a.m - M0) < Math.abs(b.m - M0) : null);
+    const better = (a, b) => {
+      const first = narrowFirst ? byBorder(a, b) : byCount(a, b);
+      if (first !== null) return first;
+      const second = narrowFirst ? byCount(a, b) : byBorder(a, b);
+      return second !== null ? second : Math.abs(a.gap - G0) < Math.abs(b.gap - G0);
+    };
+    const square = Math.abs(W - H) < 1e-6;
+    for (let cols = 1; cols <= target; cols++) {
+      for (let rows = 1; cols * rows <= target; rows++) {
+        let g, m, side;
+        if (square) {
+          if (cols !== rows) continue;
+          g = G0; m = M0; side = (W - 2 * m - (cols - 1) * g) / cols;
+        } else {
+          if ((cols - rows) * (W - H) <= 0) continue;
+          const P = (W - H) / (cols - rows);
+          g = clamp(2 * M0 - (W - cols * P), GMIN, GMAX);
+          m = (W - cols * P + g) / 2; side = P - g;
+        }
+        if (!(side >= 2.5) || m < MMIN - 1e-9 || m > MMAX + 1e-9) continue;
+        const cand = { cols, rows, side, gap: g, m, n: cols * rows };
+        if (!best || better(cand, best)) best = cand;
+      }
+    }
+    return best;
+  }
+
   function gallery(W, H, pieces, o, R, texs) {
-    const M = 3, gap = 1.6, pad = 1.6;
+    const M = 3, pad = 1.6;
     const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0)
       + (p.hcm / p.wcm >= 0.8 && p.hcm / p.wcm <= 2.4 ? 0.6 : 0) + Math.min(1, (p.wcm * p.hcm) / 600) * 0.5;
     // un sujet par dessin : le meilleur de chaque ; les pages de fond entrent aussi, entières, dans leur case
@@ -900,26 +944,29 @@
     // pour l'impression : un dessin trop grand pour sa case est réduit (jamais agrandi), si bien que
     // tous les dessins tiennent, quelle que soit la toile.
     const target = galleryCount(cands.length, o);
-    // grille complète (jamais une dernière rangée moins remplie) : pour N cases, la grille la plus
-    // proche des proportions de la toile. Les cases occupent toute la toile : même bord tout autour
-    // (M) et même espace entre les cadres (gap) ; elles sont carrées quand la toile s'y prête,
-    // légèrement rectangulaires sinon. On préfère les sujets qui tiennent à taille réelle.
-    let best = null;
-    for (let want = target; want >= 1 && !best; want--) {
-      const g = galleryShape(want, W / H);
-      const N = g.N, cols = g.cols, rows = g.rows;
-      const cw = (W - 2 * M - (cols - 1) * gap) / cols, ch = (H - 2 * M - (rows - 1) * gap) / rows;
-      if (Math.min(cw, ch) < 2.5) continue;
-      const fillOf = (p) => Math.max(p.wcm / (cw - 2 * pad), p.hcm / (ch - 2 * pad));
-      const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0) + (f <= 1 ? 1 : 0); };
-      const fit = cands.slice().sort((a, b) => cellScore(b) - cellScore(a));
-      best = { N, cols, rows, cw, ch, fit: fit.slice(0, N) };
-      want = N; // on reprend, s'il le faut, en dessous de la grille essayée
+    // cases carrées, même bord des quatre côtés : seules certaines grilles tombent juste sur une toile
+    // donnée (voir squareGrid) ; on prend la plus fournie qui ne dépasse pas le nombre visé. Sinon
+    // (toile presque carrée, très peu de cases), la grille la plus proche des proportions, centrée.
+    let grid = squareGrid(W, H, target), gap = grid ? grid.gap : 1.6;
+    let cols, rows, side, x0g, y0g;
+    if (grid) {
+      ({ cols, rows, side } = grid);
+      x0g = grid.m; y0g = grid.m;
+    } else {
+      for (let want = target; want >= 1 && !side; want--) {
+        const g = galleryShape(want, W / H);
+        const sd = Math.min((W - 2 * M - (g.cols - 1) * gap) / g.cols, (H - 2 * M - (g.rows - 1) * gap) / g.rows);
+        if (sd < 2.5) { want = g.N; continue; }
+        cols = g.cols; rows = g.rows; side = sd;
+      }
+      if (!side) return { items: [], frames: [], kept: 0 };
+      x0g = (W - (cols * side + (cols - 1) * gap)) / 2; y0g = (H - (rows * side + (rows - 1) * gap)) / 2;
     }
-    if (!best) return { items: [], frames: [], kept: 0 };
-    // la dernière rangée, si elle est incomplète, est centrée
-    const { N, cols, rows, cw, ch } = best;
-    const x0g = M, y0g = M;
+    const N = cols * rows;
+    // on préfère les sujets qui tiennent à taille réelle dans leur case
+    const fillOf = (p) => Math.max(p.wcm, p.hcm) / (side - 2 * pad);
+    const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0) + (f <= 1 ? 1 : 0); };
+    const best = { fit: cands.slice().sort((a, b) => cellScore(b) - cellScore(a)).slice(0, N) };
     const order = shuffle(best.fit, R);
     const items = [], frames = [], bg = [];
     let reduced = false;
@@ -927,17 +974,17 @@
       const r = Math.floor(i / cols);
       const inRow = r === rows - 1 ? N - r * cols : cols;
       const c = i - r * cols;
-      const x0 = x0g + (cols - inRow) * (cw + gap) / 2 + c * (cw + gap), y0 = y0g + r * (ch + gap);
-      frames.push({ x: x0, y: y0, w: cw, h: ch });
+      const x0 = x0g + (cols - inRow) * (side + gap) / 2 + c * (side + gap), y0 = y0g + r * (side + gap);
+      frames.push({ x: x0, y: y0, w: side, h: side });
       // réduit pour tenir dans la case (jamais agrandi)
-      const f = Math.min(1, (cw - 2 * pad) / p.wcm, (ch - 2 * pad) / p.hcm);
+      const f = Math.min(1, (side - 2 * pad) / Math.max(p.wcm, p.hcm));
       if (f < 1) reduced = true;
       if (p.page) {
-        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + cw / 2, y: y0 + ch / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f, frame: i });
+        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f, frame: i });
         return;
       }
       p.placed = true;
-      items.push({ kind: 'piece', piece: p, x: x0 + cw / 2, y: y0 + ch / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, frame: i });
+      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, frame: i });
     });
     return { items, bg, frames, kept: items.length + bg.length, cols, rows, reduced };
   }
@@ -1567,5 +1614,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { galleryCount, galleryGrid, galleryShape, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
+  window.Compose = { galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
 })();

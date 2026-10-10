@@ -51,9 +51,9 @@ test.describe('Compositions', () => {
     expect(g.overlaps).toBe(0);
   });
 
-  test('Galerie : sur une toile de format fixe, même bord tout autour et même espace entre les cadres', async ({ app }) => {
+  test('Galerie : cases carrées et même bord des quatre côtés, le nombre de cases s’adapte à la toile', async ({ app }) => {
     const { page } = app;
-    for (const fmt of ['50x70', '70x50', '40x40']) {
+    for (const fmt of ['70x50', '40x40', '80x60']) {
       await page.evaluate((v) => { const s = document.getElementById('format'); if (![...s.options].some((o) => o.value === v)) { const o = document.createElement('option'); o.value = v; s.appendChild(o); } s.value = v; s.dispatchEvent(new Event('change')); }, fmt);
       await page.waitForTimeout(200);
       await app.select('galerie');
@@ -61,22 +61,22 @@ test.describe('Compositions', () => {
         const c = AtelierGribouille.state.comp, F = c.frames;
         const xs = [...new Set(F.map((f) => f.x.toFixed(3)))].map(Number).sort((a, b) => a - b);
         const ys = [...new Set(F.map((f) => f.y.toFixed(3)))].map(Number).sort((a, b) => a - b);
-        const full = F.filter((f) => Math.abs(f.y - ys[0]) < 1e-3); // première rangée, toujours complète
         return {
-          W: c.W, H: c.H,
+          n: F.length, kept: c.kept, total: c.total,
           left: Math.min(...F.map((f) => f.x)), top: Math.min(...F.map((f) => f.y)),
           right: c.W - Math.max(...F.map((f) => f.x + f.w)), bottom: c.H - Math.max(...F.map((f) => f.y + f.h)),
-          gapX: full.length > 1 ? xs[1] - (xs[0] + F[0].w) : null, gapY: ys.length > 1 ? ys[1] - (ys[0] + F[0].h) : null,
-          ratio: F[0].w / F[0].h,
+          square: F.every((f) => Math.abs(f.w - f.h) < 1e-6),
+          gapX: xs.length > 1 ? xs[1] - (xs[0] + F[0].w) : null, gapY: ys.length > 1 ? ys[1] - (ys[0] + F[0].h) : null,
           inside: c.items.every((L) => { const f = F[L.frame]; return L.w <= f.w + 1e-6 && L.h <= f.h + 1e-6; }),
         };
       });
-      for (const k of ['left', 'right', 'top', 'bottom']) expect(r[k], `${fmt} ${k}`).toBeCloseTo(3, 3);
-      if (r.gapX !== null) expect(r.gapX).toBeCloseTo(1.6, 3);
-      if (r.gapY !== null) expect(r.gapY).toBeCloseTo(1.6, 3);
-      expect(r.ratio).toBeGreaterThan(0.6);
-      expect(r.ratio).toBeLessThan(1.7);
+      expect(r.n).toBeGreaterThan(0);
+      expect(r.square).toBe(true);
+      for (const k of ['right', 'top', 'bottom']) expect(r[k], `${fmt} ${k}`).toBeCloseTo(r.left, 3);
+      expect(r.left).toBeGreaterThanOrEqual(1.5);
+      if (r.gapX !== null && r.gapY !== null) expect(r.gapX).toBeCloseTo(r.gapY, 3);
       expect(r.inside).toBe(true);
+      expect(r.kept).toBeLessThanOrEqual(r.total);
     }
   });
 
