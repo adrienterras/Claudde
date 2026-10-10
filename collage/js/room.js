@@ -350,6 +350,7 @@
   function init() {
     const c = $('room-canvas');
     if (!c) return;
+    c.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false }); // pas de sélection ni de loupe d'iOS
     c.addEventListener('pointerdown', onDown);
     c.addEventListener('pointermove', onMove);
     c.addEventListener('pointerup', onUp);

@@ -2077,6 +2077,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   $('bg-mode').addEventListener('click', () => setBgMode(!state.bgMode));
 
+  // iOS : un appui long sur l'œuvre lancerait la sélection de texte et sa loupe (les gestes de la
+  // toile passent par les événements « pointer », qui restent émis)
+  canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
   canvas.addEventListener('pointerdown', (e) => {
     if (!state.comp) return;
     canvas.setPointerCapture(e.pointerId);
@@ -2186,12 +2189,28 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }, { passive: false });
 
   // double-clic / double-tap : sur une pièce, on la retouche ; ailleurs, on zoome ou on revient
-  canvas.addEventListener('dblclick', (e) => {
+  let lastDouble = 0;
+  function onDouble(e) {
     if (!state.comp || Date.now() - gestureEnd < 500) return;
+    lastDouble = Date.now();
     const hit = hitAt(toComp(e));
     if (hit) { state.selected = hit; if (hit.kind === 'piece') editPiece(hit.piece); render(); return; }
     if (state.zoom.z > 1.05) resetZoom();
     else { const d = devicePoint(e); zoomAt(2.5, d.px, d.py); }
+  }
+  // à la souris : le double-clic du navigateur ; au doigt, le double-toucher est reconnu ici (le
+  // navigateur ne le produit plus, la toile bloquant les gestes d'iOS)
+  canvas.addEventListener('dblclick', (e) => { if (Date.now() - lastDouble > 600) onDouble(e); });
+  let tapDown = null, lastTap = null;
+  canvas.addEventListener('pointerdown', (e) => { tapDown = e.pointerType === 'mouse' ? null : { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now() }; });
+  canvas.addEventListener('pointerup', (e) => {
+    const d = tapDown;
+    tapDown = null;
+    if (!d || d.id !== e.pointerId || touches.size > 0) return;
+    const now = Date.now();
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12 || now - d.t > 350) { lastTap = null; return; }
+    if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; onDouble(e); return; }
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
   });
 
   $('zoom-in').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };

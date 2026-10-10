@@ -979,3 +979,47 @@ test.describe('Défaire une retouche', () => {
     expect(ratio(s3)).toBeCloseTo(1, 2);
   });
 });
+
+test.describe('Gestes au doigt sur iPhone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('ni sélection de texte ni loupe du système ; la gomme agit, le double-toucher zoome toujours', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    // l'œuvre : un double-toucher dans le vide zoome
+    const pt = await page.evaluate(() => {
+      const A = AtelierGribouille, c = A.state.comp, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+      for (let fy = 0.05; fy < 1; fy += 0.05) for (let fx = 0.05; fx < 1; fx += 0.05) {
+        const X = c.W * fx, Y = c.H * fy;
+        if (!c.items.some((L) => Compose.hitItem(L, X, Y))) return { x: r.left + (X * v.s + v.ox) / v.dpr, y: r.top + (Y * v.s + v.oy) / v.dpr };
+      }
+      return null;
+    });
+    expect(pt).not.toBeNull();
+    await page.touchscreen.tap(pt.x, pt.y);
+    await page.waitForTimeout(80);
+    await page.touchscreen.tap(pt.x, pt.y);
+    await expect(page.locator('#zoom-val')).toHaveText('250 %');
+    // la fenêtre de retouche : aucun texte sélectionnable, pas de menu d'appui long
+    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
+    const css = await page.evaluate(() => { const s = getComputedStyle(document.getElementById('editor')); return [s.userSelect || s.webkitUserSelect, s.webkitTouchCallout]; });
+    expect(css[0]).toBe('none');
+    const prevented = await page.evaluate(() => {
+      const c = document.getElementById('ed-canvas'), r = c.getBoundingClientRect();
+      const t = new Touch({ identifier: 1, target: c, clientX: r.left + 20, clientY: r.top + 20 });
+      const ev = new TouchEvent('touchstart', { touches: [t], targetTouches: [t], changedTouches: [t], cancelable: true, bubbles: true });
+      c.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    });
+    expect(prevented).toBe(true);
+    // un trait de gomme au doigt : la découpe change (défaire possible)
+    const box = await page.locator('#ed-canvas').boundingBox();
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    await touch('touchStart', box.x + box.width * 0.3, box.y + box.height * 0.5);
+    for (let i = 1; i <= 10; i++) await touch('touchMove', box.x + box.width * (0.3 + i * 0.04), box.y + box.height * 0.5);
+    await touch('touchEnd');
+    await expect(page.locator('#ed-undo')).toBeEnabled();
+    expect(await page.evaluate(() => String(window.getSelection()))).toBe('');
+    await page.locator('#ed-cancel').click();
+  });
+});

@@ -203,6 +203,17 @@
       let ly = cy - R - gap;
       if (ly < R + 6 * dpr) ly = cy + R + gap;
       const lx = Math.min(w - R - 6 * dpr, Math.max(R + 6 * dpr, cx));
+      // la zone sous le doigt est d'abord copiée à part (dessiner une toile sur elle-même n'est pas
+      // fiable dans Safari)
+      const sw = Math.max(1, Math.round((2 * R) / k));
+      const lens = S.lens && S.lens.width === sw ? S.lens : (S.lens = Extract.makeCanvas(sw, sw));
+      const lc = lens.getContext('2d');
+      lc.fillStyle = cssVar('--wall', '#e6e4df');
+      lc.fillRect(0, 0, sw, sw);
+      // (zone bornée à la toile : un ancien Safari ne dessine rien si elle déborde)
+      const sx = Math.round(cx - sw / 2), sy = Math.round(cy - sw / 2);
+      const x0 = Math.max(0, sx), y0 = Math.max(0, sy), x1 = Math.min(c.width, sx + sw), y1 = Math.min(c.height, sy + sw);
+      if (x1 > x0 && y1 > y0) lc.drawImage(c, x0, y0, x1 - x0, y1 - y0, x0 - sx, y0 - sy, x1 - x0, y1 - y0);
       ctx.save();
       ctx.beginPath();
       ctx.arc(lx, ly, R, 0, Math.PI * 2);
@@ -210,7 +221,7 @@
       ctx.fill();
       ctx.clip();
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(c, cx - R / k, cy - R / k, (2 * R) / k, (2 * R) / k, lx - R, ly - R, 2 * R, 2 * R);
+      ctx.drawImage(lens, lx - R, ly - R, 2 * R, 2 * R);
       ctx.restore();
       ctx.beginPath();
       ctx.arc(lx, ly, Math.min(R - 3 * dpr, ((S.size * dpr) / 2) * k), 0, Math.PI * 2);
@@ -588,6 +599,9 @@
     c.addEventListener('pointercancel', onUp);
     c.addEventListener('pointerleave', () => { if (S) { S.cursor = null; render(); } });
     c.addEventListener('contextmenu', (e) => e.preventDefault());
+    // iOS : un appui long sur la toile lancerait la sélection de texte et sa loupe ; les gestes de
+    // l'éditeur passent par les événements « pointer », qui restent émis
+    c.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
     c.addEventListener('wheel', (e) => {
       if (!S) return;
       e.preventDefault();

@@ -747,6 +747,10 @@ body.stage-full .density-bar { display: none; }
 
 /* ---------- Éditeur de découpe ---------- */
 body.editing { overflow: hidden; }
+/* zones de dessin au doigt : pas de sélection de texte, de loupe ni de menu d'iOS sur un appui long */
+.editor, .stage, .room { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.editor input, .editor textarea { -webkit-user-select: auto; user-select: auto; }
+#ed-canvas, .stage canvas, .room-canvas { -webkit-tap-highlight-color: transparent; }
 .editor {
   position: fixed; inset: 0; z-index: 50;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
