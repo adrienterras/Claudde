@@ -900,26 +900,26 @@
     // pour l'impression : un dessin trop grand pour sa case est réduit (jamais agrandi), si bien que
     // tous les dessins tiennent, quelle que soit la toile.
     const target = galleryCount(cands.length, o);
-    // cases carrées en grille complète (jamais une dernière rangée moins remplie) : pour N cases, la
-    // grille la plus proche des proportions de la toile, et le plus grand côté de case qui tient ;
-    // on préfère les sujets qui tiennent à taille réelle
+    // grille complète (jamais une dernière rangée moins remplie) : pour N cases, la grille la plus
+    // proche des proportions de la toile. Les cases occupent toute la toile : même bord tout autour
+    // (M) et même espace entre les cadres (gap) ; elles sont carrées quand la toile s'y prête,
+    // légèrement rectangulaires sinon. On préfère les sujets qui tiennent à taille réelle.
     let best = null;
     for (let want = target; want >= 1 && !best; want--) {
       const g = galleryShape(want, W / H);
       const N = g.N, cols = g.cols, rows = g.rows;
-      const side = Math.min((W - 2 * M - (cols - 1) * gap) / cols, (H - 2 * M - (rows - 1) * gap) / rows);
-      if (side < 2.5) continue;
-      const fillOf = (p) => Math.max(p.wcm, p.hcm) / (side - 2 * pad);
+      const cw = (W - 2 * M - (cols - 1) * gap) / cols, ch = (H - 2 * M - (rows - 1) * gap) / rows;
+      if (Math.min(cw, ch) < 2.5) continue;
+      const fillOf = (p) => Math.max(p.wcm / (cw - 2 * pad), p.hcm / (ch - 2 * pad));
       const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0) + (f <= 1 ? 1 : 0); };
       const fit = cands.slice().sort((a, b) => cellScore(b) - cellScore(a));
-      best = { N, cols, rows, side, fit: fit.slice(0, N), inner: side - 2 * pad };
+      best = { N, cols, rows, cw, ch, fit: fit.slice(0, N) };
       want = N; // on reprend, s'il le faut, en dessous de la grille essayée
     }
     if (!best) return { items: [], frames: [], kept: 0 };
-    // grille centrée sur la toile ; la dernière rangée, si elle est incomplète, est centrée aussi
-    const { N, cols, rows, side } = best;
-    const gridW = cols * side + (cols - 1) * gap, gridH = rows * side + (rows - 1) * gap;
-    const x0g = (W - gridW) / 2, y0g = (H - gridH) / 2;
+    // la dernière rangée, si elle est incomplète, est centrée
+    const { N, cols, rows, cw, ch } = best;
+    const x0g = M, y0g = M;
     const order = shuffle(best.fit, R);
     const items = [], frames = [], bg = [];
     let reduced = false;
@@ -927,17 +927,17 @@
       const r = Math.floor(i / cols);
       const inRow = r === rows - 1 ? N - r * cols : cols;
       const c = i - r * cols;
-      const x0 = x0g + (cols - inRow) * (side + gap) / 2 + c * (side + gap), y0 = y0g + r * (side + gap);
-      frames.push({ x: x0, y: y0, w: side, h: side });
+      const x0 = x0g + (cols - inRow) * (cw + gap) / 2 + c * (cw + gap), y0 = y0g + r * (ch + gap);
+      frames.push({ x: x0, y: y0, w: cw, h: ch });
       // réduit pour tenir dans la case (jamais agrandi)
-      const f = Math.min(1, best.inner / Math.max(p.wcm, p.hcm));
+      const f = Math.min(1, (cw - 2 * pad) / p.wcm, (ch - 2 * pad) / p.hcm);
       if (f < 1) reduced = true;
       if (p.page) {
-        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f, frame: i });
+        bg.push({ kind: 'bg', panel: true, src: p.canvas, pageW: p.wcm, pageH: p.hcm, sx: 0, sy: 0, sw: p.canvas.width, sh: p.canvas.height, x: x0 + cw / 2, y: y0 + ch / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, clip: null, whole: true, scale: f, frame: i });
         return;
       }
       p.placed = true;
-      items.push({ kind: 'piece', piece: p, x: x0 + side / 2, y: y0 + side / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, frame: i });
+      items.push({ kind: 'piece', piece: p, x: x0 + cw / 2, y: y0 + ch / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, frame: i });
     });
     return { items, bg, frames, kept: items.length + bg.length, cols, rows, reduced };
   }
@@ -1216,8 +1216,7 @@
       let fi = piece.lastFrame !== undefined && !used.has(piece.lastFrame) ? piece.lastFrame : comp.frames.findIndex((f, i) => !used.has(i));
       if (fi >= 0 && comp.frames[fi]) {
         const f = comp.frames[fi];
-        const inner = f.w - 3.2;
-        const k = Math.min(1, inner / Math.max(piece.wcm, piece.hcm));
+        const k = Math.min(1, (f.w - 3.2) / piece.wcm, (f.h - 3.2) / piece.hcm);
         item = { kind: 'piece', piece, x: f.x + f.w / 2, y: f.y + f.h / 2, w: piece.wcm * k, h: piece.hcm * k, rot: 0, flip: false, scale: k, frame: fi };
         if (k < 1) comp.reduced = true;
       }

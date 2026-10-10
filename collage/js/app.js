@@ -1267,7 +1267,9 @@
   }
 
   function formatCm() {
-    const v = $('format').value;
+    let v = $('format').value;
+    // valeur illisible (option disparue, réglage ancien) : le format automatique classique
+    if (!/^auto:[\d.]+$|^\d+(\.\d+)?x\d+(\.\d+)?$/.test(v)) v = 'auto:1.4286';
     const portrait = canvasOrient() === 'port';
     if (v.startsWith('auto:')) {
       const r0 = Number(v.slice(5));
