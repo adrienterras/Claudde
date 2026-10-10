@@ -100,7 +100,26 @@
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const mobileQuery = window.matchMedia('(max-width: 860px)');
 
+  // Carte « travail en cours » au centre de la scène : roue, titre, étape, progression. Les appels
+  // s'emboîtent (une réouverture réimporte des dessins) : la carte reste jusqu'au dernier busyOff.
+  let busyDepth = 0;
+  function busyOn(title) {
+    busyDepth++;
+    if (title) $('busy-title').textContent = title;
+    if (busyDepth === 1) { $('busy-step').textContent = ''; $('busy-fill').style.width = '0%'; $('busy').hidden = false; }
+  }
+  function busyStep(text, done, total) {
+    if (!busyDepth) return;
+    if (text !== undefined) $('busy-step').textContent = text;
+    if (total) $('busy-fill').style.width = `${Math.round((100 * done) / total)}%`;
+  }
+  function busyOff() {
+    busyDepth = Math.max(0, busyDepth - 1);
+    if (!busyDepth) $('busy').hidden = true;
+  }
+
   function setProgress(done, total, label) {
+    busyStep(label || `${done} / ${total}`, done, total);
     const p = $('progress');
     // pendant la réouverture d'une composition, la progression s'affiche sous « Mes compositions »
     // seulement : la barre du haut ferait sauter la page
@@ -278,6 +297,10 @@
    * retrouver exactement la même page (et donc replacer les retouches de découpe au bon endroit).
    */
   async function importFiles(files, sizes, opts) {
+    busyOn(state.restoring ? '' : tr('Analyse des dessins…'));
+    try { return await importFilesInner(files, sizes, opts); } finally { busyOff(); }
+  }
+  async function importFilesInner(files, sizes, opts) {
     let pages = [];
     if (!state.restoring && !(opts && opts.sample)) window.Atelier.track('Import', { fichiers: Math.min(files.length, 50) });
     state.sceneLayout = null;
@@ -3657,7 +3680,7 @@ Réponds uniquement avec ce JSON :
 
   // Rouvre une composition : les dessins sont réimportés depuis leurs images, puis la mise en place
   // sauvegardée est reposée telle quelle (pas de nouvelle analyse par Claude, rien ne bouge).
-  function savedStatus(text) { const el = $('saved-status'); el.textContent = text || ''; el.hidden = !text; }
+  function savedStatus(text) { const el = $('saved-status'); el.textContent = text || ''; el.hidden = !text; if (text) busyStep(text); }
   // Pendant la réouverture, les sections au-dessus de la liste apparaissent et changent de hauteur :
   // sans ancrage, la ligne touchée file sous le doigt (Safari n'ancre pas le défilement tout seul).
   // On garde l'élément touché à la même hauteur à l'écran jusqu'à la fin.
@@ -3686,16 +3709,18 @@ Réponds uniquement avec ce JSON :
   }
   async function restoreOne(id, anchor) {
     const release = keepAnchored(anchor);
+    busyOn(id === DRAFT_ID ? tr('Réouverture de votre œuvre…') : tr('Réouverture de la composition…'));
     try { await restoreCompositionInner(id); }
     catch (e) { state.restoring = false; console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
-    finally { await tick(); release(); }
+    finally { busyOff(); await tick(); release(); }
   }
   async function restoreCompositionInner(id) {
     savedStatus(tr('Lecture de la composition sauvegardée…'));
     const fromCloud = typeof id === 'string' && id.startsWith('cloud:');
     const rec = fromCloud
-      ? await window.Account.cloud.get(id, (n, t) => savedStatus(tr`Téléchargement depuis votre compte : ${n} / ${t} dessins…`))
+      ? await window.Account.cloud.get(id, (n, t) => { savedStatus(tr`Téléchargement depuis votre compte : ${n} / ${t} dessins…`); busyStep(tr`Téléchargement des dessins : ${n} / ${t}`, n, t); })
       : await dbGet(id);
+    if (rec && rec.name && id !== DRAFT_ID) $('busy-title').textContent = tr`Réouverture de « ${rec.name} »`;
     if (!rec) { savedStatus(fromCloud ? tr('Composition introuvable dans votre compte.') : tr('Composition introuvable dans ce navigateur.')); return; }
     if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette sauvegarde ne contient aucun dessin.')); return; }
     for (const sd of rec.drawings) {

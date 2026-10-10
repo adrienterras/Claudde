@@ -20,9 +20,18 @@ test.describe('Compositions sauvegardées', () => {
 
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
+    // la carte « travail en cours » s'affiche au centre de la scène pendant la réouverture
+    await page.evaluate(() => {
+      window.__busy = [];
+      const note = () => { const b = document.getElementById('busy'); if (!b.hidden) window.__busy.push(document.getElementById('busy-title').textContent + ' | ' + document.getElementById('busy-step').textContent); };
+      new MutationObserver(note).observe(document.getElementById('busy'), { attributes: true, subtree: true, childList: true, characterData: true });
+    });
     await page.locator('.saved').first().click();
     // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
     await expect(page.locator('#saved-status')).toContainText('« Essai automatique » rouverte', { timeout: 120000 });
+    await expect(page.locator('#busy')).toBeHidden();
+    const seen = await page.evaluate(() => window.__busy);
+    expect(seen.some((t) => t.startsWith('Réouverture de « Essai automatique »') && /Analyse du dessin/.test(t))).toBe(true);
     const after = await page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
       return { style: c.style, n: c.items.length, bg: c.bg.length, first: [c.items[0].x, c.items[0].y, c.items[0].rot], W: c.W, H: c.H, drawings: AtelierGribouille.state.drawings.length };

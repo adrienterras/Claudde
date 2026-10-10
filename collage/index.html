@@ -382,6 +382,14 @@
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Voir un exemple</span></button>
       </div>
     </div>
+    <div id="busy" class="busy" hidden role="status" aria-live="polite">
+      <div class="busy-card">
+        <span class="spinner" aria-hidden="true"></span>
+        <p id="busy-title" class="busy-title"></p>
+        <p id="busy-step" class="busy-step"></p>
+        <div class="busy-bar" aria-hidden="true"><div id="busy-fill"></div></div>
+      </div>
+    </div>
   </main>
 
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">

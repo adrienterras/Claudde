@@ -689,6 +689,24 @@ body.stage-full .density-bar { display: none; }
 .empty-loading { margin: 6px 0 0; font-weight: 600; color: var(--ink-2); animation: empty-pulse 1.6s ease-in-out infinite; }
 @keyframes empty-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .empty-loading { animation: none; } }
+/* Travail en cours (réouverture d'une composition, analyse des dessins) : une carte au centre de la
+   scène, avec une roue qui tourne, l'étape et la progression ; la scène est voilée et inactive. */
+.busy {
+  position: absolute; inset: 0 0 var(--sheet, 0px) 0; z-index: 8; display: grid; place-items: center; padding: 24px;
+  background: rgba(240, 236, 228, .72); background: color-mix(in srgb, var(--wall) 72%, transparent); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+.busy[hidden] { display: none; }
+.busy-card {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(340px, 100%); box-sizing: border-box;
+  padding: 26px 24px 22px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, .45); text-align: center;
+}
+.spinner { width: 54px; height: 54px; border-radius: 50%; border: 5px solid var(--line); border-top-color: var(--accent); animation: busy-spin .9s linear infinite; }
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+.busy-title { margin: 6px 0 0; font-family: var(--f-display); font-size: 1.15rem; color: var(--ink); overflow-wrap: anywhere; }
+.busy-step { margin: 0; min-height: 1.3em; font-size: 0.86rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.busy-bar { width: 100%; height: 6px; margin-top: 4px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.busy-bar div { height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width .25s; }
 .empty-pictos { display: flex; align-items: flex-end; gap: 18px; }
 .empty-pictos img { height: 46px; width: auto; }
 .empty-title { margin: 0; font-family: var(--f-display); font-style: italic; font-size: clamp(1.7rem, 3.2vw, 2.5rem); line-height: 1.2; text-wrap: balance; }
