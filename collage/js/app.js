@@ -449,13 +449,12 @@
         if (!(cm > 0)) return;
         cm = clampCm(cm);
         input.value = String(cm);
-        d.sizeCm = cm;
-        d.sizeMode = 'manual';
-        saveSize(d);
-        estimateSizes();
-        state.pinned = null;
-        refreshLists();
-        regenerate();
+        resizeInPlace(() => {
+          d.sizeCm = cm;
+          d.sizeMode = 'manual';
+          saveSize(d);
+          estimateSizes();
+        });
       };
       const input = row.querySelector('input');
       input.onchange = () => apply(Number(input.value));
@@ -468,6 +467,33 @@
   // tailles limitées à 200 cm (feuille d'un dessin comme toile)
   const MAX_CM = 200;
   const clampCm = (cm) => Math.max(3, Math.min(MAX_CM, Math.round(cm * 2) / 2));
+
+  // Changer la taille réelle d'un dessin ne refait pas l'œuvre affichée : chaque calque d'un dessin
+  // dont la taille a changé (le dessin réglé, et ceux dont l'estimation suit) est agrandi ou réduit
+  // sur place, même centre et même inclinaison ; les autres ne bougent pas. Les autres propositions
+  // sont recomposées avec les nouvelles tailles.
+  function resizeInPlace(change) {
+    const before = new Map(state.drawings.map((x) => [x, x.sizeCm]));
+    if (state.comp) commit();
+    change();
+    const comp = state.comp;
+    if (comp) {
+      const ratio = (d) => (d && before.get(d) > 0 ? d.sizeCm / before.get(d) : 1);
+      const scale = (L, f) => {
+        if (f === 1) return;
+        L.w *= f; L.h *= f;
+        if (L.pageW) { L.pageW *= f; L.pageH *= f; }
+        if (L.clip) L.clip = L.clip.map(([x, y]) => [x * f, y * f]);
+      };
+      comp.items.forEach((L) => scale(L, ratio(L.piece && L.piece.drawing)));
+      comp.bg.forEach((L) => { if (!L.paper) scale(L, ratio(drawingOfLayer(L))); });
+      touched();
+      state.pinned = comp;
+      state.bgCache = null;
+    }
+    refreshLists();
+    regenerate({ noCommit: true });
+  }
 
   // Les tailles corrigées à la main sont mémorisées dans ce navigateur (clé : fichier + page).
   const sizeKey = (d) => `atelier-collage:taille:${d.name}:${Math.round(d.origLong)}`;
@@ -1028,13 +1054,12 @@
     const setSize = (cm) => {
       if (!(cm > 0)) return;
       cm = clampCm(cm);
-      d.sizeCm = cm;
-      d.sizeMode = 'manual';
-      saveSize(d);
-      estimateSizes();
-      state.pinned = null;
-      refreshLists();
-      regenerate();
+      resizeInPlace(() => {
+        d.sizeCm = cm;
+        d.sizeMode = 'manual';
+        saveSize(d);
+        estimateSizes();
+      });
     };
     box.querySelectorAll('[data-cm]').forEach((b) => (b.onclick = () => {
       if (b.dataset.cm === 'custom') {
@@ -1518,9 +1543,9 @@
     { id: 'galerie', name: tr('Galerie'), hint: tr('grille de cadres, un dessin par case') },
   ];
 
-  function regenerate() {
+  function regenerate(opts) {
     if (!state.drawings.length) return;
-    if (state.comp && !state.restoring) commit();
+    if (state.comp && !state.restoring && !(opts && opts.noCommit)) commit();
     planCoverage();
     state.canvasSize = formatCm();
     applyOrientations();

@@ -874,3 +874,40 @@ test.describe('Plein écran sur téléphone', () => {
     await expect(page.locator('#drawings-section')).toBeVisible();
   });
 });
+
+test.describe('Taille d’un dessin changée sur l’œuvre', () => {
+  test('les dessins restent en place : seul le dessin réglé change de taille, autour de son centre', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await app.select('tournesol');
+    // une retouche à la main, qui doit survivre
+    await page.evaluate(() => { const L = AtelierGribouille.state.comp.items[0]; L.x += 2; L.rot = 0.2; AtelierGribouille.render(); });
+    const layers = () => page.evaluate(() => {
+      const A = AtelierGribouille, c = A.state.comp;
+      const nameOf = (L) => (L.kind === 'piece' ? L.piece.drawing.name : (A.state.drawings.find((d) => d.analysis.texture && d.analysis.texture.canvas === L.src) || {}).name || 'papier');
+      return { style: c.style, all: c.bg.concat(c.items).map((L) => ({ d: nameOf(L), x: L.x, y: L.y, rot: L.rot, w: L.w })) };
+    });
+    const before = await layers();
+    await page.evaluate(() => document.querySelector('#drawings .thumb').click());
+    const d0 = await page.evaluate(() => ({ name: AtelierGribouille.state.current.name, cm: AtelierGribouille.state.current.sizeCm }));
+    await page.evaluate((big) => [...document.querySelectorAll('#detail [data-cm]')].find((b) => b.textContent.trim() === (big ? 'A4' : 'A3')).click(), d0.cm > 35);
+    const d1 = await page.evaluate(() => AtelierGribouille.state.current.sizeCm);
+    expect(d1).not.toBe(d0.cm);
+    const after = await layers();
+    expect(after.style).toBe(before.style);
+    expect(after.all.length).toBe(before.all.length);
+    after.all.forEach((L, i) => {
+      const B = before.all[i];
+      expect(L.d).toBe(B.d);
+      expect(L.x).toBeCloseTo(B.x, 6);
+      expect(L.y).toBeCloseTo(B.y, 6);
+      expect(L.rot).toBeCloseTo(B.rot, 6);
+      if (L.d === d0.name) expect(L.w / B.w).toBeCloseTo(d1 / d0.cm, 3);
+    });
+    expect(after.all.some((L) => L.d === d0.name)).toBe(true);
+    // Défaire rend les tailles d'avant sur l'œuvre
+    await page.evaluate(() => AtelierGribouille.undo());
+    const undone = await layers();
+    undone.all.forEach((L, i) => expect(L.w).toBeCloseTo(before.all[i].w, 6));
+  });
+});
