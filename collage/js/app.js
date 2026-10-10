@@ -1231,6 +1231,29 @@
     if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : tr('toile nue'); }
   }
+  // Nouveau fond de toile. Une œuvre déjà retouchée à la main garde sa mise en place : seul le fond
+  // change (couleur de peinture, ou papier nu dessous) ; les autres propositions sont recomposées.
+  function applyGround() {
+    const kept = state.comp && state.comp.touched ? state.comp : null;
+    if (!kept) { regenerate(); return; }
+    commit();
+    state.pinned = null;
+    regenerate({ noCommit: true });
+    const fresh = state.comp; // même style, avec le nouveau fond
+    kept.ground = fresh.ground; kept.groundName = fresh.groundName;
+    const paper = kept.bg.filter((L) => L.paper), freshPaper = fresh.bg.filter((L) => L.paper);
+    if (freshPaper.length && !paper.length) kept.bg.unshift(freshPaper[0]);
+    if (!freshPaper.length && paper.length) kept.bg = kept.bg.filter((L) => !L.paper);
+    const i = state.proposals.findIndex((pr) => pr.comp === fresh);
+    if (i >= 0) state.proposals[i].comp = kept;
+    state.comp = kept;
+    state.pinned = kept;
+    state.bgCache = null;
+    renderProposals();
+    updateGroundName();
+    render();
+  }
+
   function fillGround() {
     const box = $('ground');
     const mk = (name, hex) => {
@@ -1238,7 +1261,7 @@
       b.type = 'button'; b.setAttribute('role', 'radio'); b.title = name; b.setAttribute('aria-label', name);
       b.dataset.hex = hex || '';
       if (hex) b.style.setProperty('--sw', hex); else b.className = 'none';
-      b.onclick = () => { setGround(hex); regenerate(); };
+      b.onclick = () => { setGround(hex); applyGround(); };
       box.appendChild(b);
     };
     mk(tr('Couleur conseillée selon la composition'), 'auto');
@@ -2329,7 +2352,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     activePieces().forEach((p) => enabled.set(p, !!p.enabled));
     const pieces = new Map();
     comp.items.forEach((L) => { if (L.piece && !pieces.has(L.piece)) pieces.set(L.piece, pieceState(L.piece)); });
-    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, enabled, pieces };
+    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -2355,6 +2378,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     comp.items = s.items.map((L) => Object.assign({}, L));
     comp.bg = s.bg.map((L) => Object.assign({}, L));
     comp.reduced = s.reduced;
+    if ('ground' in s) { comp.ground = s.ground; comp.groundName = s.groundName; }
     s.enabled.forEach((on, p) => { p.enabled = on; });
     activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
     state.comp = comp;

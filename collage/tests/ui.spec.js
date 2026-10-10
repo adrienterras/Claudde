@@ -1023,3 +1023,23 @@ test.describe('Gestes au doigt sur iPhone', () => {
     await page.locator('#ed-cancel').click();
   });
 });
+
+test.describe('Fond de toile sur une œuvre retouchée', () => {
+  test('changer la couleur du fond garde les dessins où on les a mis ; Défaire rend l’ancien fond', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await app.select('tournesol');
+    // une pièce déplacée à la main
+    const pt = await page.evaluate(() => { const A = AtelierGribouille, v = A.view, L = A.state.comp.items[0]; const r = document.getElementById('canvas').getBoundingClientRect(); return { x: r.left + (L.x * v.s + v.ox) / v.dpr, y: r.top + (L.y * v.s + v.oy) / v.dpr }; });
+    await page.mouse.move(pt.x, pt.y); await page.mouse.down(); await page.mouse.move(pt.x + 60, pt.y + 30, { steps: 6 }); await page.mouse.up();
+    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { ground: c.ground, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
+    // une autre couleur de fond
+    await page.evaluate(() => { const b = [...document.querySelectorAll('#ground button')].find((x) => x.dataset.hex && x.dataset.hex !== 'auto' && x.dataset.hex !== AtelierGribouille.state.comp.ground); b.click(); });
+    const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
+    expect(after.style).toBe('tournesol');
+    expect(after.ground).not.toBe(before.ground);
+    expect(after.items).toEqual(before.items);
+    await page.evaluate(() => AtelierGribouille.undo());
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(before.ground);
+  });
+});
