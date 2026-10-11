@@ -25,6 +25,9 @@ test.describe('Politique de sécurité du contenu', () => {
       expect(directive(csp, 'object-src'), p).toEqual(["'none'"]);
       expect(directive(csp, 'base-uri'), p).toEqual(["'self'"]);
       const scripts = directive(csp, 'script-src');
+      // Umami Cloud : script sur cloud.umami.is, données envoyées à gateway.umami.is (docs Umami, « Sending stats »)
+      expect(scripts, p).toContain('https://cloud.umami.is');
+      expect(directive(csp, 'connect-src'), p).toEqual(expect.arrayContaining(['https://cloud.umami.is', 'https://gateway.umami.is']));
       expect(scripts.filter((s) => /unsafe/.test(s)), p).toEqual([]);
       // chaque script inline (hors données JSON-LD) doit avoir son empreinte dans la politique
       for (const [, attrs, body] of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {

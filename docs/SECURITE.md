@@ -152,6 +152,15 @@ pas d'en-têtes HTTP (`frame-ancestors`, HSTS) possibles sur GitHub Pages ; la c
 reprend le total calculé dans le navigateur, que le client peut modifier dans son e-mail :
 toujours recalculer le prix d'après le catalogue avant d'encaisser.
 
+## 11 octobre 2026 : correctif Umami
+
+La CSP du 10 octobre bloquait la mesure d'audience : le script d'Umami Cloud envoie ses données à
+`gateway.umami.is` (endpoint changé par Umami en 2026 ; `api-gateway.umami.dev` est l'ancien),
+absent de `connect-src`. Ajouté sur les six pages ; `tests/csp.spec.js` vérifie désormais que
+`cloud.umami.is` (script) et `gateway.umami.is` (données) sont autorisés. Si Umami change encore
+d'adresse, le symptôme est le même (0 visite, erreur « Content Security Policy » dans la console)
+et la correction tient en une ligne par page.
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.
