@@ -5,11 +5,11 @@
 - **Langue** : le site s'ouvre en français tant que le visiteur n'a pas choisi l'anglais
   (`?lang=en` ou bouton FR / EN). Googlebot navigue avec un navigateur réglé en anglais : sans
   cela, la page indexée était la traduction anglaise. Un bandeau propose l'anglais dans l'atelier.
-- **Versions FR / EN déclarées** (`hreflang`) sur l'accueil, les tarifs, l'atelier et le livre ;
+- **Versions FR / EN déclarées** (`hreflang`) sur l'accueil, l'atelier et le livre ;
   la version anglaise (`?lang=en`) déclare sa propre adresse canonique.
 - **Titres et descriptions** écrits pour les recherches réelles : « tableau avec les dessins de
   vos enfants », « que faire des dessins de ses enfants », « livre de dessins d'enfants »…
-- **Données structurées** (schema.org) : Organisation, FAQ (accueil), Produit avec prix (tarifs),
+- **Données structurées** (schema.org) : Organisation, FAQ (accueil), 
   Article et fil d'Ariane (idées), application web (atelier, livre).
 - **FAQ visible** sur l'accueil (8 questions) et **article de conseils**
   `idees-dessins-enfants.html` (« Que faire des dessins de ses enfants ? 9 idées »).
@@ -38,3 +38,14 @@
    elles remontent dans Google Images.
 
 Le classement prend en général plusieurs semaines à quelques mois après l'indexation.
+
+## Page des tarifs : hors des moteurs de recherche (11 octobre 2026)
+
+À la demande du propriétaire, `tarifs.html` n'est plus proposée à Google : `<meta name="robots"
+content="noindex, follow">`, retirée du plan du site, sans `hreflang` ni données structurées de
+produit. Elle reste accessible par les liens du site. Elle n'est volontairement **pas** bloquée dans
+`robots.txt` : Google doit pouvoir lire la page pour y voir la consigne `noindex` ; une page bloquée
+par `robots.txt` peut au contraire rester dans l'index (adresse seule, sans contenu). Si la page
+est déjà indexée, Google la retire à sa prochaine visite (quelques jours à quelques semaines) ;
+pour accélérer : Search Console → Suppressions → Nouvelle demande, avec l'adresse de la page.
+`tests/seo.spec.js` vérifie ces trois points (noindex, hors plan du site, non bloquée).

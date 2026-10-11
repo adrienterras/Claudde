@@ -15,6 +15,9 @@ const PAGES = {
   'livre/': 'livre/index.html',
   'confidentialite.html': 'collage/confidentialite.html',
 };
+// pages à garder hors des moteurs (prix sans contexte) : noindex, absentes du plan du site, et jamais
+// bloquées dans robots.txt (sinon Google ne lirait pas la consigne noindex)
+const NOINDEX = ['tarifs.html'];
 const attr = (html, re) => { const m = html.match(re); return m ? m[1] : null; };
 
 test.describe('Référencement', () => {
@@ -29,6 +32,9 @@ test.describe('Référencement', () => {
       expect(desc && desc.length).toBeGreaterThanOrEqual(70);
       expect(desc.length).toBeLessThanOrEqual(200);
       expect(attr(html, /<link rel="canonical" href="([^"]+)"/)).toBe(SITE + url);
+      const robots = attr(html, /<meta name="robots" content="([^"]+)"/) || '';
+      if (NOINDEX.includes(url)) { expect(robots).toMatch(/\bnoindex\b/); expect(html).not.toMatch(/hreflang=/); }
+      else expect(robots).not.toMatch(/\bnoindex\b/);
       for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) expect(() => JSON.parse(m[1])).not.toThrow();
       // images : un texte de remplacement partout (vide pour les images décoratives)
       for (const m of html.matchAll(/<img\b[^>]*>/g)) expect(m[0]).toMatch(/\balt="/);
@@ -38,10 +44,11 @@ test.describe('Référencement', () => {
   test('plan du site et robots.txt', () => {
     const map = fs.readFileSync(path.join(ROOT, 'landing/sitemap.xml'), 'utf8');
     const locs = [...map.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    for (const url of Object.keys(PAGES)) expect(locs).toContain(SITE + url);
+    for (const url of Object.keys(PAGES)) { if (NOINDEX.includes(url)) expect(locs).not.toContain(SITE + url); else expect(locs).toContain(SITE + url); }
     const robots = fs.readFileSync(path.join(ROOT, 'landing/robots.txt'), 'utf8');
     expect(robots).toContain(`Sitemap: ${SITE}sitemap.xml`);
     expect(robots).not.toMatch(/Disallow: \/\s*$/m);
+    for (const url of NOINDEX) expect(robots).not.toContain(`Disallow: /${url}`);
   });
 
   test('le français est la langue par défaut, l’anglais seulement sur demande', () => {
