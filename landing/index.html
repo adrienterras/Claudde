@@ -152,10 +152,11 @@
     footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: center; font-size: .78rem; color: var(--muted); }
     footer .values i { font-style: normal; color: var(--accent); margin: 0 6px; }
     footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
-    footer nav a { text-decoration: none; }
+    footer nav a { text-decoration: none; white-space: nowrap; }
     footer nav a.ig { display: inline-flex; align-items: center; gap: 5px; }
     footer nav a.ig svg { width: 14px; height: 14px; }
     footer nav a:hover { text-decoration: underline; }
+    @media (max-width: 700px) { footer .wrap { flex-direction: column; align-items: flex-start; gap: 16px; } footer nav { gap: 10px 16px; } }
     .rise { animation: rise .8s ease-out both; }
     @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .rise { animation: none; } html { scroll-behavior: auto; } }
