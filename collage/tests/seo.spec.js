@@ -11,6 +11,7 @@ const PAGES = {
   '': 'landing/index.html',
   'tarifs.html': 'landing/tarifs.html',
   'idees-dessins-enfants.html': 'landing/idees-dessins-enfants.html',
+  'photographier-les-dessins.html': 'landing/photographier-les-dessins.html',
   'atelier/': 'collage/index.html',
   'livre/': 'livre/index.html',
   'confidentialite.html': 'collage/confidentialite.html',

@@ -53,6 +53,8 @@
     'Déposez les photos ou les scans des dessins': 'Drop the photos or scans of the drawings',
     'PDF de plusieurs pages, JPG ou PNG': 'Multi-page PDF, JPG or PNG',
     'Pas de scans sous la main ?': 'No scans at hand?',
+    'Pas de scanner ?': 'No scanner?',
+    'Conseils pour photographier les dessins avec un téléphone': 'Tips for photographing drawings with a phone',
     'Essayer avec les dessins d’exemple': 'Try the sample drawings',
     'Exemple chargé : des dessins de démonstration. Ajoutez vos scans, ou': 'Sample loaded: demonstration drawings. Add your scans, or',
     'repartez de zéro': 'start over',

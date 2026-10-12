@@ -308,6 +308,8 @@ h3 { margin: 6px 0 0; font-size: 0.9rem; font-weight: 600; }
 small { color: var(--muted); font-weight: 400; font-family: var(--f-body); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 
 .hint { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
+.photo-tip { margin-top: 8px; }
+.photo-tip a { color: var(--ink-2); }
 .hint.ai:empty { display: none; }
 .hint.ai { padding: 10px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
 .mono-note { font-family: var(--f-mono); font-size: 0.74rem; font-variant-numeric: tabular-nums; }

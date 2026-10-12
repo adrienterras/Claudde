@@ -49,3 +49,13 @@ par `robots.txt` peut au contraire rester dans l'index (adresse seule, sans cont
 est déjà indexée, Google la retire à sa prochaine visite (quelques jours à quelques semaines) ;
 pour accélérer : Search Console → Suppressions → Nouvelle demande, avec l'adresse de la page.
 `tests/seo.spec.js` vérifie ces trois points (noindex, hors plan du site, non bloquée).
+
+## Guide « Photographier les dessins » (12 octobre 2026)
+
+Nouvelle page `photographier-les-dessins.html` : huit conseils pour photographier un dessin avec
+un téléphone (lumière, ombre, fond, cadrage, netteté, réglages, un dessin par photo, peinture et
+papier de couleur), une liste à cocher, et ce que fait l'atelier ensuite (fond retiré, taille réelle
+à vérifier). Données structurées HowTo + Article + fil d'Ariane ; dans le plan du site ; liée depuis
+la FAQ de l'accueil (« Faut-il un scanner ? »), la ligne « Encore des idées » et, dans l'atelier,
+sous la zone d'import. Requêtes visées : « photographier un dessin », « prendre un dessin en photo
+téléphone », « numériser un dessin d'enfant sans scanner ».
