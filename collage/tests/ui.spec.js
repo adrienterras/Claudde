@@ -894,6 +894,27 @@ test.describe('Plein écran sur téléphone', () => {
 });
 
 test.describe('Taille d’un dessin changée sur l’œuvre', () => {
+  test('A4 et A2 : la taille exacte est gardée et la puce s’allume (pas d’arrondi au demi-centimètre)', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await page.evaluate(() => document.querySelector('#drawings .thumb').click());
+    for (const [name, cm] of [['A4', 29.7], ['A2', 59.4], ['A5', 21]]) {
+      await page.evaluate((name) => [...document.querySelectorAll('#detail [data-cm]')].find((b) => b.textContent.trim() === name).click(), name);
+      expect(await page.evaluate(() => AtelierGribouille.state.current.sizeCm)).toBe(cm);
+      await expect(page.locator('#detail [data-cm].on')).toHaveText(name);
+      await expect(page.locator('#detail [data-custom]')).toBeHidden();
+    }
+    // une valeur saisie proche d'un format standard (ou mémorisée arrondie par une ancienne version) y revient
+    await page.evaluate(() => [...document.querySelectorAll('#detail [data-cm]')].find((b) => b.dataset.cm === 'custom').click());
+    await page.evaluate((v) => { const i = document.querySelector('#detail [data-custom] input'); i.value = v; i.dispatchEvent(new Event('change')); }, '29.5');
+    expect(await page.evaluate(() => AtelierGribouille.state.current.sizeCm)).toBe(29.7);
+    await expect(page.locator('#detail [data-cm].on')).toHaveText('A4');
+    await page.evaluate(() => [...document.querySelectorAll('#detail [data-cm]')].find((b) => b.dataset.cm === 'custom').click());
+    await page.evaluate((v) => { const i = document.querySelector('#detail [data-custom] input'); i.value = v; i.dispatchEvent(new Event('change')); }, '33.3');
+    expect(await page.evaluate(() => AtelierGribouille.state.current.sizeCm)).toBe(33.3);
+    await expect(page.locator('#detail [data-cm].on')).toHaveText('Autre…');
+  });
+
   test('les dessins restent en place : seul le dessin réglé change de taille, autour de son centre', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);

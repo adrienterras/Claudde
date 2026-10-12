@@ -444,7 +444,7 @@
       const row = document.createElement('label');
       row.className = 'sizes-row';
       row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
-        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.5" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
+        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.1" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
       const apply = (cm) => {
         if (!(cm > 0)) return;
         cm = clampCm(cm);
@@ -466,7 +466,12 @@
   const cmPerPx = (d) => d.sizeCm / d.srcLong;
   // tailles limitées à 200 cm (feuille d'un dessin comme toile)
   const MAX_CM = 200;
-  const clampCm = (cm) => Math.max(3, Math.min(MAX_CM, Math.round(cm * 2) / 2));
+  // au dixième, pour garder les formats exacts (A4 : 29,7) ; une valeur à un quart de centimètre d'un
+  // format standard y est ramenée (29,5 saisi ou mémorisé par une ancienne version → A4)
+  const clampCm = (cm) => {
+    const std = SHEETS.find(([, v]) => Math.abs(v - cm) <= 0.25);
+    return Math.max(3, Math.min(MAX_CM, std ? std[1] : Math.round(cm * 10) / 10));
+  };
 
   // Changer la taille réelle d'un dessin ne refait pas l'œuvre affichée : chaque calque d'un dessin
   // dont la taille a changé (le dessin réglé, et ceux dont l'estimation suit) est agrandi ou réduit
@@ -960,7 +965,7 @@
           </div>
         </div>
         <label class="row" data-custom ${std ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
-          <input type="number" min="3" max="${MAX_CM}" step="0.5" value="${fmt(d.sizeCm).replace(',', '.')}">
+          <input type="number" min="3" max="${MAX_CM}" step="0.1" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>
         <div class="row">${tr('Orientation')}
           <span class="orient">
