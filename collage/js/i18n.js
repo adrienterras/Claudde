@@ -13,6 +13,8 @@
 
   const EN = {
     // ---------- index.html ----------
+    'Accueil': 'Home',
+    'Instagram': 'Instagram',
     'Créer un tableau avec les dessins de vos enfants | Atelier Gribouille': 'Make a canvas of your children’s drawings | Atelier Gribouille',
     'Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe à leur taille réelle et compose sept propositions, à imprimer sur toile en 300 dpi ou à réaliser à la main.': 'Import your children’s drawings, scanned or photographed: the studio cuts them out at their real size and composes seven proposals, to print on canvas at 300 dpi or to make by hand.',
     'Les dessins d’enfants': 'Children’s drawings',

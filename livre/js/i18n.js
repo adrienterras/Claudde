@@ -64,6 +64,7 @@
     "Un PDF, une page par page du livre, couverture comprise. Les services d’albums photo l’acceptent tel quel ; à la maison, imprimez-le en recto verso. Le fond perdu ajoute 3 mm autour de chaque page, comme le demandent la plupart des imprimeurs.": "One PDF, one page per page of the book, cover included. Photo book services accept it as is; at home, print it double-sided. The bleed adds 3 mm around each page, as most printers ask.",
     "L’atelier des œuvres": "The artwork studio",
     "Accueil": "Home",
+    "Instagram": "Instagram",
     "Confidentialité": "Privacy",
     "Vos dessins restent sur votre appareil : rien n’est envoyé.": "Your drawings stay on your device: nothing is uploaded.",
     "Un livre pour tous leurs dessins.": "A book for all their drawings.",

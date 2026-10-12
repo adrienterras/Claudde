@@ -117,6 +117,7 @@
     "L’atelier": "The studio",
     "Confidentialité": "Privacy",
     "Contact": "Contact",
+    "Instagram": "Instagram",
     "Langue / Language": "Language",
     // page tarifs
     "Tarifs — Atelier Gribouille": "Pricing — Atelier Gribouille",
