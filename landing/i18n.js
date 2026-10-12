@@ -46,7 +46,7 @@
     "Un livre de dessins ouvert : un dessin d’enfant par page, avec son titre et l’âge de l’enfant": "An open drawing book: one child’s drawing per page, with its title and the child’s age",
     "Atelier Gribouille — Les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — Children’s drawings become works of art",
     "Scannez les dessins de vos enfants : l’atelier les découpe à leur taille réelle et compose une œuvre unique, à imprimer sur toile ou à réaliser à la main avec les originaux.": "Scan your children’s drawings: the studio cuts them out at their real size and composes a unique artwork, to print on canvas or to make by hand with the originals.",
-    "Les dessins d’enfants deviennent des œuvres d’art. Scannez, l’atelier compose, accrochez.": "Children’s drawings become works of art. Scan, the studio composes, hang it up.",
+    "Les dessins d’enfants deviennent des œuvres d’art. Scannez ou photographiez, l’atelier compose, accrochez.": "Children’s drawings become works of art. Scan or photograph, the studio composes, hang it up.",
     "Chez vous": "At home",
     "Comment ça marche": "How it works",
     "Les styles": "The styles",
