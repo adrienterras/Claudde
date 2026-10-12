@@ -3103,6 +3103,9 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     e.target.value = '';
     importUserFiles(files);
   });
+  // iPhone, iPad : le sélecteur de photos « prépare » chaque photo avant de rendre la main (conversion
+  // de format, téléchargement depuis iCloud) et semble figé pendant ce temps ; on prévient.
+  if (iOS()) $('ios-tip').hidden = false;
   ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => {
