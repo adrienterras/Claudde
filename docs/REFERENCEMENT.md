@@ -5,12 +5,12 @@
 - **Langue** : le site s'ouvre en français tant que le visiteur n'a pas choisi l'anglais
   (`?lang=en` ou bouton FR / EN). Googlebot navigue avec un navigateur réglé en anglais : sans
   cela, la page indexée était la traduction anglaise. Un bandeau propose l'anglais dans l'atelier.
-- **Versions FR / EN déclarées** (`hreflang`) sur l'accueil, l'atelier et le livre ;
+- **Versions FR / EN déclarées** (`hreflang`) sur l'accueil et l'atelier ;
   la version anglaise (`?lang=en`) déclare sa propre adresse canonique.
 - **Titres et descriptions** écrits pour les recherches réelles : « tableau avec les dessins de
-  vos enfants », « que faire des dessins de ses enfants », « livre de dessins d'enfants »…
+  vos enfants », « que faire des dessins de ses enfants »…
 - **Données structurées** (schema.org) : Organisation, FAQ (accueil), 
-  Article et fil d'Ariane (idées), application web (atelier, livre).
+  Article et fil d'Ariane (idées), application web (atelier).
 - **FAQ visible** sur l'accueil (8 questions) et **article de conseils**
   `idees-dessins-enfants.html` (« Que faire des dessins de ses enfants ? 9 idées »).
 - **Partage** : aperçus Open Graph et Twitter complets (image, dimensions, langue).
@@ -59,3 +59,10 @@ papier de couleur), une liste à cocher, et ce que fait l'atelier ensuite (fond 
 la FAQ de l'accueil (« Faut-il un scanner ? »), la ligne « Encore des idées » et, dans l'atelier,
 sous la zone d'import. Requêtes visées : « photographier un dessin », « prendre un dessin en photo
 téléphone », « numériser un dessin d'enfant sans scanner ».
+
+## Livre de dessins retiré (12 octobre 2026)
+
+Le second atelier (`livre/`, publié sous `/livre/`) est retiré du site à la demande du propriétaire :
+dossier, tests, déploiement, liens, FAQ et plan du site. Il reste dans l'historique Git (commit
+précédent) si on veut le remettre. L'adresse `/livre/` répond désormais 404 : si Google l'avait
+indexée, elle disparaît d'elle-même.

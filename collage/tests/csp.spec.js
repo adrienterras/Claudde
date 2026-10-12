@@ -1,12 +1,12 @@
 // Politique de sécurité du contenu (balise <meta>) : présente sur chaque page publiée, appliquée par le
-// navigateur, et compatible avec tous les parcours (import PDF, export PDF, guide, livre).
+// navigateur, et compatible avec tous les parcours (import PDF, export PDF, guide).
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { test, expect, fixture } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'livre/index.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html'];
+const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html'];
 const cspOf = (html) => { const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/); return m && m[1]; };
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim().split(/\s+/)).find((d) => d[0] === name) || []).slice(1);
 
@@ -67,14 +67,4 @@ test.describe('Politique de sécurité du contenu', () => {
     expect((await page.evaluate(() => window.__csp)).some((v) => /script-src/.test(v))).toBe(true);
   });
 
-  test('appliquée dans le livre : import et export PDF sans violation', async ({ page }) => {
-    await watch(page);
-    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
-    await page.goto('livre/');
-    await page.waitForFunction(() => window.LivreGribouille);
-    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('two-pages.pdf')]);
-    await page.waitForFunction(() => LivreGribouille.state.drawings.length >= 3 && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
-    expect(await page.evaluate(() => window.__csp)).toEqual([]);
-  });
 });

@@ -13,7 +13,6 @@ const PAGES = {
   'idees-dessins-enfants.html': 'landing/idees-dessins-enfants.html',
   'photographier-les-dessins.html': 'landing/photographier-les-dessins.html',
   'atelier/': 'collage/index.html',
-  'livre/': 'livre/index.html',
   'confidentialite.html': 'collage/confidentialite.html',
 };
 // pages à garder hors des moteurs (prix sans contexte) : noindex, absentes du plan du site, et jamais
@@ -53,7 +52,7 @@ test.describe('Référencement', () => {
   });
 
   test('le français est la langue par défaut, l’anglais seulement sur demande', () => {
-    for (const f of ['landing/i18n.js', 'collage/js/i18n.js', 'livre/js/i18n.js']) {
+    for (const f of ['landing/i18n.js', 'collage/js/i18n.js']) {
       const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
       const pick = src.slice(src.indexOf('function pick'), src.indexOf('}', src.indexOf("return 'fr';")) + 1);
       expect(pick, f).toContain("return 'fr';");

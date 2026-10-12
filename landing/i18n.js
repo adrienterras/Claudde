@@ -2,13 +2,13 @@
 (function () {
   'use strict';
   var EN = {
-    "Tarifs : tableau, toile et livre avec les dessins d’enfants | Atelier Gribouille": "Prices: canvas, print and book of children’s drawings | Atelier Gribouille",
+    "Tarifs : tableau et toile avec les dessins d’enfants | Atelier Gribouille": "Prices: canvas and print of children’s drawings | Atelier Gribouille",
     "Tableau avec les dessins de vos enfants | Atelier Gribouille": "A canvas of your children’s drawings | Atelier Gribouille",
     "Transformez les dessins de vos enfants en tableau : découpés à leur taille réelle, réunis en une œuvre unique à imprimer sur toile, encadrée ou à réaliser à la main. Gratuit pour composer.": "Turn your children’s drawings into a canvas: cut out at their real size, gathered into a unique artwork to print on canvas, framed or made by hand. Free to compose.",
     "Atelier Gribouille — les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — children’s drawings become works of art",
     "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon": "A canvas made of cut-out children’s drawings, hanging on a living-room wall",
     "Que faire des dessins de ses enfants ?": "What can I do with my children’s drawings?",
-    "Choisissez les plus beaux, scannez-les ou prenez-les en photo, puis réunissez-les dans une œuvre à accrocher ou dans un livre de dessins. L’atelier compose les deux gratuitement, et vous pouvez garder les originaux ou les coller vous-même sur la toile.": "Pick the best ones, scan or photograph them, then gather them into an artwork to hang or into a drawing book. The studio composes both for free, and you can keep the originals or glue them onto the canvas yourself.",
+    "Choisissez les plus beaux, scannez-les ou prenez-les en photo, puis réunissez-les dans une œuvre à accrocher. L’atelier la compose gratuitement, et vous pouvez garder les originaux ou les coller vous-même sur la toile.": "Pick the best ones, scan or photograph them, then gather them into an artwork to hang. The studio composes it for free, and you can keep the originals or glue them onto the canvas yourself.",
     "Comment transformer un dessin d’enfant en tableau ?": "How do I turn a child’s drawing into a canvas?",
     "Importez les dessins dans l’atelier : il les détoure comme avec des ciseaux, à leur taille réelle, et propose sept compositions avec tous les dessins. Choisissez-en une, ajustez-la, puis téléchargez le fichier haute définition ou commandez le tableau imprimé et encadré.": "Import the drawings into the studio: it cuts them out as if with scissors, at their real size, and offers seven compositions using all of them. Pick one, adjust it, then download the high-definition file or order the printed, framed artwork.",
     "Combien coûte un tableau avec les dessins de mes enfants ?": "How much does a canvas of my children’s drawings cost?",
@@ -19,10 +19,8 @@
     "De quelques dessins à plusieurs dizaines : chaque proposition les utilise tous, à leur taille réelle, sur une toile jusqu’à 200 cm. Vous pouvez en retirer, en dupliquer, les déplacer et les retoucher.": "From a few drawings to several dozen: each proposal uses all of them, at their real size, on a canvas up to 200 cm. You can remove, duplicate, move and retouch them.",
     "Que deviennent les dessins que j’importe ?": "What happens to the drawings I import?",
     "Ils restent dans votre navigateur. Si vous créez un compte gratuit, vos compositions sont gardées dans votre espace, hébergé en Europe, et vous pouvez tout supprimer à tout moment. Les dessins ne servent à rien d’autre qu’à votre œuvre.": "They stay in your browser. If you create a free account, your compositions are kept in your space, hosted in Europe, and you can delete everything at any time. The drawings are used for nothing but your artwork.",
-    "Peut-on faire un livre avec les dessins de ses enfants ?": "Can I make a book of my children’s drawings?",
-    "Oui, avec le livre de dessins : une couverture à leur nom, un ou plusieurs dessins par page avec leur titre et leur âge, en A4 ou en carré. Il est gratuit et donne un PDF en 300 dpi, prêt pour un service d’albums photo.": "Yes, with the drawing book: a cover with their name, one or more drawings per page with their title and age, in A4 or square. It is free and gives a 300 dpi PDF, ready for a photo book service.",
     "Est-ce une bonne idée de cadeau ?": "Is it a good gift idea?",
-    "C’est l’un des cadeaux les plus touchants pour des grands-parents, pour la fête des mères ou des pères, ou pour Noël. Prévoyez quelques jours pour l’impression et la livraison d’un tableau encadré ; le fichier haute définition et le livre se téléchargent tout de suite.": "It is one of the most touching gifts for grandparents, for Mother’s or Father’s Day, or for Christmas. Allow a few days for printing and delivery of a framed artwork; the high-definition file and the book download right away.",
+    "C’est l’un des cadeaux les plus touchants pour des grands-parents, pour la fête des mères ou des pères, ou pour Noël. Prévoyez quelques jours pour l’impression et la livraison d’un tableau encadré ; le fichier haute définition se télécharge tout de suite.": "It is one of the most touching gifts for grandparents, for Mother’s or Father’s Day, or for Christmas. Allow a few days for printing and delivery of a framed artwork; the high-definition file downloads right away.",
     "Tableau de dessins d’enfants, composition Paysage : ciel, milieu et sol": "Canvas of children’s drawings, Landscape composition: sky, middle and ground",
     "Tableau de dessins d’enfants, composition Frise : les dessins à la suite, en bande": "Canvas of children’s drawings, Frieze composition: the drawings in a row, as a band",
     "Tableau de dessins d’enfants, composition Nuage : dispersés sur un fond uni": "Canvas of children’s drawings, Cloud composition: scattered on a plain background",
@@ -35,15 +33,6 @@
     "Encore des idées pour leurs dessins :": "More ideas for their drawings:",
     "que faire des dessins de ses enfants ? 9 idées": "what to do with your children’s drawings? 9 ideas (in French)",
     "Idées": "Ideas",
-    "Le deuxième atelier": "The second studio",
-    "Le livre de dessins": "The drawing book",
-    "Tous leurs dessins réunis dans un vrai livre, comme un album photo : une couverture à leur nom, un dessin par page ou plusieurs, avec son titre et leur âge.": "All their drawings gathered in a real book, like a photo album: a cover with their name, one drawing per page or several, with its title and their age.",
-    "Formats A4 portrait ou paysage, carré 21 ou 30 cm.": "A4 portrait or landscape, 21 or 30 cm square.",
-    "Un PDF en 300 dpi, prêt pour un service d’albums photo ou l’imprimante de la maison.": "A 300 dpi PDF, ready for a photo book service or your home printer.",
-    "Gratuit, sans compte : les dessins restent sur votre appareil.": "Free, no account: the drawings stay on your device.",
-    "Créer mon livre": "Create my book",
-    "Voir un livre d’exemple": "See a sample book",
-    "Un livre de dessins ouvert : un dessin d’enfant par page, avec son titre et l’âge de l’enfant": "An open drawing book: one child’s drawing per page, with its title and the child’s age",
     "Atelier Gribouille — Les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — Children’s drawings become works of art",
     "Scannez les dessins de vos enfants : l’atelier les découpe à leur taille réelle et compose une œuvre unique, à imprimer sur toile ou à réaliser à la main avec les originaux.": "Scan your children’s drawings: the studio cuts them out at their real size and composes a unique artwork, to print on canvas or to make by hand with the originals.",
     "Les dessins d’enfants deviennent des œuvres d’art. Scannez ou photographiez, l’atelier compose, accrochez.": "Children’s drawings become works of art. Scan or photograph, the studio composes, hang it up.",
@@ -247,7 +236,7 @@
       t.nodeValue = raw.match(/^\s*/)[0] + EN[key] + raw.match(/\s*$/)[0];
     });
     document.querySelectorAll('svg[aria-label]').forEach(function (s) { var v = s.getAttribute('aria-label'); if (EN[v] !== undefined) s.setAttribute('aria-label', EN[v]); });
-    document.querySelectorAll('a[href^="atelier/"], a[href^="livre/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
+    document.querySelectorAll('a[href^="atelier/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
     document.documentElement.lang = 'en';
     // la version anglaise a sa propre adresse (?lang=en), déclarée aux moteurs par hreflang
     var canon = document.querySelector('link[rel="canonical"]');

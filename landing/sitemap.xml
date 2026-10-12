@@ -29,20 +29,6 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/atelier/"/>
   </url>
   <url>
-    <loc>https://ateliergribouille.art/livre/</loc>
-    <lastmod>2026-10-10</lastmod>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/livre/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/livre/?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/livre/"/>
-  </url>
-  <url>
-    <loc>https://ateliergribouille.art/livre/?lang=en</loc>
-    <lastmod>2026-10-10</lastmod>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/livre/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/livre/?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/livre/"/>
-  </url>
-  <url>
     <loc>https://ateliergribouille.art/idees-dessins-enfants.html</loc>
     <lastmod>2026-10-10</lastmod>
   </url>

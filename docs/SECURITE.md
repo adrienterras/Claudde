@@ -110,23 +110,23 @@ Corrigé :
 
 ## Audit du 10 octobre 2026 (site complet)
 
-Relu : tout le code publié (atelier, livre, accueil, tarifs, article), le schéma Supabase, les
+Relu : tout le code publié (atelier, accueil, tarifs, article), le schéma Supabase, les
 workflows et l'historique Git complet (toutes branches). Aucune faille exploitable trouvée :
 - aucun secret (`service_role`, `sb_secret`, clés d'API, jetons GitHub, clés privées) dans le code
   ni dans l'historique ; seule la clé publique Supabase est présente, comme prévu ;
 - toutes les insertions HTML de données (noms, titres, vignettes, panier, comptes) passent par
-  `esc()` ou `safeData()`, ou par `textContent` dans le livre ; les vignettes viennent du canvas ;
+  `esc()` ou `safeData()`; les vignettes viennent du canvas ;
 - règles d'accès par ligne et par dossier inchangées et correctes ; supabase-js 2.117 (à jour).
 
 Corrigé :
-- **Politique de sécurité du contenu (CSP)** en balise `<meta>` sur l'atelier, le livre, l'accueil,
+- **Politique de sécurité du contenu (CSP)** en balise `<meta>` sur l'atelier, l'accueil,
   les tarifs, l'article et la page de confidentialité : scripts limités au site et à Umami (aucun
   script inline sauf celui de la page de confidentialité, autorisé par son empreinte), connexions
   limitées au site, à Supabase et à Umami, images au site, aux data/blob et aux avatars Google,
   `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. Une injection de script ne
   s'exécuterait plus et ne pourrait rien envoyer ailleurs : c'est la protection qui manquait au
   jeton de session gardé dans `localStorage`. Test `tests/csp.spec.js` : politique présente partout,
-  empreintes à jour, aucun parcours (import PDF, export PDF, guide, livre) ne la viole, et un script
+  empreintes à jour, aucun parcours (import PDF, export PDF, guide) ne la viole, et un script
   injecté est bien bloqué.
 - **jsPDF 2.5.1 → 4.2.1** : corrige les dénis de service connus (CVE-2025-29907, CVE-2025-57810) et
   les failles corrigées depuis dans les versions 3 et 4. Le PDF produit est identique (mêmes opérations de
