@@ -3636,8 +3636,13 @@ Réponds uniquement avec ce JSON :
     if (!rec || !rec.drawings || !rec.drawings.length || state.drawings.length) return;
     let crashed = false;
     try { crashed = Date.now() - Number(localStorage.getItem(RESUME_KEY) || 0) < 15 * 60e3; } catch (e) { crashed = false; }
-    if (crashed && !manual) {
-      box.querySelector('span').textContent = tr`La dernière réouverture de votre œuvre (${rec.drawings.length} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.`;
+    // « Créer mon œuvre » depuis l'accueil (atelier/?nouveau) : l'atelier s'ouvre vide, l'œuvre en
+    // cours gardée dans ce navigateur est seulement proposée
+    const fresh = /[?&]nouveau\b/.test(location.search);
+    if ((crashed || fresh) && !manual) {
+      box.querySelector('span').textContent = fresh
+        ? tr`Une œuvre en cours (${rec.drawings.length} dessins) est gardée dans ce navigateur.`
+        : tr`La dernière réouverture de votre œuvre (${rec.drawings.length} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.`;
       box.hidden = false;
       $('draft-resume').hidden = false;
       $('draft-forget').hidden = false;

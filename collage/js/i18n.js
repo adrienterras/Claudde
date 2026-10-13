@@ -77,6 +77,7 @@
     'Votre œuvre est de retour : touchez le bouton pour {0}.': 'Your artwork is back: tap the button to {0}.',
     'Œuvre en cours': 'Work in progress',
     'Réouverture de votre œuvre en cours…': 'Reopening your work in progress…',
+    'Une œuvre en cours ({0} dessins) est gardée dans ce navigateur.': 'A work in progress ({0} drawings) is kept in this browser.',
     'L’œuvre en cours n’a pas pu être rouverte.': 'The work in progress could not be reopened.',
     'Oublier cette œuvre': 'Forget this work',
     'Baguette': 'Wand',
