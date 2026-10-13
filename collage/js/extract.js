@@ -773,9 +773,20 @@
     let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
     let regCount = 0; for (let p = 0; p < region.length; p++) regCount += region[p];
     const useFine = fmCount > regCount * 0.12;
-    const alpha = useFine ? fm : region;
-    // bord légèrement adouci (anti-crénelage), sans halo
-    const soft = softEdge(alpha, fw, fh);
+    let alpha = useFine ? fm : region;
+    // coupe lisse, comme aux ciseaux : les petites dents et encoches du contour (≈ 2 mm) sont
+    // gommées (ouverture puis fermeture, qui arrondissent aussi les angles), sans jamais entamer
+    // l'encre, qui garde au moins ≈ 1 mm de papier autour d'elle
+    if (useFine) {
+      const rs = funit * 0.008;
+      let sm = dilate(erode(alpha, fw, fh, rs), fw, fh, rs);
+      sm = erode(dilate(sm, fw, fh, rs), fw, fh, rs);
+      const guard = dilate(inkF, fw, fh, funit * 0.004);
+      for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
+      alpha = sm;
+    }
+    // bord adouci sur ≈ 2 pixels (anti-crénelage), sans halo
+    const soft = boxBlur(softEdge(alpha, fw, fh), fw, fh);
     const mc = makeCanvas(fw, fh);
     const mctx = ctx2d(mc);
     const mimg = mctx.createImageData(fw, fh);

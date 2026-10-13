@@ -17,7 +17,9 @@ cd collage && python3 -m http.server 8000
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
      ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, un contour
-     ouvert est contourné sans entrer dans chaque creux, puis la coupe suit le dessin à ≈ 3 mm.
+     ouvert est contourné sans entrer dans chaque creux, puis la coupe suit le dessin à ≈ 3 mm, avec
+     un contour **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles
+     arrondis, sans jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle).
      Une page couverte de peinture (la découpe principale engloberait plus de la moitié de la page,
      papier minoritaire) est un fond, pas une découpe géante aux bords déchiquetés. Les seuils
      d'encre s'adaptent au dessin : sur un scan propre un crayon pâle reste séparé du grain du
