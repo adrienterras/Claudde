@@ -15,7 +15,15 @@ cd collage && python3 -m http.server 8000
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer).
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
-   - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc.
+   - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
+     ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, un contour
+     ouvert est contourné sans entrer dans chaque creux, puis la coupe suit le dessin à ≈ 3 mm.
+     Une page couverte de peinture (la découpe principale engloberait plus de la moitié de la page,
+     papier minoritaire) est un fond, pas une découpe géante aux bords déchiquetés. Les seuils
+     d'encre s'adaptent au dessin : sur un scan propre un crayon pâle reste séparé du grain du
+     papier, et si la première passe ne trouve que des miettes éparses, une seconde passe à seuils
+     plus bas relie les traits de plus loin. Les toutes petites pièces ternes (ombre d'un pli, bord
+     de feuille) sont écartées.
    Avant la découpe, l'**éclairage est égalisé** (`Extract.flatten`) : la couleur du papier est
    estimée case par case (1/100 de la page), les ombres d'un pli ou d'un bord sont ramenées au blanc
    et ne sont plus prises pour du dessin. Une case n'est retenue comme papier que si elle est lisse,
@@ -93,6 +101,24 @@ cd collage && python3 -m http.server 8000
      page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une composition
      telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte reste
      épinglée jusqu'à « nouvelles propositions » ou un changement de réglage ;
+   - **feuille photographiée** (table, mur, nappe, bois) : la feuille est cherchée avant tout le
+     reste (`Extract.findSheet`). Le papier est une plage claire et peu saturée bornée de tous côtés
+     par un contour franc (le bord de la feuille et son ombre), même quand la surface a presque sa
+     couleur (mur clair) : on remplit le papier depuis l'intérieur sans franchir les contours (trois
+     tolérances de couleur, de la plus large à la plus stricte), on bouche les cases fermées par les
+     traits, on ajuste un quadrilatère sur l'enveloppe convexe (meilleur quadrilatère parmi ses
+     sommets, puis chaque bord réajusté par une droite robuste sur le contour voisin de
+     l'enveloppe). Garde-fous : la surface, lue sur la bordure de la photo hors de la feuille, doit
+     être bois ou peu saturée et d'une seule couleur (un cadre dessiné au crayon n'en est pas une),
+     ne pas contenir de papier de la couleur de la feuille (une plage de ciel cernée d'arbres n'est
+     pas une feuille), et chaque bord du quadrilatère doit être suivi par un contour franc ou par le
+     bord de la plage. La feuille est alors **redressée** (perspective corrigée, homographie) et
+     recadrée juste à l'intérieur de son bord ; ses bords redressés ne doivent pas montrer la
+     surface. Une forme libre (feuille découpée, froissée) posée sur un bois devient un objet dont
+     la silhouette entière est la pièce. Signalé sur la vignette (« redressé ») et dans la fiche,
+     avec un bouton pour garder la photo entière ; une feuille redressée est ensuite traitée comme
+     un scan (elle peut être un fond). Si aucune feuille n'est trouvée, la détection de surface
+     ci-dessous prend le relais ;
    - **photos sur un sol ou une table** : quand une image (ou une page de scan de téléphone, sans
      taille physique) montre le dessin posé sur du parquet, du bois, du carrelage ou un plan de
      travail, une photo posée sur une page blanche (PDF d'un scanner de téléphone, marges A4) est

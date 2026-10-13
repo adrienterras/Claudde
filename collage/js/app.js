@@ -622,8 +622,9 @@
   // sinon celui de l'analyse d'image.
   function roleOf(d) {
     if (d.role !== 'auto') return d.role;
-    // un dessin photographié sur un sol et détouré est toujours une découpe (jamais une page entière)
-    if (d.photo && d.photoMode !== 'keep') return 'cutout';
+    // un dessin photographié sur un sol et détouré est toujours une découpe (jamais une page entière) ;
+    // une feuille photographiée puis redressée est traitée comme un scan
+    if (d.photo && !d.photo.sheet && d.photoMode !== 'keep') return 'cutout';
     if (d.auto) return d.auto; // choix du plan de couverture
     if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
     // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
@@ -735,7 +736,7 @@
       return painted >= 0.5 || (painted >= 0.33 && (t.colorful || 0) >= 0.3);
     };
     const rest = cands.filter((d) => !paleOnes.includes(d));
-    rest.forEach((d) => { if (!bgEligible(d) || (d.photo && d.photoMode !== 'keep')) d.auto = 'cutout'; });
+    rest.forEach((d) => { if (!bgEligible(d) || (d.photo && !d.photo.sheet && d.photoMode !== 'keep')) d.auto = 'cutout'; });
     const ranked = rest.filter(bgEligible).sort((a, b) => bgMerit(b) - bgMerit(a));
     const forcedBg = state.drawings.filter((d) => d.role === 'texture').reduce((sum, d) => sum + pageAreaCm2(d), 0);
     const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => d.auto === 'texture' || d.analysis.kind === 'texture').length)) : 0;
@@ -911,7 +912,7 @@
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
@@ -985,7 +986,9 @@
         </div>`}
         ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
         <p class="hint photo">${d.photo
-          ? tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
+          ? d.photo.sheet
+            ? tr`Photo d’une feuille sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un mur ou une table')} : la feuille a été redressée et recadrée. <button class="link" data-photo="keep">Garder la photo entière</button>`
+            : tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
@@ -2020,11 +2023,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       ctx.beginPath();
       ctx.arc((L.w / 2) * s, (L.h / 2) * s, 9 * dpr, 0, Math.PI * 2);
       ctx.fill();
+      // la flèche de rotation est tracée (pas un caractère : le rendu d'un texte sous un clip de
+      // redessin partiel peut différer d'un pixel de celui du rendu complet)
+      const hx = (L.w / 2) * s, hy = (L.h / 2) * s, rr = 4.5 * dpr;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.6 * dpr;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(hx, hy, rr, -Math.PI * 0.35, Math.PI * 1.25);
+      ctx.stroke();
       ctx.fillStyle = '#fff';
-      ctx.font = `${11 * dpr}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('↻', (L.w / 2) * s, (L.h / 2) * s);
+      ctx.beginPath();
+      const ax = hx + rr * Math.cos(-Math.PI * 0.35), ay = hy + rr * Math.sin(-Math.PI * 0.35);
+      ctx.moveTo(ax + 2.6 * dpr, ay - 1.2 * dpr);
+      ctx.lineTo(ax - 1.6 * dpr, ay - 2.4 * dpr);
+      ctx.lineTo(ax + 0.6 * dpr, ay + 2.2 * dpr);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
   }

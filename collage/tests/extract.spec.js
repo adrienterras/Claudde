@@ -62,6 +62,86 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(plain.photo).toBeNull();
   });
 
+  test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // mur beige clair, à peine plus sombre que le papier, éclairage inégal
+      const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, 'rgb(196,190,178)'); g.addColorStop(1, 'rgb(176,170,160)');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      // la feuille, en perspective (trapèze), avec son ombre portée
+      const quad = [[300, 200], [1340, 260], [1300, 1020], [260, 960]];
+      x.fillStyle = 'rgba(0,0,0,.25)'; x.beginPath(); quad.forEach((q, i) => (i ? x.lineTo(q[0] + 10, q[1] + 12) : x.moveTo(q[0] + 10, q[1] + 12))); x.closePath(); x.fill();
+      x.fillStyle = 'rgb(238,236,230)'; x.beginPath(); quad.forEach((q, i) => (i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]))); x.closePath(); x.fill();
+      // un dessin : une maison rouge et un soleil, et un trait qui touche le bord de la feuille
+      x.fillStyle = '#c33'; x.fillRect(560, 520, 260, 260); x.beginPath(); x.moveTo(530, 520); x.lineTo(690, 380); x.lineTo(850, 520); x.closePath(); x.fill();
+      x.fillStyle = '#e9c21a'; x.beginPath(); x.arc(1120, 420, 90, 0, 7); x.fill();
+      x.strokeStyle = '#3a8a3a'; x.lineWidth = 10; x.beginPath(); x.moveTo(300, 930); x.lineTo(1290, 990); x.stroke();
+      const a = Extract.analyze(c, 0, { photo: true });
+      const pw = a.page.width, ph = a.page.height;
+      // couleur du papier au bord de la page redressée (un coin) : doit être le papier, pas le mur
+      const d = a.page.getContext('2d').getImageData(Math.round(pw * 0.03), Math.round(ph * 0.03), 4, 4).data;
+      return { photo: a.photo && a.photo.kind, sheet: !!(a.photo && a.photo.sheet), kind: a.kind, n: (a.pieces || []).length, ratio: pw / ph, corner: [d[0], d[1], d[2]], fracs: (a.pieces || []).map((q) => +q.frac.toFixed(3)), colors: (a.pieces || []).map((q) => q.color.map(Math.round)) };
+    });
+    expect(r.photo).toBe('neutre');
+    expect(r.sheet).toBe(true);
+    expect(r.kind).toBe('cutout');
+    // la page est la feuille redressée (≈ 1,35 : 1), au papier propre jusque dans ses coins
+    expect(r.ratio).toBeGreaterThan(1.2);
+    expect(r.ratio).toBeLessThan(1.5);
+    expect(r.corner[0]).toBeGreaterThan(225);
+    // la maison et le soleil sont deux découpes (le trait du bas, qui touche le bord, en est une autre ou rejoint la maison)
+    expect(r.n).toBeGreaterThanOrEqual(2);
+    expect(r.colors.some(([cr, cg, cb]) => cr > 150 && cg < 110 && cb < 110)).toBe(true);
+    expect(r.colors.some(([cr, cg, cb]) => cr > 180 && cg > 150 && cb < 90)).toBe(true);
+  });
+
+  test('un cadre dessiné au crayon rouge autour d’une page n’est pas pris pour une feuille photographiée', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1200, H = 1600, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(225,40,70)'; x.fillRect(0, 0, W, H);
+      x.fillStyle = 'rgb(205,205,200)'; x.fillRect(180, 220, 840, 1160);
+      x.fillStyle = 'rgb(235,120,160)'; x.fillRect(450, 600, 300, 420);
+      const a = Extract.analyze(c, 0, { photo: true });
+      return { photo: a.photo ? a.photo.kind : null, w: a.page.width };
+    });
+    expect(r.photo).toBeNull();
+    expect(r.w).toBe(1200);
+  });
+
+  test('une page couverte de peinture, au papier minoritaire, est un fond et non une découpe géante', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(250,249,246)'; x.fillRect(0, 0, W, H);
+      // un grand lavis bleu au bord déchiqueté qui couvre ≈ 55 % de la page, du papier tout autour
+      x.fillStyle = 'rgb(90,140,210)';
+      x.beginPath(); x.ellipse(700, 500, 640, 370, 0, 0, 7); x.fill();
+      for (let k = 0; k < 40; k++) { const t = (k / 40) * Math.PI * 2; x.beginPath(); x.arc(700 + Math.cos(t) * 640, 500 + Math.sin(t) * 370, 40 + (k % 3) * 25, 0, 7); x.fill(); }
+      const a = Extract.analyze(c, 0, {});
+      return { kind: a.kind, paperFrac: +a.paperFrac.toFixed(2) };
+    });
+    expect(r.kind).toBe('texture');
+  });
+
+  test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(250,250,250)'; x.fillRect(0, 0, W, H);
+      // un bonhomme au crayon rose pâle : contour interrompu, traits fins
+      x.strokeStyle = 'rgb(236,214,222)'; x.lineWidth = 5; x.setLineDash([60, 24]);
+      x.beginPath(); x.ellipse(700, 520, 260, 340, 0, 0, 7); x.stroke();
+      x.beginPath(); x.arc(700, 160, 90, 0, 7); x.stroke();
+      x.beginPath(); x.moveTo(440, 520); x.lineTo(220, 420); x.moveTo(960, 520); x.lineTo(1180, 420); x.stroke();
+      // deux yeux un peu plus marqués
+      x.setLineDash([]); x.fillStyle = 'rgb(225,170,190)'; x.beginPath(); x.arc(660, 140, 10, 0, 7); x.arc(740, 140, 10, 0, 7); x.fill();
+      const a = Extract.analyze(c, 0, {});
+      return { kind: a.kind, n: (a.pieces || []).length, big: Math.max(0, ...(a.pieces || []).map((q) => q.frac)) };
+    });
+    expect(r.kind).toBe('cutout');
+    // une seule pièce, qui enveloppe tout le bonhomme (contour, tête, bras) et non des miettes
+    expect(r.n).toBe(1);
+    expect(r.big).toBeGreaterThan(0.2);
+  });
+
   test('une feuille blanche n’est jamais prise pour une photo sur une surface', async ({ app }) => {
     for (const name of ['page-cutout.png', 'page-two.png', 'page-pale.png']) {
       const r = await analyze(app.page, name);

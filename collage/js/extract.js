@@ -106,6 +106,16 @@
     return c;
   }
 
+  // Un liseré transparent d'un pixel autour d'une pièce : son image, rééchantillonnée et tournée sur
+  // la toile, a alors un bord stable quel que soit le clip de redessin (un pixel opaque au ras du
+  // bord serait filtré différemment selon le clip).
+  function clearFrame(c) {
+    const x = ctx2d(c);
+    x.clearRect(0, 0, c.width, 1); x.clearRect(0, c.height - 1, c.width, 1);
+    x.clearRect(0, 0, 1, c.height); x.clearRect(c.width - 1, 0, 1, c.height);
+    return c;
+  }
+
   function crop(src, x, y, w, h) {
     x = Math.max(0, Math.round(x));
     y = Math.max(0, Math.round(y));
@@ -388,24 +398,49 @@
       const dr = data[i] - paper[0], dg = data[i + 1] - paper[1], db = data[i + 2] - paper[2];
       if (dr * dr + dg * dg + db * db < U2) paperCount++;
     }
-    const weakT = weakThreshold(data, w, h, paper);
-    const ink = inkMask(data, w, h, paper, INK_DIST, weakT);
-    // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
-    const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        if (x < m || y < m || x >= w - m || y >= h - m) ink[y * w + x] = 0;
-      }
+    let weakT = weakThreshold(data, w, h, paper);
+    // dessin pâle (crayon léger, feutre pastel) : presque rien ne dépasse le seuil franc alors que
+    // beaucoup dépasse le seuil faible ; le seuil franc descend, sans tomber dans le bruit du papier
+    let strong = 0, faint = 0;
+    const S2 = INK_DIST * INK_DIST, W2 = weakT * weakT;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const dr = data[i] - paper[0], dg = data[i + 1] - paper[1], db = data[i + 2] - paper[2];
+      const q = dr * dr + dg * dg + db * db;
+      if (q > S2) strong++; else if (q > W2) faint++;
     }
+    let strongT = strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST;
     const unit = Math.max(w, h);
-    // regroupe les traits d'un même sujet, puis ne garde qu'une marge de papier de quelques millimètres
-    // (≈ 3 mm sur un A4), comme une découpe aux ciseaux qui suit le dessin
-    let mask = dilate(ink, w, h, unit * 0.014);
-    mask = fillHoles(mask, w, h);
-    mask = erode(mask, w, h, unit * 0.005);
-    const { labels, comps } = components(mask, w, h);
-    comps.sort((a, b) => b.area - a.area);
-    return { work, data, w, h, paper, weakT, paperFrac: paperCount / n, labels, comps };
+    const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
+    const masks = (sT, wT, closeR) => {
+      const ink = inkMask(data, w, h, paper, sT, wT);
+      // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (x < m || y < m || x >= w - m || y >= h - m) ink[y * w + x] = 0;
+        }
+      }
+      // regroupe les traits d'un même sujet, puis ne garde qu'une marge de papier de quelques millimètres
+      // (≈ 3 mm sur un A4), comme une découpe aux ciseaux : on ne rentre pas dans chaque creux d'un
+      // contour ouvert, on contourne le sujet ; les traits distants de moins de ≈ 2 × closeR sont un même sujet
+      let mask = dilate(ink, w, h, unit * closeR);
+      mask = fillHoles(mask, w, h);
+      mask = erode(mask, w, h, unit * (closeR - 0.009));
+      const { labels, comps } = components(mask, w, h);
+      comps.sort((a, b) => b.area - a.area);
+      return { ink, labels, comps };
+    };
+    let r = masks(strongT, weakT, 0.03);
+    // dessin très pâle (crayon léger sur papier blanc) : la première passe ne trouve que des miettes
+    // éparses ; on refait avec des seuils plus bas, juste au-dessus du grain du papier, et des traits
+    // reliés de plus loin
+    let total = 0; r.comps.forEach((c) => { total += c.area; });
+    if (r.comps.length >= 3 && total < n * 0.2 && r.comps[0].area < n * 0.08 && weakT < 30) {
+      const wT2 = Math.max(10, Math.round(weakT * 0.7)), sT2 = Math.max(20, wT2 + 6);
+      const r2 = masks(sT2, wT2, 0.04);
+      let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
+      if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r = r2; weakT = wT2; strongT = sT2; }
+    }
+    return { work, data, w, h, paper, weakT, strongT, paperFrac: paperCount / n, labels: r.labels, comps: r.comps };
   }
 
   /*
@@ -420,7 +455,8 @@
     forEachBorder(w, h, band, (p) => { const i = p * 4; dist.push(Math.hypot(d[i] - paper[0], d[i + 1] - paper[1], d[i + 2] - paper[2])); });
     dist.sort((a, b) => a - b);
     const q90 = dist[Math.min(dist.length - 1, Math.floor(dist.length * 0.9))] || 0;
-    return Math.max(24, Math.min(INK_DIST - 5, q90 * 1.6 + 8));
+    // (un scan propre descend bas : un crayon pâle y est encore séparé du grain du papier)
+    return Math.max(14, Math.min(INK_DIST - 5, q90 * 1.8 + 8));
   }
   function inkMask(d, w, h, paper, strongT, weakT) {
     const n = w * h;
@@ -429,6 +465,7 @@
     const stack = [];
     const S2 = strongT * strongT, W2 = weakT * weakT;
     const pl = lum(paper);
+    const gStrong = Math.round(strongT * 0.82), gWeak = Math.min(30, gStrong - 6);
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = d[i] - paper[0], dg = d[i + 1] - paper[1], db = d[i + 2] - paper[2];
       const q = dr * dr + dg * dg + db * db;
@@ -438,8 +475,8 @@
         // gris neutre : un reste d'ombre (pli, bord) reste à moins de ≈ 30 du papier ; un trait de
         // crayon descend plus bas
         const dl = pl - (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
-        if (dl > 30) weak[p] = 1;
-        if (dl > 45) { ink[p] = 1; stack.push(p); }
+        if (dl > gWeak) weak[p] = 1;
+        if (dl > gStrong) { ink[p] = 1; stack.push(p); }
         continue;
       }
       if (q > W2) weak[p] = 1;
@@ -683,7 +720,9 @@
   function makePiece(page, seg, comp, orig) {
     const { w, h, labels, data } = seg;
     const k = page.width / w;
-    const pad = 2;
+    // marge autour du sujet : le contour fin peut déborder un peu de la forme grossière (zone
+    // autorisée élargie de 1,2 % de la page) ; la pièce garde ainsi un bord transparent
+    const pad = Math.ceil(Math.max(w, h) * 0.014) + 2;
     const x0 = Math.max(0, comp.x0 - pad), y0 = Math.max(0, comp.y0 - pad);
     const x1 = Math.min(w - 1, comp.x1 + pad), y1 = Math.min(h - 1, comp.y1 + pad);
     const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
@@ -724,12 +763,12 @@
     for (let y = 0; y < fh; y++) { const r0 = Math.min(bh - 1, Math.floor(y / kf)) * bw, o = y * fw; for (let x = 0; x < fw; x++) region[o + x] = a[r0 + colF[x]]; }
     const funit = Math.max(fw, fh) / Math.max(bw, bh) * Math.max(seg.w, seg.h); // taille de la page entière, en pixels fins
     const allowed = dilate(region, fw, fh, funit * 0.012);
-    const inkF = inkMask(fd, fw, fh, seg.paper, INK_DIST, seg.weakT || 30);
+    const inkF = inkMask(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30);
     for (let p = 0; p < inkF.length; p++) if (!allowed[p]) inkF[p] = 0;
     // marge de quelques millimètres autour de l'encre, trous bouchés, puis coupe nette
-    let fm = dilate(inkF, fw, fh, funit * 0.011);
+    let fm = dilate(inkF, fw, fh, funit * 0.03);
     fm = fillHoles(fm, fw, fh);
-    fm = erode(fm, fw, fh, funit * 0.003);
+    fm = erode(fm, fw, fh, funit * 0.021);
     // si la détection fine n'a presque rien trouvé (sujet très pâle), on garde la forme grossière
     let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
     let regCount = 0; for (let p = 0; p < region.length; p++) regCount += region[p];
@@ -751,6 +790,7 @@
     ctx.globalCompositeOperation = 'source-in';
     ctx.drawImage(page, x0 * k, y0 * k, bw * k, bh * k, 0, 0, pw, ph);
     ctx.globalCompositeOperation = 'source-over';
+    clearFrame(pc);
 
     // carte de clic à la résolution d'analyse, d'après le contour fin
     const hit = new Uint8Array(bw * bh);
@@ -782,7 +822,9 @@
         const piece = makePiece(enhanced, seg, c, page);
         piece.src.paper = seg.paper;
         return piece;
-      });
+      })
+      // petite et terne : ombre d'un pli, bord de feuille, reste de table, pas un sujet
+      .filter((q) => { if (q.frac < 0.012 && q.colorful < 0.2) { release(q.canvas); return false; } return true; });
   }
 
   // Indicateurs d'une page comme fond (couleur, colorée, calme), calculés sur une petite copie :
@@ -994,6 +1036,7 @@
       ctx.globalCompositeOperation = 'destination-out';
       ctx.drawImage(oc, 0, 0, pw, ph);
       ctx.globalCompositeOperation = 'source-over';
+      clearFrame(pc);
       return {
         canvas: pc,
         hit: { w: bw, h: bh, data: hit },
@@ -1090,6 +1133,436 @@
     const cx0 = Math.round((x0 + (x1 - x0) * m) * k), cy0 = Math.round((y0 + (y1 - y0) * m) * k);
     const cx1 = Math.round((x1 + 1 - (x1 - x0) * m) * k), cy1 = Math.round((y1 + 1 - (y1 - y0) * m) * k);
     return crop(src, cx0, cy0, cx1 - cx0, cy1 - cy0);
+  }
+
+  /*
+   * Feuille photographiée (sur une table, un mur, une nappe…) : on cherche la feuille elle-même, non
+   * la surface. Le papier est une plage claire et peu saturée, bornée de tous côtés par un contour
+   * franc (le bord de la feuille et son ombre), même quand la surface a presque sa couleur (mur
+   * clair). On remplit donc le papier depuis l'intérieur sans franchir les contours, on bouche les
+   * cases fermées par les traits du dessin, puis on ajuste un quadrilatère sur l'enveloppe de la plage.
+   * Une feuille rectangulaire est redressée (perspective corrigée) et recadrée juste à l'intérieur de
+   * son bord ; une forme libre (feuille découpée, froissée) posée sur un bois ou un sol neutre devient
+   * un objet dont la silhouette entière est la pièce. Un cadre dessiné au crayon (bordure colorée)
+   * n'est pas une surface : il est refusé par la couleur de la bordure de la photo.
+   */
+  /*
+   * Page nettoyée autour d'un objet (masque grossier fin, w × h) : hors de l'objet, du papier blanc
+   * (en fondu sur le bord), le bord repris à pleine résolution d'après les couleurs de part et d'autre.
+   */
+  function cutObject(src, fin, w, h) {
+    let x0 = w, y0 = h, x1 = 0, y1 = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (fin[y * w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < x0) { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }
+    const ref = refineAlpha(src, fin, w, h);
+    const rectFill = rectangularity(fin, w, h);
+    const k = src.width / w;
+    const m = Math.round(0.03 * Math.max(x1 - x0, y1 - y0) * k);
+    const cx0 = Math.max(0, Math.round(x0 * k) - m), cy0 = Math.max(0, Math.round(y0 * k) - m);
+    const cx1 = Math.min(src.width, Math.round((x1 + 1) * k) + m), cy1 = Math.min(src.height, Math.round((y1 + 1) * k) + m);
+    const out = makeCanvas(cx1 - cx0, cy1 - cy0);
+    const ctx = ctx2d(out);
+    ctx.drawImage(src, cx0, cy0, out.width, out.height, 0, 0, out.width, out.height);
+    const img = ctx.getImageData(0, 0, out.width, out.height);
+    const od = img.data;
+    const OW = out.width, OH = out.height;
+    const oa = new Float32Array(OW * OH);
+    for (let y = 0; y < OH; y++) {
+      for (let x = 0; x < OW; x++) {
+        let a;
+        if (ref) {
+          const fx = ((x + cx0 + 0.5) / src.width) * ref.W - 0.5, fy = ((y + cy0 + 0.5) / src.height) * ref.H - 0.5;
+          const xa = Math.max(0, Math.min(ref.W - 1, Math.floor(fx))), ya = Math.max(0, Math.min(ref.H - 1, Math.floor(fy)));
+          const xb = Math.min(ref.W - 1, xa + 1), yb = Math.min(ref.H - 1, ya + 1), tx = Math.max(0, Math.min(1, fx - xa)), ty = Math.max(0, Math.min(1, fy - ya));
+          const A = ref.alpha;
+          a = (A[ya * ref.W + xa] * (1 - tx) + A[ya * ref.W + xb] * tx) * (1 - ty) + (A[yb * ref.W + xa] * (1 - tx) + A[yb * ref.W + xb] * tx) * ty;
+        } else {
+          a = fin[Math.min(h - 1, Math.floor((y + cy0) / k)) * w + Math.min(w - 1, Math.floor((x + cx0) / k))];
+        }
+        oa[y * OW + x] = a;
+        if (a < 1) { const i = (y * OW + x) * 4; od[i] = od[i] * a + 248 * (1 - a); od[i + 1] = od[i + 1] * a + 246 * (1 - a); od[i + 2] = od[i + 2] * a + 241 * (1 - a); od[i + 3] = 255; }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return { canvas: out, alpha: oa, W: OW, H: OH, rectFill, refined: !!ref };
+  }
+
+  function convexHull(pts) {
+    pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (pts.length < 3) return pts;
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lower = [], upper = [];
+    for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+    for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+    return lower.slice(0, -1).concat(upper.slice(0, -1));
+  }
+  function polyArea(poly) { let a = 0; for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; }
+  // enveloppe convexe → quadrilatère : l'enveloppe est d'abord simplifiée (Douglas-Peucker), puis le
+  // quadrilatère de plus grande surface est choisi parmi ses sommets (les coins d'une feuille)
+  function simplify(poly, tol) {
+    const dist = (p, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1]; const l2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); };
+    const dp = (pts) => {
+      if (pts.length < 3) return pts;
+      let bi = 0, bd = -1;
+      for (let i = 1; i < pts.length - 1; i++) { const d = dist(pts[i], pts[0], pts[pts.length - 1]); if (d > bd) { bd = d; bi = i; } }
+      if (bd <= tol) return [pts[0], pts[pts.length - 1]];
+      return dp(pts.slice(0, bi + 1)).slice(0, -1).concat(dp(pts.slice(bi)));
+    };
+    // polygone fermé : on part du sommet le plus éloigné du premier
+    let far = 0, fd = -1;
+    poly.forEach((q, i) => { const d = Math.hypot(q[0] - poly[0][0], q[1] - poly[0][1]); if (d > fd) { fd = d; far = i; } });
+    const a = dp(poly.slice(0, far + 1)), b = dp(poly.slice(far).concat([poly[0]]));
+    return a.slice(0, -1).concat(b.slice(0, -1));
+  }
+  function quadOf(hull, size) {
+    let poly = hull;
+    let tol = 0.008 * size;
+    while (poly.length > 14) { poly = simplify(hull, tol); tol *= 1.5; }
+    let best = null, bestA = -1;
+    const m = poly.length;
+    for (let a = 0; a < m; a++) for (let b = a + 1; b < m; b++) for (let c = b + 1; c < m; c++) for (let d = c + 1; d < m; d++) {
+      const q = [poly[a], poly[b], poly[c], poly[d]];
+      const A = polyArea(q);
+      if (A > bestA) { bestA = A; best = q; }
+    }
+    if (!best) return hull.slice(0, 4);
+    return orderQuad(best);
+  }
+  // ordre : haut-gauche, haut-droit, bas-droit, bas-gauche
+  function orderQuad(poly) {
+    const cx = poly.reduce((s, p) => s + p[0], 0) / poly.length, cy = poly.reduce((s, p) => s + p[1], 0) / poly.length;
+    poly = poly.slice().sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+    let start = 0, best = Infinity;
+    poly.forEach((p, i) => { const v = p[0] + p[1]; if (v < best) { best = v; start = i; } });
+    return poly.slice(start).concat(poly.slice(0, start));
+  }
+  // chaque bord du quadrilatère est réajusté sur les points du contour de la plage qui lui sont
+  // les plus proches, par une droite robuste (médiane des pentes : une fuite locale vers un mur de
+  // même couleur ne la dévie pas) ; les coins sont les intersections des quatre droites
+  function refineQuad(quad, boundary, w, h) {
+    const segDist = (p, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1]; const l2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); };
+    let q = quad;
+    for (let it = 0; it < 2; it++) {
+      const sides = [[], [], [], []];
+      const maxD = 0.06 * Math.max(w, h);
+      for (const p of boundary) {
+        let bi = -1, bd = maxD;
+        for (let i = 0; i < 4; i++) { const d = segDist(p, q[i], q[(i + 1) % 4]); if (d < bd) { bd = d; bi = i; } }
+        if (bi >= 0) sides[bi].push(p);
+      }
+      const lines = [];
+      for (let i = 0; i < 4; i++) {
+        const a = q[i], b = q[(i + 1) % 4];
+        const horiz = Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1]);
+        const pts = sides[i];
+        if (pts.length < 8) { lines.push(null); continue; }
+        // sous-échantillon, puis médiane des pentes de paires tirées au hasard (déterministe)
+        const step = Math.max(1, Math.floor(pts.length / 160)), sm = [];
+        for (let k = 0; k < pts.length; k += step) sm.push(pts[k]);
+        const slopes = [];
+        let seed = 7;
+        const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        for (let k = 0; k < 1500; k++) {
+          const p1 = sm[Math.floor(rnd() * sm.length)], p2 = sm[Math.floor(rnd() * sm.length)];
+          const du = horiz ? p2[0] - p1[0] : p2[1] - p1[1];
+          if (Math.abs(du) < 4) continue;
+          slopes.push(horiz ? (p2[1] - p1[1]) / du : (p2[0] - p1[0]) / du);
+        }
+        if (slopes.length < 20) { lines.push(null); continue; }
+        slopes.sort((x, y) => x - y);
+        const sl = slopes[slopes.length >> 1];
+        const inter = sm.map((p) => (horiz ? p[1] - sl * p[0] : p[0] - sl * p[1])).sort((x, y) => x - y);
+        const ic = inter[inter.length >> 1];
+        // droite sous la forme ax + by = c
+        lines.push(horiz ? { a: -sl, b: 1, c: ic } : { a: 1, b: -sl, c: ic });
+      }
+      const next = [];
+      for (let i = 0; i < 4; i++) {
+        const l1 = lines[(i + 3) % 4], l2 = lines[i];
+        if (!l1 || !l2) { next.push(q[i]); continue; }
+        const det = l1.a * l2.b - l2.a * l1.b;
+        if (Math.abs(det) < 1e-6) { next.push(q[i]); continue; }
+        const x = (l1.c * l2.b - l2.c * l1.b) / det, y = (l1.a * l2.c - l2.a * l1.c) / det;
+        next.push([Math.max(-0.02 * w, Math.min(1.02 * w, x)), Math.max(-0.02 * h, Math.min(1.02 * h, y))]);
+      }
+      q = orderQuad(next);
+    }
+    return q;
+  }
+  // homographie (x, y) destination → source, par résolution du système 8 × 8
+  function homography(dst, src) {
+    const A = [], B = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = dst[i], [u, v] = src[i];
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); B.push(u);
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); B.push(v);
+    }
+    const n = 8;
+    for (let c = 0; c < n; c++) {
+      let piv = c;
+      for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+      [A[c], A[piv]] = [A[piv], A[c]]; [B[c], B[piv]] = [B[piv], B[c]];
+      const d = A[c][c] || 1e-12;
+      for (let r = 0; r < n; r++) {
+        if (r === c) continue;
+        const f = A[r][c] / d;
+        if (!f) continue;
+        for (let k = c; k < n; k++) A[r][k] -= f * A[c][k];
+        B[r] -= f * B[c];
+      }
+    }
+    const h = B.map((b, i) => b / (A[i][i] || 1e-12));
+    return (x, y) => { const z = h[6] * x + h[7] * y + 1; return [(h[0] * x + h[1] * y + h[2]) / z, (h[3] * x + h[4] * y + h[5]) / z]; };
+  }
+  function warpQuad(src, quad, outW, outH) {
+    const sw = src.width, sh = src.height;
+    const sd = ctx2d(src).getImageData(0, 0, sw, sh).data;
+    const out = makeCanvas(outW, outH);
+    const img = ctx2d(out).createImageData(outW, outH), od = img.data;
+    const H = homography([[0, 0], [outW, 0], [outW, outH], [0, outH]], quad);
+    for (let y = 0; y < outH; y++) {
+      for (let x = 0; x < outW; x++) {
+        const [u, v] = H(x + 0.5, y + 0.5);
+        const fx = Math.min(sw - 1.001, Math.max(0, u - 0.5)), fy = Math.min(sh - 1.001, Math.max(0, v - 0.5));
+        const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+        const i00 = (y0 * sw + x0) * 4, i01 = i00 + 4, i10 = i00 + sw * 4, i11 = i10 + 4;
+        const o = (y * outW + x) * 4;
+        for (let c = 0; c < 3; c++) od[o + c] = (sd[i00 + c] * (1 - tx) + sd[i01 + c] * tx) * (1 - ty) + (sd[i10 + c] * (1 - tx) + sd[i11 + c] * tx) * ty;
+        od[o + 3] = 255;
+      }
+    }
+    ctx2d(out).putImageData(img, 0, 0);
+    return out;
+  }
+  function findSheet(src, force) {
+    const work = scaleTo(src, WORK_MAX);
+    const w = work.width, h = work.height, n = w * h;
+    const raw = ctx2d(work).getImageData(0, 0, w, h).data;
+    release(work);
+    // image légèrement lissée (bruit du capteur, grain du papier)
+    const L = new Float32Array(n), S = new Float32Array(n), CR = new Float32Array(n), CG = new Float32Array(n);
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const r = raw[i], g = raw[i + 1], b = raw[i + 2], t = r + g + b || 1;
+      L[p] = 0.299 * r + 0.587 * g + 0.114 * b;
+      const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      S[p] = mx ? (mx - mn) / mx : 0;
+      CR[p] = r / t; CG[p] = g / t;
+    }
+    const Ls = boxBlur(L, w, h);
+    // contours : gradient de clarté (Sobel), seuil adapté au bruit
+    const G = new Float32Array(n);
+    const gs = [];
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const gx = (Ls[i - w + 1] + 2 * Ls[i + 1] + Ls[i + w + 1]) - (Ls[i - w - 1] + 2 * Ls[i - 1] + Ls[i + w - 1]);
+      const gy = (Ls[i + w - 1] + 2 * Ls[i + w] + Ls[i + w + 1]) - (Ls[i - w - 1] + 2 * Ls[i - w] + Ls[i - w + 1]);
+      G[i] = Math.hypot(gx, gy) / 8;
+      if (!((x + y) & 7)) gs.push(G[i]);
+    }
+    gs.sort((a, b) => a - b);
+    const gMed = gs[gs.length >> 1] || 0;
+    const gT = Math.max(3.5, gMed * 3.5);
+    // couleur du papier : parmi les pixels calmes et peu saturés du centre, les plus clairs
+    const cand = [];
+    for (let y = Math.floor(h * 0.2); y < h * 0.8; y++) for (let x = Math.floor(w * 0.2); x < w * 0.8; x++) {
+      const i = y * w + x;
+      if (S[i] < 0.25 && G[i] < gT) cand.push(i);
+    }
+    if (cand.length < n * 0.02) return null;
+    cand.sort((a, b) => L[a] - L[b]);
+    const top = cand.slice(Math.floor(cand.length * 0.55));
+    const med = (f) => { const v = top.map(f).sort((a, b) => a - b); return v[v.length >> 1]; };
+    const pL = med((i) => L[i]), pR = med((i) => CR[i]), pG = med((i) => CG[i]);
+    if (pL < 90) return null;
+    const attempts = [];
+    findSheet.attempts = attempts;
+    const attempt = (lTol, cTol) => {
+      const P = new Uint8Array(n);
+      for (let p = 0; p < n; p++) P[p] = G[p] < gT && Math.abs(L[p] - pL) < lTol && S[p] < 0.3 && Math.hypot(CR[p] - pR, CG[p] - pG) < cTol ? 1 : 0;
+      // un peu de tolérance aux contours fins (grain, trait léger), puis la plus grande plage ; un
+      // pan de papier isolé par un trait (rayons d'un soleil) reste couvert par l'enveloppe convexe
+      const rc = 1.5;
+      const closed = erode(dilate(P, w, h, rc), w, h, rc);
+      const { labels, comps } = components(closed, w, h);
+      if (!comps.length) return null;
+      comps.sort((a, b) => b.area - a.area);
+      const big = comps[0], second = comps[1] ? comps[1].area : 0;
+      if (big.area < n * 0.08) return null;
+      const region = new Uint8Array(n);
+      for (let p = 0; p < n; p++) if (labels[p] === big.id && (P[p] || closed[p])) region[p] = 1;
+      const filled = fillHoles(region, w, h);
+      let area = 0; for (let p = 0; p < n; p++) area += filled[p];
+      findSheet.debug = { pL: Math.round(pL), gT: +gT.toFixed(1), lTol: Math.round(lTol), area: +(area / n).toFixed(2), second: +(second / big.area).toFixed(2) };
+      attempts.push(findSheet.debug);
+      // la feuille s'est fragmentée (éclairage inégal, tolérance trop stricte) : un fragment n'est pas la feuille
+      if (second > 0.3 * big.area) return null;
+      if (findSheet.wantMasks) {
+        const mc = makeCanvas(w, h), mi = ctx2d(mc).createImageData(w, h);
+        for (let p = 0; p < n; p++) { const i = p * 4; mi.data[i] = P[p] ? 255 : 0; mi.data[i + 1] = filled[p] ? 255 : 0; mi.data[i + 2] = G[p] >= gT ? 255 : 0; mi.data[i + 3] = 255; }
+        ctx2d(mc).putImageData(mi, 0, 0);
+        findSheet.debug.maskPng = mc.toDataURL('image/png');
+        findSheet.debug.maskCanvas = mc;
+      }
+      // la page entière (scan, photo cadrée au bord) : rien à recadrer
+      if (area > 0.93 * n) return null;
+      // enveloppe convexe et quadrilatère
+      const pts = [];
+      for (let y = 0; y < h; y++) {
+        let x0 = -1, x1 = -1;
+        for (let x = 0; x < w; x++) if (filled[y * w + x]) { if (x0 < 0) x0 = x; x1 = x; }
+        if (x0 >= 0) { pts.push([x0, y]); pts.push([x1 + 1, y]); pts.push([x0, y + 1]); pts.push([x1 + 1, y + 1]); }
+      }
+      const hull = convexHull(pts);
+      if (hull.length < 4) return null;
+      const hullArea = polyArea(hull);
+      const hullFill = area / Math.max(1, hullArea);
+      // contour de la plage (pixels de la plage voisins du vide)
+      const boundary = [];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (!filled[i]) continue;
+        if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !filled[i - 1] || !filled[i + 1] || !filled[i - w] || !filled[i + w]) boundary.push([x + 0.5, y + 0.5]);
+      }
+      // seuls les points proches de l'enveloppe comptent (un contour intérieur ouvert sur le bord,
+      // comme un soleil dont les rayons touchent le bord de la feuille, ne doit pas tirer le bord)
+      const hullD = (p) => { let best = Infinity; for (let i = 0; i < hull.length; i++) { const a = hull[i], b = hull[(i + 1) % hull.length]; const dx = b[0] - a[0], dy = b[1] - a[1]; const l2 = dx * dx + dy * dy || 1; const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)); const d = Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); if (d < best) best = d; } return best; };
+      const nearHull = boundary.filter((p) => hullD(p) <= 0.02 * Math.max(w, h));
+      const quad = refineQuad(quadOf(hull, Math.max(w, h)), nearHull, w, h);
+      const quadArea = polyArea(quad);
+      const inQuad = (x, y) => { let inside = true; for (let i = 0; i < 4; i++) { const a = quad[i], b = quad[(i + 1) % 4]; if ((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]) < 0) { inside = false; break; } } return inside; };
+      let inter = 0, leak = 0;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (!filled[y * w + x]) continue; if (inQuad(x + 0.5, y + 0.5)) inter++; else leak++; }
+      const quadFill = inter / Math.max(1, quadArea), quadLeak = leak / Math.max(1, quadArea);
+    const hullQuad = Math.min(hullArea / Math.max(1, quadArea), quadArea / Math.max(1, hullArea));
+      // rectitude : y a-t-il un contour franc (le bord de la feuille, son ombre) tout le long de chaque
+      // côté du quadrilatère ? Une plage de ciel cernée d'arbres dessinés a un contour sinueux qui ne
+      // suit pas une droite ; un côté passant dans un mur de même couleur n'a pas de contour du tout
+      // (ou, à défaut de contour franc — ombre douce sur un mur clair —, le bord de la plage elle-même)
+      const emask = new Uint8Array(n), bmask = new Uint8Array(n);
+      for (let p = 0; p < n; p++) emask[p] = G[p] >= gT ? 1 : 0;
+      boundary.forEach(([x, y]) => { bmask[Math.min(h - 1, Math.floor(y)) * w + Math.min(w - 1, Math.floor(x))] = 1; });
+      const nearE = dilate(emask, w, h, 0.012 * Math.max(w, h)), nearB = dilate(bmask, w, h, 0.015 * Math.max(w, h));
+      const sideStraight = [];
+      for (let i = 0; i < 4; i++) {
+        const a = quad[i], b = quad[(i + 1) % 4];
+        let okE = 0, okB = 0, tot = 0;
+        for (let t = 0.04; t <= 0.96; t += 0.02) {
+          const x = Math.round(a[0] + (b[0] - a[0]) * t), y = Math.round(a[1] + (b[1] - a[1]) * t);
+          tot++;
+          if (x < 0 || y < 0 || x >= w || y >= h) { okE++; okB++; continue; } // bord hors photo : feuille coupée par le cadre
+          if (nearE[y * w + x]) okE++;
+          if (nearB[y * w + x]) okB++;
+        }
+        sideStraight.push(Math.max(okE, okB) / Math.max(1, tot));
+      }
+      const straight = sideStraight.reduce((p, q) => p + q, 0) / 4;
+      const straightSides = sideStraight.filter((v) => v >= 0.7).length;
+      // la feuille ne peut pas être la photo entière à peine rognée
+      const corners = [[0, 0], [w, 0], [w, h], [0, h]];
+      const nearCorner = quad.filter((p, i) => Math.hypot(p[0] - corners[i][0], p[1] - corners[i][1]) < 0.03 * Math.max(w, h)).length;
+      // surface : bordure de la photo hors de la feuille (médiane), acceptée si bois ou peu saturée
+      const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
+      const ch = [[], [], []];
+      let outN = 0, borderN = 0, outPaper = 0;
+      forEachBorder(w, h, band, (p) => {
+        borderN++;
+        const x = p % w, y = (p - x) / w;
+        if (filled[p] || inQuad(x + 0.5, y + 0.5)) return;
+        outN++;
+        const i = p * 4; ch[0].push(raw[i]); ch[1].push(raw[i + 1]); ch[2].push(raw[i + 2]);
+        // du papier (même couleur que la feuille) hors de la feuille : ce n'est pas une surface
+        if (Math.abs(L[p] - pL) < lTol && S[p] < 0.3 && Math.hypot(CR[p] - pR, CG[p] - pG) < cTol) outPaper++;
+      });
+      if (outN < borderN * 0.08) return null;
+      outPaper /= outN;
+      const col = ch.map((a) => { const c = a.slice().sort((p, q) => p - q); return c[c.length >> 1]; });
+      const sL = lum(col), sS = sat(col);
+      // la surface (bois, mur, nappe) est d'une seule couleur, à son grain près ; une page peinte
+      // jusqu'aux bords (dont une plage blanche aurait été prise pour une feuille) ne l'est pas
+      const scr = col[0] / (col[0] + col[1] + col[2] || 1), scg = col[1] / (col[0] + col[1] + col[2] || 1);
+      let same = 0;
+      for (let k = 0; k < ch[0].length; k++) {
+        const r = ch[0][k], g = ch[1][k], b = ch[2][k], t = r + g + b || 1;
+        if (Math.abs(0.299 * r + 0.587 * g + 0.114 * b - sL) < 32 && Math.hypot(r / t - scr, g / t - scg) < 0.05) same++;
+      }
+      const uniform = same / Math.max(1, ch[0].length);
+      const mx = Math.max(col[0], col[1], col[2]), mn = Math.min(col[0], col[1], col[2]);
+      let hue = 0;
+      if (mx > mn) { hue = mx === col[0] ? ((col[1] - col[2]) / (mx - mn)) % 6 : mx === col[1] ? (col[2] - col[0]) / (mx - mn) + 2 : (col[0] - col[1]) / (mx - mn) + 4; hue = (hue * 60 + 360) % 360; }
+      const wood = sS >= 0.15 && hue >= 5 && hue <= 55 && sL < 230;
+      const neutral = sS < 0.35;
+      const distinct = Math.abs(sL - pL) > 8 || Math.hypot(col[0] / (col[0] + col[1] + col[2] || 1) - pR, col[1] / (col[0] + col[1] + col[2] || 1) - pG) > 0.02;
+      Object.assign(findSheet.debug, { hullFill: +hullFill.toFixed(2), hullQuad: +hullQuad.toFixed(2), quadFill: +quadFill.toFixed(2), quadLeak: +quadLeak.toFixed(2), straight: +straight.toFixed(2), straightSides, nearCorner, sL: Math.round(sL), sS: +sS.toFixed(2), hue: Math.round(hue), wood, neutral, distinct, uniform: +uniform.toFixed(2), outPaper: +outPaper.toFixed(2) });
+      if (findSheet.wantMasks && findSheet.debug.maskCanvas) {
+        const mc = findSheet.debug.maskCanvas;
+        const cx = ctx2d(mc); cx.strokeStyle = '#ff00ff'; cx.lineWidth = 2; cx.beginPath(); quad.forEach((q, i) => (i ? cx.lineTo(q[0], q[1]) : cx.moveTo(q[0], q[1]))); cx.closePath(); cx.stroke();
+        cx.strokeStyle = '#ffff00'; cx.lineWidth = 1; cx.beginPath(); hull.forEach((q, i) => (i ? cx.lineTo(q[0], q[1]) : cx.moveTo(q[0], q[1]))); cx.closePath(); cx.stroke();
+        findSheet.debug.maskPng = mc.toDataURL('image/png');
+        delete findSheet.debug.maskCanvas;
+      }
+      if (!force && !(wood || neutral)) return null;
+      if (!distinct || (nearCorner >= 3 && area > 0.95 * n)) return null;
+      if (!force && (outPaper > 0.2 || uniform < 0.45)) return null;
+      const k = src.width / w;
+      if (hullQuad >= 0.88 && quadFill >= 0.7 && quadLeak <= 0.15 && straight >= 0.75 && straightSides >= 3) {
+        // feuille rectangulaire : redressée, recadrée juste à l'intérieur de son bord
+        const cx = quad.reduce((s, p) => s + p[0], 0) / 4, cy = quad.reduce((s, p) => s + p[1], 0) / 4;
+        const inset = 0.98;
+        const q = quad.map(([x, y]) => [(cx + (x - cx) * inset) * k, (cy + (y - cy) * inset) * k]);
+        const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+        let outW = Math.round(Math.max(len(q[0], q[1]), len(q[3], q[2]))), outH = Math.round(Math.max(len(q[0], q[3]), len(q[1], q[2])));
+        const cap = Math.min(FINE_MAX, Math.max(src.width, src.height));
+        const sc = Math.min(1, cap / Math.max(outW, outH));
+        outW = Math.max(8, Math.round(outW * sc)); outH = Math.max(8, Math.round(outH * sc));
+        const canvas = warpQuad(src, q, outW, outH);
+        // feuille redressée : ses bords doivent être du papier (une feuille découpée en biais ou une
+        // plage prise pour une feuille montrerait la surface, ou autre chose, le long d'un bord)
+        const chk = scaleTo(canvas, 320);
+        const cw = chk.width, chh = chk.height, cd = ctx2d(chk).getImageData(0, 0, cw, chh).data;
+        release(chk);
+        // (une feuille découpée en biais montrerait la surface le long d'un bord ; un dessin qui
+        // touche le bord n'est pas la surface)
+        const bw = Math.max(2, Math.round(Math.min(cw, chh) * 0.04));
+        const lt = Math.min(30, Math.max(6, Math.abs(pL - sL) * 0.5)), ct = Math.min(0.04, Math.max(0.01, Math.hypot(scr - pR, scg - pG) * 0.5));
+        const sideSurf = [0, 0, 0, 0], sideN = [0, 0, 0, 0];
+        for (let y = 0; y < chh; y++) for (let x = 0; x < cw; x++) {
+          const sideIdx = y < bw ? 0 : y >= chh - bw ? 2 : x < bw ? 3 : x >= cw - bw ? 1 : -1;
+          if (sideIdx < 0) continue;
+          const i = (y * cw + x) * 4, r = cd[i], g = cd[i + 1], b = cd[i + 2], t = r + g + b || 1;
+          const l = 0.299 * r + 0.587 * g + 0.114 * b;
+          sideN[sideIdx]++;
+          if (Math.abs(l - sL) < lt && Math.hypot(r / t - scr, g / t - scg) < ct) sideSurf[sideIdx]++;
+        }
+        const sides = sideSurf.map((v, i) => v / Math.max(1, sideN[i]));
+        Object.assign(findSheet.debug, { sides: sides.map((v) => +v.toFixed(2)) });
+        // (sans objet quand la surface a presque la couleur du papier : un mur clair ; le papier dans
+        // l'ombre du bord passerait pour la surface)
+        const similar = Math.abs(pL - sL) < 25 && Math.hypot(scr - pR, scg - pG) < 0.02;
+        if (similar || (sides.every((v) => v <= 0.15) && !(quadFill < 0.8 && Math.max(...sides) > 0.1))) {
+          findSheet.debug.result = 'sheet';
+          return { kind: 'sheet', canvas, quad: q, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: outN / borderN, sheet: true } };
+        }
+        release(canvas);
+      }
+      // (seulement sur une surface franchement colorée : sur un mur clair, une feuille mal cernée
+      // passerait pour une forme libre)
+      if (hullFill >= 0.75 && uniform >= 0.85 && wood && sS >= 0.3 && area >= 0.1 * n && straight < 0.95) {
+        // forme libre posée sur la surface : sa silhouette est la pièce
+        const fin = erode(filled, w, h, Math.max(w, h) * 0.003);
+        findSheet.debug.result = 'object';
+        return { kind: 'object', mask: fin, w, h, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: outN / borderN } };
+      }
+      return null;
+    };
+    // tolérance large d'abord (feuille inégalement éclairée), stricte ensuite (mur presque de la
+    // même clarté que le papier, vers lequel la plage large aurait fui)
+    const loose = attempt(Math.max(22, pL * 0.16), 0.035);
+    if (loose) return loose;
+    const medium = attempt(Math.max(15, pL * 0.11), 0.028);
+    if (medium) return medium;
+    const strict = attempt(Math.max(11, pL * 0.07), 0.02);
+    if (strict) return strict;
+    return null;
   }
 
   function removeSurface(src, force) {
@@ -1269,44 +1742,11 @@
       for (let p = 0; p < n; p++) if (seen[p]) finMask[p] = 0;
     }
     const fin = erode(finMask, w, h, unit * 0.004);
-    // bord précis : repris à pleine résolution le long du contour (couleurs de l'objet et de la surface)
-    const ref = refineAlpha(src, fin, w, h);
-    const rectFill = rectangularity(fin, w, h);
-    Object.assign(removeSurface.debug, { rect: +rectFill.toFixed(2), refined: !!ref });
-
-    // page nettoyée à la résolution d'origine : hors du dessin, du papier blanc (en fondu sur le bord)
-    const k = src.width / w;
-    const m = Math.round(0.03 * Math.max(x1 - x0, y1 - y0) * k);
-    const cx0 = Math.max(0, Math.round(x0 * k) - m), cy0 = Math.max(0, Math.round(y0 * k) - m);
-    const cx1 = Math.min(src.width, Math.round((x1 + 1) * k) + m), cy1 = Math.min(src.height, Math.round((y1 + 1) * k) + m);
-    const out = makeCanvas(cx1 - cx0, cy1 - cy0);
-    const ctx = ctx2d(out);
-    ctx.drawImage(src, cx0, cy0, out.width, out.height, 0, 0, out.width, out.height);
-    const img = ctx.getImageData(0, 0, out.width, out.height);
-    const od = img.data;
-    // masque de l'objet à la résolution de la page nettoyée
-    const OW = out.width, OH = out.height;
-    const oa = new Float32Array(OW * OH);
-    for (let y = 0; y < OH; y++) {
-      for (let x = 0; x < OW; x++) {
-        let a;
-        if (ref) {
-          const fx = ((x + cx0 + 0.5) / src.width) * ref.W - 0.5, fy = ((y + cy0 + 0.5) / src.height) * ref.H - 0.5;
-          const xa = Math.max(0, Math.min(ref.W - 1, Math.floor(fx))), ya = Math.max(0, Math.min(ref.H - 1, Math.floor(fy)));
-          const xb = Math.min(ref.W - 1, xa + 1), yb = Math.min(ref.H - 1, ya + 1), tx = Math.max(0, Math.min(1, fx - xa)), ty = Math.max(0, Math.min(1, fy - ya));
-          const A = ref.alpha;
-          a = (A[ya * ref.W + xa] * (1 - tx) + A[ya * ref.W + xb] * tx) * (1 - ty) + (A[yb * ref.W + xa] * (1 - tx) + A[yb * ref.W + xb] * tx) * ty;
-        } else {
-          a = fin[Math.min(h - 1, Math.floor((y + cy0) / k)) * w + Math.min(w - 1, Math.floor((x + cx0) / k))];
-        }
-        oa[y * OW + x] = a;
-        if (a < 1) { const i = (y * OW + x) * 4; od[i] = od[i] * a + 248 * (1 - a); od[i + 1] = od[i + 1] * a + 246 * (1 - a); od[i + 2] = od[i + 2] * a + 241 * (1 - a); od[i + 3] = 255; }
-      }
-    }
-    ctx.putImageData(img, 0, 0);
+    const cut = cutObject(src, fin, w, h);
+    Object.assign(removeSurface.debug, { rect: +cut.rectFill.toFixed(2), refined: cut.refined });
     // une découpe (forme libre) est la pièce elle-même ; une feuille rectangulaire garde son dessin à découper
-    const cutShape = rectFill < 0.9;
-    return { canvas: out, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac }, object: cutShape ? { alpha: oa, W: OW, H: OH } : null };
+    const cutShape = cut.rectFill < 0.9;
+    return { canvas: cut.canvas, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac }, object: cutShape ? { alpha: cut.alpha, W: cut.W, H: cut.H } : null };
   }
 
   /*
@@ -1351,6 +1791,22 @@
     depth = depth || 0;
     opts = opts || {};
     if (depth === 0 && opts.photo) {
+      // photo d'une feuille (table, mur, nappe…) : la feuille est trouvée, redressée, recadrée ;
+      // une forme libre posée sur un bois ou un sol neutre devient un objet (sa silhouette est la pièce)
+      const sheet = findSheet(src, !!opts.force);
+      if (sheet && sheet.kind === 'sheet') {
+        const r = analyze(sheet.canvas, 1, { flat: false });
+        r.photo = sheet.surface;
+        r.original = src;
+        return r;
+      }
+      if (sheet && sheet.kind === 'object') {
+        const cut = cutObject(src, sheet.mask, sheet.w, sheet.h);
+        const page = flatten(cut.canvas, true);
+        const r = { page, paper: [250, 250, 250], texture: null, kind: 'cutout', paperFrac: 1, objectAlpha: { alpha: cut.alpha, W: cut.W, H: cut.H } };
+        r.pieces = objectPieces(page, cut.alpha, cut.W, cut.H);
+        if (r.pieces.length) { r.photo = sheet.surface; r.original = src; return r; }
+      }
       // photo d'un dessin posé sur un sol ou une table : on retire la surface
       const cleaned = removeSurface(src, !!opts.force);
       if (cleaned && cleaned.object) {
@@ -1390,12 +1846,18 @@
       return result;
     }
     result.pieces = cutPieces(src, seg);
-    if (!result.pieces.length) {
+    // page peinte (aquarelle, gouache, gribouillage qui couvre la feuille) : la découpe principale
+    // engloberait presque toute la page, bords déchiquetés ; c'est un fond, pas une découpe
+    const bigFrac = result.pieces.reduce((m, q) => Math.max(m, q.frac), 0);
+    if (!result.pieces.length || (bigFrac > 0.55 && seg.paperFrac < 0.72)) {
+      result.pieces.forEach((q) => release(q.canvas));
+      result.pieces = null;
       result.kind = 'texture';
       result.texture = textureFrom(src);
+      result.seg = seg;
     }
     return result;
   }
 
-  window.Extract = { analyze, flatten, recut, rotated, textureStats, release, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, rotated, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();
