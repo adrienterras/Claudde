@@ -147,4 +147,27 @@ test.describe('Précision de la découpe', () => {
     expect(r.n90).toBe(1);
     expect(Math.abs(r.ratio90 - r.ratio)).toBeLessThan(0.02);
   });
+
+  test('netteté pour l’impression : un bord flou devient plus franc, le fond transparent et le papier blanc ne bougent pas', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une bande sombre au bord adouci sur du papier blanc, et une zone transparente
+      const c = Extract.makeCanvas(120, 60), x = c.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, 80, 60);
+      const g = x.createLinearGradient(30, 0, 36, 0); g.addColorStop(0, '#222'); g.addColorStop(1, '#fff');
+      x.fillStyle = g; x.fillRect(0, 0, 36, 60);
+      const px = (cv, X, Y) => Array.from(cv.getContext('2d').getImageData(X, Y, 1, 1).data);
+      const pick = () => ({ edgeIn: px(c, 30, 30), edgeOut: px(c, 36, 30), ink: px(c, 10, 30), paper: px(c, 70, 30), clear: px(c, 100, 30) });
+      const before = pick();
+      Extract.sharpen(c, { radius: 1, amount: 0.8, threshold: 4, ink: 0.12 });
+      const after = pick();
+      return { before, after };
+    });
+    const { before, after } = r;
+    // le contraste de part et d'autre du bord augmente
+    expect(after.edgeOut[0] - after.edgeIn[0]).toBeGreaterThan(before.edgeOut[0] - before.edgeIn[0] + 4);
+    // l'encre est un peu plus franche, le papier blanc reste blanc, le transparent reste vide
+    expect(after.ink[0]).toBeLessThan(before.ink[0]);
+    expect(after.paper).toEqual(before.paper);
+    expect(after.clear[3]).toBe(0);
+  });
 });

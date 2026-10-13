@@ -468,6 +468,7 @@
     'Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.': 'Export impossible at this size on this device. Choose “Screen” as quality and try again.',
     'page introuvable dans le fichier d’origine': 'page not found in the original file',
     'Haute définition : dessin {0} / {1} relu depuis son fichier…': 'High definition: drawing {0} / {1} re-read from its file…',
+    'Netteté pour l’impression : {0} / {1}…': 'Sharpening for print: {0} / {1}…',
     'dessins réduits (impression)': 'drawings scaled down (print)',
     'Assemblage du PDF… {0} / {1}': 'Assembling the PDF… {0} / {1}',
     'Préparation de la mise en scène…': 'Preparing the staging…',

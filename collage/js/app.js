@@ -2787,6 +2787,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         // les images du PDF restent à 300 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
         const ps = Math.min(s, 300 / 2.54);
         await hydrateHD(state.comp, ps);
+        await sharpenHD(state.comp, ps);
         const blob = await exportPdf(state.comp, ps);
         releaseHD();
         if (await saveFile(blob, 'oeuvre-atelier-gribouille.pdf')) await recordExport(blob, 'oeuvre-atelier-gribouille.pdf');
@@ -2800,6 +2801,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       for (let attempt = 0; attempt < 4 && !blob; attempt++) {
         if (attempt) { scale *= 0.6; saveStatus(tr('Image trop grande pour cet appareil : nouvel essai plus petit…')); await tick(); }
         await hydrateHD(state.comp, scale);
+        await sharpenHD(state.comp, scale);
         if (!attempt) saveStatus(tr('Rendu de l’image…'));
         await tick();
         const c = Extract.makeCanvas(state.comp.W * scale, state.comp.H * scale);
@@ -2813,7 +2815,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         }
         releaseHD();
         if (x && !blankCanvas(c)) {
-          blob = await new Promise((r) => c.toBlob(r, type, 0.92));
+          // pour l'impression, un JPEG moins compressé : les traits fins ne sont pas lissés
+          blob = await new Promise((r) => c.toBlob(r, type, $('dpi').value === 'screen' ? 0.92 : 0.95));
           rw = c.width; rh = c.height;
         }
         Extract.release(c);
@@ -2936,6 +2939,37 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       }
     }
     if (need.size) saveStatus('');
+  }
+  // Netteté pour l'impression (exports à 150 et 300 dpi, pas l'image écran) : chaque découpe et chaque
+  // page de fond est amenée à sa taille sur l'image finale, puis accentuée (Extract.sharpen) ; ces
+  // versions remplacent les originaux le temps du rendu, comme la haute définition.
+  async function sharpenHD(comp, s) {
+    if ($('dpi').value === 'screen') return;
+    // dosage : plus la source doit être agrandie (photo ou scan trop petit pour 300 dpi), plus elle
+    // est douce, et plus l'accentuation peut être franche sans faire ressortir de grain
+    const opts = (img, long) => {
+      const k = long / Math.max(img.width, img.height);
+      return { radius: Math.max(1, Math.min(3, Math.round((0.9 * s) / (300 / 2.54)))), amount: Math.min(1, 0.6 + 0.3 * Math.max(0, k - 1)), threshold: 6, ink: 0.12 };
+    };
+    const jobs = [];
+    const need = new Map();
+    comp.items.forEach((L) => { const p = L.piece; if (p && p.canvas) need.set(p, Math.max(need.get(p) || 0, Math.ceil(Math.max(L.w, L.h) * s * 1.02))); });
+    need.forEach((long, p) => jobs.push(() => {
+      if (!p.hd) p.hd = Extract.scaleTo(p.canvas, Math.min(long, Math.max(p.canvas.width, p.canvas.height)));
+      Extract.sharpen(p.hd, opts(p.hd, long));
+    }));
+    const tex = new Map();
+    comp.bg.forEach((L) => { if (!L.paper && L.src && L.sw) tex.set(L.src, Math.max(tex.get(L.src) || 0, Math.ceil((Math.max(L.src.width, L.src.height) * L.w * s * 1.02) / L.sw))); });
+    tex.forEach((long, src) => jobs.push(() => {
+      if (!src.hd) src.hd = Extract.scaleTo(src, Math.min(long, Math.max(src.width, src.height)));
+      Extract.sharpen(src.hd, opts(src.hd, long));
+    }));
+    for (let i = 0; i < jobs.length; i++) {
+      saveStatus(tr`Netteté pour l’impression : ${i + 1} / ${jobs.length}…`);
+      await tick();
+      try { jobs[i](); } catch (e) { console.warn('Netteté impossible', e); }
+    }
+    if (jobs.length) saveStatus('');
   }
   function releaseHD() {
     const drop = (o) => { if (o && o.hd) { Extract.release(o.hd); delete o.hd; } };
@@ -4508,7 +4542,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, get view() { return view; } };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

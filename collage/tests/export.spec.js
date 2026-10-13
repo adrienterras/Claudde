@@ -51,6 +51,28 @@ test.describe('Export', () => {
     expect(r.during).toBeLessThanOrEqual(r.items);
   });
 
+  test('netteté pour l’impression : appliquée aux exports 150 et 300 dpi, pas à l’image écran, puis libérée', async ({ app }) => {
+    const r = await app.page.evaluate(async () => {
+      const A = AtelierGribouille; const comp = A.state.comp;
+      const s = 300 / 2.54;
+      document.getElementById('dpi').value = 'screen';
+      await A.sharpenHD(comp, 2400 / Math.max(comp.W, comp.H));
+      const screen = comp.items.filter((L) => L.piece.hd).length;
+      document.getElementById('dpi').value = '300';
+      await A.hydrateHD(comp, s);
+      await A.sharpenHD(comp, s);
+      const items = comp.items.filter((L) => L.piece.hd).length;
+      const pages = comp.bg.filter((L) => !L.paper && L.src && L.src.hd).length;
+      A.releaseHD();
+      const after = comp.items.filter((L) => L.piece.hd).length + comp.bg.filter((L) => L.src && L.src.hd).length;
+      return { screen, items, pages, n: comp.items.length, nb: comp.bg.filter((L) => !L.paper).length, after };
+    });
+    expect(r.screen).toBe(0);
+    expect(r.items).toBe(r.n);
+    expect(r.pages).toBe(r.nb);
+    expect(r.after).toBe(0);
+  });
+
   test('guide de création : un PDF de plusieurs pages', async ({ app }) => {
     const { page } = app;
     await page.locator('#export-section details.guide-box summary').click();

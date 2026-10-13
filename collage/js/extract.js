@@ -40,6 +40,72 @@
     return c;
   }
 
+  /*
+   * Netteté pour l'impression : masque flou (« unsharp mask ») appliqué à la résolution d'export,
+   * bande par bande pour ménager la mémoire. La luminance est comparée à sa version floutée (flou
+   * en boîte en deux passes, pondéré par l'opacité pour ne pas créer de halo au bord des découpes) ;
+   * l'écart, au-delà d'un seuil qui épargne le grain du papier, est amplifié, teinte conservée. Les
+   * tons sombres sont en plus un peu renforcés : le noir du feutre et du crayon ressort plus franc.
+   */
+  function sharpen(c, o) {
+    const { radius = 1, amount = 0.6, threshold = 6, ink = 0.1 } = o || {};
+    const W = c.width, H = c.height;
+    if (W < 4 || H < 4) return c;
+    const ctx = ctx2d(c);
+    const R = Math.max(1, Math.round(radius));
+    const pad = 2 * R;
+    const BAND = Math.max(pad * 4, Math.floor(3e6 / W));
+    // flou en boîte séparable, deux passes, bords répliqués
+    const blur = (src, w, h) => {
+      let a = new Float32Array(src), b = new Float32Array(src.length);
+      const inv = 1 / (2 * R + 1);
+      for (let pass = 0; pass < 2; pass++) {
+        for (let y = 0; y < h; y++) {
+          const row = y * w;
+          let sum = 0;
+          for (let k = -R; k <= R; k++) sum += a[row + Math.min(w - 1, Math.max(0, k))];
+          for (let x = 0; x < w; x++) {
+            b[row + x] = sum * inv;
+            sum += a[row + Math.min(w - 1, x + R + 1)] - a[row + Math.max(0, x - R)];
+          }
+        }
+        const col = new Float32Array(w);
+        for (let k = -R; k <= R; k++) { const r = Math.min(h - 1, Math.max(0, k)) * w; for (let x = 0; x < w; x++) col[x] += b[r + x]; }
+        for (let y = 0; y < h; y++) {
+          const row = y * w, add = Math.min(h - 1, y + R + 1) * w, sub = Math.max(0, y - R) * w;
+          for (let x = 0; x < w; x++) { a[row + x] = col[x] * inv; col[x] += b[add + x] - b[sub + x]; }
+        }
+      }
+      return a;
+    };
+    for (let y0 = 0; y0 < H; y0 += BAND) {
+      const top = Math.max(0, y0 - pad), bottom = Math.min(H, y0 + BAND + pad), h = bottom - top;
+      const img = ctx.getImageData(0, top, W, h);
+      const d = img.data, n = W * h;
+      const L = new Float32Array(n), A = new Float32Array(n);
+      for (let i = 0, j = 0; i < n; i++, j += 4) {
+        const a = d[j + 3] / 255;
+        A[i] = a;
+        L[i] = a ? (0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]) * a : 0;
+      }
+      const BL = blur(L, W, h), BA = blur(A, W, h);
+      const from = y0 - top, to = Math.min(H, y0 + BAND) - top;
+      for (let i = from * W, j = i * 4; i < to * W; i++, j += 4) {
+        const a = A[i];
+        if (!a) continue;
+        const l = L[i] / a;
+        const b = BA[i] > 1e-3 ? BL[i] / BA[i] : l;
+        const diff = l - b, ad = Math.abs(diff);
+        let gain = ad > threshold ? amount * diff * Math.min(1, (ad - threshold) / threshold) : 0;
+        if (ink) gain -= l * ink * Math.max(0, Math.min(1, (120 - l) / 120));
+        if (!gain) continue;
+        d[j] += gain; d[j + 1] += gain; d[j + 2] += gain; // Uint8ClampedArray borne à 0..255
+      }
+      ctx.putImageData(img, 0, top, 0, from, W, to - from);
+    }
+    return c;
+  }
+
   function crop(src, x, y, w, h) {
     x = Math.max(0, Math.round(x));
     y = Math.max(0, Math.round(y));
@@ -1331,5 +1397,5 @@
     return result;
   }
 
-  window.Extract = { analyze, flatten, recut, rotated, textureStats, release, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, flatten, recut, rotated, textureStats, release, removeSurface, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();
