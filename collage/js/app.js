@@ -4172,17 +4172,65 @@ Réponds uniquement avec ce JSON :
     // en plein écran, il ne reste que cette barre : choisir une section fait remonter le tiroir
     const leaveFull = () => { if (document.body.classList.contains('stage-full')) $('zoom-full').click(); };
     tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => { leaveFull(); selectTab(b.dataset.tab); }; });
-    // la poignée (double-clic ou glissement vertical) agrandit ou réduit le tiroir
+    // la poignée (double-clic) agrandit ou réduit le tiroir
     tabs.addEventListener('dblclick', () => { if (!document.body.classList.contains('stage-full')) document.body.classList.toggle('sheet-tall'); });
-    let ty = null;
-    tabs.addEventListener('touchstart', (e) => { ty = e.touches[0].clientY; }, { passive: true });
-    tabs.addEventListener('touchend', (e) => {
-      if (ty === null) return;
-      const dy = e.changedTouches[0].clientY - ty; ty = null;
-      if (Math.abs(dy) < 48) return; // un vrai glissement, pas un début de défilement
-      if (document.body.classList.contains('stage-full')) { if (dy < 0) leaveFull(); return; }
-      document.body.classList.toggle('sheet-tall', dy < 0);
+    // Au doigt, le tiroir suit le glissement (la barre et le tiroir seuls bougent, l'œuvre attend la
+    // fin du geste), puis se cale sur la hauteur la plus proche : barre seule (plein écran), hauteur
+    // normale (ou la fiche d'un dessin, à mi-hauteur) ou tiroir agrandi. Un geste vif va dans son sens.
+    const body = document.body, panel = document.querySelector('.panel');
+    const heights = () => {
+      const H = window.innerHeight;
+      const safe = parseFloat(getComputedStyle(body).getPropertyValue('--safe-b')) || 0;
+      return [tabs.getBoundingClientRect().height + safe, (body.classList.contains('sheet-detail') ? 0.52 : 0.42) * H, 0.86 * H];
+    };
+    const setVar = (h) => [panel, tabs].forEach((el) => (h === null ? el.style.removeProperty('--sheet') : el.style.setProperty('--sheet', `${h}px`)));
+    let drag = null;
+    tabs.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      drag = { y0: e.touches[0].clientY, h0: panel.getBoundingClientRect().height, on: false, pts: [[performance.now(), e.touches[0].clientY]] };
     }, { passive: true });
+    tabs.addEventListener('touchmove', (e) => {
+      if (!drag) return;
+      const y = e.touches[0].clientY, dy = y - drag.y0;
+      if (!drag.on) { if (Math.abs(dy) < 6) return; drag.on = true; body.classList.add('sheet-drag'); }
+      e.preventDefault();
+      const [lo, , hi] = heights();
+      let h = drag.h0 - dy;
+      // au-delà des butées, le tiroir résiste
+      if (h > hi) h = hi + (h - hi) * 0.25; else if (h < lo) h = lo - (lo - h) * 0.25;
+      setVar(h);
+      drag.h = h;
+      drag.pts.push([performance.now(), y]);
+      if (drag.pts.length > 6) drag.pts.shift();
+    }, { passive: false });
+    const endDrag = () => {
+      if (!drag) return;
+      const d = drag; drag = null;
+      if (!d.on) return;
+      const hs = heights();
+      const now = performance.now();
+      const old = d.pts.find(([t]) => now - t <= 120) || d.pts[0];
+      const v = old ? (d.pts[d.pts.length - 1][1] - old[1]) / Math.max(1, now - old[0]) : 0; // px/ms, positif vers le bas
+      let i;
+      if (Math.abs(v) > 0.45) {
+        // geste vif : le palier suivant dans le sens du geste
+        i = v < 0 ? hs.findIndex((h) => h > d.h + 8) : hs.length - 1 - hs.slice().reverse().findIndex((h) => h < d.h - 8);
+        if (i < 0 || i >= hs.length) i = v < 0 ? hs.length - 1 : 0;
+      } else {
+        i = hs.reduce((bi, h, k) => (Math.abs(h - d.h) < Math.abs(hs[bi] - d.h) ? k : bi), 0);
+      }
+      // du point où le doigt a lâché, le tiroir glisse vers son palier (la transition reprend)
+      setVar(d.h);
+      void panel.offsetHeight;
+      body.classList.remove('sheet-drag');
+      setVar(null);
+      const full = body.classList.contains('stage-full');
+      if (i === 0) { if (!full) $('zoom-full').click(); return; }
+      if (full) leaveFull();
+      body.classList.toggle('sheet-tall', i === 2);
+    };
+    tabs.addEventListener('touchend', endDrag, { passive: true });
+    tabs.addEventListener('touchcancel', endDrag, { passive: true });
     const obs = new MutationObserver(syncTabs);
     document.querySelectorAll('aside section.step').forEach((sec) => obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] }));
     const onMedia = () => syncTabs();

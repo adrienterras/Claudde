@@ -872,6 +872,53 @@ test.describe('Rendu pendant un glissement', () => {
   });
 });
 
+test.describe('Tiroir au doigt sur téléphone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('la poignée suit le doigt, puis le tiroir se cale : agrandi, normal, barre seule', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    const panelH = async () => (await page.locator('.panel').boundingBox()).height;
+    const drag = async (dy, { release = true } = {}) => {
+      const t = await page.locator('#sheet-tabs').boundingBox();
+      const x = t.x + t.width / 2, y = t.y + 8;
+      await touch('touchStart', x, y);
+      for (let i = 1; i <= 10; i++) { await touch('touchMove', x, y + (dy * i) / 10); await page.waitForTimeout(30); }
+      if (release) { await touch('touchEnd', 0, 0); await page.waitForTimeout(400); } // fin du glissement
+    };
+    const h0 = await panelH();
+    expect(h0).toBeGreaterThan(300); // 42 % de 844
+    // pendant le geste, le tiroir suit le doigt
+    await drag(-200, { release: false });
+    expect(Math.abs((await panelH()) - (h0 + 200))).toBeLessThan(12);
+    await expect(page.locator('body')).toHaveClass(/sheet-drag/);
+    await touch('touchEnd', 0, 0);
+    await expect(page.locator('body')).not.toHaveClass(/sheet-drag/);
+    // lâché à 554 px : plus près de 726 (agrandi) que de 354
+    await expect(page.locator('body')).toHaveClass(/sheet-tall/);
+    await page.waitForTimeout(400);
+    expect(Math.abs((await panelH()) - 844 * 0.86)).toBeLessThan(12);
+    // vers le bas, lentement et un peu : retour à la hauteur normale
+    await drag(300);
+    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    await expect(page.locator('body')).not.toHaveClass(/stage-full/);
+    // encore vers le bas : il ne reste que la barre (plein écran)
+    await drag(250);
+    await expect(page.locator('body')).toHaveClass(/stage-full/);
+    const tabs = await page.locator('#sheet-tabs').boundingBox();
+    expect(Math.round(tabs.y + tabs.height)).toBe(844);
+    // remonté depuis la barre seule : hauteur normale, plein écran quitté
+    await drag(-220);
+    await expect(page.locator('body')).not.toHaveClass(/stage-full/);
+    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    // un simple toucher sur un onglet reste un toucher
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').tap();
+    await expect(page.locator('#drawings-section')).toBeVisible();
+    await expect(page.locator('body')).not.toHaveClass(/sheet-drag/);
+  });
+});
+
 test.describe('Plein écran sur téléphone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   test('le tiroir descend jusqu’à la barre des sections ; une section touchée le fait remonter', async ({ app }) => {
