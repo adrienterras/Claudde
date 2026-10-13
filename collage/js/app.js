@@ -342,6 +342,7 @@
         const photoDebug = Extract.removeSurface.debug;
         const d = {
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
+          cutPrefs: Extract.cutPrefs(),
           orient: 'auto', orientDeg: 0,
           original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
@@ -561,13 +562,22 @@
   }
 
   // Applique l'orientation : la page tournée devient la page de travail (découpes, fond, fiches).
+  // Préférences de découpe figées sur chaque dessin à son analyse : ses réanalyses (haute définition,
+  // réouverture, orientation, photo entière ou détourée, « découpe automatique » dans la retouche)
+  // les reprennent, pour retrouver exactement les mêmes pièces ; un nouveau dessin, ou une découpe
+  // refaite à la demande, prend les préférences du moment (voir learnFromEdit).
+  function withCut(d, fn) {
+    const cur = Extract.cutPrefs();
+    if (d && d.cutPrefs) Extract.setCutPrefs(d.cutPrefs);
+    try { return fn(); } finally { Extract.setCutPrefs(cur); }
+  }
   function applyOrientation(d) {
     const deg = effectiveOrient(d);
     if (deg === d.orientDeg) return false;
     d.orientDeg = deg;
     if (deg === 0) d.analysis = d.base;
     else {
-      const a = Extract.rotated(d.base, deg);
+      const a = withCut(d, () => Extract.rotated(d.base, deg));
       // la page tournée garde la découpe ou le fond décidés pour la page droite
       a.kind = d.base.kind;
       d.analysis = a;
@@ -583,7 +593,7 @@
   // mode : 'auto' (sol reconnu automatiquement), 'force' (retrait demandé par l'utilisateur), 'keep' (photo entière)
   function setPhotoMode(d, mode) {
     if (!d.original || d.photoMode === mode) return;
-    const a = Extract.analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' });
+    const a = withCut(d, () => Extract.analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' }));
     if (mode !== 'keep' && !a.photo) { notice(tr('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.')); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
     d.photoMode = mode;
     d.base = a; d.analysis = a; d.orientDeg = 0;
@@ -796,7 +806,7 @@
     const a = d.analysis;
     const role = roleOf(d);
     if (role === 'cutout' && !a.pieces) {
-      a.pieces = Extract.recut(a);
+      a.pieces = withCut(d, () => Extract.recut(a));
       preparePieces(a.pieces, d);
     }
     if (role === 'texture' && !a.texture) a.texture = Extract.textureFrom(a.page);
@@ -2302,7 +2312,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
       autoPiece: () => {
         const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
-        return k >= 0 ? Extract.recut(d.analysis)[k] || null : null;
+        return k >= 0 ? withCut(d, () => Extract.recut(d.analysis))[k] || null : null;
       },
       onTone: (t) => {
         if (t && (t.b || t.c || t.s)) d.tone = t; else delete d.tone;
@@ -2335,7 +2345,89 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     refreshPieces();
     renderProposals();
     render();
+    learnFromEdit(p, before, oldSrc);
   }
+
+  // ---------- Découpe apprise des retouches ----------
+  // Chaque retouche de découpe faite à la main est comparée à la découpe automatique de la même pièce
+  // (Extract.learnCut) : la marge de papier, la sensibilité aux traits pâles et les traits reliés en
+  // sont déduits, mémorisés dans ce navigateur et appliqués aux analyses suivantes. L'utilisateur peut
+  // les appliquer tout de suite aux autres dessins, ou revenir à la découpe d'office.
+  function saveCutPrefs() {
+    try { if (Extract.cutIsDefault()) localStorage.removeItem('atelier.decoupe'); else localStorage.setItem('atelier.decoupe', JSON.stringify(Extract.cutPrefs())); } catch (e) { /* ignoré */ }
+  }
+  function loadCutPrefs() {
+    try { const v = localStorage.getItem('atelier.decoupe'); if (v) Extract.setCutPrefs(JSON.parse(v)); } catch (e) { /* ignoré */ }
+    refreshCutPrefs();
+  }
+  function cutPrefsText() {
+    const c = Extract.cutPrefs(), D = Extract.CUT_DEFAULT, parts = [];
+    if (Math.abs(c.margin - D.margin) > 1e-6) parts.push(tr`marge de papier ${fmt(c.margin * 29.7 * 10)} mm`);
+    if (c.ink < D.ink - 1e-6) parts.push(tr('traits pâles gardés'));
+    if (c.ink > D.ink + 1e-6) parts.push(tr('traces grises ignorées'));
+    if (c.close < D.close - 1e-6) parts.push(tr('sujets voisins séparés'));
+    return parts.join(' · ');
+  }
+  function refreshCutPrefs() {
+    const el = $('cut-prefs');
+    if (!el) return;
+    const custom = !Extract.cutIsDefault();
+    el.hidden = !custom;
+    if (custom) el.querySelector('span').textContent = tr`Découpe apprise de vos retouches : ${cutPrefsText()}.`;
+  }
+  // les dessins dont la découpe automatique peut être refaite (pas de retouche à garder, pas un objet détouré)
+  const recuttable = (d) => roleOf(d) === 'cutout' && !d.analysis.objectAlpha && !(d.analysis.pieces || []).some((q) => q.edited);
+  function learnFromEdit(p, before, oldSrc) {
+    const d = p.drawing, a = d.analysis;
+    if (!before || !before.canvas || !a.cut || p.copyOf) return;
+    let r = null;
+    try { r = Extract.learnCut(a.page, a.cut, { canvas: before.canvas, src: oldSrc || before.src }, { canvas: p.canvas, src: p.src }); } catch (e) { console.warn('Apprentissage de la découpe impossible', e); }
+    if (!r) return;
+    Extract.setCutPrefs(r.prefs);
+    saveCutPrefs();
+    refreshCutPrefs();
+    const others = state.drawings.filter((x) => x !== d && recuttable(x));
+    const el = $('cut-learned');
+    if (!el) return;
+    el.querySelector('span').textContent = tr`Découpe apprise de cette retouche : ${cutPrefsText()}. Elle servira aux prochains dessins.`;
+    const btn = el.querySelector('button');
+    btn.hidden = !others.length;
+    btn.textContent = tr`Appliquer aux ${others.length} autres dessins`;
+    btn.onclick = () => { el.hidden = true; recutDrawings(others); };
+    el.hidden = false;
+    // la section Dessins, où s'affiche l'avis, s'ouvre (sur téléphone : son onglet)
+    const sec = $('drawings-section');
+    if (mobileQuery.matches) selectTab('drawings-section'); else if (sec && sec._expand) sec._expand();
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  // refait la découpe automatique de ces dessins avec les préférences du moment, puis de nouvelles propositions
+  function recutDrawings(list) {
+    if (!list.length) return;
+    list.forEach((d) => {
+      const a = d.analysis, old = a.pieces || [];
+      d.cutPrefs = Extract.cutPrefs();
+      a.pieces = Extract.recut(a);
+      preparePieces(a.pieces, d);
+      old.forEach((q) => Extract.release(q.canvas));
+    });
+    // l'historique garde des pièces qui n'existent plus
+    history.past = []; history.future = []; history.lastTag = null;
+    updateHistoryButtons();
+    state.current = null; state.selected = null; state.pinned = null; state.sceneLayout = null;
+    refreshLists();
+    regenerate();
+    notice(tr`Découpe refaite pour ${list.length} dessin(s).`);
+  }
+  $('cut-prefs-reset').onclick = () => {
+    Extract.setCutPrefs(null);
+    saveCutPrefs();
+    refreshCutPrefs();
+    $('cut-learned').hidden = true;
+    const list = state.drawings.filter(recuttable);
+    if (list.length) recutDrawings(list);
+  };
+  $('cut-learned-close').onclick = () => { $('cut-learned').hidden = true; };
+  loadCutPrefs();
 
   /*
    * Historique : avant chaque action sur l'œuvre (déplacer, tourner, retourner, devant/derrière,
@@ -2901,16 +2993,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
         if (K0 <= 1.05) continue;
         const mode = d.photoMode;
-        let a = Extract.analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' });
+        let a = withCut(d, () => Extract.analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' }));
         tmp.push(a);
-        if (d.orientDeg) { const b = Extract.rotated(a, d.orientDeg); b.kind = a.kind; a = b; tmp.push(a); }
+        if (d.orientDeg) { const b = withCut(d, () => Extract.rotated(a, d.orientDeg)); b.kind = a.kind; a = b; tmp.push(a); }
         const page = d.analysis.page;
         const K = a.page.width / page.width;
         // la page retrouvée doit être la même (même recadrage) : sinon on garde la version de travail
         if (K < 1.05 || Math.abs(a.page.width / a.page.height - page.width / page.height) > 0.03) continue;
         const pieces = comp.items.filter((L) => L.piece && L.piece.drawing === d);
         if (pieces.length) {
-          if (!a.pieces) a.pieces = Extract.recut(a);
+          if (!a.pieces) a.pieces = withCut(d, () => Extract.recut(a));
           pieces.forEach((L) => {
             const p = L.piece;
             const needLong = Math.ceil(Math.max(L.w, L.h) * s * 1.02);
@@ -3360,7 +3452,7 @@ Réponds uniquement avec ce JSON :
         };
         // Claude a vu un dessin photographié sur un sol ou une table que la détection a manqué : on force le détourage
         if (it.photo_sol === true && !d.photo && d.photoMode !== 'keep') {
-          const a = Extract.analyze(d.original, 0, { photo: true, force: true });
+          const a = withCut(d, () => Extract.analyze(d.original, 0, { photo: true, force: true }));
           if (a.photo) {
             d.photoMode = 'force';
             d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo;
@@ -3702,6 +3794,7 @@ Réponds uniquement avec ce JSON :
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
         pieceEdits: edits,
+        cut: d.cutPrefs || null,
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
@@ -3918,6 +4011,14 @@ Réponds uniquement avec ce JSON :
       const d = state.drawings[i];
       if (!d) return;
       d.ai = sd.ai || null;
+      // la découpe apprise au moment de la sauvegarde : le dessin est réanalysé avec, pour retrouver
+      // les mêmes pièces (les retouches y sont rejouées par rang)
+      if (sd.cut && d.original && JSON.stringify(sd.cut) !== JSON.stringify(d.cutPrefs || Extract.CUT_DEFAULT)) {
+        d.cutPrefs = sd.cut;
+        const a = withCut(d, () => Extract.analyze(d.original, 0, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' }));
+        d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo || null; d.thumb = thumbOf(a.page);
+        preparePieces(a.pieces, d);
+      }
       if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
       if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
       if (sd.tone) d.tone = sd.tone; else delete d.tone;

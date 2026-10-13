@@ -185,6 +185,7 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 .roles-legend .tag { justify-self: start; }
 
 /* bandeaux : tailles à vérifier, sélection partielle, compte avant export */
+#cut-learned { position: relative; padding-right: 40px; }
 .alert { margin: 0; padding: 10px 12px; border-radius: var(--r-sm); background: var(--accent-soft); border: 1px solid var(--accent); color: var(--ink); font-size: 0.82rem; line-height: 1.45; }
 .alert .link, .partial .link { font-weight: 600; }
 .account-note { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px dashed var(--line); color: var(--ink-2); font-size: 0.8rem; }

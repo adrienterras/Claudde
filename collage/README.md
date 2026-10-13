@@ -26,6 +26,19 @@ cd collage && python3 -m http.server 8000
      papier, et si la première passe ne trouve que des miettes éparses, une seconde passe à seuils
      plus bas relie les traits de plus loin. Les toutes petites pièces ternes (ombre d'un pli, bord
      de feuille) sont écartées.
+     **Découpe apprise des retouches** (`Extract.learnCut`) : chaque retouche de découpe faite à la
+     main est comparée à la découpe automatique de la même pièce ; la marge de papier gardée autour
+     de l'encre (mesurée sur le contour retouché), la sensibilité aux traits pâles (zones restaurées
+     pleines d'encre faible : plus sensible ; zones effacées pleines de traces grises : moins) et
+     les traits reliés (un sujet voisin effacé, coloré : rayon de fermeture réduit) en sont déduits.
+     Ces préférences servent aux analyses suivantes, sont mémorisées dans le navigateur
+     (`atelier.decoupe`), affichées dans la section Dessins (« Découpe apprise de vos retouches »,
+     avec « Revenir à la découpe d'office ») et proposées tout de suite aux autres dessins du lot
+     (« Appliquer aux N autres dessins », qui refait leurs découpes puis les propositions ; les
+     dessins déjà retouchés et les objets détourés sont gardés tels quels). Les préférences sont
+     figées sur chaque dessin au moment de son analyse et sauvegardées avec lui : ses réanalyses
+     (haute définition, orientation, « découpe automatique » dans la retouche, réouverture d'une
+     œuvre) retrouvent exactement les mêmes pièces, et les retouches y sont rejouées au bon rang.
    Avant la découpe, l'**éclairage est égalisé** (`Extract.flatten`) : la couleur du papier est
    estimée case par case (1/100 de la page), les ombres d'un pli ou d'un bord sont ramenées au blanc
    et ne sont plus prises pour du dessin. Une case n'est retenue comme papier que si elle est lisse,

@@ -142,6 +142,47 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.big).toBeGreaterThan(0.2);
   });
 
+  test('découpe apprise d’une retouche : marge resserrée et traits pâles gardés, appliqués aux découpes suivantes', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      Extract.setCutPrefs(null);
+      const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(250,250,250)'; x.fillRect(0, 0, W, H);
+      // un disque rouge, et à côté un nuage de crayon pâle (sous le seuil d'encre)
+      x.fillStyle = '#c33'; x.beginPath(); x.arc(500, 500, 180, 0, 7); x.fill();
+      x.fillStyle = 'rgb(236,228,232)'; x.beginPath(); x.ellipse(900, 500, 160, 110, 0, 0, 7); x.fill();
+      const a = Extract.analyze(c, 0, {});
+      const p = a.pieces[0];
+      const before = { canvas: p.canvas, src: Object.assign({}, p.src) };
+      const margin0 = Extract.cutPrefs().margin;
+      // la retouche : le disque découpé à 3 px près (marge quasi nulle), et le nuage pâle restauré
+      const m = Extract.makeCanvas(W, H), mx = m.getContext('2d');
+      mx.fillStyle = '#000'; mx.beginPath(); mx.arc(500, 500, 183, 0, 7); mx.fill(); mx.beginPath(); mx.ellipse(900, 500, 163, 113, 0, 0, 7); mx.fill();
+      mx.globalCompositeOperation = 'source-in'; mx.drawImage(c, 0, 0);
+      const after = { canvas: m, src: { x: 0, y: 0, w: W, h: H } };
+      const learned = Extract.learnCut(a.page, a.cut, before, after);
+      if (!learned) return { learned: null };
+      Extract.setCutPrefs(learned.prefs);
+      // la même page redécoupée avec les préférences apprises
+      const a2 = Extract.analyze(c, 0, {});
+      const big = a2.pieces.reduce((q, z) => (z.frac > q.frac ? z : q));
+      // marge mesurée : largeur de la pièce du disque par rapport à son diamètre
+      // largeur opaque de la pièce du disque (diamètre 360 px + la marge apprise)
+      const bd = big.canvas.getContext('2d').getImageData(0, 0, big.canvas.width, big.canvas.height).data;
+      let ox0 = big.canvas.width, ox1 = 0;
+      for (let yy = 0; yy < big.canvas.height; yy++) for (let xx = 0; xx < big.canvas.width; xx++) if (bd[(yy * big.canvas.width + xx) * 4 + 3] > 127) { if (xx < ox0) ox0 = xx; if (xx > ox1) ox1 = xx; }
+      const out = { learned: learned.changes, margin0, margin: Extract.cutPrefs().margin, ink: Extract.cutPrefs().ink, n: a2.pieces.length, bigW: ox1 - ox0 + 1, defaults: null };
+      Extract.setCutPrefs(null);
+      out.defaults = Extract.cutIsDefault();
+      return out;
+    });
+    expect(r.learned).toEqual(expect.arrayContaining(['margin', 'faint']));
+    expect(r.margin).toBeLessThan(r.margin0 * 0.5);
+    expect(r.ink).toBeLessThan(1);
+    // le disque est découpé bien plus près de son bord (diamètre 360 px + une marge bien plus petite qu'avant)
+    expect(r.bigW).toBeLessThan(360 + 2 * 0.009 * 1400 * 0.6);
+    expect(r.defaults).toBe(true);
+  });
+
   test('une feuille blanche n’est jamais prise pour une photo sur une surface', async ({ app }) => {
     for (const name of ['page-cutout.png', 'page-two.png', 'page-pale.png']) {
       const r = await analyze(app.page, name);

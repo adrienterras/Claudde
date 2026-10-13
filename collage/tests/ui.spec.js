@@ -872,6 +872,55 @@ test.describe('Rendu pendant un glissement', () => {
   });
 });
 
+test.describe('Découpe apprise des retouches', () => {
+  test('gommer un sujet entier apprend « sujets voisins séparés », proposé aux autres dessins, mémorisé, puis oublié', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#cut-prefs')).toBeHidden();
+    const k = await page.evaluate(() => { const ps = AtelierGribouille.state.drawings[0].analysis.pieces; return ps.indexOf(ps.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
+    const pts = await page.evaluate((k) => {
+      const d = AtelierGribouille.state.drawings[0], p = d.analysis.pieces[k], c = p.canvas;
+      const px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; if (px[i + 3] > 250 && px[i] > 180 && px[i + 1] < 90 && px[i + 2] < 90) return { x: p.src.x + x, y: p.src.y + y }; }
+      return null;
+    }, k);
+    expect(pts).not.toBeNull();
+    const piecesOf = (i) => page.evaluate((i) => AtelierGribouille.state.drawings[i].analysis.pieces.map((p) => p.id), i);
+    const before1 = await piecesOf(1);
+    // la retouche : la baguette sélectionne le corps rouge (un sujet entier, coloré), on le gomme
+    await page.evaluate((k) => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[k]), k);
+    await page.locator('#editor [data-tool="wand"]').click();
+    await page.locator('#ed-tol').fill('40');
+    expect(await page.evaluate(({ x, y }) => Editor.wand(x, y), pts)).toBeGreaterThan(0);
+    await page.locator('#ed-sel-erase').click();
+    await page.locator('#ed-apply').click();
+    await expect(page.locator('#editor')).toBeHidden();
+    // apprise : les sujets voisins seront séparés (fermeture réduite), mémorisé dans ce navigateur
+    await expect(page.locator('#cut-learned')).toBeVisible();
+    await expect(page.locator('#drawings-section')).not.toHaveClass(/collapsed/); // la section s'est ouverte
+    await expect(page.locator('#cut-learned span')).toContainText('sujets voisins séparés');
+    await expect(page.locator('#cut-prefs')).toBeVisible();
+    expect(await page.evaluate(() => Extract.cutPrefs().close)).toBeLessThan(0.03);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('atelier.decoupe')).close)).toBeLessThan(0.03);
+    // appliquée à l'autre dessin : ses pièces sont refaites, la retouche du premier est gardée
+    await expect(page.locator('#cut-learned button.link')).toHaveText(/1 autres? dessins?/);
+    await page.locator('#cut-learned button.link').click();
+    await expect(page.locator('#cut-learned')).toBeHidden();
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await piecesOf(1)).not.toEqual(before1);
+    expect(await page.evaluate((k) => !!AtelierGribouille.state.drawings[0].analysis.pieces[k].edited, k)).toBe(true);
+    // revenir à la découpe d'office : oubliée, pièces refaites
+    await page.locator('#cut-prefs-reset').click();
+    await expect(page.locator('#cut-prefs')).toBeHidden();
+    expect(await page.evaluate(() => Extract.cutIsDefault())).toBe(true);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.decoupe'))).toBeNull();
+  });
+});
+
 test.describe('Tiroir au doigt sur téléphone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   test('la poignée suit le doigt, puis le tiroir se cale : agrandi, normal, barre seule', async ({ app }) => {

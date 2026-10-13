@@ -14,6 +14,22 @@
   const PAPER_DIST = 42;         // écart en deçà duquel un pixel est considéré comme papier
   const TEXTURE_MAX_PAPER = 0.38; // moins de 38 % de papier visible => page peinte => fond
   const MAX_PIECES_PER_PAGE = 8;
+  // Préférences de découpe, apprises des retouches de l'utilisateur (voir learnCut), en fraction du
+  // grand côté de la page : marge de papier gardée autour de l'encre, rayon de fermeture (traits
+  // distants de moins de 2 × close font un même sujet), lissage du contour ; ink : sensibilité aux
+  // traits pâles (1 = normale ; < 1 : seuils plus bas, plus de traits pâles gardés)
+  const CUT_DEFAULT = { margin: 0.009, close: 0.03, smooth: 0.008, ink: 1 };
+  let CUT = Object.assign({}, CUT_DEFAULT);
+  function setCutPrefs(p) {
+    CUT = Object.assign({}, CUT_DEFAULT, p || {});
+    CUT.margin = Math.max(0.002, Math.min(0.03, CUT.margin));
+    CUT.close = Math.max(CUT.margin + 0.005, Math.min(0.06, CUT.close));
+    CUT.smooth = Math.max(0.002, Math.min(0.02, CUT.smooth));
+    CUT.ink = Math.max(0.5, Math.min(1.6, CUT.ink));
+    return Object.assign({}, CUT);
+  }
+  const cutPrefs = () => Object.assign({}, CUT);
+  const cutIsDefault = () => Object.keys(CUT_DEFAULT).every((k) => Math.abs(CUT[k] - CUT_DEFAULT[k]) < 1e-6);
 
   function makeCanvas(w, h) {
     const c = document.createElement('canvas');
@@ -398,7 +414,7 @@
       const dr = data[i] - paper[0], dg = data[i + 1] - paper[1], db = data[i + 2] - paper[2];
       if (dr * dr + dg * dg + db * db < U2) paperCount++;
     }
-    let weakT = weakThreshold(data, w, h, paper);
+    let weakT = Math.max(10, weakThreshold(data, w, h, paper) * CUT.ink);
     // dessin pâle (crayon léger, feutre pastel) : presque rien ne dépasse le seuil franc alors que
     // beaucoup dépasse le seuil faible ; le seuil franc descend, sans tomber dans le bruit du papier
     let strong = 0, faint = 0;
@@ -408,7 +424,7 @@
       const q = dr * dr + dg * dg + db * db;
       if (q > S2) strong++; else if (q > W2) faint++;
     }
-    let strongT = strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST;
+    let strongT = Math.max(20, (strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST) * CUT.ink);
     const unit = Math.max(w, h);
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
     const masks = (sT, wT, closeR) => {
@@ -424,19 +440,19 @@
       // contour ouvert, on contourne le sujet ; les traits distants de moins de ≈ 2 × closeR sont un même sujet
       let mask = dilate(ink, w, h, unit * closeR);
       mask = fillHoles(mask, w, h);
-      mask = erode(mask, w, h, unit * (closeR - 0.009));
+      mask = erode(mask, w, h, unit * (closeR - CUT.margin));
       const { labels, comps } = components(mask, w, h);
       comps.sort((a, b) => b.area - a.area);
       return { ink, labels, comps };
     };
-    let r = masks(strongT, weakT, 0.03);
+    let r = masks(strongT, weakT, CUT.close);
     // dessin très pâle (crayon léger sur papier blanc) : la première passe ne trouve que des miettes
     // éparses ; on refait avec des seuils plus bas, juste au-dessus du grain du papier, et des traits
     // reliés de plus loin
     let total = 0; r.comps.forEach((c) => { total += c.area; });
     if (r.comps.length >= 3 && total < n * 0.2 && r.comps[0].area < n * 0.08 && weakT < 30) {
       const wT2 = Math.max(10, Math.round(weakT * 0.7)), sT2 = Math.max(20, wT2 + 6);
-      const r2 = masks(sT2, wT2, 0.04);
+      const r2 = masks(sT2, wT2, CUT.close + 0.01);
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
       if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r = r2; weakT = wT2; strongT = sT2; }
     }
@@ -720,9 +736,10 @@
   function makePiece(page, seg, comp, orig) {
     const { w, h, labels, data } = seg;
     const k = page.width / w;
-    // marge autour du sujet : le contour fin peut déborder un peu de la forme grossière (zone
-    // autorisée élargie de 1,2 % de la page) ; la pièce garde ainsi un bord transparent
-    const pad = Math.ceil(Math.max(w, h) * 0.014) + 2;
+    // marge autour du sujet : la fermeture (rayon close) doit pouvoir s'étaler puis se rétracter sans
+    // buter sur le bord du cadre (un masque collé au bord n'y serait pas érodé) ; la pièce garde
+    // ainsi un bord transparent et sa vraie marge
+    const pad = Math.ceil(Math.max(w, h) * (CUT.close + 0.006)) + 2;
     const x0 = Math.max(0, comp.x0 - pad), y0 = Math.max(0, comp.y0 - pad);
     const x1 = Math.min(w - 1, comp.x1 + pad), y1 = Math.min(h - 1, comp.y1 + pad);
     const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
@@ -766,9 +783,9 @@
     const inkF = inkMask(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30);
     for (let p = 0; p < inkF.length; p++) if (!allowed[p]) inkF[p] = 0;
     // marge de quelques millimètres autour de l'encre, trous bouchés, puis coupe nette
-    let fm = dilate(inkF, fw, fh, funit * 0.03);
+    let fm = dilate(inkF, fw, fh, funit * CUT.close);
     fm = fillHoles(fm, fw, fh);
-    fm = erode(fm, fw, fh, funit * 0.021);
+    fm = erode(fm, fw, fh, funit * (CUT.close - CUT.margin));
     // si la détection fine n'a presque rien trouvé (sujet très pâle), on garde la forme grossière
     let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
     let regCount = 0; for (let p = 0; p < region.length; p++) regCount += region[p];
@@ -778,10 +795,10 @@
     // gommées (ouverture puis fermeture, qui arrondissent aussi les angles), sans jamais entamer
     // l'encre, qui garde au moins ≈ 1 mm de papier autour d'elle
     if (useFine) {
-      const rs = funit * 0.008;
+      const rs = funit * CUT.smooth;
       let sm = dilate(erode(alpha, fw, fh, rs), fw, fh, rs);
       sm = erode(dilate(sm, fw, fh, rs), fw, fh, rs);
-      const guard = dilate(inkF, fw, fh, funit * 0.004);
+      const guard = dilate(inkF, fw, fh, funit * Math.min(0.004, CUT.margin * 0.5));
       for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
       alpha = sm;
     }
@@ -1094,6 +1111,87 @@
   }
 
   // Découpe d'office d'une page analysée : l'objet photographié, ou les sujets dessinés.
+  /*
+   * Apprentissage d'une retouche de découpe. La découpe faite à la main (after) est comparée à la
+   * découpe automatique de la même pièce (before), toutes deux en pixels de page, et les préférences
+   * de découpe en sont déduites :
+   *  - la marge de papier gardée autour de l'encre, mesurée sur le contour retouché ;
+   *  - la sensibilité aux traits pâles : des zones restaurées pleines d'encre faible (sous le seuil)
+   *    la font monter ; des zones effacées pleines de traces grises la font baisser ;
+   *  - les traits reliés : une zone effacée pleine d'encre franche et colorée est un sujet voisin que
+   *    la fermeture avait rattaché, le rayon de fermeture baisse.
+   * Rend { prefs, changes } (changes : liste de mots-clés) ou null si la retouche n'apprend rien.
+   */
+  function learnCut(page, cut, before, after) {
+    if (!cut || !before || !after || !before.canvas || !after.canvas) return null;
+    const unit = Math.max(page.width, page.height);
+    const pad = unit * 0.02;
+    const x0 = Math.max(0, Math.floor(Math.min(before.src.x, after.src.x) - pad)), y0 = Math.max(0, Math.floor(Math.min(before.src.y, after.src.y) - pad));
+    const x1 = Math.min(page.width, Math.ceil(Math.max(before.src.x + before.src.w, after.src.x + after.src.w) + pad));
+    const y1 = Math.min(page.height, Math.ceil(Math.max(before.src.y + before.src.h, after.src.y + after.src.h) + pad));
+    const bw = x1 - x0, bh = y1 - y0;
+    if (bw < 8 || bh < 8) return null;
+    const k = Math.min(1, 1000 / Math.max(bw, bh));
+    const w = Math.max(1, Math.round(bw * k)), h = Math.max(1, Math.round(bh * k)), n = w * h;
+    const raster = (piece) => {
+      const c = makeCanvas(w, h), x = ctx2d(c);
+      x.drawImage(piece.canvas, (piece.src.x - x0) * k, (piece.src.y - y0) * k, piece.src.w * k, piece.src.h * k);
+      const d = x.getImageData(0, 0, w, h).data, m = new Uint8Array(n);
+      for (let p = 0; p < n; p++) m[p] = d[p * 4 + 3] > 127 ? 1 : 0;
+      release(c);
+      return m;
+    };
+    const A = raster(before), U = raster(after);
+    // encre de la zone, aux seuils de l'analyse
+    const crop = makeCanvas(w, h);
+    ctx2d(crop).drawImage(page, x0, y0, bw, bh, 0, 0, w, h);
+    const d = ctx2d(crop).getImageData(0, 0, w, h).data;
+    release(crop);
+    const ink = inkMask(d, w, h, cut.paper, cut.strongT, cut.weakT);
+    const dist = (i) => Math.hypot(d[i] - cut.paper[0], d[i + 1] - cut.paper[1], d[i + 2] - cut.paper[2]);
+    let areaA = 0, areaU = 0, changed = 0;
+    const diff = new Uint8Array(n);
+    for (let p = 0; p < n; p++) { areaA += A[p]; areaU += U[p]; if (A[p] !== U[p]) { diff[p] = 1; changed++; } }
+    if (!areaA || !areaU || changed < 0.01 * Math.max(areaA, areaU)) return null;
+    const prefs = cutPrefs();
+    const changes = [];
+    // 1. marge : distance à l'encre du contour retouché (là où la retouche a changé la forme)
+    const near = dilate(diff, w, h, 3);
+    const dInk = distanceField(ink, w, h);
+    const ds = [];
+    let boundaryN = 0;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const p = y * w + x;
+      if (!U[p] || (U[p - 1] && U[p + 1] && U[p - w] && U[p + w])) continue;
+      boundaryN++;
+      if (near[p] && dInk[p] < unit * k * 0.08) ds.push(dInk[p]);
+    }
+    if (ds.length >= Math.max(30, boundaryN * 0.1)) {
+      ds.sort((a, b) => a - b);
+      const mUser = ds[ds.length >> 1] / (unit * k);
+      if (Math.abs(mUser - prefs.margin) > 0.25 * prefs.margin) { prefs.margin = Math.max(0.002, Math.min(0.03, mUser)); changes.push('margin'); }
+    }
+    // 2. zones restaurées (hors marge) : de l'encre pâle que les seuils avaient laissée ?
+    let rest = 0, restFaint = 0, erased = 0, erasedInk = 0, erasedSat = 0;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      if (U[p] && !A[p]) {
+        if (dInk[p] <= prefs.margin * unit * k * 1.5) continue; // simple élargissement de la marge
+        rest++;
+        const q = dist(i);
+        if (!ink[p] && q > cut.weakT * 0.45) restFaint++;
+      } else if (A[p] && !U[p]) {
+        erased++;
+        if (ink[p]) { erasedInk++; erasedSat += sat([d[i], d[i + 1], d[i + 2]]); }
+      }
+    }
+    if (rest >= 0.01 * areaU && restFaint >= 0.15 * rest) { prefs.ink = Math.max(0.5, prefs.ink * 0.8); changes.push('faint'); }
+    if (erased >= 0.05 * areaA && erasedInk >= 0.3 * erased) {
+      if (erasedSat / erasedInk > 0.2) { prefs.close = Math.max(prefs.margin + 0.005, prefs.close * 0.7); changes.push('split'); }
+      else { prefs.ink = Math.min(1.6, prefs.ink * 1.2); changes.push('grey'); }
+    }
+    return changes.length ? { prefs, changes } : null;
+  }
+
   function recut(a) {
     if (a.objectAlpha) return objectPieces(a.page, a.objectAlpha.alpha, a.objectAlpha.W, a.objectAlpha.H);
     return cutPieces(a.page, a.seg);
@@ -1857,6 +1955,7 @@
       return result;
     }
     result.pieces = cutPieces(src, seg);
+    result.cut = { paper: seg.paper, weakT: seg.weakT, strongT: seg.strongT };
     // page peinte (aquarelle, gouache, gribouillage qui couvre la feuille) : la découpe principale
     // engloberait presque toute la page, bords déchiquetés ; c'est un fond, pas une découpe
     const bigFrac = result.pieces.reduce((m, q) => Math.max(m, q.frac), 0);
@@ -1870,5 +1969,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, rotated, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, rotated, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();
