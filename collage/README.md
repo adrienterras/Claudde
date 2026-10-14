@@ -23,9 +23,18 @@ cd collage && python3 -m http.server 8000
      guide de création ; finition toile décochée. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, boutons Agrandir / Réduire de 10 %, touches + et −),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
-   - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur une toile adaptée à eux ou une
-     toile du commerce (`STOCK`), pour réaliser l'œuvre avec les originaux : guide DIY, kit DIY, ou
+   - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
+     Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et
+     carrés ; seule liste proposée), pour réaliser l'œuvre avec les originaux : guide DIY, kit DIY, ou
      **Atelier Signature** (collage fait à la main par l'atelier : 490 € jusqu'à 75 cm, 690 € au-delà).
+     La toile est **conseillée d'office** (`pickCanvas`) : chaque toile Cultura est jugée sur le fond
+     (les pages colorées la couvrent avec un franc chevauchement, sans manquer de papier), l'air laissé
+     aux découpes (curseur), sa proportion (classique en tête, bande en dernier), sa taille par rapport
+     à la surface idéale à taille réelle et sa gamme ; les styles qui ont leur propre format (Frise,
+     Galerie, Nuage, Scène) prennent la toile Cultura la plus proche du leur (`nearestCultura`), et la
+     liste suit la proposition affichée. Dès que le client choisit une toile dans la liste
+     (`state.formatManual`), son choix est gardé pour toutes les propositions, jusqu'à une nouvelle
+     œuvre ou un changement d'atelier ; une composition rouverte garde sa toile.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer).
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;

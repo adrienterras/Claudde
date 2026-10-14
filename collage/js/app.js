@@ -305,6 +305,7 @@
     if (!state.restoring && !(opts && opts.sample)) window.Atelier.track('Import', { fichiers: Math.min(files.length, 50) });
     state.sceneLayout = null;
     state.pinned = null;
+    if (!state.drawings.length) state.formatManual = false; // nouvelle œuvre : la toile est de nouveau conseillée
     notice('');
     setProgress(0, 1, tr('Lecture des fichiers…'));
     const known = new Set(state.drawings.map((d) => d.fileKey).filter(Boolean));
@@ -707,9 +708,8 @@
       if (roleOf(d) !== 'cutout') return;
       (d.analysis.pieces || []).filter((p) => p.enabled).forEach((p) => {
         const c = cmPerPx(d);
-        let fill = 0;
-        for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i];
-        pieceArea += p.canvas.width * c * p.canvas.height * c * (fill / p.hit.data.length);
+        if (p.fillOf !== p.hit) { let fill = 0; for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i]; p.fill = fill / p.hit.data.length; p.fillOf = p.hit; }
+        pieceArea += p.canvas.width * c * p.canvas.height * c * p.fill;
       });
     });
     return { bgArea, pieceArea };
@@ -1450,6 +1450,19 @@
     [30, 30], [40, 40], [50, 50],
   ];
   const FRAME_DEFAULT = 'cadre:70x50';
+  /*
+   * Atelier Toile : seulement les châssis entoilés vendus chez Cultura (catalogue en ligne, octobre
+   * 2026), grand côté en premier : [gamme, long, court, nom]. Châssis coton économiques, Monali 3D
+   * (40 mm d'épaisseur, bords peints) et Monali classiques (formats F / P / M et carrés).
+   */
+  const CULTURA = [
+    ['économique', 40, 30], ['économique', 50, 40], ['économique', 70, 50], ['économique', 80, 60],
+    ['3D', 30, 30], ['3D', 50, 40], ['3D', 60, 20], ['3D', 70, 50], ['3D', 80, 40], ['3D', 80, 60], ['3D', 80, 80], ['3D', 100, 50], ['3D', 100, 100], ['3D', 120, 40],
+    ['classique', 35, 27, '5F'], ['classique', 46, 33, '8P'], ['classique', 50, 50], ['classique', 55, 46, '10F'], ['classique', 65, 54, '15F'], ['classique', 73, 60, '20F'], ['classique', 73, 54, '20P'], ['classique', 73, 50, '20M'],
+    ['classique', 81, 60, '25P'], ['classique', 92, 73, '30F'], ['classique', 92, 60, '30M'], ['classique', 100, 65, '40M'], ['classique', 116, 89, '50F'], ['classique', 130, 97, '60F'],
+  ];
+  const CULTURA_LINES = { 'économique': tr('Cultura · châssis coton économique'), '3D': tr('Cultura · Monali 3D (40 mm)'), classique: tr('Cultura · Monali classique') };
+  const culturaName = (t) => `${canvasOrient() === 'port' ? `${t[2]} × ${t[1]}` : `${t[1]} × ${t[2]}`} cm${t[3] ? ` · ${t[3]}` : ''}${t[1] === t[2] ? tr(' · carrée') : ''}`;
   const frameName = (f) => `${tr('Cadre')} ${canvasOrient() === 'port' ? `${fmt(f[1])} × ${fmt(f[0])}` : `${fmt(f[0])} × ${fmt(f[1])}`} cm${f[2] ? ` · ${f[2]}` : ''}`;
   // les codes (20F, IKEA) restent tels quels, les noms communs sont traduits
   const stockWord = (w) => (/^[0-9A-Z]/.test(w) ? w : tr(w));
@@ -1470,8 +1483,9 @@
     const current = sel.value;
     sel.querySelectorAll('optgroup').forEach((g) => g.remove());
     const print = printMode();
-    // impression : seulement les cadres standard ; toile : taille adaptée et toiles du commerce
-    sel.querySelectorAll('option[value^="auto:"]').forEach((o) => { o.hidden = print; o.disabled = print; });
+    // impression : seulement les cadres standard ; toile : seulement les toiles Cultura (la taille
+    // « adaptée aux dessins » reste dans la liste, cachée : elle sert au choix automatique)
+    sel.querySelectorAll('option[value^="auto:"]').forEach((o) => { o.hidden = true; o.disabled = true; });
     if (print) {
       const g = document.createElement('optgroup');
       g.label = tr('Cadres standard du marché');
@@ -1486,24 +1500,72 @@
       if (sel.selectedIndex < 0) sel.value = FRAME_DEFAULT;
       return;
     }
-    const groups = [
-      [tr('Toiles courantes (grandes surfaces, Cultura, web)'), STOCK.filter((t) => t[3] === 'courant')],
-      [tr('Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…), taille de la vitre'), STOCK.filter((t) => t[3] === 'IKEA')],
-      [tr('Formats beaux-arts normalisés (F / P / M)'), STOCK.filter((t) => t[3] === 'formats standards')],
-    ];
-    groups.forEach(([label, list]) => {
+    const seen = new Set();
+    Object.keys(CULTURA_LINES).forEach((line) => {
       const g = document.createElement('optgroup');
-      g.label = label;
-      list.forEach((t) => {
+      g.label = CULTURA_LINES[line];
+      CULTURA.filter((t) => t[0] === line).forEach((t) => {
+        const v = `${t[1]}x${t[2]}`;
         const o = document.createElement('option');
-        o.value = `${t[1]}x${t[2]}`;
-        o.textContent = stockName(t);
+        o.value = v;
+        if (seen.has(v)) o.dataset.dup = '1'; // (même taille dans deux gammes : la valeur reste la taille)
+        seen.add(v);
+        o.textContent = culturaName(t);
         g.appendChild(o);
       });
       sel.appendChild(g);
     });
-    if (current) sel.value = current.startsWith('cadre:') ? 'auto:1.4286' : current;
-    if (sel.selectedIndex < 0) sel.value = 'auto:1.4286';
+    if (current && !current.startsWith('cadre:')) sel.value = current;
+    if (sel.selectedIndex < 0 || sel.value.startsWith('cadre:')) sel.value = '70x50';
+  }
+  /*
+   * Toile conseillée (atelier Toile) : parmi les toiles Cultura, celle qui donne l'œuvre la plus
+   * équilibrée pour ces dessins. Chaque toile est jugée sur : le fond (les pages colorées doivent
+   * la couvrir avec un franc chevauchement, sans qu'il manque de papier), l'air laissé aux
+   * découpes (environ la moitié de la toile, selon le curseur), sa proportion (un format classique
+   * porte mieux qu'une bande), sa taille par rapport à la surface idéale à taille réelle, et la
+   * gamme (les châssis courants avant les formats de peintre). Le client peut toujours en choisir
+   * une autre : son choix est alors gardé (state.formatManual).
+   */
+  function pickCanvas() {
+    const sel = $('format');
+    if (!state.drawings.length) return;
+    sel.value = 'auto:1.4286';
+    planCoverage();
+    const ideal = Math.max(900, state.canvasArea || 7000);
+    const m = state.bgMin || { long: 0, short: 0 };
+    const density = Number($('density').value);
+    const portrait = canvasOrient() === 'port';
+    let best = null;
+    const tried = new Set();
+    CULTURA.forEach((t) => {
+      const v = `${t[1]}x${t[2]}`;
+      if (tried.has(v)) return;
+      tried.add(v);
+      const w = portrait ? t[2] : t[1], h = portrait ? t[1] : t[2];
+      sel.value = v;
+      planCoverage();
+      const area = w * h;
+      const { bgArea, pieceArea } = paperAreas(state.drawings);
+      const cov = bgArea / area, pieces = pieceArea / area;
+      let pen = 0;
+      // fond : il faut du papier (sinon la toile se voit), le mieux est un chevauchement d'un tiers
+      if (bgArea > 0) { if (cov < 1.05) pen += 6 + (1.05 - cov) * 10; else if (cov < 1.2) pen += 1.5; else pen += Math.max(0, cov - 2.2) * 0.8; }
+      // découpes : environ la moitié de la toile (curseur), ni entassées ni perdues
+      const want = 0.45 * density;
+      pen += Math.abs(Math.log(Math.max(0.02, pieces) / want)) * 1.6;
+      // la plus grande page de fond doit tenir entière
+      if (m.long > Math.max(w, h) + 0.5 || m.short > Math.min(w, h) + 0.5) pen += 3;
+      // proportion : classique (1,3 à 1,5) en tête, carrée ensuite, bande en dernier
+      const r = Math.max(w, h) / Math.min(w, h);
+      pen += r > 1.6 ? (r - 1.6) * 1.2 + 0.3 : r < 1.2 ? 0.25 : 0;
+      // taille : proche de la surface idéale à taille réelle
+      pen += Math.abs(Math.log(area / ideal)) * 0.9;
+      // gamme : châssis courants d'abord
+      pen += t[0] === 'classique' ? 0.2 : 0;
+      if (!best || pen < best.pen) best = { v, pen };
+    });
+    sel.value = best ? best.v : '70x50';
   }
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
@@ -1542,11 +1604,12 @@
       txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
     } else {
       const cov = (state.coverage || 0) * 100;
-      txt = cov >= 114
+      const advised = state.formatManual ? '' : tr('Toile Cultura conseillée pour vos dessins (changez-la dans la liste). ');
+      txt = advised + (cov >= 114
         ? tr`Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre avec ${Math.round(cov - 100)} % de recouvrement.`
         : cov >= 100
           ? tr`Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre tout juste (${Math.round(cov)} %) ; les déchirures laisseront de petits jours.`
-          : tr`Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite ou « taille adaptée aux dessins ».`;
+          : tr`Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite, ou passez d’autres dessins en fond.`);
     }
     $('scale-info').textContent = txt + aside;
   }
@@ -1707,9 +1770,23 @@
     { id: 'galerie', name: tr('Galerie'), hint: tr('grille de cadres, un dessin par case') },
   ];
 
+  // La toile Cultura la plus proche d'un format calculé par un style (même orientation) : surface et
+  // proportion comptent, pour qu'une Frise aille sur une toile panoramique et une Galerie sur sa grille.
+  function nearestCultura(f) {
+    const land = f.w >= f.h;
+    let best = null;
+    CULTURA.forEach((t) => {
+      const w = land ? t[1] : t[2], h = land ? t[2] : t[1];
+      const pen = Math.abs(Math.log((w * h) / (f.w * f.h))) + Math.abs(Math.log((w / h) / (f.w / f.h))) * 1.5 + (t[0] === 'classique' ? 0.1 : 0);
+      if (!best || pen < best.pen) best = { w, h, pen };
+    });
+    return { w: best.w, h: best.h, auto: false, advised: true };
+  }
+
   function regenerate(opts) {
     if (!state.drawings.length) return;
     if (state.comp && !state.restoring && !(opts && opts.noCommit)) commit();
+    if (!printMode() && !state.formatManual) pickCanvas();
     planCoverage();
     state.canvasSize = formatCm();
     state.printScale = computePrintScale();
@@ -1717,15 +1794,19 @@
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
     const o = options();
+    // toile conseillée (atelier Toile, pas de choix du client) : les styles qui ont leur propre
+    // format (bande, grille, nuage, scène) prennent la toile Cultura la plus proche du leur
+    const advised = !printMode() && !state.formatManual;
+    const own = (f) => (o.format.auto ? f : nearestCultura(f));
     state.proposals = STYLES.map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
-      if (st.id === 'scene') { so.pieces = sceneSelection(o); if (o.format.auto) so.format = sceneFormat(o); }
-      if (st.id === 'galerie' && o.format.auto) so.format = galleryFormat(o);
-      if (st.id === 'frise' && o.format.auto) so.format = friseFormat(o);
-      if (st.id === 'nuage' && o.format.auto) so.format = nuageFormat(o);
+      if (st.id === 'scene') { so.pieces = sceneSelection(o); if (o.format.auto || advised) so.format = own(sceneFormat(o)); }
+      if (st.id === 'galerie' && (o.format.auto || advised)) so.format = own(galleryFormat(o));
+      if (st.id === 'frise' && (o.format.auto || advised)) so.format = own(friseFormat(o));
+      if (st.id === 'nuage' && (o.format.auto || advised)) so.format = own(nuageFormat(o));
       // Frise et Nuage montrent tous les dessins (ou presque) : le curseur de densité part plus haut
       if (st.id === 'frise' || st.id === 'nuage') so.densityT = Math.max(so.densityT, 0.8);
-      if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto) so.format = state.sceneLayout.format; }
+      if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto || advised) so.format = own(state.sceneLayout.format); }
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
     });
@@ -1736,6 +1817,7 @@
       if (i >= 0) { state.proposals[i].comp = state.pinned; state.active = i; }
     }
     state.comp = state.proposals[state.active].comp;
+    syncFormatWith(state.comp);
     renderProposals();
     state.selected = null;
     state.bgCache = null;
@@ -1979,12 +2061,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     state.comp = state.proposals[i].comp;
     state.selected = null;
     state.bgCache = null;
+    syncFormatWith(state.comp);
     renderProposals();
     refreshPieces();
     updateToolbar();
     render();
     updateExportInfo();
     updateLabel();
+  }
+  // Toile conseillée : la liste et le texte sous elle montrent la toile de la proposition affichée
+  // (une Frise va sur une bande, une Galerie sur sa grille)
+  function syncFormatWith(c) {
+    if (!c || printMode() || state.formatManual) return;
+    const sel = $('format'), v = `${Math.max(c.W, c.H)}x${Math.min(c.W, c.H)}`;
+    if (sel.value === v || ![...sel.options].some((o) => o.value === v)) return;
+    sel.value = v;
+    state.coverage = paperAreas(state.drawings).bgArea / (c.W * c.H);
+    updateScaleLabel();
   }
 
   // après une retouche, la vignette de la proposition active suit
@@ -3445,11 +3538,11 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   });
 
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
-  ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
+  ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'format') state.formatManual = true; state.pinned = null; regenerate(); }));
   $('fmt').addEventListener('change', updateExportInfo);
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
-  document.querySelectorAll('#mode-switch button, #mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); if (state.drawings.length) { state.pinned = null; regenerate(); } }));
+  document.querySelectorAll('#mode-switch button, #mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); state.formatManual = false; if (state.drawings.length) { state.pinned = null; regenerate(); } }));
   initMode();
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
@@ -4303,7 +4396,7 @@ Réponds uniquement avec ce JSON :
     const sv = rec.settings || {};
     // (une sauvegarde d'avant les deux ateliers est une toile, sauf si elle a été composée sur un cadre)
     setMode(MODES.includes(sv.mode) ? sv.mode : sv.format && sv.format.startsWith('cadre:') ? 'impression' : 'toile', { keep: true });
-    if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) $('format').value = sv.format;
+    if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) { $('format').value = sv.format; state.formatManual = true; }
     if (sv.orient) setCanvasOrient(sv.orient);
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
     if (sv.grain !== undefined) $('grain').checked = sv.grain;

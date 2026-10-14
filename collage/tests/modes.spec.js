@@ -112,10 +112,25 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // seulement les toiles Cultura, et une toile conseillée d'office pour ces dessins
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
-    expect(opts.slice(0, 3).every((v) => v.startsWith('auto:'))).toBe(true);
+    expect(opts.length).toBeGreaterThan(15);
+    expect(opts.every((v) => /^\d+x\d+$/.test(v))).toBe(true);
     expect(opts.some((v) => v === '70x50')).toBe(true);
-    expect(opts.some((v) => v.startsWith('cadre:'))).toBe(false);
+    const picked = await page.evaluate(() => document.getElementById('format').value);
+    expect(opts).toContain(picked);
+    expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBeFalsy();
+    await expect(page.locator('#scale-info')).toContainText('Toile Cultura conseillée');
+    expect(await page.evaluate(() => { const c = AtelierGribouille.state.comp, [a, b] = document.getElementById('format').value.split('x').map(Number); return c.W === Math.max(a, b) && c.H === Math.min(a, b); })).toBe(true);
+    // le client choisit une autre toile : son choix est gardé, même après un autre réglage
+    const other = opts.find((v) => v !== picked && v !== '30x30');
+    await page.selectOption('#format', other);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBe(true);
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = String(Number(d.value) + 0.2); d.dispatchEvent(new Event('change')); });
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => document.getElementById('format').value)).toBe(other);
+    await expect(page.locator('#scale-info')).not.toContainText('conseillée');
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBe(1);
     expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(true);
     // taille réelle : pas d'agrandissement à la main (sauf en Galerie)
@@ -143,7 +158,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:70x50', 70, 50]);
     await page.locator('#mode-switch [data-mode="toile"]').click();
     await page.waitForTimeout(400);
-    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('auto:1.4286');
-    expect(await page.evaluate(() => AtelierGribouille.state.comp.W !== 70 || AtelierGribouille.state.comp.H !== 50)).toBe(true);
+    expect(await page.evaluate(() => /^\d+x\d+$/.test(document.getElementById('format').value))).toBe(true);
+    expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBeFalsy();
   });
 });

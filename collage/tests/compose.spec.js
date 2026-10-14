@@ -123,7 +123,7 @@ test.describe('Compositions', () => {
       const c = AtelierGribouille.state.comp;
       return { W: c.W, H: c.H, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, rot: L.rot })) };
     });
-    expect(r.W / r.H).toBeGreaterThan(2);
+    expect(r.W / r.H).toBeGreaterThanOrEqual(2); // toile panoramique Cultura (120 × 40, 100 × 50, 80 × 40)
     expect(r.items.length).toBeGreaterThan(0);
     // chaque page peinte n'est posée qu'une fois dans la bande
     const srcs = await app.page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => L.panel).map((L) => L.src));
