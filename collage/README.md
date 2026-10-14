@@ -44,7 +44,9 @@ cd collage && python3 -m http.server 8000
      un contour **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles
      arrondis, sans jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle).
      Une page couverte de peinture (la découpe principale engloberait plus de la moitié de la page,
-     papier minoritaire) est un fond, pas une découpe géante aux bords déchiquetés. Les seuils
+     moins de la moitié de papier visible) est un fond, pas une découpe géante aux bords déchiquetés ;
+     une feuille au **fond majoritairement blanc** est toujours une découpe (ses personnages et ses
+     objets sont posés sur l'œuvre), jamais une page de fond, sauf rôle choisi à la main. Les seuils
      d'encre s'adaptent au dessin : sur un scan propre un crayon pâle reste séparé du grain du
      papier, et si la première passe ne trouve que des miettes éparses, une seconde passe à seuils
      plus bas relie les traits de plus loin. Les toutes petites pièces ternes (ombre d'un pli, bord
@@ -109,12 +111,13 @@ cd collage && python3 -m http.server 8000
    - chaque page de fond est utilisée UNE SEULE FOIS et EN ENTIER, **sans être découpée** : la feuille
      est collée telle quelle, les pages se chevauchent et ce qui dépasse de la toile se rogne à la pose ;
      seule une page plus grande que la toile est réduite, et son surplus déchiré en lambeaux ;
-   - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes ou
-     colorées (une feuille blanche avec un petit dessin, ou un sujet net entouré de papier, reste une
-     découpe) ; les feuilles pâles (crayon gris, texte) sont mises de côté par défaut, sauf celles
-     où Claude reconnaît un vrai sujet (nuage, bonhomme au crayon), découpées comme les autres ; un
-     réglage permet de toutes les découper (les pages d'écriture seule, aux lignes de texte
-     régulières, restant de côté) ou de les coller en fond (c'est
+   - **le style de l'œuvre de référence** : le fond n'est fait que de pages franchement peintes
+     (plus de la moitié de la feuille couverte) ; une feuille au fond blanc, même avec un grand
+     dessin coloré, est découpée, jamais collée entière derrière ; les feuilles pâles (crayon gris,
+     texte) sont mises de côté par défaut, sauf celles où Claude reconnaît un vrai sujet (nuage,
+     bonhomme au crayon), découpées comme les autres ; en montant le curseur elles entrent, découpées
+     (les pages d'écriture seule, aux lignes de texte régulières, restant de côté) ; un réglage
+     permet de toutes les découper ou de les coller en fond (c'est
      alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
      fond ; les pages de fond restent entières ;
    - **œuvre en cours** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
@@ -194,7 +197,7 @@ cd collage && python3 -m http.server 8000
      règle le nombre de sujets posés, des plus forts aux plus faibles, de 20 % au minimum jusqu'à tous ;
    - **curseur au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
-     rejoignent le fond ; la rotation des découpes est fixe (réglage retiré) ;
+     sont découpées comme les autres ; la rotation des découpes est fixe (réglage retiré) ;
    - **résolution d'import** : chaque page est conservée à la plus haute résolution que l'appareil
      permet (de 1400 à 2800 px de grand côté, 2000 sur téléphone), calculée d'après le nombre de pages
      et la mémoire disponible ; l'analyse des sujets se fait sur une grille réduite, mais les découpes

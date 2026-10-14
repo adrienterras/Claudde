@@ -756,24 +756,34 @@
       });
       state.paleCount = aside;
     } else {
-      const mode = allIn() ? 'fond' : paleMode;
-      const share = mode === 'fond' ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
+      // une feuille pâle a un fond blanc : quand elle entre dans l'œuvre, c'est découpée (ses sujets
+      // posés), jamais en fond, sauf si l'utilisateur a choisi « collées en fond » ; au maximum du
+      // curseur, toutes entrent (une page qui n'est que de l'écriture reste de côté)
+      const asBg = paleMode === 'fond';
+      const share = asBg || allIn() ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
       const nPaleLeft = Math.round(paleLeft.length * share);
       const colorfulOf = (d) => { const a = d.analysis; return (a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page))).colorful || 0; };
       paleLeft.slice().sort((a, b) => colorfulOf(b) - colorfulOf(a))
-        .forEach((d, i) => { d.auto = i < nPaleLeft ? 'texture' : 'off'; if (d.auto === 'texture') ensureMaterial(d); });
-      state.paleCount = paleLeft.length;
+        .forEach((d, i) => {
+          if (i >= nPaleLeft) { d.auto = 'off'; return; }
+          if (asBg) { d.auto = 'texture'; ensureMaterial(d); return; }
+          if (d.textOnly === undefined) d.textOnly = Extract.textOnly(d.analysis.page);
+          const text = d.ai && d.ai.texte !== undefined ? d.ai.texte : d.textOnly;
+          d.auto = text ? 'off' : 'cutout';
+          if (d.auto === 'cutout') ensureMaterial(d);
+        });
+      state.paleCount = paleLeft.filter((d) => d.auto === 'off').length;
     }
-    // seules les pages franchement peintes ou colorées peuvent faire le fond (comme sur l'exemple) ;
-    // une feuille blanche avec un petit dessin reste une découpe
+    // seules les pages franchement peintes (plus de la moitié de la feuille couverte) peuvent faire le
+    // fond ; une feuille au fond majoritairement blanc est toujours découpée : ses personnages et ses
+    // objets sont posés sur l'œuvre, jamais la feuille entière collée derrière
     const bgEligible = (d) => {
       const a = d.analysis;
-      const t = a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page));
       const painted = 1 - (a.paperFrac === undefined ? 0.5 : a.paperFrac);
       // un sujet net et coloré (une bougie photographiée sur du parquet) reste une découpe
       const main = (a.pieces || []).reduce((x, b) => (!x || b.frac > x.frac ? b : x), null);
       if (a.kind === 'cutout' && (a.paperFrac || 0) >= 0.3 && main && main.frac > 0.25 && main.colorful > 0.35) return false;
-      return painted >= 0.5 || (painted >= 0.33 && (t.colorful || 0) >= 0.3);
+      return painted >= 0.5;
     };
     const rest = cands.filter((d) => !paleOnes.includes(d));
     rest.forEach((d) => { if (!bgEligible(d) || (d.photo && !d.photo.sheet && d.photoMode !== 'keep')) d.auto = 'cutout'; });

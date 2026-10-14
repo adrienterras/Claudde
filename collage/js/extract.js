@@ -1957,9 +1957,10 @@
     result.pieces = cutPieces(src, seg);
     result.cut = { paper: seg.paper, weakT: seg.weakT, strongT: seg.strongT };
     // page peinte (aquarelle, gouache, gribouillage qui couvre la feuille) : la découpe principale
-    // engloberait presque toute la page, bords déchiquetés ; c'est un fond, pas une découpe
+    // engloberait presque toute la page, bords déchiquetés ; c'est un fond, pas une découpe. Une
+    // feuille au fond majoritairement blanc reste une découpe : ses sujets sont faits pour être posés.
     const bigFrac = result.pieces.reduce((m, q) => Math.max(m, q.frac), 0);
-    if (!result.pieces.length || (bigFrac > 0.55 && seg.paperFrac < 0.72)) {
+    if (!result.pieces.length || (bigFrac > 0.55 && seg.paperFrac < 0.5)) {
       result.pieces.forEach((q) => release(q.canvas));
       result.pieces = null;
       result.kind = 'texture';
