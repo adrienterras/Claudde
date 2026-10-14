@@ -2172,6 +2172,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       ctx.lineTo(ax + 0.6 * dpr, ay + 2.2 * dpr);
       ctx.closePath();
       ctx.fill();
+      if (resizable()) {
+        // poignée carrée (agrandir / réduire), coin haut droit
+        const q = 7 * dpr, qx = (L.w / 2) * s, qy = (-L.h / 2) * s;
+        ctx.fillStyle = accent;
+        ctx.fillRect(qx - q, qy - q, 2 * q, 2 * q);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.6 * dpr;
+        ctx.strokeRect(qx - q + 2.5 * dpr, qy - q + 2.5 * dpr, 2 * q - 5 * dpr, 2 * q - 5 * dpr);
+      }
       ctx.restore();
     }
   }
@@ -2186,6 +2195,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const c = Math.cos(L.rot), s = Math.sin(L.rot);
     const hx = L.w / 2, hy = L.h / 2;
     return { x: L.x + hx * c - hy * s, y: L.y + hx * s + hy * c };
+  }
+  // Agrandir / réduire une pièce à la main : en Galerie (cases) et dans l'atelier Impression (les
+  // dessins n'y sont plus à leur taille réelle). Poignée carrée au coin haut droit, boutons, touches + et −.
+  const resizable = () => !!(state.comp && (state.comp.style === 'galerie' || printMode()));
+  function scaleHandlePos(L) {
+    const c = Math.cos(L.rot), s = Math.sin(L.rot);
+    const hx = L.w / 2, hy = -L.h / 2;
+    return { x: L.x + hx * c - hy * s, y: L.y + hx * s + hy * c };
+  }
+  const layerBase = (L) => (L.kind === 'bg' ? [L.pageW || L.w, L.pageH || L.h] : [L.piece.wcm, L.piece.hcm]);
+  function setLayerScale(L, f) {
+    const [bw, bh] = layerBase(L);
+    L.scale = clamp(f, 0.1, 4);
+    L.w = bw * L.scale; L.h = bh * L.scale;
+    if (L.kind === 'bg') { if (!L.pageW) { L.pageW = bw; L.pageH = bh; } state.bgCache = null; }
+    const comp = state.comp;
+    comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => (q.scale || 1) !== 1);
   }
 
   let drag = null;
@@ -2249,7 +2275,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     b.title = state.bgMode ? tr('Revenir à l’œuvre complète') : tr('Ne voir que le fond et déplacer ses pages');
     $('stage-tip').textContent = state.bgMode
       ? tr('Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes')
-      : tr('Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer');
+      : tr('Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer') + (resizable() ? tr(' · carré pour agrandir ou réduire') : '');
     render();
   }
   $('bg-mode').addEventListener('click', () => setBgMode(!state.bgMode));
@@ -2277,6 +2303,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const p = toComp(e);
     const L = state.selected;
     if (L) {
+      if (resizable()) {
+        const q = scaleHandlePos(L);
+        if (Math.hypot(q.x - p.X, q.y - p.Y) * view.s < 18 * view.dpr) {
+          // la poignée carrée agrandit ou réduit la pièce, autour de son centre
+          drag = { mode: 'scale', L, d0: Math.max(0.5, Math.hypot(p.X - L.x, p.Y - L.y)), f0: L.scale || 1, w0: L.w, snap: snapshot() };
+          return;
+        }
+      }
       const h = handlePos(L);
       if (Math.hypot(h.x - p.X, h.y - p.Y) * view.s < 18 * view.dpr) {
         // la poignée tourne la pièce, sans changer sa taille : l'échelle reste juste
@@ -2324,6 +2358,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (drag.mode === 'move') {
       L.x = p.X - drag.dx;
       L.y = p.Y - drag.dy;
+    } else if (drag.mode === 'scale') {
+      setLayerScale(L, drag.f0 * (Math.hypot(p.X - L.x, p.Y - L.y) / drag.d0));
     } else {
       L.rot = drag.r0 + Math.atan2(p.Y - L.y, p.X - L.x) - drag.a0;
     }
@@ -2338,8 +2374,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (touches.size < 2) pinch = null;
     if (drag && drag.mode !== 'pan') {
       if (drag.L && drag.L.kind === 'bg') state.bgCache = null;
-      const moved = drag.mode === 'move' ? (drag.L.x !== drag.x0 || drag.L.y !== drag.y0) : drag.L.rot !== drag.r0;
-      if (moved) { touched(); gestureEnd = Date.now(); }
+      const moved = drag.mode === 'move' ? (drag.L.x !== drag.x0 || drag.L.y !== drag.y0) : drag.mode === 'scale' ? drag.L.w !== drag.w0 : drag.L.rot !== drag.r0;
+      if (moved) { touched(); gestureEnd = Date.now(); if (drag.mode === 'scale') updateLabel(); }
       if (moved && drag.snap) { history.past.push(drag.snap); if (history.past.length > history.max) history.past.shift(); history.future = []; history.lastTag = null; updateHistoryButtons(); }
       refreshActiveThumb();
     }
@@ -2680,12 +2716,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (L.kind === 'bg') {
       // page de fond : on la met devant ou derrière les autres pages, on la retourne, on la retire
       if (name === 'bigger' || name === 'smaller') {
-        if (comp.style !== 'galerie') return;
-        const k = name === 'bigger' ? 1.1 : 1 / 1.1;
-        const f = clamp((L.scale || 1) * k, 0.1, 4);
-        L.scale = f; L.w = L.pageW * f; L.h = L.pageH * f;
-        comp.reduced = true;
-        state.bgCache = null; updateLabel(); render();
+        if (!resizable()) return;
+        setLayerScale(L, (L.scale || 1) * (name === 'bigger' ? 1.1 : 1 / 1.1));
+        updateLabel(); render();
         return;
       }
       const i = comp.bg.indexOf(L);
@@ -2699,13 +2732,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       return;
     }
     if (name === 'edit') { editPiece(L.piece); return; }
-    // Galerie (impression) : la taille d'un dessin se règle à la main, par pas de 10 %
+    // Galerie et atelier Impression : la taille d'un dessin se règle à la main, par pas de 10 %
     if (name === 'bigger' || name === 'smaller') {
-      if (comp.style !== 'galerie') return;
-      const k = name === 'bigger' ? 1.1 : 1 / 1.1;
-      const f = clamp((L.scale || 1) * k, 0.1, 4);
-      L.scale = f; L.w = L.piece.wcm * f; L.h = L.piece.hcm * f;
-      comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => (q.scale || 1) !== 1);
+      if (!resizable()) return;
+      setLayerScale(L, (L.scale || 1) * (name === 'bigger' ? 1.1 : 1 / 1.1));
       updateLabel();
       render();
       return;
@@ -2732,13 +2762,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function updateToolbar() {
     updateHistoryButtons();
     const L = state.selected;
-    const gallery = !!(state.comp && state.comp.style === 'galerie');
+    const sizable = resizable();
     document.querySelectorAll('#toolbar button').forEach((b) => {
       if (b.classList.contains('history')) return;
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
-      // agrandir / réduire : seulement en Galerie, faite pour l'impression
-      if (b.classList.contains('gallery-only')) b.hidden = !gallery;
+      // agrandir / réduire : en Galerie et dans l'atelier Impression
+      if (b.classList.contains('gallery-only')) b.hidden = !sizable;
     });
   }
 
@@ -2748,6 +2778,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (window.Editor && Editor.isOpen()) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     if (e.key === 'Delete' || e.key === 'Backspace') act('del');
+    if (e.key === '+' || e.key === '=') act('bigger');
+    if (e.key === '-') act('smaller');
     if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
       e.preventDefault();
       if (e.key === 'y' || e.shiftKey) redo(); else undo();

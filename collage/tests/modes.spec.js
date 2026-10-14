@@ -51,6 +51,33 @@ test.describe('Atelier Impression et atelier Toile', () => {
     if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
     await expect(page.locator('#scale-info')).toContainText('Impression de 24 × 18 cm');
     await expect(page.locator('#export-info')).toContainText('impression de 24 × 18 cm');
+    // chaque dessin s'agrandit ou se réduit à la main : boutons (10 %), puis poignée carrée
+    await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
+    await expect(page.locator('#toolbar [data-act="bigger"]')).toBeVisible();
+    const w0 = await page.evaluate(() => AtelierGribouille.state.selected.w);
+    await page.locator('#toolbar [data-act="bigger"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w0 * 1.1, 4);
+    await page.locator('#toolbar [data-act="smaller"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w0, 4);
+    const h = await page.evaluate(() => {
+      const A = AtelierGribouille, L = A.state.selected, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+      const c = Math.cos(L.rot), s = Math.sin(L.rot), hx = L.w / 2, hy = -L.h / 2;
+      const X = L.x + hx * c - hy * s, Y = L.y + hx * s + hy * c;
+      const cx = r.left + (v.ox + L.x * v.s) / v.dpr, cy = r.top + (v.oy + L.y * v.s) / v.dpr;
+      return { x: r.left + (v.ox + X * v.s) / v.dpr, y: r.top + (v.oy + Y * v.s) / v.dpr, cx, cy };
+    });
+    await page.mouse.move(h.x, h.y);
+    await page.mouse.down();
+    // on s'éloigne du centre de 50 % : la pièce grandit d'autant
+    await page.mouse.move(h.cx + (h.x - h.cx) * 1.25, h.cy + (h.y - h.cy) * 1.25);
+    await page.mouse.move(h.cx + (h.x - h.cx) * 1.5, h.cy + (h.y - h.cy) * 1.5);
+    await page.mouse.up();
+    const w1 = await page.evaluate(() => AtelierGribouille.state.selected.w);
+    expect(w1 / w0).toBeGreaterThan(1.3); expect(w1 / w0).toBeLessThan(1.7);
+    await expect(page.locator('#label-meta')).toContainText('réduits');
+    await page.evaluate(() => { AtelierGribouille.undo(); });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].w)).toBeCloseTo(w0, 4);
+    await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
     // portrait : 18 × 24
     await page.locator('#canvas-orient [data-orient="port"]').click();
     await page.waitForTimeout(300);
@@ -91,6 +118,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(opts.some((v) => v.startsWith('cadre:'))).toBe(false);
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBe(1);
     expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(true);
+    // taille réelle : pas d'agrandissement à la main (sauf en Galerie)
+    await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
+    if ((await page.evaluate(() => AtelierGribouille.state.comp.style)) !== 'galerie') await expect(page.locator('#toolbar [data-act="bigger"]')).toBeHidden();
+    await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
     await expect(page.locator('#guide-box')).toBeVisible();
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add input[value="guide"]')).toBeVisible();

@@ -20,7 +20,9 @@ cd collage && python3 -m http.server 8000
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, calculé d'après la
      surface qu'ils demanderaient à taille réelle ; jamais agrandis, pour la netteté du tirage).
      Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
-     guide de création ; finition toile décochée.
+     guide de création ; finition toile décochée. Chaque pièce posée s'agrandit ou se réduit à la
+     main (poignée carrée au coin haut droit, boutons Agrandir / Réduire de 10 %, touches + et −),
+     comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur une toile adaptée à eux ou une
      toile du commerce (`STOCK`), pour réaliser l'œuvre avec les originaux : guide DIY, kit DIY, ou
      **Atelier Signature** (collage fait à la main par l'atelier : 490 € jusqu'à 75 cm, 690 € au-delà).
