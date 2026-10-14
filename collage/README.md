@@ -12,6 +12,18 @@ cd collage && python3 -m http.server 8000
 # puis ouvrir http://localhost:8000
 ```
 
+0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
+   `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, cartes de choix dans
+   l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
+   - **Impression** : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
+     (`FRAMES` : 18 × 24 à 70 × 100, A4, A3, carrés 30 à 50 ; seule liste proposée), les dessins
+     réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, calculé d'après la
+     surface qu'ils demanderaient à taille réelle ; jamais agrandis, pour la netteté du tirage).
+     Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
+     guide de création ; finition toile décochée.
+   - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur une toile adaptée à eux ou une
+     toile du commerce (`STOCK`), pour réaliser l'œuvre avec les originaux : guide DIY, kit DIY, ou
+     **Atelier Signature** (collage fait à la main par l'atelier : 490 € jusqu'à 75 cm, 690 € au-delà).
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer).
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
@@ -103,9 +115,10 @@ cd collage && python3 -m http.server 8000
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
    - **panier** : chaque proposition (bouton sur sa vignette) ou la composition en cours (étape
-     Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs : fichier HD
-     (14,90 €), impression papier / encadrée / toile en 30 × 40, 50 × 70 ou 70 × 100 (39 à 199 €),
-     guide DIY (24,90 €) ou kit DIY 50 × 70 (89 €), et la quantité. La composition y est figée telle
+     Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
+     l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 30 × 40,
+     50 × 70 ou 70 × 100, 39 à 199 €) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
+     Signature 490 ou 690 €), et la quantité. La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
      brouillon ; la liste est dans localStorage et survit au rechargement. Le panier (bouton en haut,
      avec le nombre d'articles) permet de changer les quantités, de retirer un article, de « Revoir »

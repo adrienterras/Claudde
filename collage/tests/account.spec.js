@@ -202,6 +202,7 @@ test.describe('Comptes utilisateurs', () => {
     const { page } = acc;
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="toile"]').click();
     await page.locator('#cart-add-ok').click();

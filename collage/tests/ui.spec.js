@@ -620,7 +620,8 @@ test.describe('Panier', () => {
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const euros = (t) => Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
-    // une proposition (pas celle affichée), en tableau encadré
+    // atelier Impression : tirages et fichier HD ; une proposition (pas celle affichée), en tableau encadré
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
     const style1 = await page.evaluate(() => AtelierGribouille.state.proposals[1].style.id);
     await page.locator('.proposal-cart').nth(1).click();
     await expect(page.locator('#cart-add')).toBeVisible();

@@ -44,6 +44,8 @@
     "des œuvres d’art.": "works of art.",
     "Scannez les dessins qui s’accumulent sur le frigo. L’atelier les découpe comme avec des ciseaux et compose une œuvre unique : à imprimer sur toile, ou à réaliser à la main avec les dessins originaux, pour l’accrocher chez vous.": "Scan the drawings piling up on the fridge. The studio cuts them out as if with scissors and composes a unique artwork: to print on canvas, or to make by hand with the original drawings, and hang at home.",
     "Créer mon œuvre": "Create my artwork",
+    "Créer une impression": "Create a print",
+    "Créer une toile": "Create a canvas",
     "Voir un exemple": "See an example",
     "Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.": "Free to compose. The drawings remain yours: everything happens in your browser, and in your account if you create one.",
     "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches": "A canvas made of cut-out, glued children’s drawings, hanging on the wall of a living room with white mouldings",

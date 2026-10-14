@@ -110,6 +110,11 @@
       </div>
     </header>
 
+    <div id="mode-switch" class="mode-switch" role="group" aria-label="Type d’œuvre">
+      <button type="button" data-mode="impression" aria-pressed="false"><b>Impression</b><small>Cadres standard · papier d’art, encadrée ou toile imprimée</small></button>
+      <button type="button" data-mode="toile" aria-pressed="false"><b>Toile</b><small>Dessins originaux · à réaliser soi-même ou par l’atelier</small></button>
+    </div>
+
     <div id="account" class="account" hidden>
       <button type="button" id="acc-open" class="acc-chip"><svg class="ico"><use href="#i-user"/></svg><span>Se connecter ou créer un compte</span></button>
       <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -164,7 +169,7 @@
 
     <section id="sizes-section" class="step" hidden>
       <h2><span class="num">03</span> Tailles</h2>
-      <p class="hint">La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.</p>
+      <p class="hint" id="sizes-hint">La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.</p>
       <div id="sizes-check" class="sizes-check" hidden></div>
       <div class="field">Orientation de la toile
         <div class="seg" id="canvas-orient" role="group" aria-label="Orientation de la toile">
@@ -172,7 +177,7 @@
           <button type="button" data-orient="port">Portrait</button>
         </div>
       </div>
-      <label class="field">Toile
+      <label class="field"><span id="format-label">Toile</span>
         <select id="format">
           <option value="auto:1.4286" selected>Adaptée aux dessins · classique</option>
           <option value="auto:1.8">Adaptée aux dessins · allongée</option>
@@ -235,7 +240,7 @@
         </div>
       </form>
       <p id="save-status" class="save-status" role="status" hidden></p>
-      <details class="settings guide-box">
+      <details class="settings guide-box" id="guide-box">
         <summary>Réaliser l’œuvre à la main <small>guide PDF</small></summary>
         <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
         <button id="guide" class="btn"><svg class="ico"><use href="#i-guide"/></svg><span>Créer le guide de création</span></button>
@@ -400,6 +405,11 @@
         <span class="empty-rule"></span>
         <p class="hint">Importez les dessins, scannés ou pris en photo : l’atelier les découpe à leur taille réelle et compose sept propositions, à imprimer ou à réaliser avec les originaux.</p>
         <p id="empty-resume" class="empty-loading" hidden>Réouverture de votre œuvre en cours…</p>
+        <div id="mode-pick" class="mode-pick" hidden>
+          <p class="mode-pick-title">Que voulez-vous créer ?</p>
+          <button type="button" data-mode="impression"><b>Une impression</b><small>Papier d’art, encadrée ou toile imprimée, aux tailles de cadres standard. Dès 14,90 € en fichier HD.</small></button>
+          <button type="button" data-mode="toile"><b>Une toile</b><small>Avec les dessins originaux, découpés et collés : par vous (guide, kit DIY) ou par l’atelier (Signature).</small></button>
+        </div>
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Voir un exemple</span></button>
       </div>
     </div>
@@ -419,8 +429,8 @@
       <h2 id="cart-add-title" class="acc-title">Ajouter au panier</h2>
       <div class="cart-what"><img alt=""><p><b class="cart-what-name"></b><small class="cart-what-size"></small></p></div>
       <div class="cart-products" role="radiogroup" aria-label="Produit">
-        <label class="cart-prod"><input type="radio" name="cart-prod" value="print" checked><span><b>Impression livrée</b><small>Papier d’art premium, encadrée ou sur toile · fichier HD offert</small></span><em data-price="print"></em></label>
-        <div class="cart-print">
+        <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="print" checked><span><b>Impression livrée</b><small>Papier d’art premium, encadrée ou sur toile · fichier HD offert</small></span><em data-price="print"></em></label>
+        <div class="cart-print" data-mode="impression">
           <div class="seg cart-finish" role="group" aria-label="Finition">
             <button type="button" data-finish="papier">Papier</button><button type="button" data-finish="cadre">Encadré</button><button type="button" data-finish="toile">Toile</button>
           </div>
@@ -428,9 +438,10 @@
             <button type="button" data-size="30x40">30 × 40</button><button type="button" data-size="50x70">50 × 70</button><button type="button" data-size="70x100">70 × 100</button>
           </div>
         </div>
-        <label class="cart-prod"><input type="radio" name="cart-prod" value="hd"><span><b>Fichier HD</b><small>300 dpi, JPEG, PNG ou PDF à l’échelle, à imprimer où vous voulez</small></span><em data-price="hd"></em></label>
-        <label class="cart-prod"><input type="radio" name="cart-prod" value="guide"><span><b>Guide DIY + fichier HD</b><small>Le guide de découpe et de collage à l’échelle, en PDF, pour réaliser l’œuvre avec les originaux</small></span><em data-price="guide"></em></label>
-        <label class="cart-prod"><input type="radio" name="cart-prod" value="kit"><span><b>Kit DIY 50 × 70</b><small>Toile vierge sur châssis, guide imprimé, gabarits à l’échelle et fournitures de collage, livrés</small></span><em data-price="kit"></em></label>
+        <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="hd"><span><b>Fichier HD</b><small>300 dpi, JPEG, PNG ou PDF à l’échelle, à imprimer où vous voulez</small></span><em data-price="hd"></em></label>
+        <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="guide"><span><b>Guide DIY + fichier HD</b><small>Le guide de découpe et de collage à l’échelle, en PDF, pour réaliser l’œuvre avec les originaux</small></span><em data-price="guide"></em></label>
+        <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="kit"><span><b>Kit DIY 50 × 70</b><small>Toile vierge sur châssis, guide imprimé, gabarits à l’échelle et fournitures de collage, livrés</small></span><em data-price="kit"></em></label>
+        <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="signature"><span><b>Atelier Signature</b><small>Réalisée à la main par l’atelier avec vos dessins originaux : numérisation, découpe et collage sur toile, composition validée avec vous avant découpe</small></span><em data-price="signature"></em></label>
       </div>
       <div class="cart-qty-row"><span>Quantité</span><span class="cart-qty"><button type="button" data-qty="-1" aria-label="Moins">−</button><output>1</output><button type="button" data-qty="1" aria-label="Plus">+</button></span></div>
       <p class="hint cart-fit" hidden></p>

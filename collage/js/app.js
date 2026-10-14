@@ -728,7 +728,8 @@
 
   function planCoverage() {
     const v = $('format').value;
-    const auto = v.startsWith('auto:');
+    const frame = v.startsWith('cadre:');
+    const auto = v.startsWith('auto:') || frame;
     const density = Number($('density').value);
     const cands = state.drawings.filter((d) => d.role === 'auto');
     cands.forEach((d) => { d.auto = null; });
@@ -781,7 +782,8 @@
     const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => d.auto === 'texture' || d.analysis.kind === 'texture').length)) : 0;
     let chosen = { nBg: minBg, area: 7000 };
     if (auto) {
-      const ratio = Number(v.slice(5)) || 1.4;
+      const fr = frame ? v.slice(6).split('x').map(Number) : null;
+      const ratio = frame ? fr[0] / fr[1] : Number(v.slice(5)) || 1.4;
       const r = Math.max(ratio, 1 / ratio); // indépendant de l'orientation
       // la plus grande page de fond doit tenir entière sur la toile (on ne la découpe pas) :
       // surface minimale de toile pour que ses deux côtés y tiennent, au ratio choisi
@@ -1336,11 +1338,57 @@
     fillFormats();
   }
 
+  /*
+   * Deux ateliers. « Impression » : l'œuvre est composée à la taille d'un cadre standard du marché,
+   * les dessins réduits pour y tenir, puis imprimée (papier d'art, encadrée, toile imprimée) ou
+   * livrée en fichier HD. « Toile » : les dessins à leur taille réelle sur une toile du commerce ou
+   * adaptée à eux, à réaliser soi-même avec les originaux (guide, kit) ou par l'atelier (Signature).
+   * Choix au départ (accueil, ou cartes de l'atelier vide), bascule à tout moment, mémorisé.
+   */
+  const MODES = ['impression', 'toile'];
+  const modeOf = () => (MODES.includes(state.mode) ? state.mode : 'toile');
+  const printMode = () => state.mode === 'impression';
+  // opts.keep : réglages d'une composition rouverte (finition toile, cadre) gardés tels quels
+  function setMode(m, opts) {
+    if (!MODES.includes(m)) return;
+    const was = state.mode;
+    state.mode = m;
+    try { localStorage.setItem('atelier.mode', m); } catch (e) { /* ignoré */ }
+    document.body.classList.toggle('mode-impression', m === 'impression');
+    document.body.classList.toggle('mode-toile', m === 'toile');
+    document.querySelectorAll('#mode-switch button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    const pick = $('mode-pick');
+    if (pick) pick.hidden = true;
+    $('format-label').textContent = m === 'impression' ? tr('Cadre') : tr('Toile');
+    $('sizes-hint').textContent = m === 'impression'
+      ? tr('Choisissez un cadre standard : l’œuvre est composée à sa taille exacte, les dessins réduits d’un même facteur pour y tenir. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.')
+      : tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
+    $('guide-box').hidden = m === 'impression';
+    if (!(opts && opts.keep) && was !== m) $('grain').checked = m === 'toile';
+    fillFormats();
+  }
+  function initMode() {
+    const q = location.search;
+    const m = (q.match(/[?&]mode=(impression|toile)\b/) || [])[1] || (/[?&]impression\b/.test(q) ? 'impression' : /[?&]toile\b/.test(q) ? 'toile' : null);
+    let stored = null;
+    try { stored = localStorage.getItem('atelier.mode'); } catch (e) { /* ignoré */ }
+    if (m) setMode(m);
+    else if (MODES.includes(stored)) setMode(stored);
+    else { const pick = $('mode-pick'); if (pick) pick.hidden = false; fillFormats(); }
+  }
+
   function formatCm() {
     let v = $('format').value;
-    // valeur illisible (option disparue, réglage ancien) : le format automatique classique
-    if (!/^auto:[\d.]+$|^\d+(\.\d+)?x\d+(\.\d+)?$/.test(v)) v = 'auto:1.4286';
+    // valeur illisible (option disparue, réglage ancien) : le format automatique classique, ou le
+    // cadre le plus courant en mode impression
+    if (!/^auto:[\d.]+$|^(cadre:)?\d+(\.\d+)?x\d+(\.\d+)?$/.test(v) || (printMode() && !v.startsWith('cadre:'))) v = printMode() ? FRAME_DEFAULT : 'auto:1.4286';
     const portrait = canvasOrient() === 'port';
+    if (v.startsWith('cadre:')) {
+      // impression : la taille du cadre, imposée ; les dessins y sont réduits d'un même facteur (voir scale)
+      const [a, b] = v.slice(6).split('x').map(Number);
+      const w = portrait ? Math.min(a, b) : Math.max(a, b), h = portrait ? Math.max(a, b) : Math.min(a, b);
+      return { w, h, auto: false, frame: true };
+    }
     if (v.startsWith('auto:')) {
       const r0 = Number(v.slice(5));
       const ratio = portrait ? 1 / r0 : r0;
@@ -1392,6 +1440,17 @@
     ['100F', 162, 130, 'formats standards'], ['100P', 162, 114, 'formats standards'], ['100M', 162, 97, 'formats standards'],
     ['120F', 195, 130, 'formats standards'], ['120P', 195, 114, 'formats standards'], ['120M', 195, 97, 'formats standards'],
   ];
+  /*
+   * Atelier Impression : tailles de cadres standard du marché (cadres photo et affiches de toute
+   * enseigne : IKEA, Hema, Maisons du Monde, Leroy Merlin, encadreurs…), grand côté en premier.
+   * L'œuvre est composée à cette taille exacte, les dessins réduits d'un même facteur pour y tenir.
+   */
+  const FRAMES = [
+    [24, 18], [30, 20], [29.7, 21, 'A4'], [30, 24], [42, 29.7, 'A3'], [40, 30], [45, 30], [50, 40], [60, 40], [70, 50], [80, 60], [90, 60], [100, 70],
+    [30, 30], [40, 40], [50, 50],
+  ];
+  const FRAME_DEFAULT = 'cadre:70x50';
+  const frameName = (f) => `${tr('Cadre')} ${canvasOrient() === 'port' ? `${fmt(f[1])} × ${fmt(f[0])}` : `${fmt(f[0])} × ${fmt(f[1])}`} cm${f[2] ? ` · ${f[2]}` : ''}`;
   // les codes (20F, IKEA) restent tels quels, les noms communs sont traduits
   const stockWord = (w) => (/^[0-9A-Z]/.test(w) ? w : tr(w));
   const stockName = (t) => (canvasOrient() === 'port' ? `${stockWord(t[0])} · ${t[2]} × ${t[1]} cm` : `${stockWord(t[0])} · ${t[1]} × ${t[2]} cm`);
@@ -1410,6 +1469,23 @@
     const sel = $('format');
     const current = sel.value;
     sel.querySelectorAll('optgroup').forEach((g) => g.remove());
+    const print = printMode();
+    // impression : seulement les cadres standard ; toile : taille adaptée et toiles du commerce
+    sel.querySelectorAll('option[value^="auto:"]').forEach((o) => { o.hidden = print; o.disabled = print; });
+    if (print) {
+      const g = document.createElement('optgroup');
+      g.label = tr('Cadres standard du marché');
+      FRAMES.forEach((f) => {
+        const o = document.createElement('option');
+        o.value = `cadre:${f[0]}x${f[1]}`;
+        o.textContent = frameName(f);
+        g.appendChild(o);
+      });
+      sel.appendChild(g);
+      sel.value = current.startsWith('cadre:') ? current : FRAME_DEFAULT;
+      if (sel.selectedIndex < 0) sel.value = FRAME_DEFAULT;
+      return;
+    }
     const groups = [
       [tr('Toiles courantes (grandes surfaces, Cultura, web)'), STOCK.filter((t) => t[3] === 'courant')],
       [tr('Cadres IKEA (RIBBA, HOVSTA, LOMVIKEN…), taille de la vitre'), STOCK.filter((t) => t[3] === 'IKEA')],
@@ -1426,7 +1502,8 @@
       });
       sel.appendChild(g);
     });
-    if (current) sel.value = current;
+    if (current) sel.value = current.startsWith('cadre:') ? 'auto:1.4286' : current;
+    if (sel.selectedIndex < 0) sel.value = 'auto:1.4286';
   }
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
@@ -1435,7 +1512,17 @@
   // (ils en couvrent environ 60 %, les pages de fond et les lambeaux font le reste).
   // Les dessins sont toujours à leur taille réelle : l'échelle vaut 1.
   function scale() {
-    return 1;
+    return printMode() ? state.printScale || 1 : 1;
+  }
+  // Impression : facteur de réduction commun à tous les dessins pour que l'œuvre, calculée à leur
+  // taille réelle (planCoverage), tienne dans le cadre choisi ; jamais agrandis (netteté du tirage).
+  function computePrintScale() {
+    if (!printMode() || !state.canvasSize) return 1;
+    const { w, h } = state.canvasSize;
+    let k = Math.sqrt((w * h) / Math.max(1, state.canvasArea || 7000));
+    const m = state.bgMin || { long: 0, short: 0 };
+    if (m.long > 0) k = Math.min(k, Math.max(w, h) / m.long, Math.min(w, h) / m.short);
+    return clamp(k, 0.05, 1);
   }
 
   // Texte sous le choix de toile : taille calculée, papier disponible, couverture.
@@ -1445,7 +1532,12 @@
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
     const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
-    if (f.auto) {
+    if (f.frame) {
+      const k = scale();
+      txt = k >= 0.995
+        ? tr`Impression de ${f.w} × ${f.h} cm (cadre standard) : les dessins y sont à leur taille réelle.`
+        : tr`Impression de ${f.w} × ${f.h} cm (cadre standard) : les dessins sont réduits à ${Math.round(k * 100)} % de leur taille réelle (une feuille A4 fait ${fmt(29.7 * k)} cm). Choisissez un cadre plus grand pour des dessins plus grands.`;
+    } else if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => tr`${stockWord(c.t[0])} ${c.w} × ${c.h} cm (${stockWord(c.t[3])}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
       txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
     } else {
@@ -1620,6 +1712,7 @@
     if (state.comp && !state.restoring && !(opts && opts.noCommit)) commit();
     planCoverage();
     state.canvasSize = formatCm();
+    state.printScale = computePrintScale();
     applyOrientations();
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
@@ -1717,7 +1810,7 @@
     const c = state.comp;
     const count = c.total ? tr`${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? tr('adaptés') : tr('beaux')}` : tr`${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
     const aside = asideDrawings().length;
-    $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
+    $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${printMode() && scale() < 0.995 ? tr`dessins réduits à ${Math.round(scale() * 100)} % pour le cadre` : c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
     renderAside();
   }
 
@@ -2744,7 +2837,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const pdf = $('fmt').value === 'application/pdf';
     $('export-info').textContent = pdf
       ? tr`PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
-      : tr`${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
+      : printMode()
+        ? tr`${w} × ${h} px pour une impression de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
+        : tr`${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
   }
 
   // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
@@ -3322,6 +3417,8 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   $('fmt').addEventListener('change', updateExportInfo);
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
+  document.querySelectorAll('#mode-switch button, #mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); if (state.drawings.length) { state.pinned = null; regenerate(); } }));
+  initMode();
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
   $('export-free').onclick = exportPreview;
@@ -3990,7 +4087,7 @@ Réponds uniquement avec ce JSON :
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
-      settings: { format: $('format').value, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
+      settings: { mode: modeOf(), format: $('format').value, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
       drawings, comp: compData,
     };
   }
@@ -4172,6 +4269,8 @@ Réponds uniquement avec ce JSON :
     state.restoring = true;
     // réglages d'abord, pour que la toile et le fond soient les mêmes
     const sv = rec.settings || {};
+    // (une sauvegarde d'avant les deux ateliers est une toile, sauf si elle a été composée sur un cadre)
+    setMode(MODES.includes(sv.mode) ? sv.mode : sv.format && sv.format.startsWith('cadre:') ? 'impression' : 'toile', { keep: true });
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) $('format').value = sv.format;
     if (sv.orient) setCanvasOrient(sv.orient);
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
@@ -4610,21 +4709,26 @@ Réponds uniquement avec ce JSON :
   const ORDER_MAIL = 'bonjour@atelier-gribouille.com';
   const SIZES = { '30x40': [30, 40], '50x70': [50, 70], '70x100': [70, 100] };
   const PRICES = {
-    hd: 14.9, guide: 24.9, kit: 89,
+    hd: 14.9, guide: 24.9, kit: 89, signature: 490, signatureGrand: 690,
     print: { papier: { '30x40': 39, '50x70': 59, '70x100': 89 }, cadre: { '30x40': 79, '50x70': 129, '70x100': 199 }, toile: { '30x40': 69, '50x70': 109, '70x100': 169 } },
   };
   const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée'), toile: tr('sur toile') };
-  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : PRICES[it.product]);
+  // Atelier Signature : toile 50 × 70 jusqu'à 20 dessins, ou grand format 70 × 100 au-delà de 75 cm
+  const signatureGrand = (it) => Math.max(Number(it.W), Number(it.H)) > 75;
+  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : it.product === 'signature' ? (signatureGrand(it) ? PRICES.signatureGrand : PRICES.signature) : PRICES[it.product]);
+  // produits de chaque atelier : impression (tirages, fichier) ou toile (à réaliser, ou par l'atelier)
+  const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit', 'signature'] };
   const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
   const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
   function productLabel(it) {
     if (it.product === 'print') return tr`Impression ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
+    if (it.product === 'signature') return signatureGrand(it) ? tr('Atelier Signature Grand (toile 70 × 100, jusqu’à 30 dessins)') : tr('Atelier Signature (toile 50 × 70, jusqu’à 20 dessins)');
     return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD'), kit: tr('Kit DIY 50 × 70') }[it.product];
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
   // d'après le catalogue — jamais celui qui a été stocké)
   const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^panier-[a-z0-9]+$/.test(it.recId)
-    && ['print', 'hd', 'guide', 'kit'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
+    && ['print', 'hd', 'guide', 'kit', 'signature'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
     && Number.isFinite(Number(it.W)) && Number.isFinite(Number(it.H));
   function loadCart() {
     let c;
@@ -4670,11 +4774,16 @@ Réponds uniquement avec ce JSON :
     const box = $('cart-add'), { comp } = pending;
     box.querySelector('.cart-what img').src = pending.thumb;
     box.querySelector('.cart-what-name').textContent = pending.title;
-    box.querySelector('.cart-what-size').textContent = tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
+    box.querySelector('.cart-what-size').textContent = printMode() ? tr`${pending.styleName} · impression de ${fmt(comp.W)} × ${fmt(comp.H)} cm` : tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
+    // seuls les produits de l'atelier en cours (impression ou toile)
+    const products = MODE_PRODUCTS[modeOf()];
+    if (!products.includes(choice.product)) choice.product = products[0];
+    box.querySelectorAll('[data-mode]').forEach((el) => { el.hidden = el.dataset.mode !== modeOf(); });
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => { r.checked = r.value === choice.product; r.closest('.cart-prod').classList.toggle('on', r.checked); });
     box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(PRICES.print.papier['30x40'])}`;
     ['hd', 'guide', 'kit'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
-    box.querySelector('.cart-print').hidden = choice.product !== 'print';
+    box.querySelector('[data-price="signature"]').textContent = euros(signatureGrand(comp) ? PRICES.signatureGrand : PRICES.signature);
+    box.querySelector('.cart-print').hidden = choice.product !== 'print' || !printMode();
     box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
     box.querySelectorAll('[data-size]').forEach((b) => {
       b.classList.toggle('on', b.dataset.size === choice.size);
@@ -4850,7 +4959,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, get view() { return view; } };
+  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {
