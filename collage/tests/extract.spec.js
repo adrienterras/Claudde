@@ -122,6 +122,36 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.kind).toBe('texture');
   });
 
+  test('une page de cahier (lignes de texte, carreaux, cadre) n’est pas posée entière : le sujet est découpé seul', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(250,249,246)'; x.fillRect(0, 0, W, H);
+      // carreaux pâles du cahier
+      x.strokeStyle = 'rgb(205,220,240)'; x.lineWidth = 2;
+      for (let v = 60; v < W; v += 56) { x.beginPath(); x.moveTo(v, 40); x.lineTo(v, H - 40); x.stroke(); }
+      for (let v = 60; v < H; v += 56) { x.beginPath(); x.moveTo(40, v); x.lineTo(W - 40, v); x.stroke(); }
+      // trois lignes d'écriture bleue en haut
+      x.strokeStyle = 'rgb(40,60,170)'; x.lineWidth = 5; x.lineCap = 'round';
+      for (let l = 0; l < 3; l++) for (let k = 0; k < 26; k++) { const px = 120 + k * 46, py = 110 + l * 56; x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 12, py - 18 - (k % 3) * 4, px + 26, py + 2); x.stroke(); }
+      // un cadre dessiné au feutre vert tout autour de la feuille
+      x.strokeStyle = 'rgb(60,150,70)'; x.lineWidth = 8; x.strokeRect(50, 50, W - 100, H - 100);
+      // le sujet : un poisson orange, au milieu
+      x.fillStyle = 'rgb(240,140,40)'; x.strokeStyle = 'rgb(120,60,10)'; x.lineWidth = 7;
+      x.beginPath(); x.ellipse(680, 600, 260, 150, 0, 0, 7); x.fill(); x.stroke();
+      x.beginPath(); x.moveTo(930, 600); x.lineTo(1060, 500); x.lineTo(1060, 700); x.closePath(); x.fill(); x.stroke();
+      const a = Extract.analyze(c, 0, {});
+      const ps = (a.pieces || []).map((p) => ({ frac: +p.frac.toFixed(2), x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h }));
+      return { kind: a.kind, n: ps.length, pieces: ps };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.n).toBeGreaterThanOrEqual(2);
+    // le poisson est une pièce à lui seul (pas la feuille entière), et aucune pièce ne remplit la page
+    // (le cadre dessiné peut rester une pièce : un anneau, pas une feuille pleine)
+    const fish = r.pieces.find((p) => p.x < 440 && p.x + p.w > 1060 && p.y < 460 && p.y + p.h > 750 && p.h < 480);
+    expect(fish).toBeTruthy();
+    expect(r.pieces.every((p) => p.frac < 0.5)).toBe(true);
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

@@ -309,7 +309,9 @@
   }
 
   // Bouche les trous : tout ce qui n'est pas relié au bord par du vide devient plein.
-  function fillHoles(mask, w, h) {
+  // maxArea (facultatif) : un trou plus grand n'est pas bouché (l'intérieur d'un cadre dessiné autour
+  // d'une feuille n'est pas le sujet)
+  function fillHoles(mask, w, h, maxArea) {
     const seen = new Uint8Array(w * h);
     const stack = new Int32Array(w * h); // chaque pixel n'y entre qu'une fois
     let top = 0;
@@ -328,6 +330,15 @@
     }
     const out = new Uint8Array(w * h);
     for (let i = 0; i < out.length; i++) out[i] = seen[i] ? 0 : 1;
+    if (maxArea > 0) {
+      // trous : les plages non atteintes depuis le bord et hors du masque ; les grands restent ouverts
+      const holes = new Uint8Array(w * h);
+      for (let i = 0; i < holes.length; i++) holes[i] = !mask[i] && !seen[i] ? 1 : 0;
+      const { labels, comps } = components(holes, w, h);
+      const big = new Uint8Array(comps.length + 1);
+      comps.forEach((c) => { if (c.area > maxArea) big[c.id] = 1; });
+      for (let i = 0; i < out.length; i++) if (holes[i] && big[labels[i]]) out[i] = 0;
+    }
     return out;
   }
 
@@ -427,7 +438,7 @@
     let strongT = Math.max(20, (strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST) * CUT.ink);
     const unit = Math.max(w, h);
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
-    const masks = (sT, wT, closeR) => {
+    const masks = (sT, wT, closeR, holeMax) => {
       const ink = inkMask(data, w, h, paper, sT, wT);
       // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
       for (let y = 0; y < h; y++) {
@@ -439,13 +450,33 @@
       // (≈ 3 mm sur un A4), comme une découpe aux ciseaux : on ne rentre pas dans chaque creux d'un
       // contour ouvert, on contourne le sujet ; les traits distants de moins de ≈ 2 × closeR sont un même sujet
       let mask = dilate(ink, w, h, unit * closeR);
-      mask = fillHoles(mask, w, h);
+      mask = fillHoles(mask, w, h, holeMax ? holeMax * n : 0);
       mask = erode(mask, w, h, unit * (closeR - CUT.margin));
       const { labels, comps } = components(mask, w, h);
       comps.sort((a, b) => b.area - a.area);
       return { ink, labels, comps };
     };
     let r = masks(strongT, weakT, CUT.close);
+    // page « pontée » : un seul sujet couvre presque toute la feuille alors que l'encre y est rare
+    // (lignes de texte, carreaux du cahier, cadre dessiné reliés par la fermeture, puis l'intérieur
+    // bouché) ; la feuille entière serait posée comme une pièce. On referme de moins loin pour que
+    // les vrais sujets (personnages, objets) se séparent du reste.
+    const bridged = (rr) => {
+      const c = rr.comps[0];
+      if (!c) return false;
+      const bb = (c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1);
+      if (bb < 0.6 * n) return false;
+      let ink = 0;
+      for (let p = 0; p < n; p++) if (rr.labels[p] === c.id && rr.ink[p]) ink++;
+      return ink < 0.3 * c.area;
+    };
+    if (bridged(r)) {
+      for (const f of [0.5, 0.3]) {
+        const cr = Math.max(CUT.margin + 0.004, CUT.close * f);
+        const r2 = masks(strongT, weakT, cr, 0.08);
+        if (r2.comps.length && !bridged(r2)) { r = r2; r.closeR = cr; r.holeMax = 0.08; break; }
+      }
+    }
     // dessin très pâle (crayon léger sur papier blanc) : la première passe ne trouve que des miettes
     // éparses ; on refait avec des seuils plus bas, juste au-dessus du grain du papier, et des traits
     // reliés de plus loin
@@ -456,7 +487,7 @@
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
       if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r = r2; weakT = wT2; strongT = sT2; }
     }
-    return { work, data, w, h, paper, weakT, strongT, paperFrac: paperCount / n, labels: r.labels, comps: r.comps };
+    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, paperFrac: paperCount / n, labels: r.labels, comps: r.comps };
   }
 
   /*
@@ -783,9 +814,10 @@
     const inkF = inkMask(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30);
     for (let p = 0; p < inkF.length; p++) if (!allowed[p]) inkF[p] = 0;
     // marge de quelques millimètres autour de l'encre, trous bouchés, puis coupe nette
-    let fm = dilate(inkF, fw, fh, funit * CUT.close);
-    fm = fillHoles(fm, fw, fh);
-    fm = erode(fm, fw, fh, funit * (CUT.close - CUT.margin));
+    const closeR = seg.closeR || CUT.close;
+    let fm = dilate(inkF, fw, fh, funit * closeR);
+    fm = fillHoles(fm, fw, fh, seg.holeMax ? seg.holeMax * seg.w * seg.h * kf * kf : 0);
+    fm = erode(fm, fw, fh, funit * (closeR - CUT.margin));
     // si la détection fine n'a presque rien trouvé (sujet très pâle), on garde la forme grossière
     let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
     let regCount = 0; for (let p = 0; p < region.length; p++) regCount += region[p];
@@ -1294,6 +1326,25 @@
     }
     ctx.putImageData(img, 0, 0);
     return { canvas: out, alpha: oa, W: OW, H: OH, rectFill, refined: !!ref };
+  }
+
+  // L'intérieur d'une forme trouvée sur la surface est-il surtout du papier (clair, peu saturé) ?
+  // Une « forme » blanche est alors une feuille, pas un objet découpé : ses sujets se découpent.
+  function paperish(alpha, canvas) {
+    const W = canvas.width, H = canvas.height;
+    const step = Math.max(1, Math.round(Math.max(W, H) / 220));
+    const d = ctx2d(canvas).getImageData(0, 0, W, H).data;
+    let n = 0, pap = 0;
+    for (let y = 0; y < H; y += step) for (let x = 0; x < W; x += step) {
+      const p = y * W + x;
+      if (alpha[p] < 0.5) continue;
+      n++;
+      const i = p * 4, r = d[i], g = d[i + 1], b = d[i + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx > 185 && (mx - mn) / Math.max(1, mx) < 0.22) pap++;
+    }
+    paperish.last = { n, ratio: n ? +(pap / n).toFixed(2) : null, W, H };
+    return n > 0 && pap / n >= 0.6;
   }
 
   function convexHull(pts) {
@@ -1911,6 +1962,14 @@
       }
       if (sheet && sheet.kind === 'object') {
         const cut = cutObject(src, sheet.mask, sheet.w, sheet.h);
+        if (cut.rectFill >= 0.85 && paperish(cut.alpha, cut.canvas)) {
+          // une feuille blanche à peu près rectangulaire prise pour une forme : c'est une page, à
+          // découper comme les autres (ses personnages et objets posés, pas la feuille entière)
+          const r = analyze(cut.canvas, 1, { flat: false });
+          r.photo = Object.assign({}, sheet.surface, { sheet: true });
+          r.original = src;
+          return r;
+        }
         const page = flatten(cut.canvas, true);
         const r = { page, paper: [250, 250, 250], texture: null, kind: 'cutout', paperFrac: 1, objectAlpha: { alpha: cut.alpha, W: cut.W, H: cut.H } };
         r.pieces = objectPieces(page, cut.alpha, cut.W, cut.H);
@@ -1918,6 +1977,10 @@
       }
       // photo d'un dessin posé sur un sol ou une table : on retire la surface
       const cleaned = removeSurface(src, !!opts.force);
+      // (sur un mur ou une table clairs, la silhouette d'une feuille blanche est incertaine : si la
+      // « forme » est surtout du papier, c'est une feuille, à découper comme une page)
+      if (cleaned && cleaned.object && cleaned.surface.kind !== 'bois' && paperish(cleaned.object.alpha, cleaned.canvas)) cleaned.object = null;
+      if (cleaned && removeSurface.debug) removeSurface.debug.paperish = paperish.last || null;
       if (cleaned && cleaned.object) {
         // objet découpé posé sur la surface : sa silhouette entière est la pièce
         const page = flatten(cleaned.canvas, true);
