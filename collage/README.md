@@ -38,7 +38,17 @@ cd collage && python3 -m http.server 8000
      liste suit la proposition affichée. Dès que le client choisit une toile dans la liste
      (`state.formatManual`), son choix est gardé pour toutes les propositions, jusqu'à une nouvelle
      œuvre ou un changement d'atelier ; une composition rouverte garde sa toile.
-1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer).
+1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
+   dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin », quand le
+   navigateur donne accès à l'appareil photo) : pendant la visée, chaque image est jugée et l'écran
+   dit si la photo sera bonne — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
+   sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
+   droits), netteté et lumière égale (`Quality.sharpness`, `Quality.lighting`, mêmes seuils qu'à
+   l'import), exposition (papier assez clair, sans reflets) ; le quadrilatère de la feuille est
+   tracé sur la vidéo, vert, orange ou rouge. La photo prise (pleine définition : `ImageCapture`
+   quand il existe, sinon l'image de la vidéo) est jugée de la même façon, avec en plus sa
+   définition (grand côté de la feuille en pixels : 140 dpi pour un A4), puis gardée ou reprise ;
+   les photos gardées entrent dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux

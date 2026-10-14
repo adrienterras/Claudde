@@ -3556,6 +3556,12 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     e.target.value = '';
     importUserFiles(files);
   });
+  // prise de photo dans l'atelier (appareil photo du téléphone, webcam) : les photos gardées sont
+  // importées comme des fichiers
+  if (window.Camera && Camera.supported()) {
+    $('camera-open').hidden = false;
+    $('camera-open').addEventListener('click', () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) }));
+  }
   // iPhone, iPad : le sélecteur de photos « prépare » chaque photo avant de rendre la main (conversion
   // de format, téléchargement depuis iCloud) et semble figé pendant ce temps ; on prévient.
   if (iOS()) $('ios-tip').hidden = false;
