@@ -54,6 +54,8 @@
     'PDF de plusieurs pages, JPG ou PNG': 'Multi-page PDF, JPG or PNG',
     'Pas de scans sous la main ?': 'No scans at hand?',
     'Pas de scanner ?': 'No scanner?',
+    'Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier.': 'Help improve the cut-out: share my cut-out edits (the drawing concerned and its corrected cut-out), with no account and no file name.',
+    'En savoir plus': 'Learn more',
     'Conseils pour photographier les dessins avec un téléphone': 'Tips for photographing drawings with a phone',
     'Sur iPhone ou iPad, après avoir validé la sélection, l’album peut rester affiché un moment : le téléphone prépare les photos (conversion, téléchargement depuis iCloud). Un seul appui suffit. Pour voir le résultat plus vite, importez les photos par groupes d’une dizaine.': 'On iPhone or iPad, after confirming your selection the photo library may stay on screen for a while: the phone is preparing the photos (format conversion, download from iCloud). One tap is enough. To see the result sooner, import the photos in groups of about ten.',
     'Essayer avec les dessins d’exemple': 'Try the sample drawings',

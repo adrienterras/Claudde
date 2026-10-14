@@ -161,6 +161,18 @@ absent de `connect-src`. Ajouté sur les six pages ; `tests/csp.spec.js` vérifi
 d'adresse, le symptôme est le même (0 visite, erreur « Content Security Policy » dans la console)
 et la correction tient en une ligne par page.
 
+## 14 octobre 2026 : collecte des retouches (option)
+
+- Nouveau point d'écriture anonyme : table et bucket `retouches`, insert seulement (`anon`,
+  `authenticated`), aucune lecture ni suppression depuis le navigateur ; chemin contraint par
+  expression régulière, 4 Mo par fichier, JPEG/PNG/JSON seulement, fiche JSON limitée à 8 Ko.
+- Risque accepté : un tiers muni de la clé publique peut y déposer des fichiers (comme sur tout
+  point d'écriture anonyme) ; à surveiller dans Storage, quota du projet en garde-fou. Si l'abus
+  survient, restreindre la politique à `authenticated` ou passer par une fonction Edge avec limite
+  de débit.
+- Rien n'est envoyé sans la case cochée ; la case est décochée par défaut et son état n'est gardé
+  que dans le navigateur (`atelier.partage-decoupes`).
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.

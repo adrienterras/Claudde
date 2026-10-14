@@ -39,6 +39,10 @@ cd collage && python3 -m http.server 8000
      figées sur chaque dessin au moment de son analyse et sauvegardées avec lui : ses réanalyses
      (haute définition, orientation, « découpe automatique » dans la retouche, réouverture d'une
      œuvre) retrouvent exactement les mêmes pièces, et les retouches y sont rejouées au bon rang.
+     **Retouches partagées** (`js/collect.js`, option à l'import, décochée par défaut) : chaque
+     retouche est aussi envoyée (dessin recadré, découpe automatique, découpe corrigée, fiche JSON)
+     dans le bucket et la table `retouches` de Supabase, en écriture seule, sans nom de fichier ni
+     identifiant, pour les exemples d'un futur détourage par apprentissage (voir docs/COMPTES.md).
    Avant la découpe, l'**éclairage est égalisé** (`Extract.flatten`) : la couleur du papier est
    estimée case par case (1/100 de la page), les ombres d'un pli ou d'un bord sont ramenées au blanc
    et ne sont plus prises pour du dessin. Une case n'est retenue comme papier que si elle est lisse,

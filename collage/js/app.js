@@ -2346,6 +2346,28 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     renderProposals();
     render();
     learnFromEdit(p, before, oldSrc);
+    shareEdit(p, before, oldSrc);
+  }
+
+  // ---------- Partage des retouches (option) ----------
+  // Case à cocher à l'import, décochée par défaut et mémorisée : chaque retouche de découpe est alors
+  // envoyée (dessin recadré, découpe automatique, découpe corrigée) pour les exemples d'un futur
+  // détourage par apprentissage. Voir js/collect.js et confidentialite.html#retouches.
+  (function shareConsent() {
+    const box = $('share-cuts'), input = $('share-cuts-box');
+    if (!box || !input || !window.Collect || !Collect.enabled) return;
+    box.hidden = false;
+    input.checked = Collect.consent();
+    input.addEventListener('change', () => { Collect.setConsent(input.checked); window.Atelier.track('Partage des retouches', { actif: input.checked ? 'oui' : 'non' }); });
+  })();
+  function shareEdit(p, before, oldSrc) {
+    if (!window.Collect || !Collect.enabled || !Collect.consent() || !before || !before.canvas || p.copyOf) return;
+    const d = p.drawing, a = d.analysis;
+    const meta = {
+      kind: a.kind, photo: d.photo ? { kind: d.photo.kind, sheet: !!d.photo.sheet } : null, orient: d.orientDeg || 0,
+      cut: d.cutPrefs || null, thresholds: a.cut || null, object: !!p.object, sizeCm: d.sizeCm || null, edits: (a.pieces || []).filter((q) => q.edited).length,
+    };
+    Collect.sendEdit(a.page, { canvas: before.canvas, src: oldSrc || before.src }, { canvas: p.canvas, src: p.src }, meta);
   }
 
   // ---------- Découpe apprise des retouches ----------

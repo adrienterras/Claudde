@@ -50,6 +50,21 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
 Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table
 `exports`), ré-exécutez-le tel quel dans le SQL Editor. Les objets existants sont conservés.
 
+## Retouches de découpe partagées (option)
+
+Dans l'atelier, une case « Aider à améliorer le détourage » (section Importer, décochée par défaut,
+mémorisée dans le navigateur) envoie chaque retouche de découpe faite à la main : le dessin recadré
+autour de la pièce (JPEG, 1200 px au plus), la découpe automatique et la découpe corrigée (PNG
+noir et blanc) et une fiche JSON (taille de page, rectangles, réglages de découpe, type de page).
+Jamais de nom de fichier, d'e-mail ni d'identifiant de compte ; les dossiers sont nommés par mois
+et identifiant aléatoire. Le schéma crée la table `retouches` et le bucket `retouches` (4 Mo par
+fichier, JPEG/PNG/JSON), tous deux **en écriture seule** pour `anon` et `authenticated` : rien n'est
+lisible depuis l'application, seul le tableau de bord Supabase (ou la clé service) y accède.
+Finalité : constituer, avec consentement, les exemples d'un futur modèle de détourage. Pour
+l'exploiter : Storage → retouches, ou `select path, meta from retouches order by created_at`.
+Effacement sur demande : supprimer le dossier et la ligne ; la fiche porte l'horodatage que
+l'utilisateur peut citer.
+
 ## Limites et coûts
 
 - Offre gratuite Supabase : 500 Mo de base, 1 Go de fichiers, 50 000 utilisateurs actifs par mois.

@@ -921,6 +921,70 @@ test.describe('Découpe apprise des retouches', () => {
   });
 });
 
+test.describe('Retouches partagées (option)', () => {
+  test('case décochée par défaut, mémorisée ; cochée, une retouche envoie image, découpes et fiche ; décochée, rien', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    const sent = [];
+    await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
+    // (l'hôte Supabase autorisé par la politique de sécurité de la page ; les requêtes sont interceptées, jamais envoyées)
+    const host = 'https://yfrerlyndrpfgerkbkyr.supabase.co';
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `window.ATELIER_CONFIG = { supabaseUrl: '${host}', supabaseAnonKey: 'anon' };` }));
+    await page.route(host + '/**', (r) => {
+      const req = r.request();
+      sent.push({ url: req.url(), method: req.method(), type: req.headers()['content-type'] || '', apikey: req.headers().apikey, body: /json/.test(req.headers()['content-type'] || '') ? req.postData() : null });
+      r.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#share-cuts')).toBeVisible();
+    await expect(page.locator('#share-cuts-box')).not.toBeChecked();
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const k = await page.evaluate(() => { const ps = AtelierGribouille.state.drawings[0].analysis.pieces; return ps.indexOf(ps.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
+    const edit = async () => {
+      await page.evaluate((k) => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[k]), k);
+      await page.locator('#ed-size').fill('140');
+      const box = await page.locator('#ed-canvas').boundingBox();
+      await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
+      await page.mouse.down();
+      for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + box.width * (0.3 + 0.03 * i), box.y + box.height * 0.5);
+      await page.mouse.up();
+      await page.locator('#ed-apply').click();
+      await expect(page.locator('#editor')).toBeHidden();
+    };
+    // décochée : une retouche n'envoie rien
+    await edit();
+    await page.waitForTimeout(800);
+    expect(sent.filter((r) => /retouches/.test(r.url))).toHaveLength(0);
+    // cochée (mémorisée) : image, les deux découpes, la fiche, puis la ligne en base
+    await page.locator('#share-cuts-box').check();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBe('1');
+    await edit();
+    await expect.poll(() => sent.filter((r) => /rest\/v1\/retouches/.test(r.url)).length, { timeout: 15000 }).toBe(1);
+    const files = sent.filter((r) => /storage\/v1\/object\/retouches\//.test(r.url));
+    expect(files.map((r) => r.url.split('/').pop()).sort()).toEqual(['auto.png', 'corrige.png', 'image.jpg', 'meta.json']);
+    expect(files.every((r) => r.method === 'POST' && r.apikey === 'anon')).toBe(true);
+    expect(files.find((r) => /image\.jpg$/.test(r.url)).type).toBe('image/jpeg');
+    expect(files.every((r) => /\/retouches\/\d{4}-\d{2}\/[0-9a-f-]+\/[a-z.]+$/.test(r.url))).toBe(true);
+    const row = JSON.parse(sent.find((r) => /rest\/v1\/retouches/.test(r.url)).body);
+    expect(row.path).toMatch(/^\d{4}-\d{2}\/[0-9a-f-]+$/);
+    expect(row.meta.page.w).toBeGreaterThan(0);
+    expect(row.meta.corrected.w).toBeGreaterThan(0);
+    expect(JSON.stringify(row.meta)).not.toMatch(/page-cutout|\.png/);
+    // décochée à nouveau : plus rien
+    await page.locator('#share-cuts-box').uncheck();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBeNull();
+    const n = sent.length;
+    await edit();
+    await page.waitForTimeout(800);
+    expect(sent.length).toBe(n);
+  });
+
+  test('sans réglage Supabase, la case n’apparaît pas', async ({ app }) => {
+    await expect(app.page.locator('#share-cuts')).toBeHidden();
+  });
+});
+
 test.describe('Tiroir au doigt sur téléphone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   test('la poignée suit le doigt, puis le tiroir se cale : agrandi, normal, barre seule', async ({ app }) => {
