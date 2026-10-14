@@ -270,7 +270,7 @@ test.describe('Brouillon', () => {
     await page.locator('#detail [data-role="texture"]').click();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(otherStyle);
-    // les images sont écrites une seule fois, à part : le brouillon ne garde que leurs références
+    // les images (et la page et les masques de chaque dessin) sont écrites une seule fois, à part : le brouillon ne garde que leurs références
     const store = await page.evaluate(() => new Promise((res) => {
       const q = indexedDB.open('atelier-gribouille');
       q.onsuccess = () => {
@@ -278,7 +278,7 @@ test.describe('Brouillon', () => {
         const g = db.transaction('compositions').objectStore('compositions').get('brouillon');
         g.onsuccess = () => {
           const k = db.transaction('brouillon-images').objectStore('brouillon-images').getAllKeys();
-          k.onsuccess = () => { db.close(); res({ refs: g.result.drawings.map((d) => d.ref), data: g.result.drawings.some((d) => d.data), keys: k.result }); };
+          k.onsuccess = () => { db.close(); res({ refs: g.result.drawings.flatMap((d) => [d.ref, d.saved.ref]), data: g.result.drawings.some((d) => d.data || d.saved.page.data), keys: k.result }); };
         };
       };
     }));

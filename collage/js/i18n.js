@@ -281,6 +281,8 @@
     'Lecture des fichiers…': 'Reading files…',
     'Impossible de lire « {0} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.': 'Cannot read “{0}”. Check that it is a PDF, JPG or PNG.',
     'Analyse du dessin {0} / {1}…': 'Analysing drawing {0} / {1}…',
+    'Lecture du dessin {0} / {1}…': 'Reading drawing {0} / {1}…',
+    'Ancienne sauvegarde : les dessins sont redécoupés comme à l’époque…': 'Older save: the drawings are cut out again as they were at the time…',
     'Le dessin « {0} » n’a pas pu être analysé (image trop grande pour cet appareil ?).': 'The drawing “{0}” could not be analysed (image too large for this device?).',
     'Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.': 'These sheets are not a standard size: enter their longest side, in cm. This sets their size in the artwork.',
     'Dessin {0}': 'Drawing {0}',

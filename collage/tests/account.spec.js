@@ -136,8 +136,9 @@ test.describe('Comptes utilisateurs', () => {
     // une seule entrée, celle du compte (plus de copie locale quand les comptes sont actifs)
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved-where')).toContainText('mon compte');
+    // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques
     const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
-    expect(uploads).toBe(3);
+    expect(uploads).toBe(8);
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
     // sur un autre appareil (page rechargée, rien en local), la composition du compte se rouvre
     await page.reload();
@@ -216,7 +217,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#auth-submit').click();
     await expect(page.locator('#cart .cart-status')).toContainText('prête', { timeout: 60000 });
     const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
-    expect(uploads).toBe(2); // les deux dessins de la composition commandée
+    expect(uploads).toBe(6); // les deux dessins de la composition commandée (image, page, masques)
     const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
     expect(orders).toHaveLength(1);
     await page.locator('#cart [data-close]').first().click();

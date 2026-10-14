@@ -115,11 +115,19 @@ cd collage && python3 -m http.server 8000
      récapitulatif. Le paiement en ligne n'est pas encore branché ;
    - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
      enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
-     taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), les retouches de découpe faites à la main
-     (le masque de chaque pièce retouchée, rejoué sur la page réimportée et respecté à l'export HD) et la mise en place exacte (chaque pièce et
-     page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une composition
-     telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte reste
-     épinglée jusqu'à « nouvelles propositions » ou un changement de réglage ;
+     taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), la
+     **découpe telle quelle** de chaque dessin (sa page de travail en JPEG et le masque de chaque pièce,
+     retouches comprises, rangés dans une planche PNG : `savedOf`) et la mise en place exacte (chaque
+     pièce et page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une
+     composition telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte
+     reste épinglée jusqu'à « nouvelles propositions » ou un changement de réglage. Les pièces
+     rouvertes sont rebâties depuis la page et les masques sauvegardés (`restoreAnalysis`), jamais
+     redécoupées : une découpe automatique améliorée entre-temps ne change pas une œuvre déjà faite
+     (seule la haute définition à l'export réanalyse le fichier d'origine, et garde la version de
+     travail si la page retrouvée diffère). Les sauvegardes d'avant (sans page ni masques, `v` absent)
+     sont relues avec la découpe automatique de l'époque, `js/extract-legacy.js`, chargé à la demande,
+     et leurs retouches rejouées par rang de pièce ; une fois sauvegardées de nouveau, elles passent
+     au format autonome ;
    - **feuille photographiée** (table, mur, nappe, bois) : la feuille est cherchée avant tout le
      reste (`Extract.findSheet`). Le papier est une plage claire et peu saturée bornée de tous côtés
      par un contour franc (le bord de la feuille et son ombre), même quand la surface a presque sa

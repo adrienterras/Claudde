@@ -167,13 +167,24 @@
     const store = client.storage.from(BUCKET);
     const drawings = [];
     let n = 0;
-    const total = rec.drawings.reduce((a, d) => a + 1 + (d.pieceEdits || []).filter(Boolean).length, 0);
-    for (let i = 0; i < rec.drawings.length; i++) {
-      const d = rec.drawings[i];
-      const path = `${base}/d${i}.${extOf(d.type)}`;
-      const up = await store.upload(path, new Blob([d.data], { type: d.type || 'image/jpeg' }), { contentType: d.type || 'image/jpeg', upsert: true });
+    const packOf = (d) => (d.saved && d.saved.page && d.saved.page.data ? 1 + (d.saved.atlases || []).length : 0);
+    const total = rec.drawings.reduce((a, d) => a + 1 + (d.pieceEdits || []).filter(Boolean).length + packOf(d), 0);
+    const put = async (path, bytes, type) => {
+      const up = await store.upload(path, new Blob([bytes], { type }), { contentType: type, upsert: true });
       err(up.error);
       onProgress && onProgress(++n, total);
+      return path;
+    };
+    for (let i = 0; i < rec.drawings.length; i++) {
+      const d = rec.drawings[i];
+      const path = await put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg');
+      // page de travail et planches des découpes (voir savedOf dans app.js) : des fichiers à côté de l'image
+      let saved = d.saved || null;
+      if (packOf(d)) {
+        const atlases = [];
+        for (let j = 0; j < (saved.atlases || []).length; j++) atlases.push(Object.assign({}, saved.atlases[j], { data: await put(`${base}/d${i}-decoupe${j}.png`, saved.atlases[j].data, 'image/png') }));
+        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: await put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg') }), atlases });
+      }
       const edits = [];
       for (let j = 0; j < (d.pieceEdits || []).length; j++) {
         const e = d.pieceEdits[j];
@@ -184,9 +195,9 @@
         onProgress && onProgress(++n, total);
         edits.push(Object.assign({}, e, { mask: mp }));
       }
-      drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits }));
+      drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved }));
     }
-    const meta = { date: rec.date, settings: rec.settings, comp: rec.comp, drawings };
+    const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings };
     const { error } = await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
     err(error);
     return `cloud:${id}`;
@@ -213,10 +224,17 @@
         err(m.error);
         edits.push(Object.assign({}, e, { mask: await m.data.arrayBuffer() }));
       }
-      drawings.push(Object.assign({}, d, { data: bytes, pieceEdits: edits }));
+      let saved = d.saved || null;
+      if (saved && saved.page && typeof saved.page.data === 'string') {
+        const get = async (p) => { const r = await store.download(p); err(r.error); return r.data.arrayBuffer(); };
+        const atlases = [];
+        for (const at of saved.atlases || []) atlases.push(Object.assign({}, at, { data: await get(at.data) }));
+        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: await get(saved.page.data) }), atlases });
+      }
+      drawings.push(Object.assign({}, d, { data: bytes, pieceEdits: edits, saved }));
       onProgress && onProgress(i + 1, total);
     }
-    return { id: cloudId, name: data.name, date: data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true };
+    return { id: cloudId, v: meta.v || undefined, name: data.name, date: data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true };
   }
 
   // ---------- Exports (fichiers téléchargés) dans le compte ----------

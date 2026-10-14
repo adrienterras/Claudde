@@ -68,7 +68,10 @@ l'utilisateur peut citer.
 ## Limites et coûts
 
 - Offre gratuite Supabase : 500 Mo de base, 1 Go de fichiers, 50 000 utilisateurs actifs par mois.
-  Une composition pèse 1 à 3 Mo par dessin en haute définition, un export JPEG 300 dpi 5 à 20 Mo :
+  Une composition pèse 1 à 3 Mo par dessin en haute définition (l'image d'origine `dN.jpg`, plus
+  sa page de travail `dN-page.jpg` et la planche des masques de ses pièces `dN-decoupeK.png`,
+  quelques centaines de Ko : c'est ce qui rend la réouverture indépendante de la découpe automatique
+  du moment), un export JPEG 300 dpi 5 à 20 Mo :
   comptez une vingtaine de compositions complètes avec leurs exports dans l'offre gratuite, puis
   l'offre Pro (25 $/mois, 100 Go). Les utilisateurs peuvent supprimer leurs exports depuis l'app.
 - Les e-mails de confirmation partent du serveur SMTP de Supabase, limité à quelques envois par heure :

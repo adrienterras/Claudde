@@ -31,7 +31,7 @@ test.describe('Compositions sauvegardées', () => {
     await expect(page.locator('#saved-status')).toContainText('« Essai automatique » rouverte', { timeout: 120000 });
     await expect(page.locator('#busy')).toBeHidden();
     const seen = await page.evaluate(() => window.__busy);
-    expect(seen.some((t) => t.startsWith('Réouverture de « Essai automatique »') && /Analyse du dessin/.test(t))).toBe(true);
+    expect(seen.some((t) => t.startsWith('Réouverture de « Essai automatique »') && /Lecture du dessin/.test(t))).toBe(true);
     const after = await page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
       return { style: c.style, n: c.items.length, bg: c.bg.length, first: [c.items[0].x, c.items[0].y, c.items[0].rot], W: c.W, H: c.H, drawings: AtelierGribouille.state.drawings.length };
@@ -95,12 +95,12 @@ test.describe('Retouches de découpe sauvegardées', () => {
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await page.locator('.saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('1 retouche(s) rejouée(s)', { timeout: 120000 });
+    await expect(page.locator('#saved-status')).toContainText('« Avec retouche » rouverte', { timeout: 120000 });
     const after = await coverage();
     expect(after.edited).toBe(true);
     expect(after.w).toBe(edited.w);
     expect(after.h).toBe(edited.h);
-    expect(Math.abs(after.opaque - edited.opaque) / edited.opaque).toBeLessThan(0.02);
+    expect(Math.abs(after.opaque - edited.opaque) / edited.opaque).toBeLessThan(0.005);
     // la pièce retouchée garde sa retouche à l'export haute définition
     const hd = await page.evaluate(async () => {
       const A = AtelierGribouille; const comp = A.state.comp;
@@ -166,6 +166,52 @@ test.describe('Dessin dupliqué', () => {
     expect(s2.map((x) => x.copy)).toEqual([false, true]);
     expect(Math.abs(s2[0].opaque - s0[0].opaque) / s0[0].opaque).toBeLessThan(0.02);
     expect(Math.abs(s2[1].opaque - s1[1].opaque) / s1[1].opaque).toBeLessThan(0.03);
+    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+});
+
+test.describe('Découpes autonomes', () => {
+  test('les pièces rouvertes sont celles de la sauvegarde, même si la découpe automatique a changé', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    const digest = () => page.evaluate(() => {
+      const A = AtelierGribouille;
+      // taille, découpe (pixels opaques) et couleur moyenne de la pièce : la découpe doit être la même
+      // au pixel près, la couleur à la compression JPEG de la page près
+      const sum = (c) => { const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data; let n = 0, r = 0, g = 0, b = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 127) { n++; r += d[i]; g += d[i + 1]; b += d[i + 2]; } return { size: `${c.width}x${c.height}`, opaque: n, rgb: [r / n, g / n, b / n] }; };
+      return { items: A.state.comp.items.map((L) => Object.assign({ at: `${A.state.drawings.indexOf(L.piece.drawing)}/${L.piece.drawing.analysis.pieces.indexOf(L.piece)}` }, sum(L.piece.canvas))), pieces: A.state.drawings.flatMap((d) => (d.analysis.pieces || []).map((p) => sum(p.canvas))), bg: A.state.comp.bg.length };
+    });
+    const same = (a, b) => { expect(b.length).toBe(a.length); a.forEach((x, i) => { expect(b[i].at).toBe(x.at); expect(b[i].size).toBe(x.size); expect(b[i].opaque).toBe(x.opaque); x.rgb.forEach((v, k) => expect(Math.abs(b[i].rgb[k] - v)).toBeLessThan(3)); }); };
+    const before = await digest();
+    expect(before.items.length).toBeGreaterThan(1);
+    await page.locator('#save-comp').click();
+    await page.fill('#save-name', 'Autonome');
+    await page.locator('#save-form button[type=submit]').click();
+    await expect(page.locator('#save-status')).toContainText('sauvegardée');
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
+    // la découpe automatique est devenue toute autre (une seule pièce par dessin) : sans effet sur la réouverture
+    await page.evaluate(() => {
+      window.__analyses = 0;
+      const orig = Extract.analyze;
+      Extract.analyze = (...a) => { window.__analyses++; const r = orig(...a); if (r.pieces) r.pieces = r.pieces.slice(0, 1); return r; };
+    });
+    await page.locator('.saved').first().click();
+    await expect(page.locator('#saved-status')).toContainText('« Autonome » rouverte', { timeout: 120000 });
+    const after = await digest();
+    expect(await page.evaluate(() => window.__analyses)).toBe(0);
+    same(before.items, after.items);
+    same(before.pieces, after.pieces);
+    expect(after.bg).toBe(before.bg);
+    // et la sauvegarde contient bien la page et les masques de chaque dessin
+    const rec = await page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille');
+      q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').getAll(); g.onsuccess = () => res(g.result.filter((r) => r.name === 'Autonome').map((r) => ({ v: r.v, drawings: r.drawings.map((d) => ({ page: d.saved.page.data.byteLength > 1000, atlases: d.saved.atlases.length, pieces: d.saved.pieces.length })) }))[0]); };
+    }));
+    expect(rec.v).toBe(2);
+    expect(rec.drawings.every((d) => d.page)).toBe(true);
+    expect(rec.drawings[0].pieces).toBeGreaterThan(0);
+    expect(rec.drawings[0].atlases).toBe(1);
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 });
@@ -243,7 +289,7 @@ test.describe('Réouverture fidèle des retouches', () => {
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
       q.onerror = () => res(null);
     }));
-    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3 && r.drawings[0].pieceEdits.some(Boolean)) break; await page.waitForTimeout(500); }
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3 && r.drawings[0].saved && r.drawings[0].saved.pieces.some((p) => p.edited)) break; await page.waitForTimeout(500); }
     // rechargement : tout est relu d'un coup, chaque dessin à sa résolution d'origine
     await page.reload();
     await ready(3);
@@ -260,27 +306,25 @@ test.describe('Réouverture fidèle des retouches', () => {
     await page.locator('#ed-apply').click();
     const reset = await piece();
     expect(Math.abs(reset.opaque - auto.opaque) / auto.opaque).toBeLessThan(0.03);
-    // une retouche sauvegardée sur une page qui ne correspond plus n'est pas rejouée : découpe automatique gardée, et c'est dit
-    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
-    await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
-    await page.mouse.down();
-    for (let i = 1; i <= 16; i++) await page.mouse.move(box.x + box.width * (0.3 + 0.025 * i), box.y + box.height * 0.5);
-    await page.mouse.up();
-    await page.locator('#ed-apply').click();
-    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings[0].pieceEdits.some(Boolean)) break; await page.waitForTimeout(500); }
+    // une sauvegarde d'avant les découpes autonomes (sans page ni masques) est relue avec la découpe
+    // automatique de l'époque (module chargé à la demande)
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings[0].saved && !r.drawings[0].saved.pieces.some((p) => p.edited)) break; await page.waitForTimeout(500); }
     await page.waitForTimeout(3000);
     await page.evaluate(() => new Promise((res) => {
       const q = indexedDB.open('atelier-gribouille');
       q.onsuccess = () => {
         const st = q.result.transaction('compositions', 'readwrite').objectStore('compositions');
         const g = st.get('brouillon');
-        g.onsuccess = () => { const r = g.result; r.drawings[0].pieceEdits.forEach((e) => { if (e) e.fp = e.fp.map(() => 0); }); st.put(r).onsuccess = () => res(); };
+        g.onsuccess = () => { const r = g.result; delete r.v; r.drawings.forEach((sd) => { delete sd.saved; }); st.put(r).onsuccess = () => res(); };
       };
     }));
+    expect(await page.evaluate(() => !!window.ExtractLegacy)).toBe(false);
     await page.reload();
     await ready(3);
-    await expect(page.locator('#notice')).toContainText('n’ont pas pu être replacées');
-    expect((await piece()).edited).toBe(false);
+    expect(await page.evaluate(() => !!window.ExtractLegacy && AtelierGribouille.state.drawings.every((d) => d.extract === window.ExtractLegacy))).toBe(true);
+    const relu = await piece();
+    expect(relu.edited).toBe(false);
+    expect(Math.abs(relu.opaque - auto.opaque) / auto.opaque).toBeLessThan(0.1);
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 });

@@ -328,21 +328,29 @@
     const releases = new Set(pages.map((p) => p.release).filter(Boolean));
     const max = sourceMax(state.drawings.length + pages.length);
     const longs = (opts && opts.longs) || [];
+    // réouverture : la page et les découpes sauvegardées (saved), ou l'ancienne découpe automatique (legacy)
+    const saved = (opts && opts.saved) || [], legacy = (opts && opts.legacy) || [];
     for (let i = 0; i < pages.length; i++) {
-      setProgress(i, pages.length, tr`Analyse du dessin ${i + 1} / ${pages.length}…`);
+      const sv = saved[pages[i].fileIndex] || null;
+      setProgress(i, pages.length, sv ? tr`Lecture du dessin ${i + 1} / ${pages.length}…` : tr`Analyse du dessin ${i + 1} / ${pages.length}…`);
       await tick();
       try {
         const want = longs[pages[i].fileIndex];
         const src = await pages[i].render(want > 0 ? want : max);
-        // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
-        Extract.removeSurface.debug = null;
         // qualité mesurée sur l'image reçue, avant que l'analyse n'égalise l'éclairage (sur place)
         const q = Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null });
-        const analysis = Extract.analyze(src.canvas, 0, { photo: true });
-        const photoDebug = Extract.removeSurface.debug;
+        let X = Extract, analysis, photoDebug = null;
+        if (sv) analysis = await restoreAnalysis(sv);
+        else {
+          if (legacy[pages[i].fileIndex]) X = await legacyExtract();
+          // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
+          X.removeSurface.debug = null;
+          analysis = X.analyze(src.canvas, 0, { photo: true });
+          photoDebug = X.removeSurface.debug;
+        }
         const d = {
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
-          cutPrefs: Extract.cutPrefs(),
+          cutPrefs: Extract.cutPrefs(), extract: X === Extract ? null : X,
           orient: 'auto', orientDeg: 0,
           original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
@@ -353,6 +361,8 @@
           pxLong: src.pxLong || null,
           q,
         };
+        // page sauvegardée déjà tournée : la page droite (sans découpe) reste la base, comme à l'import
+        if (sv && sv.deg) { d.orientDeg = sv.deg; d.base = unrotatedBase(analysis, sv.deg); }
         preparePieces(analysis.pieces, d);
         loadSize(d);
         loadOrient(d);
@@ -571,13 +581,32 @@
     if (d && d.cutPrefs) Extract.setCutPrefs(d.cutPrefs);
     try { return fn(); } finally { Extract.setCutPrefs(cur); }
   }
+  // Découpe automatique d'un dessin : celle d'aujourd'hui, ou l'ancienne (js/extract-legacy.js, chargé
+  // à la demande) pour un dessin relu d'une composition sauvegardée avant les découpes autonomes
+  // (voir savedOf) : ses pièces, retrouvées par leur rang, ne pourraient venir que de cette découpe-là.
+  const EX = (d) => (d && d.extract) || Extract;
+  let legacyLoading = null;
+  function legacyExtract() {
+    if (window.ExtractLegacy) return Promise.resolve(window.ExtractLegacy);
+    if (!legacyLoading) {
+      legacyLoading = new Promise((res, rej) => {
+        const sc = document.createElement('script');
+        sc.src = 'js/extract-legacy.js';
+        sc.onload = () => (window.ExtractLegacy ? res(window.ExtractLegacy) : rej(new Error('extract-legacy')));
+        sc.onerror = () => { legacyLoading = null; rej(new Error('extract-legacy')); };
+        document.head.appendChild(sc);
+      });
+    }
+    // (module absent, copie partielle de l'app : la découpe d'aujourd'hui, au mieux)
+    return legacyLoading.catch((e) => { console.warn('ancienne découpe indisponible', e); return Extract; });
+  }
   function applyOrientation(d) {
     const deg = effectiveOrient(d);
     if (deg === d.orientDeg) return false;
     d.orientDeg = deg;
     if (deg === 0) d.analysis = d.base;
     else {
-      const a = withCut(d, () => Extract.rotated(d.base, deg));
+      const a = withCut(d, () => EX(d).rotated(d.base, deg));
       // la page tournée garde la découpe ou le fond décidés pour la page droite
       a.kind = d.base.kind;
       d.analysis = a;
@@ -593,7 +622,7 @@
   // mode : 'auto' (sol reconnu automatiquement), 'force' (retrait demandé par l'utilisateur), 'keep' (photo entière)
   function setPhotoMode(d, mode) {
     if (!d.original || d.photoMode === mode) return;
-    const a = withCut(d, () => Extract.analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' }));
+    const a = withCut(d, () => EX(d).analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' }));
     if (mode !== 'keep' && !a.photo) { notice(tr('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.')); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
     d.photoMode = mode;
     d.base = a; d.analysis = a; d.orientDeg = 0;
@@ -806,10 +835,10 @@
     const a = d.analysis;
     const role = roleOf(d);
     if (role === 'cutout' && !a.pieces) {
-      a.pieces = withCut(d, () => Extract.recut(a));
+      a.pieces = withCut(d, () => EX(d).recut(a));
       preparePieces(a.pieces, d);
     }
-    if (role === 'texture' && !a.texture) a.texture = Extract.textureFrom(a.page);
+    if (role === 'texture' && !a.texture) a.texture = EX(d).textureFrom(a.page);
   }
 
   function preparePieces(pieces, d) {
@@ -2312,7 +2341,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
       autoPiece: () => {
         const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
-        return k >= 0 ? withCut(d, () => Extract.recut(d.analysis))[k] || null : null;
+        return k >= 0 ? withCut(d, () => EX(d).recut(d.analysis))[k] || null : null;
       },
       onTone: (t) => {
         if (t && (t.b || t.c || t.s)) d.tone = t; else delete d.tone;
@@ -2428,6 +2457,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     list.forEach((d) => {
       const a = d.analysis, old = a.pieces || [];
       d.cutPrefs = Extract.cutPrefs();
+      d.extract = null; // découpe refaite : celle d'aujourd'hui
       a.pieces = Extract.recut(a);
       preparePieces(a.pieces, d);
       old.forEach((q) => Extract.release(q.canvas));
@@ -3015,16 +3045,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
         if (K0 <= 1.05) continue;
         const mode = d.photoMode;
-        let a = withCut(d, () => Extract.analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' }));
+        let a = withCut(d, () => EX(d).analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' }));
         tmp.push(a);
-        if (d.orientDeg) { const b = withCut(d, () => Extract.rotated(a, d.orientDeg)); b.kind = a.kind; a = b; tmp.push(a); }
+        if (d.orientDeg) { const b = withCut(d, () => EX(d).rotated(a, d.orientDeg)); b.kind = a.kind; a = b; tmp.push(a); }
         const page = d.analysis.page;
         const K = a.page.width / page.width;
         // la page retrouvée doit être la même (même recadrage) : sinon on garde la version de travail
         if (K < 1.05 || Math.abs(a.page.width / a.page.height - page.width / page.height) > 0.03) continue;
         const pieces = comp.items.filter((L) => L.piece && L.piece.drawing === d);
         if (pieces.length) {
-          if (!a.pieces) a.pieces = withCut(d, () => Extract.recut(a));
+          if (!a.pieces) a.pieces = withCut(d, () => EX(d).recut(a));
           pieces.forEach((L) => {
             const p = L.piece;
             const needLong = Math.ceil(Math.max(L.w, L.h) * s * 1.02);
@@ -3054,7 +3084,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         }
         const t = d.analysis.texture;
         if (t && comp.bg.some((L) => L.src === t.canvas)) {
-          const ht = a.texture || Extract.textureFrom(a.page);
+          const ht = a.texture || EX(d).textureFrom(a.page);
           tmp.push(ht.canvas);
           t.canvas.hd = Extract.scaleTo(ht.canvas, Math.ceil(Math.max(t.canvas.width, t.canvas.height) * r * 1.02));
         }
@@ -3474,7 +3504,7 @@ Réponds uniquement avec ce JSON :
         };
         // Claude a vu un dessin photographié sur un sol ou une table que la détection a manqué : on force le détourage
         if (it.photo_sol === true && !d.photo && d.photoMode !== 'keep') {
-          const a = withCut(d, () => Extract.analyze(d.original, 0, { photo: true, force: true }));
+          const a = withCut(d, () => EX(d).analyze(d.original, 0, { photo: true, force: true }));
           if (a.photo) {
             d.photoMode = 'force';
             d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo;
@@ -3630,7 +3660,7 @@ Réponds uniquement avec ce JSON :
       rec.id = DRAFT_ID;
       await dbPut(rec);
       // images de dessins retirés depuis : effacées (d'après le magasin lui-même)
-      const used = new Set([...rec.drawings.map((x) => x.ref), ...cartRefs()]);
+      const used = new Set([...rec.drawings.flatMap((x) => [x.ref, savedRef(x)]), ...cartRefs()]);
       const stale = (await filesKeys().catch(() => [])).filter((k) => !used.has(k));
       if (stale.length) { await filesDel(stale).catch(() => {}); stale.forEach((k) => storedKeys.delete(k)); }
     } catch (e) { console.warn('brouillon non enregistré', e); }
@@ -3790,6 +3820,130 @@ Réponds uniquement avec ce JSON :
   // clé de l'image d'un dessin dans le magasin du brouillon (fichier + page)
   const draftKey = (d) => (d.fileKey ? `${d.fileKey}#${(d.source && d.source.index) || 0}` : `dessin-${d.id}`);
   let storedKeys = null; // clés déjà écrites (relues une fois au premier brouillon)
+
+  /*
+   * Découpes autonomes. Une sauvegarde garde, pour chaque dessin, sa page de travail (JPEG) et la
+   * découpe de chaque pièce : son masque (la transparence de la pièce), rangé avec les autres dans une
+   * ou plusieurs planches PNG. À la réouverture, les pièces sont rebâties depuis la page et les
+   * masques : exactement celles qui avaient été posées, quelle que soit la découpe automatique du
+   * moment. (Avant, le dessin était réanalysé et les pièces retrouvées par leur rang : une découpe
+   * automatique améliorée entre-temps mélangeait les pièces de l'œuvre.)
+   */
+  const ATLAS_W = 2048, ATLAS_AREA = 6e6; // planches bornées (Safari limite la surface d'un canevas)
+  // rangement en étagères : pièces de la plus haute à la plus basse, posées de gauche à droite
+  function packMasks(pieces) {
+    const order = pieces.map((p, k) => k).sort((a, b) => pieces[b].canvas.height - pieces[a].canvas.height);
+    const atlases = [], at = new Array(pieces.length);
+    let cur = null;
+    const open = () => { cur = { w: 0, h: 0, x: 0, y: 0, rowH: 0, items: [] }; atlases.push(cur); };
+    open();
+    for (const k of order) {
+      const c = pieces[k].canvas, w = c.width, h = c.height;
+      if (cur.x + w > Math.max(ATLAS_W, w)) { cur.y += cur.rowH; cur.x = 0; cur.rowH = 0; }
+      if (cur.items.length && (cur.y + h) * Math.max(cur.w, w) > ATLAS_AREA) open();
+      cur.items.push({ k, x: cur.x, y: cur.y });
+      at[k] = [atlases.length - 1, cur.x, cur.y];
+      cur.x += w; cur.rowH = Math.max(cur.rowH, h); cur.w = Math.max(cur.w, cur.x); cur.h = cur.y + cur.rowH;
+    }
+    const canvases = atlases.filter((a) => a.items.length).map((a) => {
+      const c = Extract.makeCanvas(a.w, a.h), ctx = c.getContext('2d');
+      a.items.forEach((it) => ctx.drawImage(pieces[it.k].canvas, it.x, it.y));
+      // la planche ne garde que la transparence (noir partout) : PNG léger
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, c.width, c.height);
+      return c;
+    });
+    return { atlases: canvases, at };
+  }
+  // la page et les planches d'un dessin, encodées une fois par état de ses pièces (brouillon fréquent)
+  async function savedOf(d, refs) {
+    const a = d.analysis, pieces = a.pieces || [];
+    const sig = [a.page].concat(pieces.map((p) => p.canvas));
+    const c = d.savedPack;
+    if (!(c && c.sig.length === sig.length && c.sig.every((x, i) => x === sig[i]))) {
+      const page = await toBlob(a.page, 'image/jpeg', 0.92);
+      const packed = packMasks(pieces);
+      const atlases = [];
+      for (const pc of packed.atlases) { const b = await toBlob(pc, 'image/png'); atlases.push({ w: pc.width, h: pc.height, data: await b.arrayBuffer() }); Extract.release(pc); }
+      d.savedPack = { sig, rev: (c ? c.rev : 0) + 1, page: { w: a.page.width, h: a.page.height, data: await page.arrayBuffer() }, atlases, at: packed.at };
+    }
+    const pk = d.savedPack;
+    const meta = {
+      v: 1, deg: d.orientDeg || 0, kind: a.kind, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac,
+      photo: d.photo ? { kind: d.photo.kind || null, sheet: !!d.photo.sheet } : null,
+      pieces: pieces.map((p, k) => ({
+        at: pk.at[k], w: p.canvas.width, h: p.canvas.height,
+        src: { x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h, paper: p.src.paper || null },
+        hit: p.hit ? [p.hit.w, p.hit.h] : null, frac: p.frac, colorful: p.colorful, color: p.color || null, base: p.base === undefined ? null : p.base,
+        object: !!p.object, edited: !!p.edited,
+      })),
+    };
+    if (refs) {
+      // brouillon : les octets vont dans le magasin des images, une fois par état (clé changée à chaque retouche)
+      const key = `${draftKey(d)}#decoupe-${pk.rev}`;
+      if (!storedKeys.has(key)) { await filesPut(key, { page: pk.page.data, atlases: pk.atlases.map((x) => x.data) }); storedKeys.add(key); }
+      return Object.assign(meta, { ref: key, page: { w: pk.page.w, h: pk.page.h }, atlases: pk.atlases.map((x) => ({ w: x.w, h: x.h })) });
+    }
+    return Object.assign(meta, { page: pk.page, atlases: pk.atlases });
+  }
+  const savedRef = (sd) => (sd && sd.saved && sd.saved.ref) || null;
+  // brouillon ou panier : les octets de la page et des planches, rangés à part, sont remis dans l'enregistrement
+  async function loadSavedRef(sd) {
+    if (sd.saved && sd.saved.ref && !sd.saved.page.data) {
+      const pk = await filesGet(sd.saved.ref).catch(() => null);
+      if (pk && pk.page) { sd.saved.page.data = pk.page; (sd.saved.atlases || []).forEach((at, j) => { at.data = pk.atlases[j]; }); }
+    }
+    if (sd.saved && !(sd.saved.page && sd.saved.page.data)) sd.saved = null;
+    if (sd.saved) delete sd.saved.ref;
+  }
+  async function canvasFrom(data, type) {
+    const b = await createImageBitmap(new Blob([data], { type }));
+    const c = Extract.makeCanvas(b.width, b.height);
+    c.getContext('2d').drawImage(b, 0, 0);
+    if (b.close) b.close();
+    return c;
+  }
+  // l'analyse d'un dessin rebâtie depuis sa sauvegarde : page, pièces (image de la page sous le masque)
+  async function restoreAnalysis(sv) {
+    const page = await canvasFrom(sv.page.data, 'image/jpeg');
+    const atlases = [];
+    for (const at of sv.atlases || []) atlases.push(await canvasFrom(at.data, 'image/png'));
+    const paper = sv.paper || null;
+    const pieces = [];
+    for (const q of sv.pieces || []) {
+      const [ai, ax, ay] = q.at, w = q.w, h = q.h;
+      const mask = Extract.makeCanvas(w, h);
+      mask.getContext('2d').drawImage(atlases[ai], ax, ay, w, h, 0, 0, w, h);
+      const crop = Extract.makeCanvas(w, h);
+      crop.getContext('2d').drawImage(page, q.src.x, q.src.y, q.src.w, q.src.h, 0, 0, w, h);
+      const img = Extract.enhance(crop, q.src.paper || paper);
+      Extract.release(crop);
+      const ctx = img.getContext('2d');
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(mask, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      const hw = Math.max(4, Math.round(q.hit ? q.hit[0] : w * 0.3)), hh = Math.max(4, Math.round(q.hit ? q.hit[1] : h * 0.3));
+      const hc = Extract.makeCanvas(hw, hh);
+      const hctx = hc.getContext('2d', { willReadFrequently: true });
+      hctx.drawImage(mask, 0, 0, hw, hh);
+      const hd = hctx.getImageData(0, 0, hw, hh).data;
+      const hit = new Uint8Array(hw * hh);
+      for (let i = 0; i < hit.length; i++) hit[i] = hd[i * 4 + 3] > 127 ? 1 : 0;
+      Extract.release(hc); Extract.release(mask);
+      const src = { x: q.src.x, y: q.src.y, w: q.src.w, h: q.src.h };
+      if (q.src.paper) src.paper = q.src.paper;
+      pieces.push({ canvas: img, hit: { w: hw, h: hh, data: hit }, frac: q.frac, colorful: q.colorful, color: q.color || [200, 200, 200], base: q.base === null ? undefined : q.base, object: q.object || undefined, edited: !!q.edited, src });
+    }
+    atlases.forEach((c) => Extract.release(c));
+    const a = { page, paper, kind: sv.kind || 'cutout', pieces: pieces.length ? pieces : null, texture: null, paperFrac: sv.paperFrac === null ? undefined : sv.paperFrac, photo: sv.photo || null };
+    if (paper) a.cut = { paper };
+    return a;
+  }
+  // la page droite d'un dessin dont la sauvegarde est déjà tournée (sa découpe sera refaite si l'orientation change)
+  function unrotatedBase(a, deg) {
+    return { page: Extract.rotateCanvas(a.page, (360 - deg) % 360), paper: a.paper, kind: a.kind, pieces: null, texture: null, paperFrac: a.paperFrac, photo: a.photo, cut: a.cut };
+  }
   /*
    * opts.refs (brouillon) : chaque image n'est écrite qu'une fois dans FILES_STORE, le brouillon ne
    * garde que sa clé ; une composition sauvegardée garde ses images avec elle.
@@ -3812,15 +3966,13 @@ Réponds uniquement avec ce JSON :
           storedKeys.add(ref);
         }
       } else ({ data, type } = await sourceBytes(d));
-      // retouches de découpe : le masque de chaque pièce retouchée (PNG de sa transparence), avec sa
-      // position dans la page, pour être rejoué sur la page réimportée
-      const edits = [];
-      for (const p of d.analysis.pieces || []) edits.push(p.edited ? await editOf(p, d) : null);
+      // la page de travail et la découpe de chaque pièce (retouches comprises) : voir savedOf
+      const saved = await savedOf(d, refs);
       drawings.push({
         name: d.name, data, type, ref, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null, work: d.srcLong,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
-        pieceEdits: edits,
+        saved,
         cut: d.cutPrefs || null,
       });
     }
@@ -3837,7 +3989,7 @@ Réponds uniquement avec ce JSON :
     const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale']), { items, bg });
     return {
-      id: Date.now(), name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
+      id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
       settings: { format: $('format').value, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
       drawings, comp: compData,
     };
@@ -4002,6 +4154,7 @@ Réponds uniquement avec ce JSON :
     if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette sauvegarde ne contient aucun dessin.')); return; }
     for (const sd of rec.drawings) {
       if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
+      await loadSavedRef(sd); // découpes sauvegardées du brouillon : leurs octets, dans le magasin des images
     }
     const bytesOf = (d) => d.data || d.blob || null;
     const sizeOf = (d) => { const b = bytesOf(d); return b ? (b.byteLength !== undefined ? b.byteLength : b.size) : 0; };
@@ -4031,7 +4184,11 @@ Réponds uniquement avec ce JSON :
     const files = rec.drawings.map((d) => new File([bytesOf(d)], d.name, { type: d.type || 'image/jpeg' }));
     const sizes = {};
     rec.drawings.forEach((d) => { sizes[d.name] = d.sizeCm; });
-    try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0) }); } finally { state.restoring = false; }
+    // dessins : page et découpes sauvegardées telles quelles ; sinon réanalysés, avec la découpe
+    // automatique de l'époque pour une sauvegarde d'avant les découpes autonomes (v < 2)
+    const legacy = rec.drawings.map((sd) => !sd.saved && !(rec.v >= 2));
+    if (legacy.some(Boolean)) savedStatus(tr('Ancienne sauvegarde : les dessins sont redécoupés comme à l’époque…'));
+    try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0), saved: rec.drawings.map((sd) => sd.saved || null), legacy }); } finally { state.restoring = false; }
     if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu depuis la sauvegarde.')); return; }
     // réglages par dessin
     rec.drawings.forEach((sd, i) => {
@@ -4040,13 +4197,20 @@ Réponds uniquement avec ce JSON :
       d.ai = sd.ai || null;
       // la découpe apprise au moment de la sauvegarde : le dessin est réanalysé avec, pour retrouver
       // les mêmes pièces (les retouches y sont rejouées par rang)
-      if (sd.cut && d.original && JSON.stringify(sd.cut) !== JSON.stringify(d.cutPrefs || Extract.CUT_DEFAULT)) {
-        d.cutPrefs = sd.cut;
-        const a = withCut(d, () => Extract.analyze(d.original, 0, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' }));
-        d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo || null; d.thumb = thumbOf(a.page);
-        preparePieces(a.pieces, d);
+      if (sd.saved) {
+        // page et pièces relues telles quelles : rien à réanalyser (les préférences de découpe de
+        // l'époque restent, pour la haute définition) ; la photo entière ou détourée l'est déjà
+        d.cutPrefs = sd.cut || Object.assign({}, Extract.CUT_DEFAULT);
+        if (sd.photoMode) d.photoMode = sd.photoMode;
+      } else {
+        if (sd.cut && d.original && JSON.stringify(sd.cut) !== JSON.stringify(d.cutPrefs || Extract.CUT_DEFAULT)) {
+          d.cutPrefs = sd.cut;
+          const a = withCut(d, () => EX(d).analyze(d.original, 0, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' }));
+          d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo || null; d.thumb = thumbOf(a.page);
+          preparePieces(a.pieces, d);
+        }
+        if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
       }
-      if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
       if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
       if (sd.tone) d.tone = sd.tone; else delete d.tone;
       d.role = ROLES.includes(sd.role) ? sd.role : 'auto'; // rôle effectif figé : la composition compte dessus
@@ -4058,7 +4222,7 @@ Réponds uniquement avec ce JSON :
     let nEdits = 0, nSkipped = 0;
     for (let i = 0; i < rec.drawings.length; i++) {
       const sd = rec.drawings[i], d = state.drawings[i];
-      if (!d || !sd.pieceEdits) continue;
+      if (!d || !sd.pieceEdits || sd.saved) continue; // (découpes sauvegardées : retouches déjà dedans)
       for (let k = 0; k < sd.pieceEdits.length; k++) {
         const e = sd.pieceEdits[k], p = (d.analysis.pieces || [])[k];
         if (!e || !p || !e.mask) continue;
@@ -4556,7 +4720,7 @@ Réponds uniquement avec ce JSON :
       rec.id = `panier-${id}`;
       rec.cart = true;
       await dbPut(rec);
-      const it = { id, recId: rec.id, refs: rec.drawings.map((x) => x.ref), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: choice.qty };
+      const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: choice.qty };
       it.unit = unitPrice(it);
       const items = loadCart();
       items.push(it);
@@ -4637,6 +4801,7 @@ Réponds uniquement avec ce JSON :
             for (const sd of rec.drawings) {
               if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
               delete sd.ref;
+              await loadSavedRef(sd);
             }
             rec.name = `${ref} · ${it.title}`.slice(0, 80);
             delete rec.cart;
