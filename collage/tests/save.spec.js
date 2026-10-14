@@ -246,6 +246,39 @@ test.describe('Réouverture fidèle des retouches', () => {
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2, null, { timeout: 120000 });
   });
 
+  test('atelier/?exemple (« Voir un exemple ») : les dessins d’exemple seuls, l’œuvre en cours seulement proposée', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const draft = () => page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille');
+      q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
+      q.onerror = () => res(null);
+    }));
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 2) break; await page.waitForTimeout(500); }
+    await page.goto('index.html?exemple');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.proposals && document.getElementById('progress').hidden && AtelierGribouille.state.drawings.length > 2, null, { timeout: 180000 });
+    await page.waitForTimeout(1500);
+    // seulement les dessins d'exemple, et l'œuvre en cours proposée (pas rouverte par-dessus)
+    const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
+    expect(names.every((n) => /^Exemple/.test(n))).toBe(true);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.every((d) => d.sample))).toBe(true);
+    await expect(page.locator('#draft-offer')).toBeVisible();
+    await expect(page.locator('#draft-resume')).toBeVisible();
+    await expect(page.locator('#sample-note')).toBeVisible();
+    // l'exemple n'écrase pas l'œuvre en cours ; « Reprendre » la ramène à la place de l'exemple
+    await page.waitForTimeout(3500);
+    expect((await draft()).drawings.length).toBe(2);
+    await page.locator('#draft-resume').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.some((d) => d.sample))).toBe(false);
+    await expect(page.locator('#sample-note')).toBeHidden();
+    await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
+  });
+
   test('dessins importés en plusieurs fois : la retouche revient au même endroit, sinon elle n’est pas plaquée de travers', async ({ page }) => {
     test.setTimeout(240000);
     const { fixture } = require('./helpers');

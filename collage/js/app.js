@@ -3879,8 +3879,10 @@ Réponds uniquement avec ce JSON :
     clearTimeout(draftTimer);
     draftTimer = setTimeout(saveDraft, 2500);
   }
+  const onlySamples = () => state.drawings.length > 0 && state.drawings.every((d) => d.sample);
   async function saveDraft() {
     if (!state.comp || !state.drawings.length || state.restoring) return;
+    if (onlySamples()) return; // l'exemple n'est jamais l'œuvre en cours : elle reste gardée telle quelle
     if (draftBusy) { draftAgain = true; return; }
     draftBusy = true;
     try {
@@ -3915,12 +3917,20 @@ Réponds uniquement avec ce JSON :
     if (!box) return;
     let rec = null;
     try { rec = await dbGet(DRAFT_ID); } catch (e) { rec = null; }
-    if (!rec || !rec.drawings || !rec.drawings.length || state.drawings.length) return;
+    if (!rec || !rec.drawings || !rec.drawings.length) return;
+    if (state.drawings.length) {
+      // « Reprendre » alors que l'exemple est affiché : il laisse la place à l'œuvre en cours
+      if (!(manual && onlySamples())) return;
+      state.drawings = []; state.proposals = null; state.comp = null; state.current = null; state.selected = null; state.bgCache = null; state.pinned = null;
+      $('proposals').innerHTML = '';
+      ['sample-note', 'label'].forEach((id) => ($(id).hidden = true));
+    }
     let crashed = false;
     try { crashed = Date.now() - Number(localStorage.getItem(RESUME_KEY) || 0) < 15 * 60e3; } catch (e) { crashed = false; }
-    // « Créer mon œuvre » depuis l'accueil (atelier/?nouveau) : l'atelier s'ouvre vide, l'œuvre en
-    // cours gardée dans ce navigateur est seulement proposée
-    const fresh = /[?&]nouveau\b/.test(location.search);
+    // « Créer mon œuvre » (atelier/?nouveau) ou « Voir un exemple » (atelier/?exemple) depuis
+    // l'accueil : l'atelier s'ouvre vide (puis avec les seuls dessins d'exemple), l'œuvre en cours
+    // gardée dans ce navigateur est seulement proposée, jamais mélangée à l'exemple
+    const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
     if ((crashed || fresh) && !manual) {
       box.querySelector('span').textContent = fresh
         ? tr`Une œuvre en cours (${rec.drawings.length} dessins) est gardée dans ce navigateur.`
