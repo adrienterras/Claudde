@@ -1532,9 +1532,12 @@
     if (!state.drawings.length) return;
     sel.value = 'auto:1.4286';
     planCoverage();
-    const ideal = Math.max(900, state.canvasArea || 7000);
-    const m = state.bgMin || { long: 0, short: 0 };
     const density = Number($('density').value);
+    // surface idéale : celle du plan automatique, et au moins de quoi poser toutes les découpes
+    // (environ la moitié de la toile, selon le curseur) quand il n'y a que peu de pages de fond
+    const idealPieces = paperAreas(state.drawings).pieceArea / Math.max(0.2, 0.5 * density);
+    const ideal = Math.max(900, state.canvasArea || 0, idealPieces);
+    const m = state.bgMin || { long: 0, short: 0 };
     const portrait = canvasOrient() === 'port';
     let best = null;
     const tried = new Set();
@@ -1549,18 +1552,20 @@
       const { bgArea, pieceArea } = paperAreas(state.drawings);
       const cov = bgArea / area, pieces = pieceArea / area;
       let pen = 0;
-      // fond : il faut du papier (sinon la toile se voit), le mieux est un chevauchement d'un tiers
-      if (bgArea > 0) { if (cov < 1.05) pen += 6 + (1.05 - cov) * 10; else if (cov < 1.2) pen += 1.5; else pen += Math.max(0, cov - 2.2) * 0.8; }
+      // taille : d'abord proche de la surface idéale à taille réelle (planCoverage, qui équilibre déjà
+      // le papier de fond, les découpes et le curseur) ; la peinture de fond comble ce que le papier
+      // ne couvre pas, une toile plus grande que le papier n'est donc pas une faute
+      pen += Math.abs(Math.log(area / ideal)) * 2.5;
       // découpes : environ la moitié de la toile (curseur), ni entassées ni perdues
       const want = 0.45 * density;
-      pen += Math.abs(Math.log(Math.max(0.02, pieces) / want)) * 1.6;
+      pen += Math.abs(Math.log(Math.max(0.02, pieces) / want)) * 0.8;
+      // fond : très peu de papier pour la toile (la peinture domine), ou beaucoup trop (pages gâchées)
+      if (bgArea > 0) { if (cov < 0.5) pen += 1; else if (cov > 2.5) pen += 0.5; }
       // la plus grande page de fond doit tenir entière
       if (m.long > Math.max(w, h) + 0.5 || m.short > Math.min(w, h) + 0.5) pen += 3;
       // proportion : classique (1,3 à 1,5) en tête, carrée ensuite, bande en dernier
       const r = Math.max(w, h) / Math.min(w, h);
       pen += r > 1.6 ? (r - 1.6) * 1.2 + 0.3 : r < 1.2 ? 0.25 : 0;
-      // taille : proche de la surface idéale à taille réelle
-      pen += Math.abs(Math.log(area / ideal)) * 0.9;
       // gamme : châssis courants d'abord
       pen += t[0] === 'classique' ? 0.2 : 0;
       if (!best || pen < best.pen) best = { v, pen };
@@ -1777,7 +1782,10 @@
     let best = null;
     CULTURA.forEach((t) => {
       const w = land ? t[1] : t[2], h = land ? t[2] : t[1];
-      const pen = Math.abs(Math.log((w * h) / (f.w * f.h))) + Math.abs(Math.log((w / h) / (f.w / f.h))) * 1.5 + (t[0] === 'classique' ? 0.1 : 0);
+      // (une toile plus petite que le format calculé coûte plus cher qu'une plus grande : les
+      // dessins, à taille réelle, ont besoin de place)
+      const la = Math.log((w * h) / (f.w * f.h));
+      const pen = (la < 0 ? -la * 2.5 : la) + Math.abs(Math.log((w / h) / (f.w / f.h))) * 1.5 + (t[0] === 'classique' ? 0.1 : 0);
       if (!best || pen < best.pen) best = { w, h, pen };
     });
     return { w: best.w, h: best.h, auto: false, advised: true };
