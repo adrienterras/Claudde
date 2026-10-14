@@ -1786,6 +1786,11 @@
     const paperFrac = paperCount / Math.max(1, n - surfCount);
     const surfFrac = surfCount / n;
     Object.assign(removeSurface.debug, { surfFrac: +surfFrac.toFixed(2), gate: 'surface' });
+    // mur ou table clairs, de la couleur du papier : la feuille ne se distingue pas de la surface, il
+    // ne resterait que l'encre (et un short noir passerait pour une ombre, les jambes seraient
+    // perdues). La photo est alors traitée comme un scan : le papier est partout, les sujets se
+    // découpent à l'encre.
+    if (!force && neutral && L >= 170 && paperFrac < 0.1) { removeSurface.debug.gate = 'feuille≈surface'; return null; }
     if (!force && (surfFrac < 0.05 || surfFrac > 0.97)) return null;
     if (force && (surfFrac < 0.02 || surfFrac > 0.99)) return null;
     // une bordure trop disparate est une page peinte jusqu'aux bords, pas un sol
