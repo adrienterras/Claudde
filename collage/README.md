@@ -275,7 +275,10 @@ cd collage && python3 -m http.server 8000
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
      alternant claires et foncées comme un damier cousu ; une découpe posée en médaillon au centre
-     de chaque carreau, les plus grandes sur les plus grands carreaux),
+     de chaque carreau, les plus grandes sur les plus grands carreaux, les suivantes là où les pages
+     ne couvrent pas la toile ; sans page de fond — atelier Impression, ou que des découpes — les
+     découpes elles-mêmes font les carreaux : rangées pleine largeur, chaque pièce ajustée à sa
+     rangée sans jamais être agrandie, le nombre de rangées choisi pour remplir la hauteur),
      *Galerie* (une grille régulière de cases carrées cernées d'un trait noir fin de 0,8 mm, un sujet
      par case, le nombre de cases suivant le curseur de densité, comme une planche de personnages
      encadrée ; ce style est fait pour l'impression : un dessin trop grand pour sa case est réduit,

@@ -137,6 +137,32 @@ test.describe('Compositions', () => {
     }
   });
 
+  test('Courtepointe sans page de fond (atelier Impression) : les découpes en rangées pleine largeur, toute la toile couverte', async ({ app }) => {
+    // la bascule de mode recompose les propositions (comme le bouton de l'interface)
+    await app.page.locator('#mode-switch [data-mode="impression"]').click();
+    await app.page.waitForTimeout(400);
+    await app.select('courtepointe');
+    const r = await app.page.evaluate(() => {
+      const c = AtelierGribouille.state.comp;
+      return { W: c.W, H: c.H, bg: c.bg.length, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, scale: L.scale, rot: L.rot })) };
+    });
+    expect(r.bg).toBe(0);
+    expect(r.items.length).toBeGreaterThan(2);
+    // les pièces s'étendent sur toute la toile (pas entassées en bas ni au centre), aucune agrandie
+    const x0 = Math.min(...r.items.map((it) => it.x - it.w / 2)), x1 = Math.max(...r.items.map((it) => it.x + it.w / 2));
+    const y0 = Math.min(...r.items.map((it) => it.y - it.h / 2)), y1 = Math.max(...r.items.map((it) => it.y + it.h / 2));
+    // (les pièces d'essai sont petites : elles ne couvrent pas tout, mais s'étalent et restent centrées)
+    expect(x1 - x0).toBeGreaterThan(0.55 * r.W);
+    expect(Math.abs((x0 + x1) / 2 - r.W / 2)).toBeLessThan(0.1 * r.W);
+    expect(Math.abs((y0 + y1) / 2 - r.H / 2)).toBeLessThan(0.1 * r.H);
+    expect(x0).toBeGreaterThan(-0.01 * r.W);
+    expect(y0).toBeGreaterThan(-0.01 * r.H);
+    for (const it of r.items) expect(it.scale || 1).toBeLessThanOrEqual(1.0001);
+    for (const it of r.items) expect(Math.abs(it.rot)).toBeLessThan(0.05);
+    await app.page.locator('#mode-switch [data-mode="toile"]').click();
+    await app.page.waitForTimeout(400);
+  });
+
   test('Nuage : fond uni sans page peinte, sujets droits et espacés', async ({ app }) => {
     await app.select('nuage');
     const r = await app.page.evaluate(() => {

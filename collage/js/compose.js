@@ -509,6 +509,74 @@
    * Courtepointe : les pages de fond sont les carreaux d'un patchwork, posées bord à bord, presque
    * droites, en alternant claires et foncées comme un damier cousu. Retourne les centres des carreaux.
    */
+  // grille de carreaux sur une toile sans page de fond : autant de cases que de pièces, aux
+  // proportions de la toile, parcourues en lignes
+  /*
+   * Courtepointe sans page de fond : les découpes elles-mêmes font les carreaux. Les sujets retenus
+   * (les plus forts d'abord, autant que la densité le demande) sont rangés en rangées pleine largeur,
+   * comme une galerie « justifiée » : chaque rangée a sa hauteur, ses pièces mises à l'échelle pour
+   * remplir toute la largeur, et le nombre de rangées est celui qui remplit au mieux la hauteur.
+   * Aucune pièce n'est agrandie au-delà de sa taille (déjà réduite pour le cadre) : si les dessins
+   * ne suffisent pas à couvrir, les rangées sont centrées et le fond respire autour.
+   */
+  function quiltPack(W, H, pieces, o, R) {
+    const weight = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(Math.max(0.05, p.colorful), 1.3) * (p.importance || 1);
+    const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
+    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
+    const maxCount = o.everything ? sorted.length : Math.max(1, Math.round(sorted.length * (0.2 + 0.8 * t)));
+    pieces.forEach((p) => { p.placed = false; });
+    const kept = sorted.slice(0, maxCount);
+    if (!kept.length) return [];
+    // ordre d'une courtepointe : mélangé, mais déterministe (la graine), les grandes réparties
+    const order = kept.map((p, i) => ({ p, k: (i % 3) + R() })).sort((a, b) => a.k - b.k).map((x) => x.p);
+    const n = order.length;
+    let best = null;
+    for (let rows = 1; rows <= n; rows++) {
+      const rowH = H / rows;
+      // rangées : on remplit chacune jusqu'à dépasser la largeur à la hauteur de rangée
+      const rowsOut = []; let cur = [], curW = 0;
+      order.forEach((p) => {
+        const w = p.wcm * (rowH / p.hcm);
+        cur.push(p); curW += w;
+        if (curW >= W && rowsOut.length < rows - 1) { rowsOut.push(cur); cur = []; curW = 0; }
+      });
+      if (cur.length) rowsOut.push(cur);
+      if (rowsOut.length !== rows) continue;
+      // chaque rangée mise à l'échelle pour faire toute la largeur ; la hauteur totale qui en découle
+      const layout = rowsOut.map((r) => {
+        const sumW = r.reduce((a, p) => a + p.wcm * (rowH / p.hcm), 0);
+        const k = W / sumW;
+        return { r, h: rowH * k };
+      });
+      const total = layout.reduce((a, l) => a + l.h, 0);
+      const err = Math.abs(Math.log(total / H));
+      if (!best || err < best.err) best = { layout, total, err };
+    }
+    // ajustement final : tout à l'échelle pour tenir en hauteur, sans agrandir au-delà de la taille réelle
+    const fit = H / best.total;
+    const items = [];
+    let y = 0;
+    const totalH = best.layout.reduce((a, l) => a + l.h * fit, 0);
+    y = (H - totalH) / 2;
+    best.layout.forEach((l) => {
+      const h = l.h * fit;
+      const ks = l.r.map((p) => Math.min(1, h / p.hcm));
+      const widths = l.r.map((p, i) => p.wcm * ks[i]);
+      const sumW = widths.reduce((a, w) => a + w, 0);
+      // rangée plus étroite que la toile (pièces non agrandies) : centrée, un peu d'air entre les pièces
+      const gap = sumW < W ? Math.min((W - sumW) / (l.r.length + 1), 3) : 0;
+      let x = (W - sumW - gap * (l.r.length - 1)) / 2;
+      l.r.forEach((p, i) => {
+        const k = ks[i], w = widths[i], ph = p.hcm * k;
+        items.push({ kind: 'piece', piece: p, x: x + w / 2, y: y + h / 2, w, h: ph, rot: (R() - 0.5) * 0.04, flip: false, scale: k, r: 0 });
+        p.placed = true;
+        x += w + gap;
+      });
+      y += h;
+    });
+    // les grandes pièces dessous, les petites par-dessus
+    return items.sort((a, b) => b.w * b.h - a.w * a.h);
+  }
   function backgroundQuilt(W, H, texs, R, out) {
     const cov = Coverage(W, H);
     const byLum = texs.slice().sort((a, b) => a.lum - b.lum);
@@ -1161,10 +1229,28 @@
     } else if (style === 'courtepointe') {
       // un médaillon par carreau : les plus grandes découpes sur les plus grands carreaux
       Z = zonesFor(W, H, false);
-      const tiles = o.textures.length ? backgroundQuilt(W, H, o.textures, R, bg) : [];
-      if (!tiles.length) { bg.push(paperLayer(W, H)); }
+      // sans page de fond (fond uni, atelier Impression, ou que des découpes) : les découpes
+      // elles-mêmes font les carreaux, en rangées pleine largeur
+      if (!o.textures.length) {
+        if (!o.ground) bg.push(paperLayer(W, H));
+        const items = quiltPack(W, H, o.pieces, o, R);
+        const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
+        if (o.ground) { comp.ground = o.ground; comp.groundName = o.groundName || null; }
+        return comp;
+      }
+      const tiles = backgroundQuilt(W, H, o.textures, R, bg);
       const byArea = tiles.slice().sort((a, b) => b.w * b.h - a.w * a.h);
-      mode = { targets: (idx) => { const t = byArea.length ? byArea[idx % byArea.length] : { x: W / 2, y: H / 2 }; return { x: t.x, y: t.y, rot: 0, r: idx }; }, byRadius: false, tight: false, spread: 0.9 };
+      // plus de sujets que de carreaux : les suivants vont là où les pages ne couvrent pas la toile
+      // (cases d'une grille dont le centre n'est sous aucune page), avant de doubler un carreau
+      const nExtra = Math.max(0, o.pieces.length - tiles.length);
+      const cols = Math.max(2, Math.round(Math.sqrt(Math.max(4, nExtra + tiles.length) * W / H))), rows = Math.max(2, Math.round(cols * H / W));
+      const holes = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const x = (c + 0.5) * W / cols, y = (r + 0.5) * H / rows;
+        if (!tiles.some((t) => Math.abs(x - t.x) < t.w / 2 && Math.abs(y - t.y) < t.h / 2)) holes.push({ x, y });
+      }
+      const targetsAll = byArea.concat(holes);
+      mode = { targets: (idx) => { const t = targetsAll.length ? targetsAll[idx % targetsAll.length] : { x: W / 2, y: H / 2 }; return { x: t.x, y: t.y, rot: 0, r: idx }; }, byRadius: false, tight: false, spread: 0.9 };
     } else if (style === 'cerfsvolants') {
       // le ciel en bandes, incliné par le vent ; les découpes s'envolent sur une diagonale montante
       if (o.textures.length) Z = backgroundBands(W, H, o.textures, R, bg); else bg.push(paperLayer(W, H));
