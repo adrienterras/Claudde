@@ -158,9 +158,9 @@ cd collage && python3 -m http.server 8000
      entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
      une bordure blanche et n'est pas concerné) ; si elle ne reconnaît pas la surface, le bouton
      « Retirer le fond autour du dessin » force le détourage d'après la couleur de bordure ;
-   - **densité** (curseur sous l'aperçu de l'œuvre, avec le nombre de dessins utilisés) : le curseur
+   - **nombre de dessins** (curseur « Nombre de dessins » sous l'aperçu de l'œuvre, avec le compte des dessins utilisés) : le curseur
      règle le nombre de sujets posés, des plus forts aux plus faibles, de 20 % au minimum jusqu'à tous ;
-   - **densité au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
+   - **curseur au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
      rejoignent le fond ; la rotation des découpes est fixe (réglage retiré) ;
    - **résolution d'import** : chaque page est conservée à la plus haute résolution que l'appareil

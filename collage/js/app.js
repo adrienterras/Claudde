@@ -1665,7 +1665,7 @@
       const used = new Set();
       c.items.forEach((L) => used.add(L.piece.drawing));
       state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
-      $('density-note').textContent = tr`${used.size} dessin${used.size > 1 ? 's' : ''} sur ${state.drawings.length}${allIn() ? tr(' · tout') : ''}`;
+      $('density-note').textContent = tr`${used.size} sur ${state.drawings.length}${allIn() ? tr(' · tout') : ''}`;
       // styles qui ne retiennent qu'une sélection : on le dit, et on propose d'ajouter le reste
       const left = unusedDrawings();
       if (partial && c.total && left.length && !allIn()) {
