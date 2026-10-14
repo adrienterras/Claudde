@@ -50,6 +50,16 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThan(1);
     if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
     await expect(page.locator('#scale-info')).toContainText('Impression de 24 × 18 cm');
+    // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),
+    // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
+    const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground })));
+    expect(flat.every((p) => p.bg === 0 && !!p.ground)).toBe(true);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.every((d) => d.role !== 'texture' && (d.auto !== 'texture' || true)))).toBe(true);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.bg.length)).toBe(0);
+    await page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
+    await page.locator('#drawings .thumb').first().click();
+    await expect(page.locator('#detail [data-role="texture"]')).toHaveCount(0);
+    expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(true);
     await expect(page.locator('#export-info')).toContainText('impression de 24 × 18 cm');
     // chaque dessin s'agrandit ou se réduit à la main : boutons (10 %), puis poignée carrée
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
@@ -138,6 +148,9 @@ test.describe('Atelier Impression et atelier Toile', () => {
     if ((await page.evaluate(() => AtelierGribouille.state.comp.style)) !== 'galerie') await expect(page.locator('#toolbar [data-act="bigger"]')).toBeHidden();
     await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
     await expect(page.locator('#guide-box')).toBeVisible();
+    // toile : les pages peintes restent des pages de fond, la toile nue reste proposée
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.some((p) => p.comp.bg.some((L) => !L.paper)))).toBe(true);
+    expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(false);
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add input[value="guide"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeVisible();

@@ -20,7 +20,10 @@ cd collage && python3 -m http.server 8000
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, calculé d'après la
      surface qu'ils demanderaient à taille réelle ; jamais agrandis, pour la netteté du tirage).
      Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
-     guide de création ; finition toile décochée. Chaque pièce posée s'agrandit ou se réduit à la
+     guide de création ; finition toile décochée. Le **fond est toujours un aplat de couleur** : aucune
+     page collée en fond (`roleOf` ne rend jamais « fond » en impression, une page peinte devient une
+     forme découpée, le rôle « fond » n'est pas proposé), pas de toile nue (la teinte conseillée
+     s'applique d'office), blanc fixe en Galerie. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, boutons Agrandir / Réduire de 10 %, touches + et −),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez

@@ -661,6 +661,12 @@
   // Rôle d'un dessin : choix de l'utilisateur, sinon celui du directeur artistique (Claude),
   // sinon celui de l'analyse d'image.
   function roleOf(d) {
+    // atelier Impression : le fond est un aplat de couleur, jamais une page collée ; tout dessin
+    // gardé est une découpe (une page peinte devient une forme découpée)
+    const r = roleAuto(d);
+    return printMode() && r === 'texture' ? 'cutout' : r;
+  }
+  function roleAuto(d) {
     if (d.role !== 'auto') return d.role;
     // un dessin photographié sur un sol et détouré est toujours une découpe (jamais une page entière) ;
     // une feuille photographiée puis redressée est traitée comme un scan
@@ -1009,7 +1015,7 @@
           <span>${tr`Dessin ${idx + 1} sur ${n}`}</span>
           <button type="button" data-nav="1" ${idx >= n - 1 ? 'disabled' : ''} aria-label="${tr('Dessin suivant')}" title="${tr('Dessin suivant')}"><svg class="ico"><use href="#i-next"/></svg></button>
         </div>
-        <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
+        <div class="seg">${ROLES.filter((r) => r !== 'texture' || !printMode()).map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
         <div class="row stack">${tr('Taille réelle')}
           <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
             ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}
@@ -1331,6 +1337,7 @@
     let saved = null;
     try { saved = localStorage.getItem('atelier.ground'); } catch (e) { /* ignoré */ }
     setGround(saved === 'none' ? '' : saved && PAINTS.some((c) => c[1] === saved) ? saved : 'auto');
+    syncGroundMode();
   }
 
   // Orientation de la toile choisie par l'utilisateur : 'land' (paysage) ou 'port' (portrait).
@@ -1374,8 +1381,16 @@
       ? tr('Choisissez un cadre standard : l’œuvre est composée à sa taille exacte, les dessins réduits d’un même facteur pour y tenir. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.')
       : tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
+    syncGroundMode();
     if (!(opts && opts.keep) && was !== m) $('grain').checked = m === 'toile';
     fillFormats();
+  }
+  // impression : fond uni obligatoire (pas de toile nue) ; appelé au changement de mode et quand le
+  // sélecteur de fond est construit (après l'initialisation du mode)
+  function syncGroundMode() {
+    const print = printMode();
+    document.querySelectorAll('#ground button[data-hex=""]').forEach((b) => { b.hidden = print; });
+    if (print && state.ground === '') setGround(undefined);
   }
   function initMode() {
     const q = location.search;
@@ -1826,6 +1841,8 @@
       if (st.id === 'frise' || st.id === 'nuage') so.densityT = Math.max(so.densityT, 0.8);
       if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto || advised) so.format = own(state.sceneLayout.format); }
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
+      // impression : fond uni, toujours (pas de toile nue ni de papier)
+      if (printMode() && !so.ground && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
     });
     state.active = Math.min(state.active || 0, STYLES.length - 1);
