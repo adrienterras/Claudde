@@ -46,7 +46,12 @@ cd collage && python3 -m http.server 8000
      Une page couverte de peinture (la découpe principale engloberait plus de la moitié de la page,
      moins de la moitié de papier visible) est un fond, pas une découpe géante aux bords déchiquetés ;
      une feuille au **fond majoritairement blanc** est toujours une découpe (ses personnages et ses
-     objets sont posés sur l'œuvre), jamais une page de fond, sauf rôle choisi à la main. Les seuils
+     objets sont posés sur l'œuvre), jamais une page de fond, sauf rôle choisi à la main. Une page
+     « pontée » (lignes d'écriture, carreaux ou cadre dessiné reliés par la fermeture, intérieur
+     bouché) est refermée de moins loin, sans boucher les grands trous : les sujets se séparent.
+     Photographiée sur un mur ou une table de la couleur du papier (surface claire sans papier
+     distinct), la feuille est traitée comme un scan : le retrait de surface ne garderait que l'encre
+     et perdrait un short noir, donc les jambes (`removeSurface`, porte `feuille≈surface`). Les seuils
      d'encre s'adaptent au dessin : sur un scan propre un crayon pâle reste séparé du grain du
      papier, et si la première passe ne trouve que des miettes éparses, une seconde passe à seuils
      plus bas relie les traits de plus loin. Les toutes petites pièces ternes (ombre d'un pli, bord
