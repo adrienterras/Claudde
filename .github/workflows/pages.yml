@@ -57,8 +57,3 @@ jobs:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
-        with:
-          # le service Pages met parfois bien plus de dix minutes (délai par défaut) à déployer :
-          # on attend jusqu'à vingt-cinq minutes avant d'abandonner
-          timeout: 1500000
-          error_count: 20
