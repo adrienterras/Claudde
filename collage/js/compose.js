@@ -1204,7 +1204,92 @@
   function generate(o) {
     const comp = generateInner(o);
     if (o.flat) { comp.paint = false; comp.grain = false; }
+    if (o.count && (comp.style === 'nuage' || comp.style === 'paysage') && !comp.bg.some((L) => L.panel)) relaxItems(comp);
+    if (o.count && !['galerie', 'cabinet', 'frise', 'scene'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
     return comp;
+  }
+
+  /*
+   * Affiche, Nuage et Paysage sans page de fond : les dessins se partagent toute la surface du
+   * cadre. Relaxation de Lloyd pondérée : la surface est découpée en cellules (chaque point du
+   * cadre va au dessin le plus proche, les grands dessins attirant de plus loin), chaque dessin
+   * glisse vers le centre de sa cellule, et on recommence ; les dessins restent dans le cadre.
+   */
+  function relaxItems(comp) {
+    const items = comp.items, n = items.length;
+    if (n < 2) return;
+    const W = comp.W, H = comp.H;
+    const gx = 48, gy = Math.max(8, Math.round(48 * H / W));
+    for (let it = 0; it < 24; it++) {
+      const sx = new Float64Array(n), sy = new Float64Array(n), cnt = new Float64Array(n);
+      for (let j = 0; j < gy; j++) {
+        const py = (j + 0.5) * H / gy;
+        for (let i = 0; i < gx; i++) {
+          const px = (i + 0.5) * W / gx;
+          let best = 0, bd = Infinity;
+          for (let k = 0; k < n; k++) {
+            const L = items[k], r2 = (L.w * L.h) / 4;
+            const d = (px - L.x) ** 2 + (py - L.y) ** 2 - r2;
+            if (d < bd) { bd = d; best = k; }
+          }
+          sx[best] += px; sy[best] += py; cnt[best]++;
+        }
+      }
+      items.forEach((L, k) => {
+        if (!cnt[k]) return;
+        const tx = sx[k] / cnt[k], ty = sy[k] / cnt[k];
+        L.x += (tx - L.x) * 0.6; L.y += (ty - L.y) * 0.6;
+        const hx = Math.min(L.w / 2, W / 2), hy = Math.min(L.h / 2, H / 2);
+        L.x = clamp(L.x, hx, W - hx); L.y = clamp(L.y, hy, H - hy);
+      });
+    }
+  }
+
+  /*
+   * Affiche : la mise en place remplit le cadre. Les dessins posés (et les pages de fond) sont
+   * d'abord agrandis ensemble, autour du centre, tant que leur encombrement tient dans le cadre
+   * (au plus maxGrow, la limite de définition, et 1,6 fois) ; puis leurs positions sont étirées
+   * sur chaque axe pour que l'ensemble touche les bords, sans changer leur taille.
+   */
+  function fillFrame(comp, maxGrow) {
+    const W = comp.W, H = comp.H;
+    const layers = comp.items.concat(comp.bg.filter((L) => !L.paper));
+    if (!layers.length) return;
+    const ext = (L) => { const c = Math.abs(Math.cos(L.rot || 0)), s = Math.abs(Math.sin(L.rot || 0)); return [(L.w * c + L.h * s) / 2, (L.w * s + L.h * c) / 2]; };
+    const box = () => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      layers.forEach((L) => { const [ex, ey] = ext(L); x0 = Math.min(x0, L.x - ex); x1 = Math.max(x1, L.x + ex); y0 = Math.min(y0, L.y - ey); y1 = Math.max(y1, L.y + ey); });
+      return { x0, y0, x1, y1 };
+    };
+    // 1. agrandir ensemble, centré dans le cadre
+    let b = box();
+    const f = Math.max(1, Math.min(W / Math.max(1e-6, b.x1 - b.x0), H / Math.max(1e-6, b.y1 - b.y0), maxGrow, 1.6));
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    layers.forEach((L) => {
+      L.x = W / 2 + (L.x - cx) * f; L.y = H / 2 + (L.y - cy) * f;
+      if (f > 1.0001) {
+        L.w *= f; L.h *= f;
+        if (L.scale !== undefined) L.scale *= f;
+        if (L.clip) L.clip = L.clip.map(([x, y]) => [x * f, y * f]);
+      }
+    });
+    // 2. étirer les positions jusqu'aux bords (au plus 1,6 fois sur chaque axe)
+    const stretch = (axis) => {
+      const pos = axis === 'x' ? 'x' : 'y', size = axis === 'x' ? W : H, k = axis === 'x' ? 0 : 1;
+      let lo = null, hi = null;
+      layers.forEach((L) => { const e = ext(L)[k]; if (!lo || L[pos] - e < lo.v) lo = { L, v: L[pos] - e, e }; if (!hi || L[pos] + e > hi.v) hi = { L, v: L[pos] + e, e }; });
+      if (!lo || lo.L === hi.L) return;
+      const span = hi.L[pos] - lo.L[pos];
+      if (span < 1e-6) return;
+      const m = (size - hi.e - lo.e) / span;
+      if (!(m > 1.0001)) return;
+      const mm = Math.min(m, 1.6), a = lo.e - mm * lo.L[pos];
+      // (si l'étirement est plafonné, l'ensemble reste centré)
+      const off = m > 1.6 ? (size - (mm * span + hi.e + lo.e)) / 2 : 0;
+      layers.forEach((L) => { L[pos] = a + mm * L[pos] + off; });
+    };
+    stretch('x'); stretch('y');
+    comp.fill = f;
   }
   function generateInner(o) {
     const W = o.format.w, H = o.format.h;
