@@ -25,13 +25,10 @@ cd collage && python3 -m http.server 8000
      sujets en bas à tous en haut, lentement d'abord, pour garder de grands dessins) et la surface
      qu'ils demandent ensemble (`printCover` : de 90 % à 140 % de l'affiche, ils se chevauchent et
      la remplissent à toute position du curseur) ; la pose reçoit ce nombre (`o.count`) sans
-     plafond de couverture. Peu de dessins : ils sont **agrandis** pour remplir le cadre, tant que
-     le tirage garde au moins 150 dpi d'après les pixels réels du scan ou de la photo (`maxEnlarge`,
-     au plus 2,5 fois ; un dessin déjà juste n'est pas agrandi) ; le libellé dit « agrandis à N % ».
-     Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
+     plafond de couverture ; jamais au-delà de leur taille réelle. Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
      surface (`relaxItems`, relaxation de Lloyd pondérée par leur taille) ; puis, sauf Galerie,
-     Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, dans la
-     même limite de définition) et ses positions étirées jusqu'aux bords (`fillFrame`). Dessins réduits
+     Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, jamais
+     au-delà de la taille réelle des dessins) et ses positions étirées jusqu'aux bords (`fillFrame`). Dessins réduits
      à moins de 60 % (`o.spread`) : Paysage abandonne les zones ciel / milieu / sol et la ligne
      de sol, les sujets se répartissent sur toute l'affiche, bien espacés. Les pages de fond ont
      leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se

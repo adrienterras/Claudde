@@ -181,25 +181,20 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(sp.dx).toBeGreaterThan(0.45);
   });
 
-  test('Affiche : peu de dessins, ils sont agrandis pour remplir le cadre, dans la limite de leur définition', async ({ page }) => {
+  test('Affiche : peu de dessins dans un grand cadre, jamais agrandis au-delà de leur taille réelle', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
-    // un scan A4 à 300 dpi : agrandissable jusqu'à 2 fois (150 dpi au tirage)
+    // un scan A4 à 300 dpi, seul, dans le cadre 100 × 70 : il garderait de la place, mais reste à sa taille
     await page.setInputFiles('#file', [fixture('scan-300dpi.jpg')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.min; d.dispatchEvent(new Event('change')); });
-    await page.waitForTimeout(300);
-    const k = await page.evaluate(() => AtelierGribouille.scale());
-    expect(k).toBeGreaterThan(1.05);
-    expect(k).toBeLessThanOrEqual(2.0001);
-    await expect(page.locator('#scale-info')).toContainText('agrandis');
-    await expect(page.locator('#label-meta')).toContainText('agrandis');
-    // un dessin à 150 dpi (juste pour un tirage) : jamais agrandi
-    await page.evaluate(() => { AtelierGribouille.state.drawings.forEach((d) => { d.pxLong = d.sizeCm / 2.54 * 150; }); const f = document.getElementById('format'); f.value = 'cadre:100x70'; f.dispatchEvent(new Event('change')); });
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.min; d.dispatchEvent(new Event('change')); const f = document.getElementById('format'); f.value = 'cadre:100x70'; f.dispatchEvent(new Event('change')); });
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBeLessThanOrEqual(1.0001);
+    const over = await page.evaluate(() => AtelierGribouille.state.proposals.flatMap((p) => p.comp.items.map((L) => { const c = L.piece.drawing.sizeCm / L.piece.drawing.srcLong; return Math.max(L.w / (L.piece.canvas.width * c), L.h / (L.piece.canvas.height * c)); })));
+    for (const r of over) expect(r).toBeLessThanOrEqual(1.001);
+    await expect(page.locator('#scale-info')).not.toContainText('agrandis');
   });
 
   test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {

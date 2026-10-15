@@ -1248,7 +1248,7 @@
   /*
    * Affiche : la mise en place remplit le cadre. Les dessins posés (et les pages de fond) sont
    * d'abord agrandis ensemble, autour du centre, tant que leur encombrement tient dans le cadre
-   * (au plus maxGrow, la limite de définition, et 1,6 fois) ; puis leurs positions sont étirées
+   * (au plus maxGrow, jusqu'à leur taille réelle, et 1,6 fois) ; puis leurs positions sont étirées
    * sur chaque axe pour que l'ensemble touche les bords, sans changer leur taille.
    */
   function fillFrame(comp, maxGrow) {

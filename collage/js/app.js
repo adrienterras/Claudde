@@ -1679,40 +1679,29 @@
   const printCount = (n, t) => Math.max(1, Math.round(n * (0.12 + 0.88 * Math.pow(t, 1.6))));
   const printCover = (t) => 1.15 + 0.3 * t;
   const densityT = () => (allIn() ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1));
-  // Affiche : agrandissement permis pour des dessins, tant que le tirage garde au moins 150 dpi
-  // (d'après les pixels réels du scan ou de la photo), au plus deux fois et demie ; un dessin déjà
-  // juste en définition n'est pas agrandi
-  const PRINT_DPI_MIN = 150, PRINT_ENLARGE_MAX = 2.5;
-  function maxEnlarge(drawings) {
-    let k = PRINT_ENLARGE_MAX;
-    drawings.forEach((d) => { if (d && d.pxLong > 0 && d.sizeCm > 0) k = Math.min(k, d.pxLong / (d.sizeCm / 2.54) / PRINT_DPI_MIN); });
-    return Math.max(1, k);
-  }
   function computePrintScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
-    const list = activePieces().filter((p) => p.enabled).map((p) => { const c = cmPerPx(p.drawing); return { a: p.canvas.width * c * p.canvas.height * c, d: p.drawing }; }).sort((x, y) => y.a - x.a);
+    const list = activePieces().filter((p) => p.enabled).map((p) => { const c = cmPerPx(p.drawing); return { a: p.canvas.width * c * p.canvas.height * c }; }).sort((x, y) => y.a - x.a);
     const n = list.length;
     if (!n) return 1;
     const t = densityT();
     // échelle pour une position du curseur : les sujets retenus (les plus grands d'abord) demandent
-    // ensemble la surface fixée ; peu de dessins : ils sont agrandis pour remplir l'affiche, dans la
-    // limite de leur définition
+    // ensemble la surface fixée ; jamais au-delà de leur taille réelle
     const raw = (tt) => {
-      const sel = list.slice(0, printCount(n, tt));
-      const area = sel.reduce((a, x) => a + x.a, 0);
-      return Math.min(maxEnlarge(sel.map((x) => x.d)), Math.sqrt((printCover(tt) * w * h) / Math.max(1, area)));
+      const area = list.slice(0, printCount(n, tt)).reduce((a, x) => a + x.a, 0);
+      return Math.min(1, Math.sqrt((printCover(tt) * w * h) / Math.max(1, area)));
     };
     // en montant le curseur, les dessins ne regrandissent jamais : l'échelle est la plus petite
     // rencontrée depuis le bas du curseur jusqu'ici
     let k = raw(t);
     for (let tt = 0; tt < t; tt += 0.02) k = Math.min(k, raw(tt));
-    return clamp(k, 0.05, PRINT_ENLARGE_MAX);
+    return clamp(k, 0.05, 1);
   }
   // Affiche : les pages de fond ont leur propre échelle, pour couvrir l'affiche en se chevauchant
   // (comme la toile calculée en atelier Toile) ; pas plus petites que 60 % de l'échelle des découpes,
   // ni plus de deux fois cette échelle (un collage de feuilles, pas un papier peint sous des timbres) ;
-  // la plus grande page tient toujours entière dans le cadre ; agrandies dans la limite de leur définition
+  // la plus grande page tient toujours entière dans le cadre ; jamais au-delà de leur taille réelle
   function computeBgScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
@@ -1722,7 +1711,7 @@
     let k = clamp(Math.sqrt((1.5 * w * h) / bgArea), 0.6 * kp, 2 * kp);
     const m = state.bgMin || { long: 0, short: 0 };
     if (m.long > 0) k = Math.min(k, Math.max(w, h) / m.long, Math.min(w, h) / m.short);
-    return clamp(k, 0.05, maxEnlarge(state.drawings.filter((d) => roleOf(d) === 'texture')));
+    return clamp(k, 0.05, 1);
   }
 
   // Texte sous le choix de toile : taille calculée, papier disponible, couverture.
@@ -1734,9 +1723,7 @@
     let txt;
     if (f.frame) {
       const k = scale();
-      txt = k > 1.005
-        ? tr`Affiche de ${f.w} × ${f.h} cm (cadre standard) : les dessins sont agrandis à ${Math.round(k * 100)} % de leur taille réelle pour remplir le cadre (leur définition le permet).`
-        : k >= 0.995
+      txt = k >= 0.995
         ? tr`Affiche de ${f.w} × ${f.h} cm (cadre standard) : les dessins y sont à leur taille réelle.`
         : tr`Affiche de ${f.w} × ${f.h} cm (cadre standard) : les dessins sont réduits à ${Math.round(k * 100)} % de leur taille réelle (une feuille A4 fait ${fmt(29.7 * k)} cm). Choisissez un cadre plus grand pour des dessins plus grands.`;
     } else if (f.auto) {
@@ -1829,7 +1816,7 @@
       flat: printMode(), // impression : aplat uni, sans effet de peinture ni grain
       spread: printMode() && k < 0.6, // affiche aux dessins très réduits : répartis sur toute la surface
       count: printMode() ? printCount(pieces.length, densityT()) : 0, // affiche : nombre de sujets fixé, à l'échelle qui va avec
-      maxGrow: printMode() ? maxEnlarge(state.drawings.filter((d) => roleOf(d) !== 'off')) / Math.max(0.05, k) : 1, // affiche : agrandissement encore permis pour remplir le cadre
+      maxGrow: printMode() ? 1 / Math.max(0.05, k) : 1, // affiche : agrandissement encore permis pour remplir le cadre, jusqu'à la taille réelle
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,
@@ -2043,7 +2030,7 @@
     const c = state.comp;
     const count = c.total ? tr`${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? tr('adaptés') : tr('beaux')}` : tr`${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
     const aside = asideDrawings().length;
-    $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${printMode() && scale() * (c.fill || 1) > 1.005 ? tr`dessins agrandis à ${Math.round(scale() * (c.fill || 1) * 100)} % pour remplir le cadre` : printMode() && scale() * (c.fill || 1) < 0.995 ? tr`dessins réduits à ${Math.round(scale() * (c.fill || 1) * 100)} % pour le cadre` : c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
+    $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${printMode() && scale() * (c.fill || 1) < 0.995 ? tr`dessins réduits à ${Math.round(scale() * (c.fill || 1) * 100)} % pour le cadre` : c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
     renderAside();
   }
 
