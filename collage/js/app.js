@@ -1673,22 +1673,24 @@
   // retenus (les plus forts d'abord, autant que le curseur en demande, comme à la pose) doivent couvrir
   // la part de l'affiche que le curseur fixe ; plus on demande de dessins, plus ils sont réduits, et le
   // nombre posé grandit pas à pas. Jamais agrandis (netteté du tirage).
+  // Affiche : nombre de sujets posés pour une position du curseur (part des sujets, de 12 % en bas à
+  // tous en haut, lentement d'abord : peu de dessins, mais grands) et surface qu'ils demandent
+  // ensemble (de 90 % de l'affiche à 140 % : ils se chevauchent et la remplissent)
+  const printCount = (n, t) => Math.max(1, Math.round(n * (0.12 + 0.88 * Math.pow(t, 1.6))));
+  const printCover = (t) => 0.9 + 0.5 * t;
+  const densityT = () => (allIn() ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1));
   function computePrintScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
     const areas = activePieces().filter((p) => p.enabled).map((p) => { const c = cmPerPx(p.drawing); return p.canvas.width * c * p.canvas.height * c; }).sort((a, b) => b - a);
     const n = areas.length;
     if (!n) return 1;
-    const every = allIn();
-    const t = every ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1);
-    // réduction pour une position du curseur : les sujets retenus couvrent la part fixée (même compte
-    // et même plafond de couverture qu'à la pose)
+    const t = densityT();
+    // réduction pour une position du curseur : les sujets retenus (les plus grands d'abord) demandent
+    // ensemble la surface fixée
     const raw = (tt) => {
-      const count = Math.max(1, Math.round(n * (0.2 + 0.8 * tt)));
-      const sel = areas.slice(0, count).reduce((a, b) => a + b, 0);
-      // surface demandée aux sujets : plus que la part couverte à la pose (ils se chevauchent), jusqu'à
-      // 115 % de l'affiche au maximum du curseur, pour la remplir
-      return Math.sqrt(((0.35 + 0.8 * tt) * w * h) / Math.max(1, sel));
+      const sel = areas.slice(0, printCount(n, tt)).reduce((a, b) => a + b, 0);
+      return Math.sqrt((printCover(tt) * w * h) / Math.max(1, sel));
     };
     // en montant le curseur, les dessins ne regrandissent jamais : la réduction est la plus forte
     // rencontrée depuis le bas du curseur jusqu'ici
@@ -1697,19 +1699,19 @@
     return clamp(k, 0.05, 1);
   }
   // Affiche : les pages de fond ont leur propre réduction, pour couvrir l'affiche en se chevauchant
-  // (comme la toile calculée en atelier Toile), la plus grande page entière ; jamais agrandies, et
-  // jamais plus de deux fois l'échelle des découpes, pour que l'œuvre reste un collage de feuilles
-  // et pas un papier peint sous des timbres
+  // (comme la toile calculée en atelier Toile) ; pas plus petites que 60 % de l'échelle des découpes,
+  // ni plus de deux fois cette échelle (un collage de feuilles, pas un papier peint sous des timbres) ;
+  // la plus grande page tient toujours entière dans le cadre, et rien n'est agrandi
   function computeBgScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
     const kp = state.printScale || 1;
     const { bgArea } = paperAreas(state.drawings);
     if (!(bgArea > 0)) return kp;
-    let k = Math.sqrt((1.5 * w * h) / bgArea);
+    let k = clamp(Math.sqrt((1.5 * w * h) / bgArea), 0.6 * kp, 2 * kp);
     const m = state.bgMin || { long: 0, short: 0 };
     if (m.long > 0) k = Math.min(k, Math.max(w, h) / m.long, Math.min(w, h) / m.short);
-    return clamp(k, Math.min(kp, 1), Math.min(1, 2 * kp));
+    return clamp(k, 0.05, 1);
   }
 
   // Texte sous le choix de toile : taille calculée, papier disponible, couverture.
@@ -1813,6 +1815,7 @@
       grain: $('grain').checked && !printMode(),
       flat: printMode(), // impression : aplat uni, sans effet de peinture ni grain
       spread: printMode() && k < 0.6, // affiche aux dessins très réduits : répartis sur toute la surface
+      count: printMode() ? printCount(pieces.length, densityT()) : 0, // affiche : nombre de sujets fixé, à l'échelle qui va avec
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,

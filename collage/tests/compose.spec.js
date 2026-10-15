@@ -143,6 +143,8 @@ test.describe('Compositions', () => {
     await app.page.locator('#drawings .thumb').nth(2).click();
     await app.page.locator('#detail [data-role="cutout"]').click();
     await app.page.waitForTimeout(300);
+    // tous les dessins (curseur au maximum)
+    await app.page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
     // la bascule de mode recompose les propositions (comme le bouton de l'interface)
     await app.page.locator('#mode-switch [data-mode="impression"]').click();
     await app.page.waitForTimeout(400);

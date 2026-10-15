@@ -523,56 +523,52 @@
     const weight = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(Math.max(0.05, p.colorful), 1.3) * (p.importance || 1);
     const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
     const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
-    const maxCount = o.everything ? sorted.length : Math.max(1, Math.round(sorted.length * (0.2 + 0.8 * t)));
+    const maxCount = o.count ? Math.min(sorted.length, o.count) : o.everything ? sorted.length : Math.max(1, Math.round(sorted.length * (0.2 + 0.8 * t)));
     pieces.forEach((p) => { p.placed = false; });
     const kept = sorted.slice(0, maxCount);
     if (!kept.length) return [];
     // ordre d'une courtepointe : mélangé, mais déterministe (la graine), les grandes réparties
     const order = kept.map((p, i) => ({ p, k: (i % 3) + R() })).sort((a, b) => a.k - b.k).map((x) => x.p);
     const n = order.length;
+    // pour chaque nombre de rangées : chaque pièce à la hauteur de rangée (jamais agrandie), rangées
+    // équilibrées en largeur, une rangée trop large réduite d'un bloc ; on garde le nombre de rangées
+    // qui donne la plus grande surface de dessins (les dessins les plus grands), à 2 % près le plus petit
     let best = null;
     for (let rows = 1; rows <= n; rows++) {
       const rowH = H / rows;
-      // rangées : on remplit chacune jusqu'à dépasser la largeur à la hauteur de rangée
-      const rowsOut = []; let cur = [], curW = 0;
-      order.forEach((p) => {
-        const w = p.wcm * (rowH / p.hcm);
-        cur.push(p); curW += w;
-        if (curW >= W && rowsOut.length < rows - 1) { rowsOut.push(cur); cur = []; curW = 0; }
+      const sz = order.map((p) => { const k = Math.min(1, rowH / p.hcm); return { p, k, w: p.wcm * k, h: p.hcm * k }; });
+      const target = sz.reduce((a, it) => a + it.w, 0) / rows;
+      const rowsOut = [];
+      let cur = [], cw = 0;
+      sz.forEach((it) => {
+        if (cur.length && rowsOut.length < rows - 1 && cw + it.w / 2 > target) { rowsOut.push(cur); cur = []; cw = 0; }
+        cur.push(it); cw += it.w;
       });
       if (cur.length) rowsOut.push(cur);
-      if (rowsOut.length !== rows) continue;
-      // chaque rangée mise à l'échelle pour faire toute la largeur ; la hauteur totale qui en découle
+      let area = 0;
       const layout = rowsOut.map((r) => {
-        const sumW = r.reduce((a, p) => a + p.wcm * (rowH / p.hcm), 0);
-        const k = W / sumW;
-        return { r, h: rowH * k };
+        const sw = r.reduce((a, it) => a + it.w, 0);
+        const f = Math.min(1, W / sw);
+        r.forEach((it) => { area += it.w * it.h * f * f; });
+        return { r, f, sw: sw * f, h: Math.max(...r.map((it) => it.h)) * f };
       });
-      const total = layout.reduce((a, l) => a + l.h, 0);
-      const err = Math.abs(Math.log(total / H));
-      if (!best || err < best.err) best = { layout, total, err };
+      if (!best || area > best.area * 1.02) best = { area, layout };
     }
-    // ajustement final : tout à l'échelle pour tenir en hauteur, sans agrandir au-delà de la taille réelle
-    const fit = H / best.total;
+    // les rangées réparties sur la hauteur, les pièces sur la largeur, l'air partagé également
     const items = [];
-    let y = 0;
-    const totalH = best.layout.reduce((a, l) => a + l.h * fit, 0);
-    y = (H - totalH) / 2;
+    const totalH = best.layout.reduce((a, l) => a + l.h, 0);
+    const gy = Math.max(0, (H - totalH) / (best.layout.length + 1));
+    let y = gy;
     best.layout.forEach((l) => {
-      const h = l.h * fit;
-      const ks = l.r.map((p) => Math.min(1, h / p.hcm));
-      const widths = l.r.map((p, i) => p.wcm * ks[i]);
-      const sumW = widths.reduce((a, w) => a + w, 0);
-      // rangée plus étroite que la toile (pièces non agrandies) : centrée, un peu d'air entre les pièces
-      const gap = sumW < W ? Math.min((W - sumW) / (l.r.length + 1), 3) : 0;
-      let x = (W - sumW - gap * (l.r.length - 1)) / 2;
-      l.r.forEach((p, i) => {
-        const k = ks[i], w = widths[i], ph = p.hcm * k;
-        items.push({ kind: 'piece', piece: p, x: x + w / 2, y: y + h / 2, w, h: ph, rot: (R() - 0.5) * 0.04, flip: false, scale: k, r: 0 });
-        p.placed = true;
-        x += w + gap;
+      const gx = Math.max(0, (W - l.sw) / (l.r.length + 1));
+      let x = gx;
+      l.r.forEach((it) => {
+        const k = it.k * l.f, w = it.p.wcm * k, h = it.p.hcm * k;
+        items.push({ kind: 'piece', piece: it.p, x: x + w / 2, y: y + l.h / 2, w, h, rot: (R() - 0.5) * 0.04, flip: false, scale: k, r: 0 });
+        it.p.placed = true;
+        x += w + gx;
       });
-      y += h;
+      y += l.h + gy;
     });
     // les grandes pièces dessous, les petites par-dessus
     return items.sort((a, b) => b.w * b.h - a.w * a.h);
@@ -708,10 +704,11 @@
     // (de 20 % au minimum jusqu'à tous au maximum), avec un plafond de couverture qui suit ;
     // au maximum (« tout »), plus de plafond et un sujet sans place libre se pose quand même
     const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
-    const maxCount = o.everything ? sorted.length : Math.max(1, Math.round(sorted.length * (0.2 + 0.8 * t)));
+    const maxCount = o.count ? Math.min(sorted.length, o.count) : o.everything ? sorted.length : Math.max(1, Math.round(sorted.length * (0.2 + 0.8 * t)));
     // tolérance de chevauchement entre découpes : nulle à faible densité, franche vers le maximum
     const overMax = 0.12 + 0.55 * t;
-    const targetCover = o.everything ? Infinity : (0.3 + 0.55 * t) * W * H;
+    // o.count (affiche) : le nombre de sujets est fixé par l'atelier, à l'échelle qui va avec, sans plafond de couverture
+    const targetCover = o.everything || o.count ? Infinity : (0.3 + 0.55 * t) * W * H;
     let covered = 0;
 
     function footprint(p, cx, cy, fn) {

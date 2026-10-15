@@ -37,17 +37,21 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:70x50');
     expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(false);
     await expect(page.locator('#guide-box')).toBeHidden();
-    // le cadre 18 × 24 : l'œuvre fait exactement 24 × 18 (paysage), les dessins sont réduits pour y tenir
+    // le cadre 18 × 24 : l'œuvre fait exactement 24 × 18 (paysage), tous les dessins (curseur au
+    // maximum) sont réduits pour y tenir
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
     await page.selectOption('#format', 'cadre:24x18');
     await page.waitForTimeout(300);
     const r = await page.evaluate(() => {
       const A = AtelierGribouille, c = A.state.comp;
       const d = A.state.drawings[0], p = c.items.find((L) => L.piece.drawing === d);
-      return { W: c.W, H: c.H, k: A.scale(), all: A.state.proposals.every((pr) => Math.abs(pr.comp.W - 24) < 1e-6 && Math.abs(pr.comp.H - 18) < 1e-6), pieceCm: p ? Math.max(p.w, p.h) : null, sheetCm: d.sizeCm };
+      return { W: c.W, H: c.H, k: A.scale(), all: A.state.proposals.every((pr) => Math.abs(pr.comp.W - 24) < 1e-6 && Math.abs(pr.comp.H - 18) < 1e-6), pieceCm: p ? Math.max(p.w, p.h) : null, sheetCm: d.sizeCm, fits: c.items.every((L) => Math.max(L.w, L.h) <= 30.01) };
     });
     expect(r.W).toBe(24); expect(r.H).toBe(18);
     expect(r.all).toBe(true);
-    expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThan(1);
+    // jamais agrandis ; réduits seulement si nécessaire (les pièces d'essai, petites, tiennent presque)
+    expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThanOrEqual(1);
+    expect(r.fits).toBe(true);
     if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
     await expect(page.locator('#scale-info')).toContainText('Affiche de 24 × 18 cm');
     // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),

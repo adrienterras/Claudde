@@ -21,8 +21,11 @@ cd collage && python3 -m http.server 8000
      **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
      curseur en demande, comme à la pose) doivent couvrir la part de l'affiche que le curseur fixe,
      si bien que le nombre de dessins posés grandit pas à pas avec le curseur (plus on en demande,
-     plus ils sont réduits ; au maximum du curseur ils demandent 115 % de l'affiche, se
-     chevauchent et la remplissent) ; jamais agrandis, pour la netteté du tirage. Dessins réduits
+     plus ils sont réduits) ; le curseur fixe le nombre de sujets (`printCount` : de 12 % des
+     sujets en bas à tous en haut, lentement d'abord, pour garder de grands dessins) et la surface
+     qu'ils demandent ensemble (`printCover` : de 90 % à 140 % de l'affiche, ils se chevauchent et
+     la remplissent à toute position du curseur) ; la pose reçoit ce nombre (`o.count`) sans
+     plafond de couverture ; jamais agrandis, pour la netteté du tirage. Dessins réduits
      à moins de 60 % (`o.spread`) : Paysage abandonne les zones ciel / milieu / sol et la ligne
      de sol, les sujets se répartissent sur toute l'affiche, bien espacés. Les pages de fond ont
      leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se
