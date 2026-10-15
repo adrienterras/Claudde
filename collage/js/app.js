@@ -2437,8 +2437,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   const layerBase = (L) => (L.kind === 'bg' ? [L.pageW || L.w, L.pageH || L.h] : [L.piece.wcm, L.piece.hcm]);
   function setLayerScale(L, f) {
     const [bw, bh] = layerBase(L);
+    const w0 = L.w, h0 = L.h;
     L.scale = clamp(f, 0.1, 4);
     L.w = bw * L.scale; L.h = bh * L.scale;
+    // le contour déchiré d'une page (en cm autour de son centre) suit sa taille : sinon il resterait
+    // à l'ancienne et masquerait une partie de la page agrandie
+    if (L.clip && w0 > 0 && h0 > 0) { const fx = L.w / w0, fy = L.h / h0; L.clip = L.clip.map(([x, y]) => [x * fx, y * fy]); }
     if (L.kind === 'bg') { if (!L.pageW) { L.pageW = bw; L.pageH = bh; } state.bgCache = null; }
     const comp = state.comp;
     comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => (q.scale || 1) !== 1);

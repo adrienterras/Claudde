@@ -83,6 +83,18 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w0 * 1.1, 4);
     await page.locator('#toolbar [data-act="smaller"]').click();
     expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w0, 4);
+    // une page de fond agrandie : son contour déchiré grandit avec elle (rien de la page n'est masqué)
+    const ext = () => page.evaluate(() => { const L = AtelierGribouille.state.selected; const xs = L.clip.map((q) => q[0]), ys = L.clip.map((q) => q[1]); return { w: L.w, h: L.h, cw: Math.max(...xs) - Math.min(...xs), ch: Math.max(...ys) - Math.min(...ys) }; });
+    const hasClip = await page.evaluate(() => { const A = AtelierGribouille, L = A.state.comp.bg.find((q) => q.clip && q.panel); if (!L) return false; A.state.selected = L; A.render(); return true; });
+    expect(hasClip).toBe(true);
+    const e0 = await ext();
+    for (let i = 0; i < 4; i++) await page.locator('#toolbar [data-act="bigger"]').click();
+    const e1 = await ext();
+    expect(e1.w).toBeGreaterThan(e0.w * 1.3);
+    expect(e1.cw / e1.w).toBeCloseTo(e0.cw / e0.w, 3);
+    expect(e1.ch / e1.h).toBeCloseTo(e0.ch / e0.h, 3);
+    for (let i = 0; i < 4; i++) await page.locator('#toolbar [data-act="smaller"]').click();
+    await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     const h = await page.evaluate(() => {
       const A = AtelierGribouille, L = A.state.selected, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
       const c = Math.cos(L.rot), s = Math.sin(L.rot), hx = L.w / 2, hy = -L.h / 2;
