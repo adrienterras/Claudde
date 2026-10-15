@@ -69,7 +69,11 @@ cd collage && python3 -m http.server 8000
      ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, un contour
      ouvert est contourné sans entrer dans chaque creux, puis la coupe suit le dessin à ≈ 3 mm, avec
      un contour **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles
-     arrondis, sans jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle).
+     arrondis, sans jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle). Un dessin
+     qui **sort de la feuille** n'est plus coupé net le long du bord de la page : chaque tronçon où
+     la découpe touche le bord devient un dôme (demi-ellipse qui touche le bord en son milieu,
+     profondeur 35 % de sa longueur, au plus ≈ 4 % du grand côté ; tronçons à moins de ≈ 6 mm
+     fusionnés), et les fines pointes restées au ras du bord sont retirées (`roundPageEdges`).
      Une page couverte de peinture (la découpe principale engloberait plus de la moitié de la page,
      moins de la moitié de papier visible) est un fond, pas une découpe géante aux bords déchiquetés ;
      une feuille au **fond majoritairement blanc** est toujours une découpe (ses personnages et ses

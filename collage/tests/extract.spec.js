@@ -18,6 +18,28 @@ async function analyze(page, name, opts) {
 }
 
 test.describe('Analyse des pages (Extract)', () => {
+  test('un dessin qui sort de la feuille : la coupe s’arrondit au bord, au lieu de le suivre en ligne droite', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une feuille blanche ; un sujet coloré dont le corps large sort par le haut de la page
+      const c = Extract.makeCanvas(1000, 1414), x = c.getContext('2d');
+      x.fillStyle = '#fbfaf6'; x.fillRect(0, 0, c.width, c.height);
+      x.fillStyle = '#2a5fd0'; x.fillRect(380, -50, 240, 650);
+      x.fillStyle = '#e8722a'; x.beginPath(); x.arc(500, 640, 110, 0, Math.PI * 2); x.fill();
+      const a = Extract.analyze(c, 0, {});
+      const p = (a.pieces || []).slice().sort((u, v) => v.frac - u.frac)[0];
+      if (!p) return null;
+      const pc = p.canvas, d = pc.getContext('2d').getImageData(0, 0, pc.width, pc.height).data;
+      const row = (y) => { let n = 0; for (let i = 0; i < pc.width; i++) if (d[(y * pc.width + i) * 4 + 3] > 128) n++; return n; };
+      const k = pc.width / p.src.w; // pixels de pièce par pixel de page
+      return { top: p.src.y, near: row(2), deep: row(Math.round(60 * k)), w: pc.width };
+    });
+    expect(r).not.toBeNull();
+    expect(r.top).toBeLessThan(2); // la pièce touche le haut de la page
+    // au ras du bord, la coupe ne garde qu'une petite partie de la largeur ; plus bas, toute
+    expect(r.deep).toBeGreaterThan(150);
+    expect(r.near).toBeLessThan(r.deep * 0.5);
+  });
+
   test('une feuille blanche avec un sujet donne une découpe, une seule pièce', async ({ app }) => {
     const r = await analyze(app.page, 'page-cutout.png');
     expect(r.kind).toBe('cutout');

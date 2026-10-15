@@ -771,6 +771,57 @@
     return widths[y] / max;
   }
 
+  /*
+   * Coupe arrondie au bord de la page. Pour chaque côté du cadre qui est un bord de la page, les
+   * tronçons où la découpe touche ce bord (deux tronçons séparés de moins de ≈ 6 mm n'en font
+   * qu'un) sont remplacés par un dôme : une demi-ellipse qui touche le bord en son milieu et
+   * remonte vers l'intérieur aux deux extrémités du tronçon, sur une profondeur de 35 % de sa
+   * longueur, au plus ≈ 4 % du grand côté de la page (12 mm sur un A4). On ne fait qu'enlever.
+   */
+  function roundPageEdges(m, W, H, edges, unit) {
+    const gapMax = unit * 0.02, dMax = unit * 0.04;
+    const side = (n, depthMax, at) => {
+      const on = new Uint8Array(n);
+      for (let i = 0; i < n; i++) on[i] = m[at(i, 0)] || (depthMax > 1 && m[at(i, 1)]) ? 1 : 0;
+      const runs = [];
+      let s = -1, last = -1;
+      for (let i = 0; i < n; i++) {
+        if (!on[i]) continue;
+        if (s < 0) s = i;
+        else if (i - last > gapMax) { runs.push([s, last]); s = i; }
+        last = i;
+      }
+      if (s >= 0) runs.push([s, last]);
+      runs.forEach(([a, b]) => {
+        const L = b - a + 1;
+        if (L < 2) return;
+        const c = (a + b) / 2, half = L / 2, d = Math.max(2, Math.min(L * 0.35, dMax));
+        for (let i = a; i <= b; i++) {
+          const u = (i - c) / half;
+          const cut = Math.min(depthMax, Math.ceil(d * (1 - Math.sqrt(Math.max(0, 1 - u * u)))));
+          for (let dd = 0; dd < cut; dd++) m[at(i, dd)] = 0;
+        }
+      });
+    };
+    if (edges.t) side(W, H, (i, d) => d * W + i);
+    if (edges.b) side(W, H, (i, d) => (H - 1 - d) * W + i);
+    if (edges.l) side(H, W, (i, d) => i * W + d);
+    if (edges.r) side(H, W, (i, d) => i * W + (W - 1 - d));
+    // fines pointes restées au ras du bord (trait du scanner, ombre de la feuille) : une ouverture de
+    // ≈ 1 mm, dans la bande proche du bord seulement
+    if (!(edges.t || edges.b || edges.l || edges.r)) return;
+    const rr = Math.max(1, unit * 0.004), band = Math.ceil(dMax + rr * 2);
+    const op = dilate(erode(m, W, H, rr), W, H, rr);
+    for (let y = 0; y < H; y++) {
+      const nearY = (edges.t && y < band) || (edges.b && y >= H - band);
+      for (let x = 0; x < W; x++) {
+        const p = y * W + x;
+        if (!m[p] || op[p]) continue;
+        if (nearY || (edges.l && x < band) || (edges.r && x >= W - band)) m[p] = 0;
+      }
+    }
+  }
+
   function makePiece(page, seg, comp, orig) {
     const { w, h, labels, data } = seg;
     const k = page.width / w;
@@ -841,6 +892,9 @@
       for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
       alpha = sm;
     }
+    // un dessin qui sort de la feuille : là où la découpe touche le bord de la page, la coupe
+    // s'arrondit au lieu de suivre le bord en ligne droite
+    if (useFine) roundPageEdges(alpha, fw, fh, { t: y0 === 0, b: y1 === h - 1, l: x0 === 0, r: x1 === w - 1 }, funit);
     // bord adouci sur ≈ 2 pixels (anti-crénelage), sans halo
     const soft = boxBlur(softEdge(alpha, fw, fh), fw, fh);
     const mc = makeCanvas(fw, fh);
