@@ -1224,4 +1224,28 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
     await page.evaluate(() => AtelierGribouille.undo());
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(before.ground);
   });
+
+  test('sur une œuvre rouverte (brouillon), changer la couleur du fond s’applique, la mise en place reste', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await app.select('tournesol');
+    const draft = () => page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille');
+      q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
+      q.onerror = () => res(null);
+    }));
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3 && r.comp && r.comp.style === 'tournesol') break; await page.waitForTimeout(500); }
+    // l'œuvre en cours est rouverte d'elle-même : composition épinglée telle quelle
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, pinned: AtelierGribouille.state.pinned === c, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
+    expect(before.pinned).toBe(true);
+    await page.evaluate(() => { const b = [...document.querySelectorAll('#ground button')].find((x) => x.dataset.hex && x.dataset.hex !== 'auto' && x.dataset.hex !== AtelierGribouille.state.comp.ground); b.click(); });
+    const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
+    expect(after.style).toBe(before.style);
+    expect(after.ground).not.toBe(before.ground);
+    expect(after.ground).toBe(await page.evaluate(() => AtelierGribouille.state.ground));
+    expect(after.items).toEqual(before.items);
+  });
 });

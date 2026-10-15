@@ -1302,10 +1302,11 @@
     if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : tr('toile nue'); }
   }
-  // Nouveau fond de toile. Une œuvre déjà retouchée à la main garde sa mise en place : seul le fond
-  // change (couleur de peinture, ou papier nu dessous) ; les autres propositions sont recomposées.
+  // Nouveau fond de toile. Une œuvre déjà retouchée à la main, ou rouverte telle quelle (brouillon,
+  // composition sauvegardée), garde sa mise en place : seul le fond change (couleur de peinture, ou
+  // papier nu dessous) ; les autres propositions sont recomposées.
   function applyGround() {
-    const kept = state.comp && state.comp.touched ? state.comp : null;
+    const kept = state.comp && (state.comp.touched || state.pinned === state.comp) ? state.comp : null;
     if (!kept) { regenerate(); return; }
     commit();
     state.pinned = null;
