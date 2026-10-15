@@ -385,12 +385,17 @@
     <p class="stage-tip" id="stage-tip">Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer</p>
     <canvas id="canvas"></canvas>
     <div class="zoom" role="group" aria-label="Zoom sur l’œuvre">
+      <button id="ground-open" class="ground-open" title="Couleur du fond" aria-label="Couleur du fond" aria-expanded="false" aria-controls="ground-pop"><span class="ground-dot"></span></button>
       <button id="zoom-out" title="Dézoomer" aria-label="Dézoomer">−</button>
       <span id="zoom-val" class="zoom-val">100 %</span>
       <button id="zoom-in" title="Zoomer" aria-label="Zoomer">+</button>
       <button id="zoom-fit" title="Voir toute l’œuvre" aria-label="Voir toute l’œuvre"><svg class="ico"><use href="#i-fit"/></svg></button>
       <button id="zoom-full" title="Plein écran" aria-label="Plein écran" aria-pressed="false"><svg class="ico"><use href="#i-expand"/></svg></button>
       <button id="bg-mode" class="mode" title="Ne voir que le fond et déplacer ses pages" aria-label="Fond seul" aria-pressed="false"><svg class="ico"><use href="#i-layers"/></svg><span>Fond seul</span></button>
+    </div>
+    <div id="ground-pop" class="ground-pop" role="dialog" aria-label="Couleur du fond" hidden>
+      <p class="ground-pop-head"><b>Couleur du fond</b> <small id="ground-pop-name"></small></p>
+      <div class="swatches ground-quick" id="ground-quick" role="radiogroup" aria-label="Couleur de fond de la toile"></div>
     </div>
     <div id="density-bar" class="density-bar" hidden>
       <label for="density">Nombre de dessins</label>

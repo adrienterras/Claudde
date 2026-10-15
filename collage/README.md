@@ -307,6 +307,11 @@ cd collage && python3 -m http.server 8000
      plus ancienne et déjà envoyée, l'œuvre du compte se rouvre d'elle-même ; si l'œuvre d'ici est
      plus récente elle reste ; si elle n'a jamais été envoyée (faite sans compte), celle du compte
      est seulement proposée (« Reprendre »). « Oublier cette œuvre » l'efface des deux côtés ;
+   - **couleur du fond à portée de main** : une pastille de la couleur actuelle, en tête de la barre
+     d'outils près de l'œuvre (à droite sur téléphone, en bas sur ordinateur), ouvre la palette juste
+     à côté (`#ground-pop`) ; une teinte s'applique tout de suite, la palette reste ouverte pour en
+     essayer d'autres et se ferme d'un appui ailleurs ou avec Échap ; elle reste synchronisée avec
+     le nuancier des réglages avancés ; sans objet en Galerie (fond blanc fixe) ;
    - **fond de toile** : au choix, la toile nue (lin) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand

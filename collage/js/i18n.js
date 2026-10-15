@@ -116,6 +116,10 @@
     'Une œuvre en cours plus récente ({0} dessins, sur un autre appareil) est dans votre compte.': 'A more recent work in progress ({0} drawings, on another device) is in your account.',
     'Réouverture de votre œuvre en cours depuis votre compte ({0} dessins)…': 'Reopening your work in progress from your account ({0} drawings)…',
     'L’œuvre en cours de votre compte n’a pas pu être rouverte.': 'The work in progress in your account could not be reopened.',
+    // couleur du fond, à portée de main
+    'Couleur du fond': 'Background colour',
+    'Couleur du fond : {0}': 'Background colour: {0}',
+    'Toile nue (lin, sans peinture)': 'Bare canvas (linen, unpainted)',
     'Pas de scanner ?': 'No scanner?',
     'Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier.': 'Help improve the cut-out: share my cut-out edits (the drawing concerned and its corrected cut-out), with no account and no file name.',
     'En savoir plus': 'Learn more',

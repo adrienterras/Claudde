@@ -1346,7 +1346,7 @@
   function setGround(hex) {
     state.ground = hex === undefined ? 'auto' : hex;
     try { localStorage.setItem('atelier.ground', state.ground || 'none'); } catch (e) { /* ignoré */ }
-    document.querySelectorAll('#ground button').forEach((b) => {
+    document.querySelectorAll(GROUND_SWATCHES).forEach((b) => {
       const on = (b.dataset.hex || '') === (state.ground || '');
       b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
@@ -1354,9 +1354,27 @@
   }
   function updateGroundName() {
     const el = $('ground-name');
-    if (state.comp && state.comp.style === 'galerie') { el.textContent = tr('blanc, fixe en Galerie'); return; }
-    if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
+    if (state.comp && state.comp.style === 'galerie') el.textContent = tr('blanc, fixe en Galerie');
+    else if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : tr('toile nue'); }
+    // la pastille près de l'œuvre : la couleur réellement peinte sur la proposition affichée
+    const pop = $('ground-pop-name'), btn = $('ground-open');
+    if (pop) pop.textContent = el.textContent;
+    if (btn) {
+      const hex = state.comp ? state.comp.ground || '' : state.ground && state.ground !== 'auto' ? state.ground : '';
+      btn.style.setProperty('--dot', hex || '#f4f2ec');
+      btn.classList.toggle('none', !hex);
+      btn.title = tr`Couleur du fond : ${el.textContent}`;
+    }
+  }
+  // palette rapide : s'ouvre près de l'œuvre, reste ouverte pour essayer plusieurs teintes,
+  // se ferme d'un appui ailleurs ou avec Échap
+  function setGroundPop(open) {
+    const pop = $('ground-pop'), btn = $('ground-open');
+    if (!pop || !btn) return;
+    pop.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) updateGroundName();
   }
   // Nouveau fond de toile. Une œuvre déjà retouchée à la main, ou rouverte telle quelle (brouillon,
   // composition sauvegardée), garde sa mise en place : seul le fond change (couleur de peinture, ou
@@ -1382,21 +1400,26 @@
     render();
   }
 
+  // les deux nuanciers du fond : celui des réglages avancés, et la palette rapide près de l'œuvre
+  const GROUND_SWATCHES = '#ground button, #ground-quick button';
   function fillGround() {
-    const box = $('ground');
-    const mk = (name, hex) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.setAttribute('role', 'radio'); b.title = name; b.setAttribute('aria-label', name);
-      b.dataset.hex = hex || '';
-      if (hex) b.style.setProperty('--sw', hex); else b.className = 'none';
-      b.onclick = () => { setGround(hex); applyGround(); };
-      box.appendChild(b);
-    };
-    mk(tr('Couleur conseillée selon la composition'), 'auto');
-    mk('Toile nue (lin, sans peinture)', '');
-    PAINTS.forEach(([name, hex]) => mk(name, hex));
-    box.querySelector('[data-hex="auto"]').className = 'auto';
-    box.querySelector('[data-hex="auto"]').textContent = 'A';
+    ['ground', 'ground-quick'].forEach((id) => {
+      const box = $(id);
+      if (!box) return;
+      const mk = (name, hex) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.setAttribute('role', 'radio'); b.title = name; b.setAttribute('aria-label', name);
+        b.dataset.hex = hex || '';
+        if (hex) b.style.setProperty('--sw', hex); else b.className = 'none';
+        b.onclick = () => { setGround(hex); applyGround(); };
+        box.appendChild(b);
+      };
+      mk(tr('Couleur conseillée selon la composition'), 'auto');
+      mk(tr('Toile nue (lin, sans peinture)'), '');
+      PAINTS.forEach(([name, hex]) => mk(name, hex));
+      box.querySelector('[data-hex="auto"]').className = 'auto';
+      box.querySelector('[data-hex="auto"]').textContent = 'A';
+    });
     let saved = null;
     try { saved = localStorage.getItem('atelier.ground'); } catch (e) { /* ignoré */ }
     setGround(saved === 'none' ? '' : saved && PAINTS.some((c) => c[1] === saved) ? saved : 'auto');
@@ -1452,7 +1475,7 @@
   // sélecteur de fond est construit (après l'initialisation du mode)
   function syncGroundMode() {
     const print = printMode();
-    document.querySelectorAll('#ground button[data-hex=""]').forEach((b) => { b.hidden = print; });
+    document.querySelectorAll('#ground button[data-hex=""], #ground-quick button[data-hex=""]').forEach((b) => { b.hidden = print; });
     if (print && state.ground === '') setGround(undefined);
   }
   function initMode() {
@@ -1981,8 +2004,11 @@
   function updateSettingsFor(comp) {
     const white = !!(comp && comp.style === 'galerie');
     // fond de toile : sans objet en Galerie (blanc, fixe)
-    document.querySelectorAll('#ground button').forEach((b) => { b.disabled = white; });
+    document.querySelectorAll(GROUND_SWATCHES).forEach((b) => { b.disabled = white; });
     $('ground').classList.toggle('off', white);
+    $('ground-quick').classList.toggle('off', white);
+    $('ground-open').disabled = white;
+    if (white) setGroundPop(false);
     const g = $('grain');
     g.disabled = white;
     const lab = g.closest('label');
@@ -3685,6 +3711,9 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     importUserFiles(Array.from(e.dataTransfer.files));
   });
 
+  $('ground-open').addEventListener('click', (e) => { e.stopPropagation(); setGroundPop($('ground-pop').hidden); });
+  document.addEventListener('pointerdown', (e) => { const pop = $('ground-pop'); if (!pop.hidden && !pop.contains(e.target) && e.target !== $('ground-open') && !$('ground-open').contains(e.target)) setGroundPop(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'format') state.formatManual = true; state.pinned = null; regenerate(); }));
   $('fmt').addEventListener('change', updateExportInfo);

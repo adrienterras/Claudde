@@ -1240,6 +1240,47 @@ test.describe('Fond de toile conseillé', () => {
   });
 });
 
+test.describe('Couleur du fond à portée de main', () => {
+  test('la pastille près de l’œuvre ouvre la palette ; une teinte s’applique tout de suite, les deux nuanciers restent d’accord', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await expect(page.locator('#ground-open')).toBeVisible();
+    await expect(page.locator('#ground-pop')).toBeHidden();
+    // la pastille montre la couleur peinte sur l'œuvre affichée
+    const dot0 = await page.evaluate(() => ({ dot: getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase(), ground: String(AtelierGribouille.state.comp.ground || '#f4f2ec').toLowerCase() }));
+    expect(dot0.dot).toBe(dot0.ground);
+    await page.locator('#ground-open').click();
+    await expect(page.locator('#ground-pop')).toBeVisible();
+    // une teinte différente de l'actuelle
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    await page.locator(`#ground-quick button[data-hex="${hex}"]`).click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);
+    await expect(page.locator(`#ground-quick button[data-hex="${hex}"]`)).toHaveClass(/on/);
+    await expect(page.locator(`#ground button[data-hex="${hex}"]`)).toHaveClass(/on/);
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase())).toBe(hex.toLowerCase());
+    // la palette reste ouverte pour essayer d'autres teintes ; Échap la ferme
+    await expect(page.locator('#ground-pop')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#ground-pop')).toBeHidden();
+    // en Galerie (fond blanc fixe) : pas de palette
+    await app.select('galerie');
+    await expect(page.locator('#ground-open')).toBeDisabled();
+  });
+
+  test('sur téléphone, la pastille est dans la barre de droite et la palette tient dans l’écran', async ({ app }) => {
+    const { page } = app;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await page.locator('#ground-open').click();
+    await expect(page.locator('#ground-pop')).toBeVisible();
+    const r = await page.evaluate(() => { const b = document.getElementById('ground-pop').getBoundingClientRect(); return { l: b.left, r: b.right, w: innerWidth }; });
+    expect(r.l).toBeGreaterThanOrEqual(0);
+    expect(r.r).toBeLessThanOrEqual(r.w);
+    await page.mouse.click(20, 400);
+    await expect(page.locator('#ground-pop')).toBeHidden();
+  });
+});
+
 test.describe('Fond de toile sur une œuvre retouchée', () => {
   test('changer la couleur du fond garde les dessins où on les a mis ; Défaire rend l’ancien fond', async ({ app }) => {
     const { page } = app;
