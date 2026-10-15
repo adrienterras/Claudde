@@ -1714,7 +1714,8 @@
       rotation: 8, // rotation retenue des découpes (degrés) : réglage retiré, valeur fixe
       everything: allIn(), // densité au maximum : tous les dessins entrent dans l'œuvre
       densityT: (Number($('density').value) - 0.5) / 1.3, // position du curseur, de 0 à 1
-      grain: $('grain').checked,
+      grain: $('grain').checked && !printMode(),
+      flat: printMode(), // impression : aplat uni, sans effet de peinture ni grain
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,

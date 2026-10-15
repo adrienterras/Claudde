@@ -1200,7 +1200,13 @@
   }
 
   // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan).
+  // o.flat (atelier Impression) : le fond est un aplat parfaitement uni, sans coups de brosse ni grain de toile
   function generate(o) {
+    const comp = generateInner(o);
+    if (o.flat) { comp.paint = false; comp.grain = false; }
+    return comp;
+  }
+  function generateInner(o) {
     const W = o.format.w, H = o.format.h;
     const R = rng(o.seed);
     const style = o.style || 'paysage';

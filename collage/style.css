@@ -1020,6 +1020,9 @@ body.editing { overflow: hidden; }
 .mode-pick button:hover { border-color: var(--ink); box-shadow: 0 0 0 3px var(--accent-soft); }
 @media (max-width: 480px) { .mode-pick { grid-template-columns: 1fr; } }
 
+/* atelier Impression : le fond est un aplat uni, la finition toile n'a pas de sens */
+body.mode-impression label:has(> #grain) { display: none; }
+
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin-top: 8px; }
 .camera-stage { position: relative; min-height: 0; background: #15140f; overflow: hidden; }

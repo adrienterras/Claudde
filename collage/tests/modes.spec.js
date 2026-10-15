@@ -52,8 +52,14 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#scale-info')).toContainText('Impression de 24 × 18 cm');
     // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),
     // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
-    const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground })));
+    const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground, paint: p.comp.paint, grain: p.comp.grain })));
     expect(flat.every((p) => p.bg === 0 && !!p.ground)).toBe(true);
+    // un aplat parfaitement uni : ni coups de brosse ni grain de toile, et le réglage « finition toile » caché
+    expect(flat.every((p) => p.paint === false && !p.grain)).toBe(true);
+    expect(await page.locator('#grain').isVisible()).toBe(false);
+    // les pixels du fond sont tous de la même couleur
+    const uni = await page.evaluate(() => { const c = document.createElement('canvas'); const comp = AtelierGribouille.state.comp; c.width = 200; c.height = 200; const x = c.getContext('2d'); Compose.renderGround(x, comp, 200 / comp.W); const d = x.getImageData(0, 0, 200, Math.floor(200 * comp.H / comp.W)).data; let diff = 0; for (let i = 4; i < d.length; i += 4) if (d[i] !== d[0] || d[i + 1] !== d[1] || d[i + 2] !== d[2]) diff++; return diff; });
+    expect(uni).toBe(0);
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.every((d) => d.role !== 'texture' && (d.auto !== 'texture' || true)))).toBe(true);
     expect(await page.evaluate(() => AtelierGribouille.state.comp.bg.length)).toBe(0);
     await page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
