@@ -65,6 +65,23 @@ l'exploiter : Storage → retouches, ou `select path, meta from retouches order 
 Effacement sur demande : supprimer le dossier et la ligne ; la fiche porte l'horodatage que
 l'utilisateur peut citer.
 
+### Apprentissage à partir des retouches
+
+Le workflow « Apprentissage de la découpe » (`.github/workflows/apprentissage.yml`, chaque lundi
+matin ou à la main depuis l'onglet Actions) exécute `collage/tools/apprendre.js` : il télécharge les
+retouches avec la **clé service** de Supabase, rejoue la découpe de l'atelier sur chaque exemple
+avec différents réglages, et retient ceux qui rapprochent le plus les découpes automatiques des
+découpes corrigées. Résultat : `collage/js/cut-learned.js` (réglages d'office de l'atelier, appliqués
+seulement à partir de 20 exemples et si le gain se confirme en validation croisée) et le rapport
+`docs/APPRENTISSAGE.md`, validés et poussés par le workflow, ce qui republie l'atelier. Les exemples
+restent dans l'espace temporaire du runner : jamais dans le dépôt.
+
+Mise en place (une fois) : dans le dépôt GitHub, Settings → Secrets and variables → Actions → New
+repository secret, nom `SUPABASE_SERVICE_ROLE_KEY`, valeur : la clé `service_role` du projet
+(Supabase → Project Settings → API). Cette clé donne tous les droits sur le projet : elle ne doit
+figurer nulle part ailleurs (ni dans le code, ni dans une conversation). L'URL du projet est lue
+dans `collage/config.js` (ou le secret `SUPABASE_URL`).
+
 ## Limites et coûts
 
 - Offre gratuite Supabase : 500 Mo de base, 1 Go de fichiers, 50 000 utilisateurs actifs par mois.

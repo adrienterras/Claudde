@@ -18,7 +18,14 @@
   // grand côté de la page : marge de papier gardée autour de l'encre, rayon de fermeture (traits
   // distants de moins de 2 × close font un même sujet), lissage du contour ; ink : sensibilité aux
   // traits pâles (1 = normale ; < 1 : seuils plus bas, plus de traits pâles gardés)
-  const CUT_DEFAULT = { margin: 0.009, close: 0.03, smooth: 0.008, ink: 1 };
+  // Les réglages d'office sont ceux appris des retouches partagées (js/cut-learned.js, généré par
+  // tools/apprendre.js) quand il y en a ; sinon les valeurs réglées à la main.
+  const CUT_DEFAULT = (() => {
+    const base = { margin: 0.009, close: 0.03, smooth: 0.008, ink: 1 };
+    const L = window.CUT_LEARNED;
+    if (L && typeof L === 'object') Object.keys(base).forEach((k) => { if (typeof L[k] === 'number' && isFinite(L[k])) base[k] = L[k]; });
+    return base;
+  })();
   let CUT = Object.assign({}, CUT_DEFAULT);
   function setCutPrefs(p) {
     CUT = Object.assign({}, CUT_DEFAULT, p || {});
