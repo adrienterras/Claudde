@@ -1206,6 +1206,40 @@ test.describe('Gestes au doigt sur iPhone', () => {
   });
 });
 
+test.describe('Fond de toile conseillé', () => {
+  test('la teinte conseillée dépend des couleurs de l’œuvre : contraste, pas de confusion, calme sous les dessins très colorés', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const mk = (draw) => { const c = document.createElement('canvas'); c.width = 200; c.height = 200; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 200, 200); draw(x); return c; };
+      const piece = (c) => ({ canvas: c, wcm: 20, hcm: 20, color: [0, 0, 0], colorful: 0.5 });
+      const hsl = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; const d = mx - mn; const s = !d ? 0 : l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); let h = !d ? 0 : mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: h * 60, s, l: l * 255 }; };
+      const cases = {
+        orange: mk((x) => { x.fillStyle = '#e8722a'; x.fillRect(20, 20, 160, 160); }),
+        bleu: mk((x) => { x.fillStyle = '#2a5fd0'; x.fillRect(20, 20, 160, 160); }),
+        crayon: mk((x) => { x.strokeStyle = '#9a9a9a'; x.lineWidth = 3; for (let i = 0; i < 12; i++) { x.beginPath(); x.moveTo(20, 20 + i * 14); x.lineTo(180, 30 + i * 14); x.stroke(); } }),
+        multi: mk((x) => { ['#e8722a', '#2a5fd0', '#c9322b', '#f6cf1e', '#1f8a5a'].forEach((col, i) => { x.fillStyle = col; x.fillRect(10 + i * 36, 10, 34, 180); }); }),
+      };
+      const out = {};
+      for (const [k, c] of Object.entries(cases)) { const p = AtelierGribouille.pickGround({ pieces: [piece(c)], textures: [] }, 'paysage'); out[k] = Object.assign({ name: p[0], hex: p[1] }, hsl(p[1])); }
+      out.nuage = hsl(AtelierGribouille.pickGround({ pieces: [piece(cases.multi)], textures: [] }, 'nuage')[1]);
+      return out;
+    });
+    const hueDist = (a, b) => { const d = Math.abs(((a - b) % 360 + 360) % 360); return Math.min(d, 360 - d); };
+    // un dessin orange : jamais un fond orange, ocre ou rouge (il s'y fondrait)
+    expect(r.orange.s < 0.2 || hueDist(r.orange.h, 25) > 50).toBe(true);
+    // un dessin bleu : jamais un fond bleu
+    expect(r.bleu.s < 0.2 || hueDist(r.bleu.h, 220) > 50).toBe(true);
+    // des dessins différents n'ont pas le même fond conseillé
+    expect(r.orange.hex).not.toBe(r.bleu.hex);
+    // un dessin pâle au crayon : une teinte moyenne, ni blanche ni noire
+    expect(r.crayon.l).toBeGreaterThan(60);
+    expect(r.crayon.l).toBeLessThan(210);
+    // des dessins très colorés : un fond peu saturé
+    expect(r.multi.s).toBeLessThanOrEqual(0.5);
+    // Nuage : un fond clair
+    expect(r.nuage.l).toBeGreaterThanOrEqual(150);
+  });
+});
+
 test.describe('Fond de toile sur une œuvre retouchée', () => {
   test('changer la couleur du fond garde les dessins où on les a mis ; Défaire rend l’ancien fond', async ({ app }) => {
     const { page } = app;

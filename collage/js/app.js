@@ -1246,40 +1246,96 @@
   };
 
   /*
-   * Couleur de fond conseillée pour une composition : celle qui fait ressortir les dessins.
-   * On regarde la couleur d'ensemble des éléments (pondérée par leur surface) : le fond doit
-   * contraster en clarté (fond sombre sous des papiers clairs, clair sous des papiers sombres),
-   * se placer plutôt en face de la teinte dominante sur le cercle chromatique, et rester une
-   * teinte calme. La Galerie n'est pas concernée : son fond reste blanc, fixe.
+   * Palette d'une pièce ou d'une page de fond, lue sur un petit échantillon de ses pixels visibles :
+   * clarté moyenne de ce qu'on voit (papier compris), part de papier, clarté et saturation de
+   * l'encre, et teintes de l'encre en douze secteurs de 30° (pondérés par la saturation), avec la
+   * clarté moyenne de chaque secteur. Mémorisée sur l'objet tant que son canevas ne change pas.
+   */
+  function paletteOf(obj) {
+    const src = obj.canvas;
+    if (!src || !src.width) return null;
+    if (obj.palette && obj.palette.canvas === src) return obj.palette;
+    const n = 48, k = Math.min(1, n / Math.max(src.width, src.height));
+    const w = Math.max(1, Math.round(src.width * k)), h = Math.max(1, Math.round(src.height * k));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(src, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h).data;
+    c.width = c.height = 0;
+    const bins = new Float32Array(12), binL = new Float32Array(12);
+    let vis = 0, Lsum = 0, paper = 0, ink = 0, inkL = 0, inkS = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 128) continue;
+      vis++;
+      const hs = hsl([d[i], d[i + 1], d[i + 2]]);
+      Lsum += hs.l;
+      if (hs.l > 200 && hs.s < 0.18) { paper++; continue; }
+      ink++; inkL += hs.l; inkS += hs.s;
+      if (hs.s > 0.15) { const bi = Math.floor(((hs.h % 360) + 360) % 360 / 30) % 12; bins[bi] += hs.s; binL[bi] += hs.s * hs.l; }
+    }
+    for (let i = 0; i < 12; i++) { if (bins[i]) binL[i] /= bins[i]; bins[i] /= Math.max(1, vis); }
+    obj.palette = { canvas: src, vis, L: vis ? Lsum / vis : 230, paperFrac: vis ? paper / vis : 1, inkL: ink ? inkL / ink : 100, inkS: ink ? inkS / ink : 0, bins, binL };
+    return obj.palette;
+  }
+
+  /*
+   * Couleur de fond conseillée pour une composition : celle qui fait le mieux ressortir l'œuvre.
+   * L'œuvre est analysée (palette de chaque pièce et de chaque page de fond, pondérée par sa
+   * surface) et chaque teinte du nuancier est notée :
+   *  - contraste de clarté avec ce qu'on voit des dessins (papier compris : une feuille claire
+   *    ressort sur un fond sombre) et, un peu, avec leur encre (une page peinte sans marge doit
+   *    aussi se détacher) ;
+   *  - pas de confusion : une teinte proche d'une couleur très présente dans les dessins, à clarté
+   *    voisine, les fondrait dans le fond ;
+   *  - harmonie : une teinte en face des couleurs dominantes (complémentaire) les fait vibrer ;
+   *  - équilibre : sous des dessins très colorés, un fond peu saturé ; sous des dessins pâles
+   *    (crayon), une teinte moyenne et chaude qui leur donne vie ;
+   *  - les teintes calmes portent mieux les dessins. Nuage et Frise : un fond clair, les dessins
+   *    doivent respirer. La Galerie n'est pas concernée : son fond reste blanc, fixe.
    */
   function pickGround(o, style) {
-    let wsum = 0, r = 0, g = 0, b = 0, hx = 0, hy = 0, satW = 0;
-    const add = (color, area, colorful) => {
-      if (!color || !(area > 0)) return;
-      const c = hsl(color);
-      wsum += area; r += color[0] * area; g += color[1] * area; b += color[2] * area;
-      const w = area * c.s * (colorful === undefined ? 1 : 0.5 + colorful);
-      hx += Math.cos((c.h * Math.PI) / 180) * w; hy += Math.sin((c.h * Math.PI) / 180) * w; satW += w;
+    const bins = new Float32Array(12), binL = new Float32Array(12);
+    let wsum = 0, L = 0, inkL = 0, inkS = 0;
+    const add = (obj, area) => {
+      const pal = paletteOf(obj);
+      if (!pal || !(area > 0)) return;
+      wsum += area; L += pal.L * area; inkL += pal.inkL * area; inkS += pal.inkS * area;
+      for (let i = 0; i < 12; i++) { bins[i] += pal.bins[i] * area; binL[i] += pal.binL[i] * pal.bins[i] * area; }
     };
-    o.pieces.forEach((p) => add(p.color, p.wcm * p.hcm, p.colorful));
-    o.textures.forEach((t) => add(t.color, t.wcm * t.hcm * 0.6, t.colorful));
+    o.pieces.forEach((p) => add(p, p.wcm * p.hcm));
+    o.textures.forEach((t) => add(t, t.wcm * t.hcm * 0.8));
     if (!wsum) return PAINTS[1];
-    const L = (0.299 * r + 0.587 * g + 0.114 * b) / wsum;
-    const domHue = (Math.atan2(hy, hx) * 180) / Math.PI;
-    const domStrength = Math.min(1, satW / wsum);
-    let best = null;
-    // Nuage et Frise : un fond clair et calme, les dessins doivent respirer dessus
+    L /= wsum; inkL /= wsum; inkS /= wsum;
+    let total = 0;
+    for (let i = 0; i < 12; i++) { if (bins[i]) binL[i] /= bins[i]; bins[i] /= wsum; total += bins[i]; }
+    const colourful = Math.min(1, total * 2.5); // part de l'œuvre franchement colorée
+    const hueDist = (a, b) => { const d = Math.abs(((a - b) % 360 + 360) % 360); return Math.min(d, 360 - d); };
     const light = style === 'nuage' || style === 'frise';
+    let best = null;
+    const scores = [];
     PAINTS.forEach((paint) => {
       const c = hsl(hexRgb(paint[1]));
       if (light && c.l < 150) return;
-      let score = Math.min(1, Math.abs(c.l - L) / 110) * 2 + paint[2] * 1.5;
-      if (c.s > 0.25) {
-        const d = ((c.h - domHue) * Math.PI) / 180;
-        score += ((1 - Math.cos(d)) / 2) * 1.2 * domStrength;
+      let score = 2.0 * Math.min(1, Math.abs(c.l - L) / 255 / 0.5) + 0.8 * Math.min(1, Math.abs(c.l - inkL) / 255 / 0.5) + 0.6 * paint[2];
+      let clash = 0, comp = 0;
+      if (c.s > 0.2 && total > 0) {
+        for (let i = 0; i < 12; i++) {
+          if (!bins[i]) continue;
+          const hb = i * 30 + 15, share = bins[i] / total;
+          const dc = hueDist(c.h, hb);
+          if (dc <= 40) clash += share * (1 - dc / 40) * (1 - Math.min(1, Math.abs(c.l - binL[i]) / 120));
+          const dk = hueDist(c.h + 180, hb);
+          if (dk <= 45) comp += share * (1 - dk / 45);
+        }
+        score += -2.5 * clash * colourful + 1.6 * comp * colourful;
       }
+      if (inkS > 0.45) score -= 0.8 * Math.max(0, c.s - 0.45);
+      if (inkS < 0.2 && c.s >= 0.25 && c.s <= 0.65 && c.l >= 80 && c.l <= 200) score += 0.4;
+      scores.push({ paint: paint[0], score: +score.toFixed(2), clash: +clash.toFixed(2), comp: +comp.toFixed(2) });
       if (!best || score > best.score) best = { paint, score };
     });
+    pickGround.last = { L: Math.round(L), inkL: Math.round(inkL), inkS: +inkS.toFixed(2), colourful: +colourful.toFixed(2), bins: Array.from(bins).map((v) => +(v / Math.max(1e-9, total)).toFixed(2)), scores: scores.sort((a, b) => b.score - a.score).slice(0, 6) };
     return best.paint;
   }
 
@@ -5143,7 +5199,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

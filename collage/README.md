@@ -283,8 +283,13 @@ cd collage && python3 -m http.server 8000
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand
      il n'y a pas assez de dessins ; par défaut, l'app conseille pour chaque proposition la teinte
-     qui fait le mieux ressortir les dessins (contraste de clarté avec la couleur d'ensemble des
-     éléments, teinte plutôt opposée à la dominante, teintes calmes favorisées) ; la Galerie fait exception : fond blanc fixe, sans couleur ni
+     qui fait le mieux ressortir l'œuvre (`pickGround`) : la palette de chaque pièce et de chaque
+     page de fond est lue (`paletteOf` : clarté de ce qu'on voit papier compris, clarté et
+     saturation de l'encre, teintes de l'encre en douze secteurs) et chaque teinte du nuancier est
+     notée — contraste de clarté avec les dessins (et un peu avec leur encre), pas de confusion
+     avec une couleur très présente à clarté voisine, bonus pour la complémentaire des dominantes,
+     fond peu saturé sous des dessins très colorés et teinte moyenne chaude sous des dessins pâles,
+     teintes calmes favorisées ; la Galerie fait exception : fond blanc fixe, sans couleur ni
      effet peinture ni finition toile ; l'aplat est rendu avec un vrai effet de peinture (coups de brosse en deux couches,
      traces des poils, couche inégale), à l'écran, dans les exports et dans le PDF ; le guide indique
      la couleur à peindre ; le choix est mémorisé ;
