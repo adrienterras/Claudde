@@ -50,6 +50,18 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
 Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table
 `exports`), ré-exécutez-le tel quel dans le SQL Editor. Les objets existants sont conservés.
 
+## L'œuvre en cours dans le compte
+
+Connecté, l'œuvre en cours (le brouillon gardé dans le navigateur) est aussi envoyée dans le compte,
+une quinzaine de secondes après le dernier changement : une ligne `compositions` marquée `draft`
+(une seule par compte, remplacée à chaque envoi, jamais listée parmi les compositions) et le dossier
+`<utilisateur>/brouillon/` du bucket `drawings`, où chaque image n'est envoyée qu'une fois ; les
+fichiers qui ne servent plus sont effacés à l'envoi suivant. Sur un autre appareil, connecté,
+l'atelier rouvre cette œuvre de lui-même (ou la propose, si une œuvre plus récente jamais envoyée
+est en cours sur place). Aucun changement de schéma : la ligne et le dossier suivent les règles
+existantes (propriétaire seulement). Place : une photo de téléphone pèse 2 à 5 Mo ; une œuvre de
+vingt photos occupe donc jusqu'à 100 Mo du quota de fichiers.
+
 ## Retouches de découpe partagées (option)
 
 Dans l'atelier, une case « Aider à améliorer le détourage » (section Importer, décochée par défaut,

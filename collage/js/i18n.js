@@ -111,6 +111,11 @@
     'Ouverture de l’appareil photo…': 'Opening the camera…',
     'L’accès à l’appareil photo a été refusé. Autorisez-le dans les réglages du navigateur, ou importez des photos depuis la galerie.': 'Camera access was denied. Allow it in the browser settings, or import photos from your gallery.',
     'Aucun appareil photo disponible. Importez des photos depuis la galerie.': 'No camera available. Import photos from your gallery.',
+    // l'œuvre en cours dans le compte
+    'Connectez-vous pour garder votre œuvre dans votre compte.': 'Sign in to keep your artwork in your account.',
+    'Une œuvre en cours plus récente ({0} dessins, sur un autre appareil) est dans votre compte.': 'A more recent work in progress ({0} drawings, on another device) is in your account.',
+    'Réouverture de votre œuvre en cours depuis votre compte ({0} dessins)…': 'Reopening your work in progress from your account ({0} drawings)…',
+    'L’œuvre en cours de votre compte n’a pas pu être rouverte.': 'The work in progress in your account could not be reopened.',
     'Pas de scanner ?': 'No scanner?',
     'Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier.': 'Help improve the cut-out: share my cut-out edits (the drawing concerned and its corrected cut-out), with no account and no file name.',
     'En savoir plus': 'Learn more',

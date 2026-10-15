@@ -137,7 +137,8 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved-where')).toContainText('mon compte');
     // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques
-    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
+    // (hors envoi de l'œuvre en cours dans le compte, qui a son propre dossier)
+    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && !c[1].includes('/brouillon/')).length);
     expect(uploads).toBe(8);
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
     // sur un autre appareil (page rechargée, rien en local), la composition du compte se rouvre
@@ -153,8 +154,46 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#saved-list .saved-del').first().click();
     await page.locator('#saved-list .saved-del').first().click();
     await expect(page.locator('#saved-list .saved')).toHaveCount(0);
-    const left = await page.evaluate(() => ({ rows: window.__fake.db.rows.length, files: Object.keys(window.__fake.db.files).length }));
+    const left = await page.evaluate(() => ({ rows: window.__fake.db.rows.filter((r) => !(r.meta && r.meta.draft)).length, files: Object.keys(window.__fake.db.files).filter((p) => !p.includes('/brouillon/')).length }));
     expect(left).toEqual({ rows: 0, files: 0 });
+  });
+
+  test('l’œuvre en cours suit le compte : envoyée d’elle-même, retrouvée sur un autre appareil, absente de la liste', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'nour@example.org', 'Rouge-Soleil-42', 'Nour');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // le brouillon d'ici, puis son envoi dans le compte (sans attendre le délai)
+    await page.waitForFunction(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(!!(g.result && g.result.drawings && g.result.drawings.length === 2)); g.onerror = () => res(false); }; q.onerror = () => res(false); }), null, { timeout: 60000 });
+    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForFunction(() => window.__fake.db.rows.some((r) => r.meta && r.meta.draft && r.meta.drawings.length === 2));
+    const first = await page.evaluate(() => ({ uploads: window.__fake.calls.filter((c) => c[0] === 'upload').length, rows: window.__fake.db.rows.length }));
+    expect(first.rows).toBe(1);
+    expect(first.uploads).toBeGreaterThanOrEqual(2);
+    // un deuxième envoi ne renvoie pas les images, et remplace la ligne
+    await page.evaluate(() => AtelierGribouille.selectProposal(1));
+    await page.waitForTimeout(3000);
+    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForFunction((n) => window.__fake.db.rows.length === 1 && window.__fake.db.rows[0].meta.comp.style !== 'paysage' || window.__fake.calls.filter((c) => c[0] === 'upload').length > n, first.uploads);
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(first.uploads);
+    expect(await page.evaluate(() => window.__fake.db.rows.length)).toBe(1);
+    // le brouillon du compte n'apparaît pas parmi les compositions sauvegardées
+    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
+    const before = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, n: AtelierGribouille.state.comp.items.length }));
+    // un autre appareil : rien en local (base effacée, marque d'envoi effacée), même compte
+    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.brouillon-compte'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const after = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, n: AtelierGribouille.state.comp.items.length }));
+    expect(after).toEqual(before);
+    await expect(page.locator('#draft-offer')).toBeHidden();
+    // « Oublier cette œuvre » efface aussi celle du compte
+    await page.evaluate(() => new Promise((res) => { const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    await page.goto('index.html?nouveau');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await page.waitForTimeout(1500);
+    // (sans œuvre locale et arrivée « nouvelle œuvre » : celle du compte se rouvre d'elle-même aussi)
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
   });
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {

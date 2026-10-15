@@ -284,6 +284,16 @@ cd collage && python3 -m http.server 8000
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
+   - **l'œuvre en cours suit le compte** : connecté, le brouillon est aussi envoyé dans le compte
+     (`Account.cloud.draftPut`, une quinzaine de secondes après le dernier changement, ou dès que la
+     page passe en arrière-plan) : une ligne `compositions` marquée `draft` (une seule par compte,
+     remplacée à chaque envoi, absente de la liste des compositions) et un dossier fixe
+     `<utilisateur>/brouillon/` où chaque image (et chaque planche de découpes) n'est envoyée qu'une
+     fois, nommée d'après sa clé de brouillon ; les fichiers qui ne servent plus sont effacés. À
+     l'arrivée, connecté (`checkCloudDraft`) : sans œuvre en cours dans ce navigateur, ou si elle est
+     plus ancienne et déjà envoyée, l'œuvre du compte se rouvre d'elle-même ; si l'œuvre d'ici est
+     plus récente elle reste ; si elle n'a jamais été envoyée (faite sans compte), celle du compte
+     est seulement proposée (« Reprendre »). « Oublier cette œuvre » l'efface des deux côtés ;
    - **fond de toile** : au choix, la toile nue (lin) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand
