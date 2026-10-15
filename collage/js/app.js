@@ -1669,15 +1669,45 @@
   function scale() {
     return printMode() ? state.printScale || 1 : 1;
   }
-  // Impression : facteur de réduction commun à tous les dessins pour que l'œuvre, calculée à leur
-  // taille réelle (planCoverage), tienne dans le cadre choisi ; jamais agrandis (netteté du tirage).
+  // Affiche : facteur de réduction commun aux découpes, qui suit le curseur de densité : les sujets
+  // retenus (les plus forts d'abord, autant que le curseur en demande, comme à la pose) doivent couvrir
+  // la part de l'affiche que le curseur fixe ; plus on demande de dessins, plus ils sont réduits, et le
+  // nombre posé grandit pas à pas. Jamais agrandis (netteté du tirage).
   function computePrintScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
-    let k = Math.sqrt((w * h) / Math.max(1, state.canvasArea || 7000));
+    const areas = activePieces().filter((p) => p.enabled).map((p) => { const c = cmPerPx(p.drawing); return p.canvas.width * c * p.canvas.height * c; }).sort((a, b) => b - a);
+    const n = areas.length;
+    if (!n) return 1;
+    const every = allIn();
+    const t = every ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1);
+    // réduction pour une position du curseur : les sujets retenus couvrent la part fixée (même compte
+    // et même plafond de couverture qu'à la pose)
+    const raw = (tt) => {
+      const count = Math.max(1, Math.round(n * (0.2 + 0.8 * tt)));
+      const sel = areas.slice(0, count).reduce((a, b) => a + b, 0);
+      return Math.sqrt(((0.3 + 0.55 * tt) * w * h) / Math.max(1, sel));
+    };
+    // en montant le curseur, les dessins ne regrandissent jamais : la réduction est la plus forte
+    // rencontrée depuis le bas du curseur jusqu'ici
+    let k = raw(t);
+    for (let tt = 0; tt < t; tt += 0.02) k = Math.min(k, raw(tt));
+    return clamp(k, 0.05, 1);
+  }
+  // Affiche : les pages de fond ont leur propre réduction, pour couvrir l'affiche en se chevauchant
+  // (comme la toile calculée en atelier Toile), la plus grande page entière ; jamais agrandies, et
+  // jamais plus de deux fois l'échelle des découpes, pour que l'œuvre reste un collage de feuilles
+  // et pas un papier peint sous des timbres
+  function computeBgScale() {
+    if (!printMode() || !state.canvasSize) return 1;
+    const { w, h } = state.canvasSize;
+    const kp = state.printScale || 1;
+    const { bgArea } = paperAreas(state.drawings);
+    if (!(bgArea > 0)) return kp;
+    let k = Math.sqrt((1.5 * w * h) / bgArea);
     const m = state.bgMin || { long: 0, short: 0 };
     if (m.long > 0) k = Math.min(k, Math.max(w, h) / m.long, Math.min(w, h) / m.short);
-    return clamp(k, 0.05, 1);
+    return clamp(k, Math.min(kp, 1), Math.min(1, 2 * kp));
   }
 
   // Texte sous le choix de toile : taille calculée, papier disponible, couverture.
@@ -1762,11 +1792,12 @@
     const k = scale();
     const pieces = activePieces().filter((p) => p.enabled);
     pieces.forEach((p) => sizePiece(p, k));
+    const kb = printMode() ? state.bgScale || k : k; // affiche : les pages de fond ont leur propre réduction
     const textures = state.drawings
       .filter((d) => roleOf(d) === 'texture')
       .map((d) => {
         const t = d.analysis.texture;
-        const c = cmPerPx(d) * k;
+        const c = cmPerPx(d) * kb;
         return Object.assign({}, t, { drawing: d, wcm: t.canvas.width * c, hcm: t.canvas.height * c });
       });
     direct(textures, pieces);
@@ -1887,6 +1918,7 @@
     planCoverage();
     state.canvasSize = formatCm();
     state.printScale = computePrintScale();
+    state.bgScale = computeBgScale();
     applyOrientations();
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));

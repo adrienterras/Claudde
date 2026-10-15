@@ -17,8 +17,13 @@ cd collage && python3 -m http.server 8000
    l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
    - **Affiche** (« impression » dans le code : `mode=impression`) : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
      (`FRAMES` : 18 × 24 à 70 × 100, A4, A3, carrés 30 à 50 ; seule liste proposée), les dessins
-     réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, calculé d'après la
-     surface qu'ils demanderaient à taille réelle ; jamais agrandis, pour la netteté du tirage).
+     réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, `computePrintScale`) qui
+     **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
+     curseur en demande, comme à la pose) doivent couvrir la part de l'affiche que le curseur fixe,
+     si bien que le nombre de dessins posés grandit pas à pas avec le curseur (plus on en demande,
+     plus ils sont réduits) ; jamais agrandis, pour la netteté du tirage. Les pages de fond ont
+     leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se
+     chevauchant, la plus grande entière, sans dépasser deux fois l'échelle des découpes.
      Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
      guide de création ; finition toile cachée. Le **fond est toujours un aplat de couleur,
      parfaitement uni** (`o.flat` : ni coups de brosse ni grain de toile, `comp.paint = false`), pas de

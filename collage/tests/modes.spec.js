@@ -125,6 +125,31 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 
+  test('Affiche : le nombre de dessins posés grandit pas à pas avec le curseur de densité', async ({ page }) => {
+    test.setTimeout(180000);
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'photo-wood.png', 'noscale-small.jpg', 'noscale-medium.jpg'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:29.7x21'; f.dispatchEvent(new Event('change')); });
+    const counts = [], scales = [];
+    for (const v of ['0.5', '0.8', '1.1', '1.4', '1.8']) {
+      await page.evaluate((v) => { const d = document.getElementById('density'); d.value = v; d.dispatchEvent(new Event('change')); }, v);
+      await page.waitForTimeout(300);
+      counts.push(await page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.length));
+      scales.push(await page.evaluate(() => AtelierGribouille.scale()));
+    }
+    const n = await page.evaluate(() => AtelierGribouille.state.drawings.reduce((s, d) => s + (d.analysis.pieces || []).filter((p) => p.enabled).length, 0));
+    // jamais moins de dessins en montant le curseur, et au moins deux paliers avant « tout »
+    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1]);
+    expect(new Set(counts.slice(0, 4)).size).toBeGreaterThanOrEqual(2);
+    expect(counts[0]).toBeLessThan(counts[4]);
+    expect(counts[4]).toBe(n);
+    // plus on en demande, plus les dessins sont réduits
+    for (let i = 1; i < scales.length; i++) expect(scales[i]).toBeLessThanOrEqual(scales[i - 1] + 1e-9);
+  });
+
   test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
