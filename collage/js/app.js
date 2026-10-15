@@ -1686,7 +1686,9 @@
     const raw = (tt) => {
       const count = Math.max(1, Math.round(n * (0.2 + 0.8 * tt)));
       const sel = areas.slice(0, count).reduce((a, b) => a + b, 0);
-      return Math.sqrt(((0.3 + 0.55 * tt) * w * h) / Math.max(1, sel));
+      // surface demandée aux sujets : plus que la part couverte à la pose (ils se chevauchent), jusqu'à
+      // 115 % de l'affiche au maximum du curseur, pour la remplir
+      return Math.sqrt(((0.35 + 0.8 * tt) * w * h) / Math.max(1, sel));
     };
     // en montant le curseur, les dessins ne regrandissent jamais : la réduction est la plus forte
     // rencontrée depuis le bas du curseur jusqu'ici
@@ -1810,6 +1812,7 @@
       densityT: (Number($('density').value) - 0.5) / 1.3, // position du curseur, de 0 à 1
       grain: $('grain').checked && !printMode(),
       flat: printMode(), // impression : aplat uni, sans effet de peinture ni grain
+      spread: printMode() && k < 0.6, // affiche aux dessins très réduits : répartis sur toute la surface
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,

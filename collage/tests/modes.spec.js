@@ -148,6 +148,15 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(counts[4]).toBe(n);
     // plus on en demande, plus les dessins sont réduits
     for (let i = 1; i < scales.length; i++) expect(scales[i]).toBeLessThanOrEqual(scales[i - 1] + 1e-9);
+    // dessins très réduits dans un petit cadre, au maximum : Paysage les répartit sur toute l'affiche
+    // (feuilles déclarées A2 : les sujets demandent bien plus que le cadre 24 × 18)
+    await page.evaluate(() => { AtelierGribouille.state.drawings.forEach((d) => { d.sizeCm = 59.4; }); const f = document.getElementById('format'); f.value = 'cadre:24x18'; f.dispatchEvent(new Event('change')); });
+    await page.waitForTimeout(300);
+    const sp = await page.evaluate(() => { const c = AtelierGribouille.state.proposals[0].comp; const ys = c.items.map((L) => L.y / c.H), xs = c.items.map((L) => L.x / c.W); return { k: AtelierGribouille.scale(), n: c.items.length, dy: Math.max(...ys) - Math.min(...ys), dx: Math.max(...xs) - Math.min(...xs) }; });
+    expect(sp.k).toBeLessThan(0.6);
+    expect(sp.n).toBe(n);
+    expect(sp.dy).toBeGreaterThan(0.45);
+    expect(sp.dx).toBeGreaterThan(0.45);
   });
 
   test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {

@@ -687,6 +687,9 @@
   // mode : null (libre, par zones) ou { targets(idx, n, piece) → {x, y, rot, r}, byRadius, tight }
   function placePieces(W, H, pieces, o, Z, R, mode, maps) {
     const spiral = !!mode;
+    // o.spread (affiche : dessins très réduits dans un cadre fixe) : plus de zones ciel / milieu / sol ni de
+    // ligne de sol, les sujets se répartissent sur toute la surface, bien espacés, pour remplir le cadre
+    const spread = !!o.spread;
     const targetsFn = mode ? mode.targets : null;
     const gw = Math.ceil(W), gh = Math.ceil(H);
     const occ = new Uint8Array(gw * gh);
@@ -729,7 +732,7 @@
     sorted.forEach((p, idx) => {
       p.placed = false;
       if (idx >= maxCount || covered >= targetCover) return;
-      const grounded = !spiral && !!p.grounded;
+      const grounded = !spiral && !spread && !!p.grounded;
       const pHue = hue(p.color);
       const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
       const star = !spiral && stars.has(p);
@@ -754,7 +757,7 @@
       }
       for (let c = 0; c < 170 && !target; c++) {
         // un sujet posé peut aussi se tenir sur le bas du milieu, pas seulement dans la bande du sol
-        const band = grounded && c % 2 ? [Z.milieu[0], Z.sol[1]] : Z[p.zone] || [0, H];
+        const band = spread ? [0, H] : grounded && c % 2 ? [Z.milieu[0], Z.sol[1]] : Z[p.zone] || [0, H];
         let cx = p.wcm * 0.35 + R() * Math.max(1, W - p.wcm * 0.7);
         let cy;
         if (grounded) {
@@ -815,7 +818,7 @@
             if (Math.min(dh, 360 - dh) < 35) score += 0.3;
           }
         }
-        if (near < Infinity) score -= Math.min(near / (W * 0.25), 1) * 0.5;
+        if (near < Infinity) score -= Math.min(near / (W * 0.25), 1) * (spread ? 1.3 : 0.5);
         if (star) {
           let dmin = Infinity;
           thirds.forEach(([tx, ty], i) => { if (!usedThirds.has(i)) dmin = Math.min(dmin, Math.hypot(tx - cx, (ty - cy) * (grounded ? 0.3 : 1))); });
