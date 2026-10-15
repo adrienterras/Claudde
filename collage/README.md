@@ -15,7 +15,7 @@ cd collage && python3 -m http.server 8000
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, cartes de choix dans
    l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
-   - **Impression** : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
+   - **Affiche** (« impression » dans le code : `mode=impression`) : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
      (`FRAMES` : 18 × 24 à 70 × 100, A4, A3, carrés 30 à 50 ; seule liste proposée), les dessins
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, calculé d'après la
      surface qu'ils demanderaient à taille réelle ; jamais agrandis, pour la netteté du tirage).
