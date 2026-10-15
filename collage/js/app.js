@@ -660,12 +660,7 @@
 
   // Rôle d'un dessin : choix de l'utilisateur, sinon celui du directeur artistique (Claude),
   // sinon celui de l'analyse d'image.
-  function roleOf(d) {
-    // atelier Impression : le fond est un aplat de couleur, jamais une page collée ; tout dessin
-    // gardé est une découpe (une page peinte devient une forme découpée)
-    const r = roleAuto(d);
-    return printMode() && r === 'texture' ? 'cutout' : r;
-  }
+  function roleOf(d) { return roleAuto(d); }
   function roleAuto(d) {
     if (d.role !== 'auto') return d.role;
     // un dessin photographié sur un sol et détouré est toujours une découpe (jamais une page entière) ;
@@ -791,9 +786,19 @@
       if (a.kind === 'cutout' && (a.paperFrac || 0) >= 0.3 && main && main.frac > 0.25 && main.colorful > 0.35) return false;
       return painted >= 0.5;
     };
+    // atelier Impression : le fond est un aplat uni ; seules les pages très colorées, peintes en
+    // larges étendues (un paysage, un ciel, une mer), s'y collent en fond — toutes celles-là, d'office
+    const printBg = (d) => {
+      const a = d.analysis;
+      if (d.ai && d.ai.role === 'fond') return true;
+      const painted = 1 - (a.paperFrac === undefined ? 0.5 : a.paperFrac);
+      const t = a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page));
+      return painted >= 0.55 && (t.colorful || 0) >= 0.25 && (t.calm === undefined ? 0.5 : t.calm) >= 0.4 && bgMerit(d) > 0;
+    };
+    const eligible = (d) => bgEligible(d) && (!printMode() || printBg(d));
     const rest = cands.filter((d) => !paleOnes.includes(d));
-    rest.forEach((d) => { if (!bgEligible(d) || (d.photo && !d.photo.sheet && d.photoMode !== 'keep')) d.auto = 'cutout'; });
-    const ranked = rest.filter(bgEligible).sort((a, b) => bgMerit(b) - bgMerit(a));
+    rest.forEach((d) => { if (!eligible(d) || (d.photo && !d.photo.sheet && d.photoMode !== 'keep')) d.auto = 'cutout'; });
+    const ranked = rest.filter(eligible).sort((a, b) => bgMerit(b) - bgMerit(a));
     const forcedBg = state.drawings.filter((d) => d.role === 'texture').reduce((sum, d) => sum + pageAreaCm2(d), 0);
     const minBg = ranked.length ? Math.min(ranked.length, Math.max(2, ranked.filter((d) => d.auto === 'texture' || d.analysis.kind === 'texture').length)) : 0;
     let chosen = { nBg: minBg, area: 7000 };
@@ -839,6 +844,7 @@
       ranked.forEach((d, i) => { d.auto = i < chosen.nBg ? 'texture' : 'cutout'; });
       state.coverage = paperAreas(state.drawings).bgArea / canvasArea;
     }
+    if (printMode()) chosen.nBg = ranked.length; // impression : toutes les pages d'étendues colorées en fond
     ranked.forEach((d, i) => { d.auto = i < chosen.nBg ? 'texture' : 'cutout'; });
     ranked.forEach((d) => ensureMaterial(d));
   }
@@ -1015,7 +1021,7 @@
           <span>${tr`Dessin ${idx + 1} sur ${n}`}</span>
           <button type="button" data-nav="1" ${idx >= n - 1 ? 'disabled' : ''} aria-label="${tr('Dessin suivant')}" title="${tr('Dessin suivant')}"><svg class="ico"><use href="#i-next"/></svg></button>
         </div>
-        <div class="seg">${ROLES.filter((r) => r !== 'texture' || !printMode()).map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
+        <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
         <div class="row stack">${tr('Taille réelle')}
           <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
             ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}

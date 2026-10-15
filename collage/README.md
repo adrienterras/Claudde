@@ -21,10 +21,12 @@ cd collage && python3 -m http.server 8000
      surface qu'ils demanderaient à taille réelle ; jamais agrandis, pour la netteté du tirage).
      Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
      guide de création ; finition toile cachée. Le **fond est toujours un aplat de couleur,
-     parfaitement uni** (`o.flat` : ni coups de brosse ni grain de toile, `comp.paint = false`) : aucune
-     page collée en fond (`roleOf` ne rend jamais « fond » en impression, une page peinte devient une
-     forme découpée, le rôle « fond » n'est pas proposé), pas de toile nue (la teinte conseillée
-     s'applique d'office), blanc fixe en Galerie. Chaque pièce posée s'agrandit ou se réduit à la
+     parfaitement uni** (`o.flat` : ni coups de brosse ni grain de toile, `comp.paint = false`), pas de
+     toile nue (la teinte conseillée s'applique d'office), blanc fixe en Galerie. Par-dessus, les
+     **pages très colorées peintes en larges étendues** (paysage, ciel, mer : plus de 55 % de la
+     feuille peinte, couleur franche, larges aplats calmes, ou rôle « fond » donné par Claude) se
+     collent en fond d'office, toutes (`printBg` dans `planCoverage`) ; les autres pages sont des
+     découpes ; le rôle « fond » se choisit aussi à la main. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, boutons Agrandir / Réduire de 10 %, touches + et −),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
