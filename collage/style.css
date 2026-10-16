@@ -701,13 +701,12 @@ body.stage-full .density-bar { display: none; }
 .label b { font-family: var(--f-display); font-style: italic; font-weight: 400; font-size: 1.02rem; }
 /* sur ordinateur, le cartel est centré dans la bande libre entre la barre de densité et le zoom,
    et ne la déborde jamais (il s'écrit sur plusieurs lignes au besoin) */
-@media (min-width: 1301px) {
-  .label { left: 370px; right: 330px; transform: none; width: fit-content; max-width: none; margin: 0 auto; }
-}
-/* écran moins large : la bande serait trop étroite, le cartel passe au-dessus des deux barres */
-@media (min-width: 861px) and (max-width: 1300px) {
-  .label { bottom: 70px; max-width: calc(100% - 40px); }
-  .stage canvas { inset: 64px 0 118px 0; height: calc(100% - 182px); } /* l'œuvre reste entière au-dessus */
+/* (les bords de la bande sont mesurés par layoutLabel ; si elle est trop étroite, le cartel passe
+   au-dessus des deux barres : classe label-above) */
+@media (min-width: 861px) {
+  .label { left: var(--label-l, 370px); right: var(--label-r, 330px); transform: none; width: fit-content; max-width: none; margin: 0 auto; }
+  body.label-above .label { left: 20px; right: 20px; bottom: 70px; }
+  body.label-above .stage canvas { inset: 64px 0 118px 0; height: calc(100% - 182px); } /* l'œuvre reste entière au-dessus */
 }
 .label span { font-family: var(--f-body); font-size: 0.6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -755,9 +754,7 @@ body.stage-full .density-bar { display: none; }
 
 /* Écrans moyens (iPad, petit portable) : la scène est trop étroite pour loger densité, cartouche et zoom
    sur une même ligne ; le cartouche passe au-dessus des commandes. */
-@media (min-width: 861px) and (max-width: 1400px) {
-  .label { bottom: 72px; max-width: calc(100% - 28px); }
-}
+
 
 .save-status { margin: 0; padding: 8px 10px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); font-size: 0.82rem; }
 

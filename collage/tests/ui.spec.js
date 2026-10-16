@@ -1242,6 +1242,30 @@ test.describe('Fond de toile conseillé', () => {
   });
 });
 
+test.describe('Cartel sur ordinateur', () => {
+  test('le cartel ne passe jamais sous la barre de densité ni sous la barre d’outils, quelle que soit la largeur', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    // un compteur long (« tout ») et un cartel long
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:29.7x21'; f.dispatchEvent(new Event('change')); });
+    for (const width of [1680, 1440, 1366, 1280, 1150, 900]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => {
+        const box = (el) => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+        const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+        const label = box(document.getElementById('label')), dens = box(document.getElementById('density-bar')), zoom = box(document.querySelector('.zoom'));
+        return { dens: hit(label, dens), zoom: hit(label, zoom), text: document.getElementById('label-meta').textContent.length };
+      });
+      expect(r.text).toBeGreaterThan(60);
+      expect(r.dens, `cartel sur la densité à ${width} px`).toBe(false);
+      expect(r.zoom, `cartel sur la barre d'outils à ${width} px`).toBe(false);
+    }
+  });
+});
+
 test.describe('Couleur du fond à portée de main', () => {
   test('la pastille près de l’œuvre ouvre la palette ; une teinte s’applique tout de suite, les deux nuanciers restent d’accord', async ({ app }) => {
     const { page } = app;

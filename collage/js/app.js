@@ -2021,6 +2021,30 @@
   }
 
   // Cartel sous l'œuvre, comme au musée.
+  /*
+   * Ordinateur : le cartel se place dans la bande libre entre la barre de densité (à gauche) et la
+   * barre d'outils (à droite), mesurées pour de vrai (leur largeur change avec le compteur, la
+   * pastille de couleur, la langue). Bande trop étroite : il passe au-dessus des deux barres.
+   */
+  function layoutLabel() {
+    const label = $('label'), stage = label && label.parentElement;
+    if (!stage || window.innerWidth < 861) { document.body.classList.remove('label-above'); return; }
+    const zoom = stage.querySelector('.zoom'), dens = $('density-bar');
+    const sr = stage.getBoundingClientRect();
+    const left = dens && !dens.hidden ? dens.getBoundingClientRect().right - sr.left + 12 : 14;
+    const right = zoom ? sr.right - zoom.getBoundingClientRect().left + 12 : 14;
+    const room = sr.width - left - right;
+    const above = room < 300;
+    document.body.classList.toggle('label-above', above);
+    stage.style.setProperty('--label-l', `${Math.round(left)}px`);
+    stage.style.setProperty('--label-r', `${Math.round(right)}px`);
+  }
+  window.addEventListener('resize', () => layoutLabel());
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => layoutLabel());
+    ['density-bar'].forEach((id) => { if ($(id)) ro.observe($(id)); });
+    document.querySelectorAll('.zoom').forEach((z) => ro.observe(z));
+  }
   function updateLabel() {
     const el = $('label');
     updateSettingsFor(state.comp);
@@ -2059,6 +2083,7 @@
     const aside = asideDrawings().length;
     $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${printMode() && scale() * (c.fill || 1) < 0.995 ? tr`dessins réduits à ${Math.round(scale() * (c.fill || 1) * 100)} % pour le cadre` : c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
     renderAside();
+    layoutLabel();
   }
 
   function unusedDrawings() {
