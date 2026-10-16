@@ -2534,9 +2534,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     b.setAttribute('aria-pressed', state.bgMode ? 'true' : 'false');
     b.querySelector('span').textContent = state.bgMode ? tr('Tout voir') : tr('Fond seul');
     b.title = state.bgMode ? tr('Revenir à l’œuvre complète') : tr('Ne voir que le fond et déplacer ses pages');
-    $('stage-tip').textContent = state.bgMode
-      ? tr('Fond seul : glissez une page de fond pour la déplacer · poignée ou molette pour la tourner · « Tout voir » pour retrouver les découpes')
-      : tr('Glissez une pièce pour la déplacer · poignée ou molette pour la tourner · pincez ou double-cliquez pour zoomer') + (resizable() ? tr(' · carré pour agrandir ou réduire') : '');
     render();
   }
   $('bg-mode').addEventListener('click', () => setBgMode(!state.bgMode));

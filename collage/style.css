@@ -636,7 +636,6 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .toolbar button[data-act="del"]:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
 .toolbar button:disabled { opacity: .35; cursor: default; }
 .toolbar .tb-sep { width: 1px; align-self: stretch; margin: 6px 3px; background: var(--line); flex: none; }
-.stage-tip { position: absolute; top: 66px; left: 0; right: 0; margin: 0; text-align: center; font-size: 0.74rem; color: var(--muted); pointer-events: none; z-index: 1; }
 
 /* Zoom sur l'œuvre */
 .zoom {
@@ -674,7 +673,7 @@ body.stage-full .stage canvas {
   inset: calc(60px + env(safe-area-inset-top, 0px)) 0 auto 0;
   height: calc(100% - 60px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
-body.stage-full .label, body.stage-full .stage-tip { display: none; }
+body.stage-full .label { display: none; }
 body.stage-full { overflow: hidden; }
 
 /* Cartel de musée */
@@ -970,7 +969,6 @@ body.editing { overflow: hidden; }
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
   .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }
   body.stage-full .stage { padding-bottom: 0; }
-  .stage-tip { display: none; }
   .empty { bottom: var(--sheet); padding: 16px 56px 16px 16px; }
   .empty-pictos img { height: 36px; }
   .empty-title { font-size: 1.5rem; }
