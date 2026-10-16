@@ -160,10 +160,39 @@
     .rise { animation: rise .8s ease-out both; }
     @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) { .rise { animation: none; } html { scroll-behavior: auto; } }
+    /* téléphone puis ordinateur */
+    .duo-sec { display: grid; grid-template-columns: .95fr 1.05fr; gap: 48px; align-items: center; }
+    .duo-steps { list-style: none; margin: 26px 0 30px; padding: 0; display: grid; gap: 16px; counter-reset: duo; }
+    .duo-steps li { position: relative; padding-left: 44px; color: var(--ink-2); font-size: .95rem; }
+    .duo-steps li::before { counter-increment: duo; content: counter(duo); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: .85rem; }
+    .duo-steps b { display: block; color: var(--ink); font-weight: 600; }
+    .duo { position: relative; aspect-ratio: 5 / 4; }
+    .laptop { position: absolute; right: 0; top: 4%; width: 80%; }
+    .laptop .screen { background: #23221c; border-radius: 14px 14px 4px 4px; padding: 3.2% 3.2% 2.6%; box-shadow: 0 30px 60px -32px rgba(0,0,0,.55); }
+    .laptop .bar { display: flex; gap: 5px; margin-bottom: 2.5%; }
+    .laptop .bar i { width: 7px; height: 7px; border-radius: 50%; background: #4a4838; }
+    .laptop .app { display: grid; grid-template-columns: 26% 1fr; gap: 3%; background: var(--craie); border-radius: 4px; padding: 3%; }
+    .laptop .side { display: grid; gap: 7px; align-content: start; }
+    .laptop .side i { display: block; height: 7px; border-radius: 4px; background: var(--line); }
+    .laptop .side i.on { background: var(--accent); width: 70%; }
+    .laptop .side i.short { width: 60%; }
+    .laptop .app img { display: block; width: 100%; height: auto; border-radius: 2px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.5); }
+    .laptop .base { height: 12px; margin: 0 -5%; background: linear-gradient(#d9d2c4, #b9b09f); border-radius: 0 0 14px 14px; }
+    .phone { position: absolute; left: 0; bottom: 0; width: 31%; aspect-ratio: 9 / 18.5; background: #23221c; border-radius: 26px; padding: 4.5%; box-shadow: 0 30px 50px -24px rgba(0,0,0,.6); transform: rotate(-4deg); }
+    .phone .screen { position: relative; height: 100%; border-radius: 19px; overflow: hidden; background: #6b5d4c; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .phone .sheet { width: 74%; height: auto; display: block; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); transform: rotate(2deg); }
+    .phone .frame { position: absolute; left: 9%; right: 9%; top: 19%; bottom: 27%; border: 2px solid #8fd19e; border-radius: 6px; }
+    .phone .badge { position: absolute; top: 6%; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #2f7a47; color: #fff; font-size: .62rem; font-weight: 600; padding: 4px 9px; border-radius: 999px; }
+    .phone .shutter { position: absolute; bottom: 6%; left: 50%; width: 18%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.35); }
+    .sync { position: absolute; left: 22%; top: 6%; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 13px 7px 9px; font-size: .78rem; font-weight: 600; color: var(--accent); box-shadow: 0 12px 26px -16px rgba(0,0,0,.4); transform: rotate(-2deg); }
+    .sync svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; padding-top: 40px; gap: 36px; }
       .hero-art { order: -1; padding: 0 10px; }
       .scenes, .steps, .styles { grid-template-columns: 1fr; }
+      .duo-sec { grid-template-columns: 1fr; gap: 36px; }
+      .duo { order: -1; }
+      .phone .badge { font-size: .5rem; padding: 3px 6px; }
       .promise { grid-template-columns: 1fr; padding: 30px 24px; }
       .nav nav a.hide-sm { display: none; }
       .nav .wrap { width: calc(100% - 32px); height: 58px; gap: 10px; }
@@ -396,6 +425,43 @@
             <h3>Imprimez, ou réalisez-la avec les originaux</h3>
             <p>Un fichier haute définition à 300 dpi pour l’impression sur toile, aux formats du commerce. Ou le guide de création pour la faire à la main avec les vrais dessins : plan de pose à l’échelle 1, ordre de collage, trait de coupe de chaque original.</p>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="telephone">
+      <div class="wrap duo-sec">
+        <div>
+          <p class="kicker">Du téléphone à l’ordinateur</p>
+          <h2>Photographiez sur le téléphone, composez sur l’ordinateur.</h2>
+          <p class="lead">Pas besoin de scanner : l’atelier ouvre l’appareil photo du téléphone et vous dit si chaque photo est bonne. Vous retrouvez ensuite l’œuvre sur l’ordinateur, sur grand écran, pour la peaufiner tranquillement.</p>
+          <ol class="duo-steps">
+            <li><b>Sur le téléphone, touchez « Photographier un dessin ».</b>Cadrez la feuille : « Photo optimale » s’affiche quand elle est entière, nette et bien éclairée.</li>
+            <li><b>Connectez-vous avec votre compte gratuit.</b>Les photos et l’œuvre en cours y sont gardées, d’elles-mêmes.</li>
+            <li><b>Ouvrez l’atelier sur l’ordinateur, avec le même compte.</b>Il vous propose de reprendre l’œuvre là où vous l’avez laissée : déplacez, agrandissez, choisissez le cadre, puis commandez.</li>
+          </ol>
+          <a class="btn btn-primary" href="atelier/?nouveau" target="_blank" rel="noopener">Ouvrir l’atelier</a>
+        </div>
+        <div class="duo" role="img" aria-label="Un dessin photographié dans l’atelier sur le téléphone, puis l’œuvre retrouvée sur l’ordinateur">
+          <div class="laptop" aria-hidden="true">
+            <div class="screen">
+              <div class="bar"><i></i><i></i><i></i></div>
+              <div class="app">
+                <div class="side"><i class="on"></i><i></i><i class="short"></i><i></i><i class="short"></i><i></i></div>
+                <img src="img/oeuvre-paysage.jpg" width="900" height="585" loading="lazy" decoding="async" alt="">
+              </div>
+            </div>
+            <div class="base"></div>
+          </div>
+          <div class="sync" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5a3.5 3.5 0 0 1-.5 7"/><path d="M12 12v8m0 0l-3-3m3 3l3-3"/></svg><span>Votre compte</span></div>
+          <div class="phone" aria-hidden="true">
+            <div class="screen">
+              <span class="badge">✓ Photo optimale</span>
+              <svg class="sheet" viewBox="0 0 120 160"><rect width="120" height="160" fill="#fdfbf6"/><circle cx="88" cy="34" r="13" fill="#f6c63f" stroke="#e39b1c" stroke-width="2"/><path d="M88 13v-6M88 61v-6M67 34h-6M115 34h-6M73 19l-4-4M103 49l4 4M103 19l4-4M73 49l-4 4" stroke="#e39b1c" stroke-width="2.4" stroke-linecap="round"/><path d="M22 120V86l24-20 24 20v34z" fill="#e8574a" stroke="#a8322a" stroke-width="2" stroke-linejoin="round"/><path d="M40 120v-18h12v18" fill="#3e6fb5"/><rect x="28" y="92" width="10" height="10" fill="#9fd0f0" stroke="#3e6fb5" stroke-width="1.5"/><path d="M8 124c18-5 34 4 52-1s34-4 52 1" stroke="#4f9a45" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M92 122v-26" stroke="#4f9a45" stroke-width="2.5"/><circle cx="92" cy="92" r="7" fill="#ec7fb0" stroke="#c24d86" stroke-width="1.5"/><circle cx="92" cy="92" r="2.5" fill="#f6c63f"/></svg>
+              <span class="frame"></span>
+              <span class="shutter"></span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -203,7 +203,19 @@
     "Les fournitures de collage : colle, pinceau, vernis de finition": "The gluing supplies: glue, brush, finishing varnish",
     "Vous découpez et collez vos dessins originaux, livraison incluse": "You cut out and glue your original drawings, delivery included",
     "Guide seul, en PDF avec le fichier HD : 24,90 €.": "Guide alone, as a PDF with the HD file: €24.90.",
-    "Un seul achat par composition, sans abonnement. Le fichier est à vous : imprimez-le où vous voulez.": "One purchase per composition, no subscription. The file is yours: print it wherever you like."
+    "Un seul achat par composition, sans abonnement. Le fichier est à vous : imprimez-le où vous voulez.": "One purchase per composition, no subscription. The file is yours: print it wherever you like.",
+    "Du téléphone à l’ordinateur": "From phone to computer",
+    "Photographiez sur le téléphone, composez sur l’ordinateur.": "Photograph on your phone, compose on your computer.",
+    "Pas besoin de scanner : l’atelier ouvre l’appareil photo du téléphone et vous dit si chaque photo est bonne. Vous retrouvez ensuite l’œuvre sur l’ordinateur, sur grand écran, pour la peaufiner tranquillement.": "No scanner needed: the studio opens your phone’s camera and tells you whether each photo is good. You then find the artwork on your computer, on a big screen, to fine-tune it at leisure.",
+    "Sur le téléphone, touchez « Photographier un dessin ».": "On your phone, tap “Photograph a drawing”.",
+    "Cadrez la feuille : « Photo optimale » s’affiche quand elle est entière, nette et bien éclairée.": "Frame the sheet: “Optimal photo” appears when it is whole, sharp and well lit.",
+    "Connectez-vous avec votre compte gratuit.": "Sign in with your free account.",
+    "Les photos et l’œuvre en cours y sont gardées, d’elles-mêmes.": "The photos and the artwork in progress are kept there automatically.",
+    "Ouvrez l’atelier sur l’ordinateur, avec le même compte.": "Open the studio on your computer, with the same account.",
+    "Il vous propose de reprendre l’œuvre là où vous l’avez laissée : déplacez, agrandissez, choisissez le cadre, puis commandez.": "It offers to pick up the artwork where you left off: move, enlarge, choose the frame, then order.",
+    "Un dessin photographié dans l’atelier sur le téléphone, puis l’œuvre retrouvée sur l’ordinateur": "A drawing photographed in the studio on the phone, then the artwork found again on the computer",
+    "✓ Photo optimale": "✓ Optimal photo",
+    "Votre compte": "Your account",
   };
 
   var KEY = 'atelier-gribouille:lang';
