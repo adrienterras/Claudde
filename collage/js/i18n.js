@@ -16,7 +16,7 @@
     'Accueil': 'Home',
     'Instagram': 'Instagram',
     'Créer un tableau avec les dessins de vos enfants | Atelier Gribouille': 'Make a canvas of your children’s drawings | Atelier Gribouille',
-    'Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose sept propositions, à imprimer sur toile en 300 dpi ou à réaliser à la main.': 'Import your children’s drawings, scanned or photographed: the studio cuts them out and composes seven proposals, to print on canvas at 300 dpi or to make by hand.',
+    'Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose sept propositions, à imprimer en 300 dpi ou à réaliser à la main.': 'Import your children’s drawings, scanned or photographed: the studio cuts them out and composes seven proposals, to print at 300 dpi or to make by hand.',
     'Les dessins d’enfants': 'Children’s drawings',
     'deviennent des œuvres d’art': 'become works of art',
     'Monogramme Atelier Gribouille': 'Atelier Gribouille monogram',
