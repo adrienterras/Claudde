@@ -1017,6 +1017,13 @@ body.editing { overflow: hidden; }
 .mode-switch button b { font-size: 0.86rem; }
 .mode-switch button small { font-size: 0.7rem; line-height: 1.3; color: var(--muted); }
 .mode-switch button:hover { border-color: var(--ink); }
+.new-work { margin: 4px 0 2px; padding: 10px 16px; border: 1.5px solid var(--accent); color: var(--accent); background: var(--accent-soft); font-size: 0.9rem; }
+.new-work:hover { background: var(--accent); color: var(--surface); transform: translateY(-1px); }
+.new-work .ico { width: 18px; height: 18px; }
+@media (max-width: 860px) {
+  /* tiroir du téléphone : en tête de l'onglet Importer et de l'onglet Plus seulement */
+  .panel.tabbed:not([data-tab="import-section"]):not([data-tab="more"]) > .new-work { display: none; }
+}
 .mode-switch button.on { border-color: var(--ink); background: var(--ink); color: var(--on-ink); }
 .mode-switch button.on small { color: var(--on-ink); opacity: .78; }
 .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 520px; margin-top: 6px; pointer-events: auto; }

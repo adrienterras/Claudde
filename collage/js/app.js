@@ -386,6 +386,7 @@
       ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
       $('restart-offer').hidden = false;
+      $('new-work').hidden = false;
       if (!state.restoring) selectTab('compose-section');
     }
     refreshLists();
@@ -3983,7 +3984,7 @@ Réponds uniquement avec ce JSON :
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label', 'restart-offer'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label', 'restart-offer', 'new-work'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
     $('sample-offer').hidden = !state.sampleManifest;
     refreshLists();
@@ -4000,6 +4001,13 @@ Réponds uniquement avec ce JSON :
   }
   $('clear').onclick = startOver;
   $('restart').onclick = startOver;
+  // Bouton en tête du panneau : on demande confirmation, sauf si l'œuvre n'est faite que de l'exemple.
+  $('new-work').onclick = () => {
+    const mine = state.drawings.some((d) => !d.sample);
+    if (mine && !window.confirm(tr('Commencer une nouvelle œuvre ? L’œuvre en cours sera effacée de cet appareil.'))) return;
+    window.Atelier.track('Nouvelle œuvre');
+    startOver();
+  };
 
   // Dessins d'exemple fournis avec la page ou trouvés à côté de l'app : importés sur demande.
   async function loadSamples(m) {

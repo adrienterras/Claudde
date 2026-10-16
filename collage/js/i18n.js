@@ -140,6 +140,8 @@
     'Plus': 'More',
     'Ajoutez d’autres scans à cette œuvre, ou': 'Add more scans to this artwork, or',
     'commencez une nouvelle œuvre': 'start a new artwork',
+    'Commencer une nouvelle œuvre': 'Start a new artwork',
+    'Commencer une nouvelle œuvre ? L’œuvre en cours sera effacée de cet appareil.': 'Start a new artwork? The current artwork will be erased from this device.',
     'Vérifier': 'Check',
     'Tout inclure': 'Include all',
     'Tailles': 'Sizes',

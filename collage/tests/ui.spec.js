@@ -19,6 +19,28 @@ test.describe('Interface', () => {
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
   });
 
+  test('« Commencer une nouvelle œuvre » : bien en vue en tête du panneau, confirmation avant d’effacer', async ({ app }) => {
+    const { page } = app;
+    await expect(page.locator('#new-work')).toBeHidden();
+    await app.import(['page-cutout.png']);
+    const btn = page.locator('#new-work');
+    await expect(btn).toBeVisible();
+    // au-dessus de l'étape Importer, sans défiler
+    const [b, imp] = await Promise.all([btn.boundingBox(), page.locator('#import-section').boundingBox()]);
+    expect(b.y).toBeLessThan(imp.y);
+    expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
+    // refus : rien ne change
+    page.once('dialog', (d) => { expect(d.message()).toContain('effacée'); d.dismiss(); });
+    await btn.click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(1);
+    // accord : l'atelier repart de zéro et le bouton disparaît
+    page.once('dialog', (d) => d.accept());
+    await btn.click();
+    await expect.poll(() => page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    await expect(btn).toBeHidden();
+    await expect(page.locator('#empty')).toBeVisible();
+  });
+
   test('capteur d’erreur global : une erreur imprévue s’affiche avec son détail', async ({ app }) => {
     const { page, errors } = app;
     await expect(page.locator('#fatal')).toBeHidden();
