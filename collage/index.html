@@ -13,7 +13,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://cloud.umami.is https://gateway.umami.is https://api-gateway.umami.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Créer un tableau avec les dessins de vos enfants | Atelier Gribouille</title>
-  <meta name="description" content="Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe à leur taille réelle et compose sept propositions, à imprimer sur toile en 300 dpi ou à réaliser à la main.">
+  <meta name="description" content="Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose sept propositions, à imprimer sur toile en 300 dpi ou à réaliser à la main.">
   <link rel="canonical" href="https://ateliergribouille.art/atelier/">
   <link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/atelier/">
   <link rel="alternate" hreflang="en" href="https://ateliergribouille.art/atelier/?lang=en">
@@ -28,7 +28,7 @@
   <meta property="og:locale" content="fr_FR">
   <meta property="og:site_name" content="Atelier Gribouille">
   <meta name="twitter:card" content="summary_large_image">
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Atelier Gribouille", "url": "https://ateliergribouille.art/atelier/", "applicationCategory": "DesignApplication", "operatingSystem": "Web", "inLanguage": ["fr", "en"], "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "description": "Importez les dessins de vos enfants : l’atelier les découpe à leur taille réelle et compose sept propositions de tableau, à imprimer sur toile ou à réaliser à la main.", "image": "https://ateliergribouille.art/img/salon-toile.jpg"}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Atelier Gribouille", "url": "https://ateliergribouille.art/atelier/", "applicationCategory": "DesignApplication", "operatingSystem": "Web", "inLanguage": ["fr", "en"], "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "description": "Importez les dessins de vos enfants : l’atelier les découpe et compose sept propositions de tableau, à imprimer sur toile ou à réaliser à la main.", "image": "https://ateliergribouille.art/img/salon-toile.jpg"}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500;600&display=swap">
@@ -135,7 +135,6 @@
       <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
       <p class="hint photo-tip">Pas de scanner ? <a href="../photographier-les-dessins.html" target="_blank" rel="noopener">Conseils pour photographier les dessins avec un téléphone</a></p>
       <label id="share-cuts" class="hint consent" hidden><input type="checkbox" id="share-cuts-box"> <span>Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier. <a href="confidentialite.html#retouches" target="_blank" rel="noopener">En savoir plus</a></span></label>
-      <p id="ios-tip" class="hint" hidden>Sur iPhone ou iPad, après avoir validé la sélection, l’album peut rester affiché un moment : le téléphone prépare les photos (conversion, téléchargement depuis iCloud). Un seul appui suffit. Pour voir le résultat plus vite, importez les photos par groupes d’une dizaine.</p>
       <div id="progress" class="progress" hidden><div></div><span></span></div>
       <p id="notice" class="notice" role="status" hidden></p>
       <p id="sample-offer" class="hint" hidden>Pas de scans sous la main ? <button id="load-sample" class="link">Essayer avec les dessins d’exemple</button></p>
@@ -410,7 +409,7 @@
         </div>
         <p class="empty-title">Les grands souvenirs commencent par un gribouillage.</p>
         <span class="empty-rule"></span>
-        <p class="hint">Importez les dessins, scannés ou pris en photo : l’atelier les découpe à leur taille réelle et compose sept propositions, à imprimer ou à réaliser avec les originaux.</p>
+        <p class="hint">Importez les dessins, scannés ou pris en photo : l’atelier les découpe et compose sept propositions, à imprimer ou à réaliser avec les originaux.</p>
         <p id="empty-resume" class="empty-loading" hidden>Réouverture de votre œuvre en cours…</p>
         <div id="mode-pick" class="mode-pick" hidden>
           <p class="mode-pick-title">Que voulez-vous créer ?</p>
