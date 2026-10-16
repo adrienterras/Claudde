@@ -42,7 +42,7 @@
     "Ouvrir l’atelier": "Open the studio",
     "Les dessins d’enfants deviennent": "Children’s drawings become",
     "des œuvres d’art.": "works of art.",
-    "Scannez les dessins qui s’accumulent sur le frigo. L’atelier les découpe comme avec des ciseaux et compose une œuvre unique : à imprimer sur toile, ou à réaliser à la main avec les dessins originaux, pour l’accrocher chez vous.": "Scan the drawings piling up on the fridge. The studio cuts them out as if with scissors and composes a unique artwork: to print on canvas, or to make by hand with the original drawings, and hang at home.",
+    "Scannez ou prenez en photo les dessins qui s’accumulent. L’atelier les découpe comme avec des ciseaux et compose une œuvre unique : à imprimer sur toile, ou à réaliser à la main avec les dessins originaux, pour l’accrocher chez vous.": "Scan or photograph the drawings piling up. The studio cuts them out as if with scissors and composes a unique artwork: to print on canvas, or to make by hand with the original drawings, and hang at home.",
     "Créer mon œuvre": "Create my artwork",
     "Tableau imprimé à partir de vos photos": "Printed artwork from your photos",
     "Collage avec les dessins originaux": "Collage with the original drawings",
