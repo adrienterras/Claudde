@@ -120,6 +120,10 @@
     'Couleur du fond': 'Background colour',
     'Couleur du fond : {0}': 'Background colour: {0}',
     'Toile nue (lin, sans peinture)': 'Bare canvas (linen, unpainted)',
+    // importer demande un compte (l'exemple reste libre)
+    'importer vos dessins': 'import your drawings',
+    'photographier vos dessins': 'photograph your drawings',
+    'Créez un compte gratuit ou connectez-vous pour importer vos dessins. L’exemple, lui, se manipule librement.': 'Create a free account or sign in to import your drawings. The example can be explored freely.',
     'Pas de scanner ?': 'No scanner?',
     'Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier.': 'Help improve the cut-out: share my cut-out edits (the drawing concerned and its corrected cut-out), with no account and no file name.',
     'En savoir plus': 'Learn more',

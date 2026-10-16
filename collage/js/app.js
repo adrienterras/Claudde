@@ -3673,8 +3673,12 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
 
   const drop = $('drop');
   // Les dessins apportés par l'utilisateur remplacent les dessins d'exemple : on ne mélange pas les deux.
+  // Comptes actifs : l'exemple se regarde et se manipule librement, mais importer ses propres dessins
+  // (fichiers, glisser-déposer, photo) demande d'être connecté ; l'import reprend une fois connecté
+  const importLocked = () => { const A = window.Account; return !!(A && A.enabled && !A.user()); };
   function importUserFiles(files) {
     if (!files.length) return;
+    if (importLocked()) { requireAccount(tr('importer vos dessins'), () => importUserFiles(files))(); return; }
     if (state.drawings.some((d) => d.sample)) {
       state.drawings = state.drawings.filter((d) => !d.sample);
       state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
@@ -3684,6 +3688,12 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
     }
     importFiles(files);
   }
+  // (avant même d'ouvrir le sélecteur de fichiers : la connexion d'abord, puis le sélecteur)
+  drop.addEventListener('click', (e) => {
+    if (!importLocked()) return;
+    e.preventDefault();
+    requireAccount(tr('importer vos dessins'), () => $('file').click())();
+  });
   $('file').addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     e.target.value = '';
@@ -3693,7 +3703,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   // importées comme des fichiers
   if (window.Camera && Camera.supported()) {
     $('camera-open').hidden = false;
-    $('camera-open').addEventListener('click', () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) }));
+    $('camera-open').addEventListener('click', requireAccount(tr('photographier vos dessins'), () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) })));
   }
   // iPhone, iPad : le sélecteur de photos « prépare » chaque photo avant de rendre la main (conversion
   // de format, téléchargement depuis iCloud) et semble figé pendant ce temps ; on prévient.
@@ -4920,6 +4930,7 @@ Réponds uniquement avec ce JSON :
       else if (wasSigned === true && !signed) { openPanel(false); setMode('signin'); }
       if (signed) { checkCloudDraft(); if (pendingCloud) scheduleCloudDraft(); } else cloudChecked = false;
       wasSigned = signed;
+      $('import-account').hidden = signed;
       $('saved-hint').textContent = signed
         ? tr('Vos compositions et vos exports sont enregistrés dans votre compte : retrouvez-les sur tous vos appareils.')
         : tr('Connectez-vous pour sauvegarder vos compositions, télécharger vos œuvres et les retrouver sur tous vos appareils.');

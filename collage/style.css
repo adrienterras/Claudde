@@ -1037,6 +1037,7 @@ body.mode-impression label:has(> #grain) { display: none; }
 
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin-top: 8px; }
+.import-account { margin-top: 8px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
 .camera-stage { position: relative; min-height: 0; background: #15140f; overflow: hidden; }
 .camera-stage video, .camera-review { position: absolute; inset: 0; width: 100%; height: 100%; }
 .camera-stage video { object-fit: contain; display: block; }

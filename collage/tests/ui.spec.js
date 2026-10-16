@@ -51,6 +51,8 @@ test.describe('Interface', () => {
   test('téléphone : le carnet est un tiroir à onglets, ouvert sur Propositions après l’import', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
+    // sans service de comptes, comme les autres tests (avec, importer demanderait d'être connecté)
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
     // sans dessin : onglet Importer, les autres étapes grisées, numérotation continue (01, 02)

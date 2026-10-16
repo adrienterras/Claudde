@@ -98,10 +98,42 @@ test.describe('Comptes utilisateurs', () => {
     expect(calls[0][2]).toMatch(/^http:\/\/localhost:\d+\/index\.html$/);
   });
 
+  test('sans compte : l’exemple se manipule librement ; importer ses dessins demande de se connecter, puis l’import reprend', async ({ acc }) => {
+    const { page } = acc;
+    await expect(page.locator('#import-account')).toBeVisible();
+    // l'exemple : chargé et manipulé sans compte
+    await page.locator('#empty-sample').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length > 0 && AtelierGribouille.state.drawings.every((d) => d.sample) && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => AtelierGribouille.selectProposal(1));
+    const style = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    expect(style).toBeTruthy();
+    await expect(page.locator('#account-section')).toBeHidden();
+    // cliquer sur la zone d'import : la connexion d'abord, pas de sélecteur de fichiers
+    await page.locator('#drop').click();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#acc-status')).toContainText('importer vos dessins');
+    await page.locator('#acc-close').click();
+    // des fichiers déposés quand même : rien n'est importé avant la connexion
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await expect(page.locator('#account-section')).toBeVisible();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.every((d) => d.sample))).toBe(true);
+    // on crée un compte : l'import demandé reprend tout seul, les dessins remplacent l'exemple
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-email', 'imp@example.org');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await page.locator('#auth-submit').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#import-account')).toBeHidden();
+  });
+
   test('exporter ou sauvegarder demande d’être connecté, puis l’action reprend', async ({ acc }) => {
     const { page } = acc;
+    // des dessins importés avec un compte, puis déconnecté (l'œuvre reste dans le navigateur)
+    await signUpAndIn(page, 'avant@example.org', 'Rouge-Soleil-42', 'Avant');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
     // déconnecté : le bouton de téléchargement ouvre la fenêtre de compte avec une explication
     await page.locator('#export').click();
     await expect(page.locator('#account-section')).toBeVisible();
@@ -239,8 +271,12 @@ test.describe('Comptes utilisateurs', () => {
 
   test('commander depuis le panier : connexion demandée, puis compositions enregistrées dans le compte', async ({ acc }) => {
     const { page } = acc;
+    // des dessins importés avec un compte, puis déconnecté
+    await signUpAndIn(page, 'avant2@example.org', 'Rouge-Soleil-42', 'Avant');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="toile"]').click();

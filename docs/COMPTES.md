@@ -50,6 +50,14 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
 Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table
 `exports`), ré-exécutez-le tel quel dans le SQL Editor. Les objets existants sont conservés.
 
+## Ce qui demande un compte
+
+Sans être connecté, on peut voir l'exemple et le manipuler (propositions, retouches, couleur du
+fond). Importer ses propres dessins (fichiers, glisser-déposer, photo), télécharger, sauvegarder et
+commander demandent d'être connecté : la fenêtre de connexion ou d'inscription s'ouvre, puis
+l'action demandée reprend d'elle-même. Sans réglage Supabase dans `config.js`, aucune de ces
+restrictions ne s'applique.
+
 ## L'œuvre en cours dans le compte
 
 Connecté, l'œuvre en cours (le brouillon gardé dans le navigateur) est aussi envoyée dans le compte,

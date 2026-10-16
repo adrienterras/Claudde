@@ -55,6 +55,11 @@ cd collage && python3 -m http.server 8000
      liste suit la proposition affichée. Dès que le client choisit une toile dans la liste
      (`state.formatManual`), son choix est gardé pour toutes les propositions, jusqu'à une nouvelle
      œuvre ou un changement d'atelier ; une composition rouverte garde sa toile.
+1. **Compte requis pour importer** (quand les comptes sont actifs, `config.js`) : sans être
+   connecté, on peut voir et manipuler l'exemple (« Voir un exemple », `?exemple`) ; importer ses
+   propres dessins (zone d'import, glisser-déposer, prise de photo) ouvre la fenêtre de connexion
+   ou d'inscription (`importLocked`, `requireAccount`), puis l'import demandé reprend de lui-même
+   une fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
    dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin », quand le
    navigateur donne accès à l'appareil photo) : pendant la visée, chaque image est jugée et l'écran
