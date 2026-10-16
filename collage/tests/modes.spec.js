@@ -54,7 +54,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThanOrEqual(1);
     expect(r.fits).toBe(true);
     if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
-    await expect(page.locator('#scale-info')).toContainText('Tableau imprimé de 24 × 18 cm');
+    await expect(page.locator('#scale-info')).toBeHidden();
     // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),
     // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
     const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground, paint: p.comp.paint, grain: p.comp.grain })));
@@ -195,7 +195,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBeLessThanOrEqual(1.0001);
     const over = await page.evaluate(() => AtelierGribouille.state.proposals.flatMap((p) => p.comp.items.map((L) => { const c = L.piece.drawing.sizeCm / L.piece.drawing.srcLong; return Math.max(L.w / (L.piece.canvas.width * c), L.h / (L.piece.canvas.height * c)); })));
     for (const r of over) expect(r).toBeLessThanOrEqual(1.001);
-    await expect(page.locator('#scale-info')).not.toContainText('agrandis');
+    await expect(page.locator('#scale-info')).toBeHidden();
   });
 
   test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {

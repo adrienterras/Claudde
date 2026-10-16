@@ -1749,10 +1749,7 @@
     const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.frame) {
-      const k = scale();
-      txt = k >= 0.995
-        ? tr`Tableau imprimé de ${f.w} × ${f.h} cm (cadre standard) : les dessins y sont à leur taille réelle.`
-        : tr`Tableau imprimé de ${f.w} × ${f.h} cm (cadre standard) : les dessins sont réduits à ${Math.round(k * 100)} % de leur taille réelle (une feuille A4 fait ${fmt(29.7 * k)} cm). Choisissez un cadre plus grand pour des dessins plus grands.`;
+      txt = ''; // tableau imprimé : le cadre choisi suffit, pas d'explication sous la liste
     } else if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => tr`${stockWord(c.t[0])} ${c.w} × ${c.h} cm (${stockWord(c.t[3])}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
       txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
@@ -1765,7 +1762,8 @@
           ? tr`Toile de ${f.w} × ${f.h} cm : le fond (${nBg} pages) la couvre tout juste (${Math.round(cov)} %) ; les déchirures laisseront de petits jours.`
           : tr`Toile de ${f.w} × ${f.h} cm : il manque du papier, le fond ne couvre que ${Math.round(cov)} % de la toile. Choisissez une toile plus petite, ou passez d’autres dessins en fond.`);
     }
-    $('scale-info').textContent = txt + aside;
+    $('scale-info').textContent = (txt + aside).trim();
+    $('scale-info').hidden = !$('scale-info').textContent;
   }
 
   function sizePiece(p, k) {

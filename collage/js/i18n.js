@@ -367,8 +367,6 @@
     'Papier d’art, encadré ou toile imprimée, aux tailles de cadres standard. Dès 14,90 € en fichier HD.': 'Art paper, framed or printed canvas, in standard frame sizes. From €14.90 as an HD file.',
     'Les dessins originaux, découpés et collés : par vous (guide, kit DIY) ou par l’atelier (Signature).': 'The original drawings, cut out and glued: by you (guide, DIY kit) or by the studio (Signature).',
     'Cadres standard du marché': 'Standard frame sizes',
-    'Tableau imprimé de {0} × {1} cm (cadre standard) : les dessins y sont à leur taille réelle.': 'Printed artwork of {0} × {1} cm (standard frame): the drawings are at their real size.',
-    'Tableau imprimé de {0} × {1} cm (cadre standard) : les dessins sont réduits à {2} % de leur taille réelle (une feuille A4 fait {3} cm). Choisissez un cadre plus grand pour des dessins plus grands.': 'Printed artwork of {0} × {1} cm (standard frame): the drawings are scaled down to {2}% of their real size (an A4 sheet is {3} cm). Choose a larger frame for larger drawings.',
     '{0} × {1} px pour un tableau imprimé de {2} × {3} cm{4}': '{0} × {1} px for a {2} × {3} cm printed artwork{4}',
     '{0} · tableau imprimé de {1} × {2} cm': '{0} · {1} × {2} cm printed artwork',
     'Atelier Signature': 'Atelier Signature',
