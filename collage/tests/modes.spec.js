@@ -37,6 +37,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:42x29.7');
     expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(false);
     await expect(page.locator('#guide-box')).toBeHidden();
+    await expect(page.locator('#sizes-hint')).toBeHidden();
     // le cadre 18 × 24 : l'œuvre fait exactement 24 × 18 (paysage), tous les dessins (curseur au
     // maximum) sont réduits pour y tenir
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });

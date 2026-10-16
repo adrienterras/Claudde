@@ -1468,9 +1468,9 @@
     const pick = $('mode-pick');
     if (pick) pick.hidden = true;
     $('format-label').textContent = m === 'impression' ? tr('Cadre') : tr('Toile');
-    $('sizes-hint').textContent = m === 'impression'
-      ? tr('Choisissez un cadre standard : l’œuvre est composée à sa taille exacte, les dessins réduits d’un même facteur pour y tenir. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.')
-      : tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
+    // tableau imprimé : pas d'explication sous le choix du cadre
+    $('sizes-hint').hidden = m === 'impression';
+    $('sizes-hint').textContent = tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
     syncGroundMode();
     if (!(opts && opts.keep) && was !== m) $('grain').checked = m === 'toile';
