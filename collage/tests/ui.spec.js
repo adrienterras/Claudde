@@ -121,6 +121,27 @@ const waitDraft = async (page) => {
   throw new Error('brouillon jamais écrit');
 };
 
+test.describe('Téléphone, onglet Plus', () => {
+  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » ; tous deux restent dans Importer', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html');
+    await p.waitForFunction(() => window.AtelierGribouille);
+    await p.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await p.locator('#sheet-tabs [data-tab="more"]').click();
+    await expect(p.locator('#mode-switch')).toBeHidden();
+    await expect(p.locator('#new-work')).toBeHidden();
+    await expect(p.locator('#saved-section')).toBeVisible();
+    await p.locator('#sheet-tabs [data-tab="import-section"]').click();
+    await expect(p.locator('#mode-switch')).toBeVisible();
+    await expect(p.locator('#new-work')).toBeVisible();
+    await ctx.close();
+  });
+});
+
 test.describe('Téléphone, tiroir agrandi', () => {
   test('régler la taille dans la fiche d’un dessin ne plante pas, et l’œuvre revient à la fermeture', async ({ browser }) => {
     const { fixture } = require('./helpers');
