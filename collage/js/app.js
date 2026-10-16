@@ -729,8 +729,11 @@
   // Densité au maximum : tous les dessins chargés doivent être pris en compte.
   const allIn = () => Number($('density').value) >= 1.79;
 
+  // valeur du choix de toile ; pickCanvas y substitue un instant la toile « adaptée aux dessins »
+  // (absente de la liste, elle ne sert qu'à mesurer la surface idéale)
+  const formatValue = () => state.formatProbe || $('format').value;
   function planCoverage() {
-    const v = $('format').value;
+    const v = formatValue();
     const frame = v.startsWith('cadre:');
     const auto = v.startsWith('auto:') || frame;
     const density = Number($('density').value);
@@ -1491,7 +1494,7 @@
   }
 
   function formatCm() {
-    let v = $('format').value;
+    let v = formatValue();
     // valeur illisible (option disparue, réglage ancien) : le format automatique classique, ou le
     // cadre le plus courant en mode impression
     if (!/^auto:[\d.]+$|^(cadre:)?\d+(\.\d+)?x\d+(\.\d+)?$/.test(v) || (printMode() && !v.startsWith('cadre:'))) v = printMode() ? FRAME_DEFAULT : 'auto:1.4286';
@@ -1597,8 +1600,7 @@
     sel.querySelectorAll('optgroup').forEach((g) => g.remove());
     const print = printMode();
     // impression : seulement les cadres standard ; toile : seulement les toiles Cultura (la taille
-    // « adaptée aux dessins » reste dans la liste, cachée : elle sert au choix automatique)
-    sel.querySelectorAll('option[value^="auto:"]').forEach((o) => { o.hidden = true; o.disabled = true; });
+    // « adaptée aux dessins » n'est pas dans la liste : iPhone affiche même les options cachées)
     if (print) {
       const g = document.createElement('optgroup');
       g.label = tr('Cadres standard du marché');
@@ -1643,8 +1645,8 @@
   function pickCanvas() {
     const sel = $('format');
     if (!state.drawings.length) return;
-    sel.value = 'auto:1.4286';
-    planCoverage();
+    state.formatProbe = 'auto:1.4286';
+    try { planCoverage(); } finally { state.formatProbe = null; }
     const density = Number($('density').value);
     // surface idéale : celle du plan automatique, et au moins de quoi poser toutes les découpes
     // (environ la moitié de la toile, selon le curseur) quand il n'y a que peu de pages de fond
