@@ -2817,13 +2817,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Chaque retouche de découpe faite à la main est comparée à la découpe automatique de la même pièce
   // (Extract.learnCut) : la marge de papier, la sensibilité aux traits pâles et les traits reliés en
   // sont déduits, mémorisés dans ce navigateur et appliqués aux analyses suivantes. L'utilisateur peut
-  // les appliquer tout de suite aux autres dessins, ou revenir à la découpe d'office.
+  // les appliquer tout de suite aux autres dessins.
   function saveCutPrefs() {
     try { if (Extract.cutIsDefault()) localStorage.removeItem('atelier.decoupe'); else localStorage.setItem('atelier.decoupe', JSON.stringify(Extract.cutPrefs())); } catch (e) { /* ignoré */ }
   }
   function loadCutPrefs() {
     try { const v = localStorage.getItem('atelier.decoupe'); if (v) Extract.setCutPrefs(JSON.parse(v)); } catch (e) { /* ignoré */ }
-    refreshCutPrefs();
   }
   function cutPrefsText() {
     const c = Extract.cutPrefs(), D = Extract.CUT_DEFAULT, parts = [];
@@ -2832,13 +2831,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (c.ink > D.ink + 1e-6) parts.push(tr('traces grises ignorées'));
     if (c.close < D.close - 1e-6) parts.push(tr('sujets voisins séparés'));
     return parts.join(' · ');
-  }
-  function refreshCutPrefs() {
-    const el = $('cut-prefs');
-    if (!el) return;
-    const custom = !Extract.cutIsDefault();
-    el.hidden = !custom;
-    if (custom) el.querySelector('span').textContent = tr`Découpe apprise de vos retouches : ${cutPrefsText()}.`;
   }
   // les dessins dont la découpe automatique peut être refaite (pas de retouche à garder, pas un objet détouré)
   const recuttable = (d) => roleOf(d) === 'cutout' && !d.analysis.objectAlpha && !(d.analysis.pieces || []).some((q) => q.edited);
@@ -2850,7 +2842,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!r) return;
     Extract.setCutPrefs(r.prefs);
     saveCutPrefs();
-    refreshCutPrefs();
     const others = state.drawings.filter((x) => x !== d && recuttable(x));
     const el = $('cut-learned');
     if (!el) return;
@@ -2884,14 +2875,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     regenerate();
     notice(tr`Découpe refaite pour ${list.length} dessin(s).`);
   }
-  $('cut-prefs-reset').onclick = () => {
-    Extract.setCutPrefs(null);
-    saveCutPrefs();
-    refreshCutPrefs();
-    $('cut-learned').hidden = true;
-    const list = state.drawings.filter(recuttable);
-    if (list.length) recutDrawings(list);
-  };
   $('cut-learned-close').onclick = () => { $('cut-learned').hidden = true; };
   loadCutPrefs();
 
