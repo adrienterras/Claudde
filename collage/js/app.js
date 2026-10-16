@@ -1562,7 +1562,7 @@
     [24, 18], [30, 20], [29.7, 21, 'A4'], [30, 24], [42, 29.7, 'A3'], [40, 30], [45, 30], [50, 40], [60, 40], [70, 50], [80, 60], [90, 60], [100, 70],
     [30, 30], [40, 40], [50, 50],
   ];
-  const FRAME_DEFAULT = 'cadre:70x50';
+  const FRAME_DEFAULT = 'cadre:42x29.7'; // A3
   /*
    * Atelier Toile : seulement les châssis entoilés vendus chez Cultura (catalogue en ligne, octobre
    * 2026), grand côté en premier : [gamme, long, court, nom]. Châssis coton économiques, Monali 3D

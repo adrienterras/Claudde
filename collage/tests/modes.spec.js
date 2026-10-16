@@ -34,7 +34,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
     expect(opts.length).toBeGreaterThan(10);
     expect(opts.every((v) => v.startsWith('cadre:'))).toBe(true);
-    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:70x50');
+    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:42x29.7');
     expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(false);
     await expect(page.locator('#guide-box')).toBeHidden();
     // le cadre 18 × 24 : l'œuvre fait exactement 24 × 18 (paysage), tous les dessins (curseur au
@@ -250,7 +250,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // bascule vers Impression : cadre par défaut, œuvre recomposée à sa taille
     await page.locator('#mode-switch [data-mode="impression"]').click();
     await page.waitForTimeout(400);
-    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:70x50', 70, 50]);
+    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:42x29.7', 42, 29.7]);
     await page.locator('#mode-switch [data-mode="toile"]').click();
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => /^\d+x\d+$/.test(document.getElementById('format').value))).toBe(true);
