@@ -3707,6 +3707,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
       state.drawings = state.drawings.filter((d) => !d.sample);
       state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
       $('sample-note').hidden = true;
+      restoreDensityAfterSample();
       importFiles(files).then(() => notice(tr('Les dessins d’exemple ont été retirés : place aux vôtres.')));
       return;
     }
@@ -3974,6 +3975,7 @@ Réponds uniquement avec ce JSON :
   // Tout effacer pour repartir de ses propres scans
   function startOver() {
     state.drawings = [];
+    restoreDensityAfterSample();
     state.title = '';
     state.titles = null;
     state.sceneLayout = null;
@@ -3999,6 +4001,11 @@ Réponds uniquement avec ce JSON :
     $('draft-offer').hidden = true;
     if ($('empty-resume')) $('empty-resume').hidden = true;
   }
+  function restoreDensityAfterSample() {
+    if (state.densityBeforeSample == null) return;
+    $('density').value = state.densityBeforeSample;
+    state.densityBeforeSample = null;
+  }
   $('clear').onclick = startOver;
   $('restart').onclick = startOver;
   // Bouton en tête du panneau : on demande confirmation, sauf si l'œuvre n'est faite que de l'exemple.
@@ -4022,6 +4029,9 @@ Réponds uniquement avec ce JSON :
       const sizes = {};
       m.pages.forEach((p) => { if (p.sizeCm) sizes[p.name] = p.sizeCm; });
       const before = new Set(state.drawings);
+      // l'exemple s'ouvre avec tous ses dessins ; le réglage d'avant revient avec les dessins de l'utilisateur
+      if (state.densityBeforeSample == null) state.densityBeforeSample = $('density').value;
+      $('density').value = $('density').max;
       await importFiles(files, sizes, { sample: true });
       state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
       $('sample-note').hidden = false;
@@ -4710,7 +4720,7 @@ Réponds uniquement avec ce JSON :
     if (sv.orient) setCanvasOrient(sv.orient);
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
     if (sv.grain !== undefined) $('grain').checked = sv.grain;
-    if (sv.density !== undefined) $('density').value = sv.density;
+    if (sv.density !== undefined) { $('density').value = sv.density; state.densityBeforeSample = null; }
     if (sv.pale && $('pale')) $('pale').value = sv.pale;
     state.drawings = [];
     state.title = sv.title || '';

@@ -389,6 +389,8 @@ test.describe('Dessins d’exemple', () => {
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
     const ds = await app.drawings();
     expect(ds.length).toBe(19);
+    // l'exemple s'ouvre avec ses 19 dessins sur l'œuvre
+    await expect(page.locator('#density-note')).toContainText('19 sur 19');
     const painted = ds.filter((d) => /peint/.test(d.name));
     expect(painted.every((d) => d.kind === 'texture'), JSON.stringify(painted)).toBe(true);
     const subjects = ds.filter((d) => !/peint/.test(d.name));
@@ -407,6 +409,8 @@ test.describe('Dessins d’exemple', () => {
     const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
     expect(names).toEqual(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#notice')).toContainText('exemple ont été retirés');
+    // le nombre de dessins revient au réglage habituel
+    expect(await page.locator('#density').inputValue()).toBe('1.1');
     await expect(page.locator('#sample-note')).toBeHidden();
   });
 
