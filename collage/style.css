@@ -1025,8 +1025,8 @@ body.editing { overflow: hidden; }
 @media (max-width: 860px) {
   /* tiroir du téléphone : en tête de l'onglet Importer seulement */
   .panel.tabbed:not([data-tab="import-section"]) > .new-work { display: none; }
-  /* onglet Plus : ni le choix du type d'œuvre, ni « nouvelle œuvre » ; seulement le compte et la suite */
-  .panel.tabbed[data-tab="more"] > .mode-switch { display: none; }
+  /* le choix du type d'œuvre aussi : seulement dans l'onglet Importer */
+  .panel.tabbed:not([data-tab="import-section"]) > .mode-switch { display: none; }
 }
 .mode-switch button.on { border-color: var(--ink); background: var(--ink); color: var(--on-ink); }
 .mode-switch button.on small { color: var(--on-ink); opacity: .78; }

@@ -121,7 +121,7 @@ const waitDraft = async (page) => {
   throw new Error('brouillon jamais écrit');
 };
 
-test.describe('Téléphone, onglet Plus', () => {
+test.describe('Téléphone, onglets', () => {
   test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer), ni « Mettre en scène »', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -136,6 +136,12 @@ test.describe('Téléphone, onglet Plus', () => {
     await expect(p.locator('#new-work')).toBeHidden();
     await expect(p.locator('#saved-section')).toBeVisible();
     await expect(p.locator('#room-section')).toBeHidden();
+    // ni dans les autres onglets
+    for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
+      await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
+      await expect(p.locator('#mode-switch')).toBeHidden();
+      await expect(p.locator('#new-work')).toBeHidden();
+    }
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
     await expect(p.locator('#mode-switch')).toBeVisible();
     await expect(p.locator('#new-work')).toBeVisible();
