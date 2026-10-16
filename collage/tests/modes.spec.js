@@ -198,6 +198,28 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#scale-info')).toBeHidden();
   });
 
+  test('Toile : le curseur règle le nombre de dessins, et la toile conseillée suit (moins de dessins, plus petite)', async ({ page }) => {
+    test.setTimeout(240000);
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=toile&exemple');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.proposals && document.getElementById('progress').hidden && AtelierGribouille.state.drawings.length > 2, null, { timeout: 180000 });
+    const at = async (v) => {
+      await page.evaluate((v) => { const d = document.getElementById('density'); d.value = v; d.dispatchEvent(new Event('change')); }, v);
+      await page.waitForTimeout(400);
+      return page.evaluate(() => ({ note: document.getElementById('density-note').textContent, area: AtelierGribouille.state.comp.W * AtelierGribouille.state.comp.H, label: document.getElementById('label-meta').textContent }));
+    };
+    const rows = [];
+    for (const v of ['1.8', '1.4', '1.1', '0.8', '0.5']) rows.push(await at(v));
+    const used = rows.map((r) => Number(r.note.split(' ')[0]));
+    for (let i = 1; i < rows.length; i++) {
+      expect(used[i], JSON.stringify(rows)).toBeLessThanOrEqual(used[i - 1]);
+      expect(rows[i].area, JSON.stringify(rows)).toBeLessThanOrEqual(rows[i - 1].area);
+    }
+    expect(used[4]).toBeLessThan(used[0]);
+    // le cartel compte les dessins vraiment posés
+    rows.forEach((r, i) => expect(r.label).toContain(`collage de ${used[i]} dessins`));
+  });
+
   test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));

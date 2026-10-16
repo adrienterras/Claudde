@@ -736,7 +736,9 @@
     const v = formatValue();
     const frame = v.startsWith('cadre:');
     const auto = v.startsWith('auto:') || frame;
-    const density = Number($('density').value);
+    // atelier Toile : le curseur fixe le nombre de dessins (toileKeep), l'air laissé autour change peu
+    const density = printMode() ? Number($('density').value) : toileAir();
+    const keep = printMode() ? 1 : toileKeep();
     const cands = state.drawings.filter((d) => d.role === 'auto');
     cands.forEach((d) => { d.auto = null; });
     // une feuille pâle (crayon gris, texte) ne se découpe pas : elle est toujours un papier de fond
@@ -830,7 +832,7 @@
         const canvasArea = bgArea / 1.5; // les pages entières se chevauchent franchement (≈ 1/3 de recouvrement)
         chosen = { nBg, area: canvasArea, min: m };
         // assez de papier pour couvrir aussi la toile élargie par la plus grande page, et de la place pour les découpes
-        if ((canvasArea >= m.area * 0.85 && pieceArea <= 0.5 * density * canvasArea) || nBg >= ranked.length) break;
+        if ((canvasArea >= m.area * 0.85 && pieceArea * keep <= 0.5 * density * canvasArea) || nBg >= ranked.length) break;
       }
       state.canvasArea = Math.max(chosen.area, 900);
       state.bgMin = chosen.min;
@@ -1647,10 +1649,12 @@
     if (!state.drawings.length) return;
     state.formatProbe = 'auto:1.4286';
     try { planCoverage(); } finally { state.formatProbe = null; }
-    const density = Number($('density').value);
-    // surface idéale : celle du plan automatique, et au moins de quoi poser toutes les découpes
-    // (environ la moitié de la toile, selon le curseur) quand il n'y a que peu de pages de fond
-    const idealPieces = paperAreas(state.drawings).pieceArea / Math.max(0.2, 0.5 * density);
+    // le curseur fixe le nombre de découpes posées (toileKeep) : moins de dessins, toile plus petite ;
+    // l'air laissé autour d'eux change peu
+    const density = toileAir(), keep = toileKeep();
+    // surface idéale : celle du plan automatique, et au moins de quoi poser les découpes retenues
+    // (environ la moitié de la toile) quand il n'y a que peu de pages de fond
+    const idealPieces = (paperAreas(state.drawings).pieceArea * keep) / Math.max(0.2, 0.5 * density);
     const ideal = Math.max(900, state.canvasArea || 0, idealPieces);
     const m = state.bgMin || { long: 0, short: 0 };
     const portrait = canvasOrient() === 'port';
@@ -1665,7 +1669,7 @@
       planCoverage();
       const area = w * h;
       const { bgArea, pieceArea } = paperAreas(state.drawings);
-      const cov = bgArea / area, pieces = pieceArea / area;
+      const cov = bgArea / area, pieces = (pieceArea * keep) / area;
       let pen = 0;
       // taille : d'abord proche de la surface idéale à taille réelle (planCoverage, qui équilibre déjà
       // le papier de fond, les découpes et le curseur) ; la peinture de fond comble ce que le papier
@@ -1706,6 +1710,11 @@
   const printCount = (n, t) => Math.max(1, Math.round(n * (0.12 + 0.88 * Math.pow(t, 1.6))));
   const printCover = (t) => 1.15 + 0.3 * t;
   const densityT = () => (allIn() ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1));
+  // Toile : part des découpes posées pour une position du curseur (régulière, un peu plus de la moitié au départ),
+  // et l'air laissé autour d'elles : celui du curseur à sa position de départ, plus serré vers le haut
+  // (au maximum, tous les dessins sur la toile la plus petite, comme avant)
+  const toileKeep = () => (allIn() ? 1 : 0.15 + 0.85 * densityT());
+  const toileAir = () => 1.1 + 0.7 * densityT();
   function computePrintScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
@@ -1840,7 +1849,9 @@
       grain: $('grain').checked && !printMode(),
       flat: printMode(), // impression : aplat uni, sans effet de peinture ni grain
       spread: printMode() && k < 0.6, // affiche aux dessins très réduits : répartis sur toute la surface
-      count: printMode() ? printCount(pieces.length, densityT()) : 0, // affiche : nombre de sujets fixé, à l'échelle qui va avec
+      // nombre de sujets fixé par le curseur (affiche : à l'échelle qui va avec ; toile : à taille réelle,
+      // sur une toile conseillée à leur mesure) ; tout au maximum
+      count: printMode() ? printCount(pieces.length, densityT()) : allIn() ? 0 : Math.max(1, Math.round(pieces.length * toileKeep())),
       maxGrow: printMode() ? 1 / Math.max(0.05, k) : 1, // affiche : agrandissement encore permis pour remplir le cadre, jusqu'à la taille réelle
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
@@ -2054,11 +2065,13 @@
     $('toolbar').hidden = !state.comp;
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
+    let usedCount = 0;
     if (state.comp) {
       const c = state.comp;
       const used = new Set();
       c.items.forEach((L) => used.add(L.piece.drawing));
       state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
+      usedCount = used.size;
       $('density-note').textContent = tr`${used.size} sur ${state.drawings.length}${allIn() ? tr(' · tout') : ''}`;
       // styles qui ne retiennent qu'une sélection : on le dit, et on propose d'ajouter le reste
       const left = unusedDrawings();
@@ -2080,7 +2093,7 @@
     $('label-title').textContent = t ? `« ${t} »` : '';
     $('label-title').hidden = !t;
     const c = state.comp;
-    const count = c.total ? tr`${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? tr('adaptés') : tr('beaux')}` : tr`${state.drawings.filter((d) => roleOf(d) !== 'off').length} dessins d’enfants`;
+    const count = c.total ? tr`${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? tr('adaptés') : tr('beaux')}` : tr`${usedCount} dessins d’enfants`; // ceux qui sont vraiment sur l'œuvre (le curseur peut en écarter)
     const aside = asideDrawings().length;
     $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${printMode() && scale() * (c.fill || 1) < 0.995 ? tr`dessins réduits à ${Math.round(scale() * (c.fill || 1) * 100)} % pour le cadre` : c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
     renderAside();
