@@ -330,7 +330,8 @@ cd collage && python3 -m http.server 8000
      teintes calmes favorisées ; la Galerie fait exception : fond blanc fixe, sans couleur ni
      effet peinture ni finition toile ; l'aplat est rendu avec un vrai effet de peinture (coups de brosse en deux couches,
      traces des poils, couche inégale), à l'écran, dans les exports et dans le PDF ; le guide indique
-     la couleur à peindre ; le choix est mémorisé ;
+     la couleur à peindre ; **toute nouvelle création part en couleur automatique** (conseillée
+     selon la composition), une œuvre rouverte (brouillon, composition sauvegardée) reprend la sienne ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
    - **sept propositions, sept styles** (Paysage sélectionné par défaut), à chaque fois :

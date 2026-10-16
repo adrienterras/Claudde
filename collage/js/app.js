@@ -306,6 +306,7 @@
     state.sceneLayout = null;
     state.pinned = null;
     if (!state.drawings.length) state.formatManual = false; // nouvelle œuvre : la toile est de nouveau conseillée
+    if (!state.drawings.length && !state.restoring) setGround(undefined); // et la couleur du fond, automatique
     notice('');
     setProgress(0, 1, tr('Lecture des fichiers…'));
     const known = new Set(state.drawings.map((d) => d.fileKey).filter(Boolean));
@@ -1345,7 +1346,6 @@
   // 'auto' : la couleur conseillée pour chaque proposition ; '' : toile nue ; sinon une teinte
   function setGround(hex) {
     state.ground = hex === undefined ? 'auto' : hex;
-    try { localStorage.setItem('atelier.ground', state.ground || 'none'); } catch (e) { /* ignoré */ }
     document.querySelectorAll(GROUND_SWATCHES).forEach((b) => {
       const on = (b.dataset.hex || '') === (state.ground || '');
       b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
@@ -1420,9 +1420,10 @@
       box.querySelector('[data-hex="auto"]').className = 'auto';
       box.querySelector('[data-hex="auto"]').textContent = 'A';
     });
-    let saved = null;
-    try { saved = localStorage.getItem('atelier.ground'); } catch (e) { /* ignoré */ }
-    setGround(saved === 'none' ? '' : saved && PAINTS.some((c) => c[1] === saved) ? saved : 'auto');
+    // toute création part en couleur automatique (conseillée selon la composition) ; une œuvre
+    // rouverte reprend la sienne (réglages sauvegardés avec elle)
+    try { localStorage.removeItem('atelier.ground'); } catch (e) { /* ignoré */ }
+    setGround(undefined);
     syncGroundMode();
   }
 

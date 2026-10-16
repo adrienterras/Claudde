@@ -1269,6 +1269,28 @@ test.describe('Couleur du fond à portée de main', () => {
     await expect(page.locator('#ground-open')).toBeDisabled();
   });
 
+  test('toute nouvelle création part en couleur automatique ; une œuvre rouverte garde la sienne', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    await page.evaluate((h) => document.querySelector(`#ground-quick button[data-hex="${h}"]`).click(), hex);
+    expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe(hex);
+    // le brouillon garde la couleur choisie
+    const draft = () => page.evaluate(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); }; q.onerror = () => res(null); }));
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.settings && r.settings.ground === hex) break; await page.waitForTimeout(500); }
+    // rechargement : l'œuvre en cours se rouvre avec sa couleur
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe(hex);
+    // une nouvelle création : couleur automatique
+    await page.goto('index.html?nouveau');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe('auto');
+    await app.import(['page-texture.png']);
+    expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe('auto');
+    await expect(page.locator('#ground-quick button[data-hex="auto"]')).toHaveClass(/on/);
+  });
+
   test('sur téléphone, la pastille est dans la barre de droite et la palette tient dans l’écran', async ({ app }) => {
     const { page } = app;
     await page.setViewportSize({ width: 390, height: 844 });
