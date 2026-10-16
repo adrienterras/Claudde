@@ -367,6 +367,8 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .guide-box { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding: 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
 .guide-title { margin: 0; font-family: var(--f-display); font-style: italic; font-size: 1.08rem; }
 .guide-box .hint:empty { display: none; }
+#export-section > .guide-box { margin: 0 0 6px; border: 1.5px solid var(--accent); background: var(--accent-soft); }
+.guide-btn { padding: 16px 18px; font-size: 1rem; }
 
 /* Propositions */
 .proposals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }

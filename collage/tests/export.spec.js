@@ -75,7 +75,6 @@ test.describe('Export', () => {
 
   test('guide de création : un PDF de plusieurs pages', async ({ app }) => {
     const { page } = app;
-    await page.locator('#export-section details.guide-box summary').click();
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#guide').click()]);
     expect(download.suggestedFilename()).toMatch(/guide.*\.pdf$/);
     const buf = require('fs').readFileSync(await download.path());

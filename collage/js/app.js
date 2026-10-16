@@ -3329,7 +3329,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       notice(tr('Le guide n’a pas pu être créé sur cet appareil. Réessayez sur un ordinateur.'));
     } finally {
       btn.disabled = false;
-      label.textContent = tr('Créer le guide de création');
+      label.textContent = tr('Télécharger le guide de découpe');
     }
   }
 

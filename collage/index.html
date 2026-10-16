@@ -209,6 +209,13 @@
 
     <section id="export-section" class="step" hidden>
       <h2><span class="num">04</span> Exporter</h2>
+      <!-- collage avec les originaux : le guide de découpe d'abord, bien en vue ; l'œuvre ensuite -->
+      <div class="guide-box" id="guide-box">
+        <p class="guide-title">Réaliser l’œuvre à la main</p>
+        <button id="guide" class="btn btn-primary guide-btn"><svg class="ico"><use href="#i-guide"/></svg><span>Télécharger le guide de découpe</span></button>
+        <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
+        <p id="guide-info" class="hint mono-note"></p>
+      </div>
       <div class="field-pair">
         <label class="field">Qualité
           <select id="dpi">
@@ -242,12 +249,6 @@
         </div>
       </form>
       <p id="save-status" class="save-status" role="status" hidden></p>
-      <details class="settings guide-box" id="guide-box">
-        <summary>Réaliser l’œuvre à la main <small>guide PDF</small></summary>
-        <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
-        <button id="guide" class="btn"><svg class="ico"><use href="#i-guide"/></svg><span>Créer le guide de création</span></button>
-        <p id="guide-info" class="hint mono-note"></p>
-      </details>
     </section>
 
     <section id="saved-section" class="step">

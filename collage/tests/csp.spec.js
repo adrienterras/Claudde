@@ -53,7 +53,6 @@ test.describe('Politique de sécurité du contenu', () => {
     // export PDF (jsPDF) puis guide de création
     await page.locator('#fmt').selectOption('application/pdf');
     await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
-    await page.locator('#export-section details.guide-box summary').click();
     await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#guide').click()]);
     expect(await page.evaluate(() => window.__csp)).toEqual([]);
     expect(errors).toEqual([]);
