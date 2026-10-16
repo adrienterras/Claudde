@@ -925,7 +925,7 @@ test.describe('Découpe apprise des retouches', () => {
 });
 
 test.describe('Retouches partagées (option)', () => {
-  test('case décochée par défaut, mémorisée ; cochée, une retouche envoie image, découpes et fiche ; décochée, rien', async ({ page }) => {
+  test('case cochée par défaut ; décochée, mémorisé et rien n’est envoyé ; cochée, une retouche envoie image, découpes et fiche ; décochée, rien', async ({ page }) => {
     const { fixture } = require('./helpers');
     const sent = [];
     await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
@@ -940,7 +940,10 @@ test.describe('Retouches partagées (option)', () => {
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#share-cuts')).toBeVisible();
-    await expect(page.locator('#share-cuts-box')).not.toBeChecked();
+    await expect(page.locator('#share-cuts-box')).toBeChecked();
+    // décochée (refus mémorisé) avant l'import
+    await page.locator('#share-cuts-box').uncheck();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBe('0');
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const k = await page.evaluate(() => { const ps = AtelierGribouille.state.drawings[0].analysis.pieces; return ps.indexOf(ps.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
@@ -976,7 +979,7 @@ test.describe('Retouches partagées (option)', () => {
     expect(JSON.stringify(row.meta)).not.toMatch(/page-cutout|\.png/);
     // décochée à nouveau : plus rien
     await page.locator('#share-cuts-box').uncheck();
-    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBe('0');
     const n = sent.length;
     await edit();
     await page.waitForTimeout(800);
