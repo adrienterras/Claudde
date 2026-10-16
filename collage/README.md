@@ -15,7 +15,7 @@ cd collage && python3 -m http.server 8000
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, cartes de choix dans
    l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
-   - **Affiche** (« impression » dans le code : `mode=impression`) : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
+   - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
      (`FRAMES` : 18 × 24 à 70 × 100, A4, A3, carrés 30 à 50 ; seule liste proposée), les dessins
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, `computePrintScale`) qui
      **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
@@ -43,7 +43,7 @@ cd collage && python3 -m http.server 8000
      découpes ; le rôle « fond » se choisit aussi à la main. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, boutons Agrandir / Réduire de 10 %, touches + et −),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
-   - **Toile** : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
+   - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
      Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et
      carrés ; seule liste proposée), pour réaliser l'œuvre avec les originaux : guide DIY, kit DIY, ou
      **Atelier Signature** (collage fait à la main par l'atelier : 490 € jusqu'à 75 cm, 690 € au-delà).

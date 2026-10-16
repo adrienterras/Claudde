@@ -53,7 +53,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThanOrEqual(1);
     expect(r.fits).toBe(true);
     if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
-    await expect(page.locator('#scale-info')).toContainText('Affiche de 24 × 18 cm');
+    await expect(page.locator('#scale-info')).toContainText('Tableau imprimé de 24 × 18 cm');
     // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),
     // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
     const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground, paint: p.comp.paint, grain: p.comp.grain })));
@@ -74,7 +74,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('#drawings .thumb').first().click();
     await expect(page.locator('#detail [data-role="texture"]')).toHaveCount(1);
     expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(true);
-    await expect(page.locator('#export-info')).toContainText('affiche de 24 × 18 cm');
+    await expect(page.locator('#export-info')).toContainText('tableau imprimé de 24 × 18 cm');
     // chaque dessin s'agrandit ou se réduit à la main : boutons (10 %), puis poignée carrée
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     await expect(page.locator('#toolbar [data-act="bigger"]')).toBeVisible();
@@ -125,7 +125,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add input[value="hd"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeHidden();
     await expect(page.locator('#cart-add input[value="signature"]')).toBeHidden();
-    await expect(page.locator('.cart-what-size')).toContainText('affiche de 18 × 24 cm');
+    await expect(page.locator('.cart-what-size')).toContainText('tableau imprimé de 18 × 24 cm');
     await page.locator('#cart-add [data-close]').first().click();
     // sauvegardée puis rouverte : le mode et le cadre reviennent
     await page.locator('#save-comp').click();

@@ -1747,8 +1747,8 @@
     if (f.frame) {
       const k = scale();
       txt = k >= 0.995
-        ? tr`Affiche de ${f.w} × ${f.h} cm (cadre standard) : les dessins y sont à leur taille réelle.`
-        : tr`Affiche de ${f.w} × ${f.h} cm (cadre standard) : les dessins sont réduits à ${Math.round(k * 100)} % de leur taille réelle (une feuille A4 fait ${fmt(29.7 * k)} cm). Choisissez un cadre plus grand pour des dessins plus grands.`;
+        ? tr`Tableau imprimé de ${f.w} × ${f.h} cm (cadre standard) : les dessins y sont à leur taille réelle.`
+        : tr`Tableau imprimé de ${f.w} × ${f.h} cm (cadre standard) : les dessins sont réduits à ${Math.round(k * 100)} % de leur taille réelle (une feuille A4 fait ${fmt(29.7 * k)} cm). Choisissez un cadre plus grand pour des dessins plus grands.`;
     } else if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => tr`${stockWord(c.t[0])} ${c.w} × ${c.h} cm (${stockWord(c.t[3])}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
       txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
@@ -3131,7 +3131,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     $('export-info').textContent = pdf
       ? tr`PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
       : printMode()
-        ? tr`${w} × ${h} px pour une affiche de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
+        ? tr`${w} × ${h} px pour un tableau imprimé de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
         : tr`${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
   }
 
@@ -5119,7 +5119,7 @@ Réponds uniquement avec ce JSON :
   const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
   const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
   function productLabel(it) {
-    if (it.product === 'print') return tr`Affiche ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
+    if (it.product === 'print') return tr`Tableau imprimé ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
     if (it.product === 'signature') return signatureGrand(it) ? tr('Atelier Signature Grand (toile 70 × 100, jusqu’à 30 dessins)') : tr('Atelier Signature (toile 50 × 70, jusqu’à 20 dessins)');
     return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD'), kit: tr('Kit DIY 50 × 70') }[it.product];
   }
@@ -5172,7 +5172,7 @@ Réponds uniquement avec ce JSON :
     const box = $('cart-add'), { comp } = pending;
     box.querySelector('.cart-what img').src = pending.thumb;
     box.querySelector('.cart-what-name').textContent = pending.title;
-    box.querySelector('.cart-what-size').textContent = printMode() ? tr`${pending.styleName} · affiche de ${fmt(comp.W)} × ${fmt(comp.H)} cm` : tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
+    box.querySelector('.cart-what-size').textContent = printMode() ? tr`${pending.styleName} · tableau imprimé de ${fmt(comp.W)} × ${fmt(comp.H)} cm` : tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
     // seuls les produits de l'atelier en cours (impression ou toile)
     const products = MODE_PRODUCTS[modeOf()];
     if (!products.includes(choice.product)) choice.product = products[0];
