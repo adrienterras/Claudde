@@ -207,15 +207,13 @@
     "Du téléphone à l’ordinateur": "From phone to computer",
     "Photographiez sur le téléphone, composez sur l’ordinateur.": "Photograph on your phone, compose on your computer.",
     "Pas besoin de scanner : l’atelier ouvre l’appareil photo du téléphone et vous dit si chaque photo est bonne. Vous retrouvez ensuite l’œuvre sur l’ordinateur, sur grand écran, pour la peaufiner tranquillement.": "No scanner needed: the studio opens your phone’s camera and tells you whether each photo is good. You then find the artwork on your computer, on a big screen, to fine-tune it at leisure.",
-    "Sur le téléphone, touchez « Photographier un dessin ».": "On your phone, tap “Photograph a drawing”.",
-    "Cadrez la feuille : « Photo optimale » s’affiche quand elle est entière, nette et bien éclairée.": "Frame the sheet: “Optimal photo” appears when it is whole, sharp and well lit.",
-    "Connectez-vous avec votre compte gratuit.": "Sign in with your free account.",
-    "Les photos et l’œuvre en cours y sont gardées, d’elles-mêmes.": "The photos and the artwork in progress are kept there automatically.",
     "Ouvrez l’atelier sur l’ordinateur, avec le même compte.": "Open the studio on your computer, with the same account.",
     "Il vous propose de reprendre l’œuvre là où vous l’avez laissée : déplacez, agrandissez, choisissez le cadre, puis commandez.": "It offers to pick up the artwork where you left off: move, enlarge, choose the frame, then order.",
-    "Un dessin photographié dans l’atelier sur le téléphone, puis l’œuvre retrouvée sur l’ordinateur": "A drawing photographed in the studio on the phone, then the artwork found again on the computer",
-    "✓ Photo optimale": "✓ Optimal photo",
-    "Votre compte": "Your account",
+    "Sur le téléphone, connectez-vous avec votre compte gratuit.": "On your phone, sign in with your free account.",
+    "Il garde vos photos et l’œuvre en cours, d’elles-mêmes.": "It keeps your photos and the artwork in progress automatically.",
+    "Touchez « Photographier un dessin ».": "Tap “Photograph a drawing”.",
+    "Cadrez la feuille : l’atelier vérifie qu’elle est entière, nette et bien éclairée, et vous dit quand prendre la photo.": "Frame the sheet: the studio checks that it is whole, sharp and well lit, and tells you when to take the photo.",
+    "L’atelier sur le téléphone, qui vérifie la photo d’un dessin, et la même œuvre ouverte sur l’ordinateur": "The studio on a phone, checking the photo of a drawing, and the same artwork open on a computer",
   };
 
   var KEY = 'atelier-gribouille:lang';
@@ -249,6 +247,7 @@
       if (EN[key] === undefined) return;
       t.nodeValue = raw.match(/^\s*/)[0] + EN[key] + raw.match(/\s*$/)[0];
     });
+    document.querySelectorAll('img[data-src-en]').forEach(function (im) { im.src = im.getAttribute('data-src-en'); if (im.getAttribute('data-srcset-en')) im.srcset = im.getAttribute('data-srcset-en'); });
     document.querySelectorAll('svg[aria-label]').forEach(function (s) { var v = s.getAttribute('aria-label'); if (EN[v] !== undefined) s.setAttribute('aria-label', EN[v]); });
     document.querySelectorAll('a[href^="atelier/"]').forEach(function (a) { a.href = a.getAttribute('href') + (a.getAttribute('href').indexOf('?') >= 0 ? '&' : '?') + 'lang=en'; });
     document.documentElement.lang = 'en';
