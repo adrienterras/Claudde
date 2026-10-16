@@ -4998,7 +4998,7 @@ Réponds uniquement avec ce JSON :
   }
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
-  const TAB_OF = { more: ['saved-section', 'room-section'] };
+  const TAB_OF = { more: ['saved-section'] }; // « Mettre en scène » n'est pas proposé sur téléphone
   function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
