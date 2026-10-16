@@ -305,7 +305,7 @@
     if (!state.restoring && !(opts && opts.sample)) window.Atelier.track('Import', { fichiers: Math.min(files.length, 50) });
     state.sceneLayout = null;
     state.pinned = null;
-    if (!state.drawings.length) state.formatManual = false; // nouvelle œuvre : la toile est de nouveau conseillée
+    if (!state.drawings.length && !state.restoring) state.formatManual = false; // nouvelle œuvre : la toile est de nouveau conseillée (une œuvre rouverte garde la sienne si elle avait été choisie)
     if (!state.drawings.length && !state.restoring) setGround(undefined); // et la couleur du fond, automatique
     notice('');
     setProgress(0, 1, tr('Lecture des fichiers…'));
@@ -4528,7 +4528,7 @@ Réponds uniquement avec ce JSON :
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
-      settings: { mode: modeOf(), format: $('format').value, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
+      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
       drawings, comp: compData,
     };
   }
@@ -4712,7 +4712,9 @@ Réponds uniquement avec ce JSON :
     const sv = rec.settings || {};
     // (une sauvegarde d'avant les deux ateliers est une toile, sauf si elle a été composée sur un cadre)
     setMode(MODES.includes(sv.mode) ? sv.mode : sv.format && sv.format.startsWith('cadre:') ? 'impression' : 'toile', { keep: true });
-    if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) { $('format').value = sv.format; state.formatManual = true; }
+    // la toile n'est « choisie » que si le client l'avait choisie dans la liste ; sinon elle reste
+    // conseillée (une Frise rouverte ne doit pas garder sa bande pour toutes les autres propositions)
+    if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) { $('format').value = sv.format; state.formatManual = printMode() || !!sv.formatManual; }
     if (sv.orient) setCanvasOrient(sv.orient);
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
     if (sv.grain !== undefined) $('grain').checked = sv.grain;

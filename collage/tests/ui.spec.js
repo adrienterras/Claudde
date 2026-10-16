@@ -283,6 +283,42 @@ test.describe('Éditeur de découpe sur téléphone', () => {
 });
 
 test.describe('Brouillon', () => {
+  test('Toile : une Frise rouverte ne fige pas la toile, une toile choisie reste choisie', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=toile');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // la Frise est sur sa bande ; la toile reste conseillée (pas choisie dans la liste)
+    await page.evaluate(() => AtelierGribouille.selectProposal(AtelierGribouille.state.proposals.findIndex((p) => p.style.id === 'frise')));
+    const band = await page.evaluate(() => document.getElementById('format').value);
+    const savedFormat = () => page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille');
+      q.onsuccess = () => { try { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result && g.result.settings ? g.result.settings.format : null); g.onerror = () => res(null); } catch (e) { res(null); } };
+      q.onerror = () => res(null);
+    }));
+    // le brouillon garde la bande de la Frise affichée
+    await expect.poll(savedFormat, { timeout: 60000 }).toBe(band);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe('frise');
+    expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBe(false);
+    // curseur au maximum : les autres propositions retrouvent leur toile, avec tous les dessins
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
+    await page.waitForTimeout(400);
+    const r = await page.evaluate(() => { const p = AtelierGribouille.state.proposals.find((x) => x.style.id === 'tournesol').comp; return { r: Math.max(p.W, p.H) / Math.min(p.W, p.H) }; });
+    expect(r.r).toBeLessThan(1.8);
+    await page.evaluate(() => AtelierGribouille.selectProposal(AtelierGribouille.state.proposals.findIndex((p) => p.style.id === 'tournesol')));
+    await expect(page.locator('#density-note')).toHaveText(/^2 sur 2/);
+    // une toile choisie dans la liste, elle, est gardée à la réouverture
+    await page.evaluate(() => { const f = document.getElementById('format'); f.value = '50x50'; f.dispatchEvent(new Event('change')); });
+    await expect.poll(savedFormat, { timeout: 60000 }).toBe('50x50');
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => [AtelierGribouille.state.formatManual, document.getElementById('format').value, AtelierGribouille.state.comp.W])).toEqual([true, '50x50', 50]);
+  });
+
   test('l’œuvre en cours est gardée d’elle-même et rouverte toute seule après un rechargement', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
