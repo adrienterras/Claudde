@@ -124,7 +124,7 @@ const waitDraft = async (page) => {
 };
 
 test.describe('Téléphone, onglets', () => {
-  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer) ; « Mettre en scène » en fenêtre depuis l’œuvre ; pas de titre de section', async ({ browser }) => {
+  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer) ; « Mettre en scène » sous Exporter ; pas de titre de section', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await ctx.newPage();
@@ -139,19 +139,13 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('#saved-section')).toBeVisible();
     await expect(p.locator('#saved-section > h2')).toBeHidden();
     await expect(p.locator('#room-section')).toBeHidden();
-    // la mise en scène n'est dans aucun onglet : un bouton posé sur l'œuvre l'ouvre dans une fenêtre
+    // la mise en scène suit l'export, dans l'onglet Exporter
     await p.locator('#sheet-tabs [data-tab="export-section"]').click();
-    await expect(p.locator('#room-section')).toBeHidden();
+    await expect(p.locator('#room-section')).toBeVisible();
+    await expect(p.locator('#scene-info')).toContainText('buffet');
     // l'onglet suffit : ni numéro ni titre de section
     await expect(p.locator('#export-section > h2')).toBeHidden();
-    await p.locator('#scene-open').click();
-    await expect(p.locator('#scene-modal')).toBeVisible();
-    await expect(p.locator('#scene-modal #scene-canvas')).toBeVisible();
-    await expect(p.locator('#scene-info')).toContainText('buffet');
-    expect(await p.locator('#scene-canvas').evaluate((c) => c.width)).toBeGreaterThan(300);
-    await p.locator('#scene-modal [data-close]').click();
-    await expect(p.locator('#scene-modal')).toBeHidden();
-    expect(await p.evaluate(() => document.getElementById('scene-body').parentElement.id)).toBe('room-section');
+    await expect(p.locator('#room-section > h2')).toBeHidden();
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
@@ -1494,8 +1488,6 @@ test.describe('Mettre en scène', () => {
       await page.setInputFiles('#file', [fixture('page-cutout.png')]);
       await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
       await expect(page.locator('#room-section')).toBeVisible();
-      // sur ordinateur, la section suffit : pas de bouton sur l'œuvre
-      await expect(page.locator('#scene-open')).toBeHidden();
       const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
       const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
       // le salon et l'œuvre sont bien peints (pas un canevas vide)
