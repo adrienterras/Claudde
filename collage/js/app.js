@@ -3741,16 +3741,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.strokeStyle = 'rgba(0, 0, 0, 0.3)';
     x.strokeRect(ox + p, oy + p, w - 2 * p, h - 2 * p);
   }
-  function drawRoomScene() {
-    const cv = $('scene-canvas');
+  // Dessine la mise en scène sur le canevas affiché, ou, pour le téléchargement, sur un canevas
+  // donné à la largeur voulue (out = { canvas, width })
+  function drawRoomScene(out) {
+    const cv = out ? out.canvas : $('scene-canvas');
     const comp = state.comp;
-    if (!cv || !comp || $('room-section').hidden || !cv.clientWidth) return;
-    if (!salonReady()) return;
+    if (!cv || !comp || (!out && ($('room-section').hidden || !cv.clientWidth))) return false;
+    if (!salonReady()) return false;
     const [photo, plant, light] = salonImgs;
     const framed = printMode();
     const mat = framed && sceneMat();
-    $('scene-mat').hidden = !framed;
-    $('scene-mat').querySelectorAll('button').forEach((b) => {
+    if (!out) $('scene-mat').hidden = !framed;
+    if (!out) $('scene-mat').querySelectorAll('button').forEach((b) => {
       const on = (b.dataset.mat === '1') === mat;
       b.classList.toggle('on', on);
       b.classList.toggle('ink', on);
@@ -3776,7 +3778,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const sx = clamp(ax - sw / 2, 0, SALON.w - sw);
     const sy = clamp(Math.min(SALON.floorY + 20 * k - sh, SALON.floorY - top * k), 0, SALON.h - sh);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const W = Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
+    const W = out ? out.width : Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const x = cv.getContext('2d');
     x.setTransform(1, 0, 0, 1, 0, 0);
@@ -3844,13 +3846,30 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.restore();
     // la plante, devant le mur, passe devant l'œuvre
     x.drawImage(plant, (SALON.plantAt[0] - sx) * q, (SALON.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
+    if (out) return true;
     const name = framed && FRAME_KINDS[kind].name;
     $('scene-info').textContent = !framed
       ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un buffet de 2,30 m.`
       : mat
         ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti à ses couleurs.`
         : tr`Cadre ${name} de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti aux couleurs de l’œuvre, au-dessus d’un buffet de 2,30 m.`;
+    return true;
   }
+  // Télécharger la mise en scène en JPEG, en 2000 px de large
+  $('scene-save').addEventListener('click', async () => {
+    const btn = $('scene-save');
+    btn.disabled = true;
+    try {
+      const c = Extract.makeCanvas(2000, 1500);
+      if (!drawRoomScene({ canvas: c, width: 2000 })) throw new Error('mise en scène indisponible');
+      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
+      if (!blob) throw new Error('toBlob');
+      if (await saveFile(blob, tr('mise-en-scene-atelier-gribouille.jpg'))) window.Atelier.track('Export', { type: 'mise-en-scene', qualite: 'jpeg' });
+    } catch (e) {
+      console.error(e);
+      notice(tr('La mise en scène n’a pas pu être produite sur cet appareil.'));
+    } finally { btn.disabled = false; }
+  });
   $('scene-mat').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
     try { localStorage.setItem('atelier.passe-partout', b.dataset.mat); } catch (e) { /* ignoré */ }
     drawRoomScene();

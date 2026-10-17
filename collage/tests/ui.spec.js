@@ -1518,6 +1518,13 @@ test.describe('Mettre en scène', () => {
       } else {
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
         await expect(page.locator('#scene-mat')).toBeHidden();
+        // la mise en scène se télécharge en JPEG, 2000 × 1500 px
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#scene-save').click()]);
+        expect(dl.suggestedFilename()).toBe('mise-en-scene-atelier-gribouille.jpg');
+        const buf = require('fs').readFileSync(await dl.path());
+        expect(buf[0]).toBe(0xff); expect(buf[1]).toBe(0xd8);
+        const dims = await page.evaluate((b64) => new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.src = 'data:image/jpeg;base64,' + b64; }), buf.toString('base64'));
+        expect(dims).toEqual([2000, 1500]);
       }
     });
   }
