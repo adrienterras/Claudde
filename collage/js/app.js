@@ -2059,6 +2059,7 @@
     updateSettingsFor(state.comp);
     updateGroundName();
     $('density-bar').hidden = !state.comp;
+    $('scene-open').hidden = !state.comp;
     $('toolbar').hidden = !state.comp;
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
@@ -3864,6 +3865,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (!drawRoomScene({ canvas: c, width: 2000 })) throw new Error('mise en scène indisponible');
       const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
       if (!blob) throw new Error('toBlob');
+      // sur téléphone, la fenêtre d'enregistrement prend la place de celle de la mise en scène
+      if (!$('scene-modal').hidden) closeSceneModal();
       if (await saveFile(blob, tr('mise-en-scene-atelier-gribouille.jpg'))) window.Atelier.track('Export', { type: 'mise-en-scene', qualite: 'jpeg' });
     } catch (e) {
       console.error(e);
@@ -5199,7 +5202,7 @@ Réponds uniquement avec ce JSON :
   }
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
-  const TAB_OF = { more: ['saved-section'], 'export-section': ['export-section', 'room-section'] }; // la mise en scène suit l'export
+  const TAB_OF = { more: ['saved-section'] }; // la mise en scène s'ouvre en fenêtre, depuis l'œuvre
   function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
@@ -5393,6 +5396,24 @@ Réponds uniquement avec ce JSON :
   // fenêtres
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
   const closeModal = (el) => { el.hidden = true; };
+  // Sur téléphone, la mise en scène s'ouvre dans une fenêtre, depuis le bouton posé sur l'œuvre :
+  // son contenu y est déplacé le temps de l'ouverture, puis rendu à sa section
+  function openSceneModal() {
+    $('scene-modal-body').appendChild($('scene-body'));
+    openModal($('scene-modal'));
+    requestAnimationFrame(() => drawRoomScene());
+  }
+  function closeSceneModal() {
+    $('room-section').appendChild($('scene-body'));
+    closeModal($('scene-modal'));
+  }
+  $('scene-open').addEventListener('click', openSceneModal);
+  (() => {
+    const el = $('scene-modal');
+    el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = closeSceneModal));
+    el.addEventListener('click', (e) => { if (e.target === el) closeSceneModal(); });
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSceneModal(); });
+  })();
   ['cart-add', 'cart'].forEach((id) => {
     const el = $(id);
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
