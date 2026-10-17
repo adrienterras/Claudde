@@ -488,7 +488,6 @@
     'Galerie': 'Gallery',
     'grille de cadres, un dessin par case': 'grid of frames, one drawing per cell',
     '{0} sur {1}{2}': '{0} of {1}{2}',
-    ' · tout': ' · all',
     '{0} des {1} dessins, les plus {2}': '{0} of the {1} drawings, the {2}',
     'adaptés': 'best suited',
     'beaux': 'finest',
