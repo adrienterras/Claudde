@@ -257,9 +257,9 @@
     'Mes exports': 'My exports',
     'Chaque fichier téléchargé est aussi gardé dans votre compte : retéléchargez-le d’ici, depuis n’importe quel appareil.': 'Every downloaded file is also kept in your account: download it again from here, on any device.',
     'Mettre en scène': 'Stage it at home',
-    'Une photo de votre salon, de la chambre ou du couloir : l’œuvre apparaît sur le mur, à déplacer et à ajuster à la perspective.': 'A photo of your living room, bedroom or hallway: the artwork appears on the wall, ready to move and fit to the perspective.',
-    'Choisir une photo de la pièce': 'Choose a photo of the room',
-    'JPG, PNG ou HEIC converti · la photo reste sur votre appareil': 'JPG, PNG or converted HEIC · the photo stays on your device',
+    'L’œuvre accrochée dans un salon, à sa taille réelle': 'The artwork hanging in a living room, at its real size',
+    'Tableau encadré de {0} × {1} cm, au-dessus d’un canapé de 2,20 m.': 'Framed print, {0} × {1} cm, above a 2.20 m sofa.',
+    'Toile de {0} × {1} cm, au-dessus d’un canapé de 2,20 m.': '{0} × {1} cm canvas, above a 2.20 m sofa.',
     'Chaque gribouillage mérite son cadre.': 'Every scribble deserves a frame.',
     'Créativité': 'Creativity',
     'Tendresse': 'Tenderness',
@@ -296,10 +296,6 @@
     'Votre œuvre': 'Your artwork',
     'Enregistrer l’image': 'Save the image',
     'Sur téléphone : appuyez longuement sur l’image, puis « Enregistrer l’image ». Sur ordinateur : clic droit → « Enregistrer l’image sous… ».': 'On a phone: press and hold the image, then “Save image”. On a computer: right-click → “Save image as…”.',
-    'Mise en scène': 'Staging',
-    'Replacer': 'Reset position',
-    'Glissez l’œuvre pour la déplacer · molette ou pincement pour la taille · tirez un coin pour suivre la perspective du mur': 'Drag the artwork to move it · wheel or pinch to resize · pull a corner to follow the wall’s perspective',
-    'Télécharger la mise en scène': 'Download the staging',
     'Retoucher la découpe': 'Edit the cut-out',
     'Outil': 'Tool',
     'Gomme (E)': 'Eraser (E)',
@@ -573,10 +569,6 @@
     'Netteté des dessins : {0} / {1}…': 'Sharpening the drawings: {0} / {1}…',
     'dessins réduits (impression)': 'drawings scaled down (print)',
     'Assemblage du PDF… {0} / {1}': 'Assembling the PDF… {0} / {1}',
-    'Préparation de la mise en scène…': 'Preparing the staging…',
-    'Impossible de lire cette photo. Choisissez un JPG ou un PNG.': 'Cannot read this photo. Choose a JPG or a PNG.',
-    'Photo chargée. L’œuvre affichée est la proposition active ({0} × {1} cm) ; changez de proposition puis rouvrez la photo pour en voir une autre.': 'Photo loaded. The artwork shown is the active proposal ({0} × {1} cm); switch proposal then reopen the photo to see another one.',
-    ' Placement proposé par Claude : ajustez les coins si besoin.': ' Placement suggested by Claude: adjust the corners if needed.',
     'Les dessins d’exemple ont été retirés : place aux vôtres.': 'The sample drawings were removed: over to yours.',
     'télécharger votre œuvre': 'download your artwork',
     'créer le guide': 'create the guide',
@@ -767,9 +759,8 @@
     "Une partie de la feuille est plus sombre : ombre ou lumière d’une lampe.": "Part of the sheet is darker: a shadow or lamp light.",
     "Photographiez près d’une fenêtre, sans vous pencher au-dessus du dessin, ou scannez-le.": "Take the photo near a window without leaning over the drawing, or scan it.",
 
-    // ---------- editor.js / room.js ----------
+    // ---------- editor.js ----------
     'La découpe est vide : restaurez une partie du dessin avant de valider.': 'The cut-out is empty: restore part of the drawing before applying.',
-    'mise-en-scene-atelier-gribouille.jpg': 'staging-atelier-gribouille.jpg',
   };
 
   const KEY = 'atelier-gribouille:lang';

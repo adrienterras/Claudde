@@ -249,6 +249,12 @@
       <p id="save-status" class="save-status" role="status" hidden></p>
     </section>
 
+    <section id="room-section" class="step" hidden>
+      <h2><span class="num">05</span> Mettre en scène</h2>
+      <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas></div>
+      <p id="scene-info" class="hint mono-note"></p>
+    </section>
+
     <section id="saved-section" class="step">
       <h2><span class="num">05</span> Mes compositions <small id="saved-count"></small></h2>
       <p class="hint" id="saved-hint">Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins : rouvrez-les plus tard, telles quelles.</p>
@@ -263,17 +269,6 @@
       </div>
     </section>
 
-    <section id="room-section" class="step" hidden>
-      <h2><span class="num">06</span> Mettre en scène</h2>
-      <p class="hint">Une photo de votre salon, de la chambre ou du couloir : l’œuvre apparaît sur le mur, à déplacer et à ajuster à la perspective.</p>
-      <label class="drop small" id="room-drop">
-        <input id="room-file" type="file" accept="image/*" hidden>
-        <svg class="ico ico-lg"><use href="#i-upload"/></svg>
-        <strong>Choisir une photo de la pièce</strong>
-        <span>JPG, PNG ou HEIC converti · la photo reste sur votre appareil</span>
-      </label>
-      <p id="room-info" class="hint mono-note"></p>
-    </section>
 
     <footer class="brand-foot">
       <div class="foot-rule" aria-hidden="true">
@@ -485,21 +480,6 @@
     <p id="preview-name" class="hint mono-note preview-name"></p>
   </div>
 
-  <div id="room" class="editor room" role="dialog" aria-modal="true" aria-labelledby="room-title" hidden>
-    <div class="ed-bar">
-      <div class="ed-head">
-        <p class="ed-kicker">Mise en scène</p>
-        <h2 id="room-title">Mise en scène</h2>
-      </div>
-      <button id="room-reset" class="ed-btn" type="button">Replacer</button>
-    </div>
-    <canvas id="room-canvas" class="room-canvas"></canvas>
-    <div class="ed-foot">
-      <p class="ed-help">Glissez l’œuvre pour la déplacer · molette ou pincement pour la taille · tirez un coin pour suivre la perspective du mur</p>
-      <button id="room-close" class="btn" type="button">Fermer</button>
-      <button id="room-save" class="btn btn-primary" type="button"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger la mise en scène</span></button>
-    </div>
-  </div>
   <div id="camera" class="editor camera" role="dialog" aria-modal="true" aria-labelledby="camera-title" hidden>
     <div class="ed-bar">
       <div class="ed-head">
@@ -597,7 +577,6 @@
   <script src="js/compose.js"></script>
   <script src="js/guide.js"></script>
   <script src="js/editor.js"></script>
-  <script src="js/room.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/app.js"></script>
 </body>

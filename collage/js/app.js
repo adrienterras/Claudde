@@ -2307,6 +2307,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // ---------- Scène ----------
 
+  // Un salon vu de face (rendu 3D) : sur le plan du mur, l'échelle est la même partout,
+  // 5 px par centimètre. L'œuvre y est accrochée à sa taille réelle, au-dessus d'un canapé de
+  // 2,20 m : encadrée pour un tableau imprimé, en toile pour un collage avec les originaux.
+  const SALON = { src: 'assets/salon.webp', w: 2400, h: 1500, pxPerCm: 5, floorY: 1275, centerX: 1200, sofaTop: 79, ceiling: 260 };
+  const FRAME_CM = 2.2; // baguette du cadre
+  let salonImg = null, sceneTimer = 0;
+
   const canvas = $('canvas');
   const ctx = canvas.getContext('2d');
   let view = { s: 1, ox: 0, oy: 0, dpr: 1 };
@@ -2316,6 +2323,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     fullPending = true;
     if (!raf) raf = requestAnimationFrame(draw);
     scheduleDraft();
+    scheduleScene();
   }
   // Pendant qu'on fait glisser ou tourner une pièce, seul le rectangle qu'elle quitte et celui
   // qu'elle occupe changent : on ne redessine que lui, avec exactement les mêmes opérations (fond,
@@ -2325,6 +2333,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!fullPending) dirty = dirty ? [Math.min(dirty[0], r[0]), Math.min(dirty[1], r[1]), Math.max(dirty[2], r[2]), Math.max(dirty[3], r[3])] : r;
     if (!raf) raf = requestAnimationFrame(draw);
     scheduleDraft();
+    scheduleScene();
   }
   // rectangle (pixels de la toile) d'un calque posé, avec son cadre de sélection et sa poignée
   function layerRect(L) {
@@ -3623,63 +3632,91 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // ---------- Mise en scène ----------
 
-  // L'œuvre rendue pour la mise en scène (1600 px de côté, sans ombre), telle qu'elle est à l'instant
-  function roomArtwork() {
+  function salonReady() {
+    if (!salonImg) {
+      salonImg = new Image();
+      salonImg.onload = () => drawRoomScene();
+      salonImg.src = SALON.src;
+    }
+    return salonImg.complete && salonImg.naturalWidth > 0;
+  }
+  function scheduleScene() {
+    clearTimeout(sceneTimer);
+    sceneTimer = setTimeout(drawRoomScene, 300);
+  }
+  function drawRoomScene() {
+    const cv = $('scene-canvas');
     const comp = state.comp;
-    const s = 1600 / Math.max(comp.W, comp.H);
-    const c = Extract.makeCanvas(comp.W * s, comp.H * s);
-    const x = c.getContext('2d');
+    if (!cv || !comp || $('room-section').hidden || !cv.clientWidth) return;
+    if (!salonReady()) return;
+    const framed = printMode();
+    const f = framed ? FRAME_CM : 0;
+    const Wo = comp.W + 2 * f, Ho = comp.H + 2 * f;
+    // hauteur d'accrochage : centre à 150 cm du sol, bas de l'œuvre au moins 18 cm au-dessus du canapé
+    let mid = Math.max(150, SALON.sofaTop + 18 + Ho / 2);
+    if (mid + Ho / 2 > SALON.ceiling - 12) mid = SALON.ceiling - 12 - Ho / 2;
+    // cadrage : toute la hauteur, du sol au-dessus de l'œuvre, pour la voir avec le canapé et la pièce
+    const k = SALON.pxPerCm, aspect = 1.6;
+    const top = mid + Ho / 2 + 18;
+    const viewW = clamp(Math.max(3 * Wo, (top + 15) * aspect), 260, SALON.w / k);
+    const sw = viewW * k, sh = sw / aspect;
+    const ax = SALON.centerX, ay = SALON.floorY - mid * k; // centre de l'œuvre, en pixels du salon
+    const sx = clamp(ax - sw / 2, 0, SALON.w - sw);
+    const sy = clamp(Math.min(SALON.floorY + 15 * k - sh, SALON.floorY - top * k), 0, SALON.h - sh);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    const x = cv.getContext('2d');
+    x.setTransform(1, 0, 0, 1, 0, 0);
     x.imageSmoothingQuality = 'high';
+    x.drawImage(salonImg, sx, sy, sw, sh, 0, 0, W, H);
+    const q = W / sw; // pixels du canevas par pixel du salon
+    const pc = k * q; // pixels du canevas par centimètre
+    const ox = (ax - sx) * q - (Wo / 2) * pc, oy = (ay - sy) * q - (Ho / 2) * pc;
+    // ombre portée sur le mur, la lumière vient de la fenêtre à gauche
+    x.save();
+    x.shadowColor = 'rgba(45, 32, 20, 0.38)';
+    x.shadowBlur = (framed ? 1.6 : 2.6) * pc;
+    x.shadowOffsetX = (framed ? 0.8 : 1.4) * pc;
+    x.shadowOffsetY = (framed ? 1.2 : 2) * pc;
+    x.fillStyle = '#000';
+    x.fillRect(ox, oy, Wo * pc, Ho * pc);
+    x.restore();
+    if (framed) {
+      // baguette noire mate, arête intérieure légèrement éclairée
+      x.fillStyle = '#211e1b';
+      x.fillRect(ox, oy, Wo * pc, Ho * pc);
+      x.fillStyle = 'rgba(255, 255, 255, 0.09)';
+      x.fillRect(ox, oy, Wo * pc, Math.max(1, 0.25 * pc));
+    }
+    const s = pc;
+    const ix = ox + f * pc, iy = oy + f * pc;
+    x.save();
+    x.translate(ix, iy);
+    x.beginPath(); x.rect(0, 0, comp.W * s, comp.H * s); x.clip();
     Compose.renderBg(x, comp, s, false);
     Compose.renderItems(x, comp, s, false);
-    return c;
-  }
-  function openRoom(file) {
-    if (!state.comp || !window.Room) return;
-    $('room-info').textContent = tr('Préparation de la mise en scène…');
-    Room.open({
-      file,
-      artwork: roomArtwork,
-      title: `${(STYLES.find((x) => x.id === state.comp.style) || STYLES[0]).name} · ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm`,
-      onSave: (blob, name) => saveFile(blob, name),
-      onError: () => notice(tr('Impossible de lire cette photo. Choisissez un JPG ou un PNG.')),
-    });
-    $('room-info').textContent = tr`Photo chargée. L’œuvre affichée est la proposition active (${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm) ; changez de proposition puis rouvrez la photo pour en voir une autre.`;
-    roomDirect();
-  }
-
-  // Dans la page publiée, Claude regarde la photo et place l'œuvre au milieu du mur dégagé, dans
-  // la perspective du mur ; sinon, le placement automatique intégré (mur uni, lignes du sol et du plafond).
-  async function roomDirect() {
-    if (!(window.claude && window.claude.use)) return;
-    try {
-      await new Promise((r) => setTimeout(r, 400));
-      const data = Room.photoDataUrl();
-      if (!data) return;
-      const sample = await window.claude.use('sample');
-      const prompt = `Voici la photo d'une pièce. On veut y accrocher une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm (largeur × hauteur).
-Trouve le mur dégagé le plus adapté (grande surface libre, au-dessus d'un canapé, d'un lit, d'une commode… ou simplement vide) et place la toile en son milieu, à hauteur de regard, dans la perspective du mur : si le mur est vu de biais, le côté le plus proche de l'appareil est plus haut que le côté éloigné, et les bords haut et bas de la toile suivent les lignes du plafond et du sol.
-Taille plausible pour la pièce (une toile de ${fmt(state.comp.W)} cm de large est en général plus petite que le canapé ou le lit sous elle).
-Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rapport à la photo (x vers la droite, y vers le bas), dans l'ordre haut-gauche, haut-droit, bas-droit, bas-gauche :
-{"oeuvre": [[x,y],[x,y],[x,y],[x,y]]}`;
-      const res = await sample.json(prompt, { images: [data], modelTier: 'default' });
-      const q = res && res.oeuvre;
-      if (Array.isArray(q) && q.length === 4 && q.every((pt) => Array.isArray(pt) && pt.length === 2 && pt.every((v) => typeof v === 'number' && v >= -0.2 && v <= 1.2))) {
-        Room.setCorners(q);
-        $('room-info').textContent += tr(' Placement proposé par Claude : ajustez les coins si besoin.');
-      }
-    } catch (e) {
-      console.warn('placement par Claude indisponible', e);
+    x.restore();
+    if (framed) {
+      // ombre de la baguette sur l'image, et reflet discret du verre
+      const g = x.createLinearGradient(ix, iy, ix, iy + 1.2 * pc);
+      g.addColorStop(0, 'rgba(0, 0, 0, 0.35)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      x.fillStyle = g; x.fillRect(ix, iy, comp.W * s, 1.2 * pc);
+      const r = x.createLinearGradient(ix, iy, ix + comp.W * s, iy + comp.H * s);
+      r.addColorStop(0, 'rgba(255, 255, 255, 0.10)'); r.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+      x.fillStyle = r; x.fillRect(ix, iy, comp.W * s, comp.H * s);
+    } else {
+      // tranche de la toile : arête claire en haut à gauche, plus sombre en bas à droite
+      x.strokeStyle = 'rgba(255, 255, 255, 0.35)'; x.lineWidth = Math.max(1, 0.15 * pc);
+      x.beginPath(); x.moveTo(ix, iy + comp.H * s); x.lineTo(ix, iy); x.lineTo(ix + comp.W * s, iy); x.stroke();
+      x.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+      x.beginPath(); x.moveTo(ix + comp.W * s, iy); x.lineTo(ix + comp.W * s, iy + comp.H * s); x.lineTo(ix, iy + comp.H * s); x.stroke();
     }
+    $('scene-info').textContent = framed
+      ? tr`Tableau encadré de ${fmt(Wo)} × ${fmt(Ho)} cm, au-dessus d’un canapé de 2,20 m.`
+      : tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un canapé de 2,20 m.`;
   }
-  $('room-file').addEventListener('change', (e) => {
-    const f = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (f) openRoom(f);
-  });
-  ['dragenter', 'dragover'].forEach((t) => $('room-drop').addEventListener(t, (e) => { e.preventDefault(); $('room-drop').classList.add('over'); }));
-  ['dragleave', 'drop'].forEach((t) => $('room-drop').addEventListener(t, (e) => { e.preventDefault(); $('room-drop').classList.remove('over'); }));
-  $('room-drop').addEventListener('drop', (e) => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) openRoom(f); });
+  if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
   // ---------- Branchements ----------
 
@@ -4969,8 +5006,8 @@ Réponds uniquement avec ce JSON :
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
   (function collapsibleSections() {
     let saved = [];
-    // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, exporter)
-    const DEFAULT_COLLAPSED = ['drawings-section', 'room-section'];
+    // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, exporter, mise en scène)
+    const DEFAULT_COLLAPSED = ['drawings-section'];
     try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); if (!Array.isArray(saved)) saved = DEFAULT_COLLAPSED; } catch (e) { saved = DEFAULT_COLLAPSED; }
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const h = sec.querySelector(':scope > h2');
@@ -5004,14 +5041,14 @@ Réponds uniquement avec ce JSON :
   }
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
-  const TAB_OF = { more: ['saved-section'] }; // « Mettre en scène » n'est pas proposé sur téléphone
+  const TAB_OF = { more: ['saved-section'], 'export-section': ['export-section', 'room-section'] }; // la mise en scène suit l'export
   function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
     if (!panel || !tabs) return;
     if (!mobileQuery.matches) { panel.classList.remove('tabbed'); panel.removeAttribute('data-tab'); return; }
     const btn = tabs.querySelector(`[data-tab="${id}"]`);
-    if (!btn || (!TAB_OF[id] && $(id).hidden)) return;
+    if (!btn || ($(id) && $(id).hidden)) return;
     btn.disabled = false;
     // la fiche d'un dessin (tiroir à mi-hauteur) ne reste ouverte que dans l'onglet Dessins
     document.body.classList.toggle('sheet-detail', id === 'drawings-section' && !!state.current);
@@ -5031,7 +5068,7 @@ Réponds uniquement avec ce JSON :
     if (!tabs) return;
     tabs.querySelectorAll('button').forEach((b) => {
       const id = b.dataset.tab;
-      if (TAB_OF[id]) return;
+      if (!$(id)) return;
       b.disabled = !!$(id).hidden;
     });
     renumberSteps();

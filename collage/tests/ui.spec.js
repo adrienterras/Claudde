@@ -7,7 +7,7 @@ test.describe('Interface', () => {
     await expect(page.locator('#drop')).toBeVisible();
     // les sections secondaires sont repliées, les réglages avancés fermés
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
-    await expect(page.locator('#room-section')).toHaveClass(/collapsed/);
+    await expect(page.locator('#room-section')).not.toHaveClass(/collapsed/);
     // sur ordinateur, les réglages avancés sont dépliés d'office ; plus de « finition toile »
     expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(true);
     await expect(page.locator('#grain')).toHaveCount(0);
@@ -124,7 +124,7 @@ const waitDraft = async (page) => {
 };
 
 test.describe('Téléphone, onglets', () => {
-  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer), ni « Mettre en scène »', async ({ browser }) => {
+  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer) ; « Mettre en scène » sous Exporter', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await ctx.newPage();
@@ -138,6 +138,10 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('#new-work')).toBeHidden();
     await expect(p.locator('#saved-section')).toBeVisible();
     await expect(p.locator('#room-section')).toBeHidden();
+    // la mise en scène suit l'export, dans l'onglet Exporter
+    await p.locator('#sheet-tabs [data-tab="export-section"]').click();
+    await expect(p.locator('#room-section')).toBeVisible();
+    await expect(p.locator('#scene-info')).toContainText('canapé');
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
@@ -1465,4 +1469,32 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
     expect(after.ground).toBe(await page.evaluate(() => AtelierGribouille.state.ground));
     expect(after.items).toEqual(before.items);
   });
+});
+
+test.describe('Mettre en scène', () => {
+  // l'œuvre accrochée dans le salon : toile pour un collage, tableau encadré pour une impression,
+  // toujours à la même échelle que la pièce (5 px du salon par centimètre)
+  for (const mode of ['toile', 'impression']) {
+    test(`${mode} : l’œuvre est dessinée dans le salon, à sa taille réelle`, async ({ page }) => {
+      test.setTimeout(180000);
+      const { fixture } = require('./helpers');
+      await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+      await page.goto(`index.html?mode=${mode}`);
+      await page.waitForFunction(() => window.AtelierGribouille);
+      await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+      await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+      await expect(page.locator('#room-section')).toBeVisible();
+      const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
+      const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
+      const label = mode === 'impression' ? `Tableau encadré de ${fmt(W + 4.4)} × ${fmt(H + 4.4)} cm` : `Toile de ${fmt(W)} × ${fmt(H)} cm`;
+      await expect(page.locator('#scene-info')).toContainText(label);
+      // le salon et l'œuvre sont bien peints (pas un canevas vide)
+      const painted = await page.locator('#scene-canvas').evaluate((c) => {
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        let n = 0; for (let i = 3; i < d.length; i += 400) if (d[i] > 0) n++;
+        return n / (d.length / 400);
+      });
+      expect(painted).toBeGreaterThan(0.99);
+    });
+  }
 });

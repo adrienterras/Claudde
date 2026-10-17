@@ -287,14 +287,14 @@ cd collage && python3 -m http.server 8000
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
-   - **mise en scène** (section 05) : une photo de la pièce (salon, chambre…), et l'œuvre active
-     apparaît sur le mur, avec une ombre douce et sa tranche ; on la déplace, on la redimensionne
-     (molette ou pincement) et on tire ses quatre coins pour suivre la perspective du mur
-     (homographie) ; **placement automatique** : l'app repère le mur dégagé (plus grande zone unie et
-     claire, de la couleur dominante des surfaces planes), pose l'œuvre en son milieu à hauteur de
-     regard et l'incline selon les lignes du plafond et du sol mesurées sur la photo ; dans la page
-     publiée, Claude regarde la photo et propose le placement ; export en JPEG à la résolution de la
-     photo ; la photo reste sur l'appareil ;
+   - **mise en scène** (section 05, sous Exporter sur téléphone) : l'œuvre active accrochée dans un
+     salon (`assets/salon.webp`), à sa taille réelle au-dessus d'un canapé de 2,20 m : tableau encadré
+     (baguette noire de 2,2 cm) pour une impression, toile pour un collage avec les originaux. Le
+     salon est un rendu 3D vu de face : sur le plan du mur, l'échelle est la même partout (5 px par
+     cm), l'œuvre est centrée à 150 cm du sol (au moins 18 cm au-dessus du canapé) et le cadrage
+     s'élargit avec sa taille. Crédits du salon : canapé « Glam Velvet Sofa » © 2021 Wayfair LLC
+     (Eric Chadwick), plante « Diffuse Transmission Plant » © 2024 Darmstadt Graphics Group, tous
+     deux sous licence CC BY 4.0 (exemples glTF du Khronos Group) ; éclairage HDRI Poly Haven (CC0) ;
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
@@ -398,7 +398,7 @@ Le parcours simple tient en trois étapes (importer, choisir une proposition, t�
 réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
 avancés », le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
 visibles au-dessus du bouton de téléchargement), et les sections
-Dessins et Mise en scène sont repliées à la première visite (le choix de chacun est mémorisé).
+Dessins est repliée à la première visite (le choix de chacun est mémorisé).
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
    pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
    déplacer ; bouton plein écran, pratique sur téléphone.
