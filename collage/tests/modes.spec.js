@@ -264,9 +264,13 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('#cart-add input[value="signature"]').check();
     await expect(page.locator('.cart-add-total')).toContainText(long > 75 ? '690' : '490');
     await expect(page.locator('#cart-add .cart-qty-row')).toBeHidden();
+    await expect(page.locator('#cart-add input[value="kit"]').locator('xpath=..').locator('b')).toHaveText(await page.evaluate(() => `Kit DIY ${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`));
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     await expect(page.locator('#cart .cart-item')).toContainText('Atelier Signature');
+    // la toile annoncée est celle de la composition, à sa taille
+    const dims = await page.evaluate(() => `${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`);
+    await expect(page.locator('#cart .cart-item small')).toContainText(`toile ${dims} cm`);
     // une œuvre faite avec les originaux n'existe qu'en un exemplaire : pas de quantité
     await expect(page.locator('#cart .cart-item .cart-qty')).toHaveCount(0);
     await page.locator('#cart [data-close]').first().click();

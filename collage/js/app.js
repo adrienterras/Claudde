@@ -5157,8 +5157,11 @@ Réponds uniquement avec ce JSON :
   const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
   function productLabel(it) {
     if (it.product === 'print') return tr`Tableau imprimé ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
-    if (it.product === 'signature') return signatureGrand(it) ? tr('Atelier Signature Grand (toile 70 × 100, jusqu’à 30 dessins)') : tr('Atelier Signature (toile 50 × 70, jusqu’à 20 dessins)');
-    return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD'), kit: tr('Kit DIY 50 × 70') }[it.product];
+    // collage avec les originaux : la toile est celle de la composition, à sa taille
+    const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
+    if (it.product === 'signature') return signatureGrand(it) ? tr`Atelier Signature Grand (toile ${toile} cm, jusqu’à 30 dessins)` : tr`Atelier Signature (toile ${toile} cm, jusqu’à 20 dessins)`;
+    if (it.product === 'kit') return tr`Kit DIY, toile ${toile} cm`;
+    return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD') }[it.product];
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
   // d'après le catalogue — jamais celui qui a été stocké)
@@ -5221,6 +5224,7 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => { r.checked = r.value === choice.product; r.closest('.cart-prod').classList.toggle('on', r.checked); });
     box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(PRICES.print.papier['30x40'])}`;
     ['hd', 'guide', 'kit'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
+    box.querySelector('input[value="kit"]').closest('label').querySelector('b').textContent = tr`Kit DIY ${fmt(comp.W)} × ${fmt(comp.H)}`;
     box.querySelector('[data-price="signature"]').textContent = euros(signatureGrand(comp) ? PRICES.signatureGrand : PRICES.signature);
     box.querySelector('.cart-print').hidden = choice.product !== 'print' || !printMode();
     box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
