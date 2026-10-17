@@ -287,7 +287,7 @@ cd collage && python3 -m http.server 8000
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
-   - **mise en scène** (section 05, sous Exporter sur téléphone) : l'œuvre active accrochée dans un
+   - **mise en scène** (dans la section Tailles, sous le titre « Mise en scène ») : l'œuvre active accrochée dans un
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
      collage avec les originaux, tableau encadré pour une impression. Le cadre (bois clair, bois foncé,
      métal ou blanc) est choisi d'après les couleurs de l'œuvre : sombre → blanc (bois foncé avec

@@ -186,6 +186,17 @@
           <button type="button" data-orient="port">Portrait</button>
         </div>
       </div>
+      <!-- l'œuvre accrochée dans un salon, à sa taille réelle -->
+      <div id="scene-box" class="scene-box">
+        <h3 class="scene-title">Mise en scène</h3>
+        <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas></div>
+        <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout" hidden>
+          <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>
+          <button type="button" data-mat="1">Avec passe-partout</button>
+        </div>
+        <p id="scene-info" class="hint mono-note"></p>
+        <button id="scene-save" class="btn" type="button"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger la mise en scène</span></button>
+      </div>
     </section>
 
     <section id="drawings-section" class="step" hidden>
@@ -247,17 +258,6 @@
         </div>
       </form>
       <p id="save-status" class="save-status" role="status" hidden></p>
-    </section>
-
-    <section id="room-section" class="step" hidden>
-      <h2><span class="num">05</span> Mettre en scène</h2>
-      <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas></div>
-      <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout" hidden>
-        <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>
-        <button type="button" data-mat="1">Avec passe-partout</button>
-      </div>
-      <p id="scene-info" class="hint mono-note"></p>
-      <button id="scene-save" class="btn" type="button"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger la mise en scène</span></button>
     </section>
 
     <section id="saved-section" class="step">

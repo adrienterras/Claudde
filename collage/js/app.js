@@ -385,7 +385,7 @@
     curate();
     planCoverage();
     if (state.drawings.length) {
-      ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section'].forEach((id) => ($(id).hidden = false));
+      ['drawings-section', 'sizes-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
       $('restart-offer').hidden = false;
       $('new-work').hidden = false;
@@ -3746,7 +3746,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function drawRoomScene(out) {
     const cv = out ? out.canvas : $('scene-canvas');
     const comp = state.comp;
-    if (!cv || !comp || (!out && ($('room-section').hidden || !cv.clientWidth))) return false;
+    if (!cv || !comp || (!out && ($('sizes-section').hidden || !cv.clientWidth))) return false;
     if (!salonReady()) return false;
     const [photo, plant, light] = salonImgs;
     const framed = printMode();
@@ -4169,7 +4169,7 @@ Réponds uniquement avec ce JSON :
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'room-section', 'sample-note', 'label', 'restart-offer', 'new-work'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'sample-note', 'label', 'restart-offer', 'new-work'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
     $('sample-offer').hidden = !state.sampleManifest;
     refreshLists();
@@ -5164,7 +5164,7 @@ Réponds uniquement avec ce JSON :
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
   (function collapsibleSections() {
     let saved = [];
-    // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, exporter, mise en scène)
+    // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, tailles, exporter)
     const DEFAULT_COLLAPSED = ['drawings-section'];
     try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); if (!Array.isArray(saved)) saved = DEFAULT_COLLAPSED; } catch (e) { saved = DEFAULT_COLLAPSED; }
     document.querySelectorAll('aside section.step').forEach((sec) => {
@@ -5199,7 +5199,7 @@ Réponds uniquement avec ce JSON :
   }
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
-  const TAB_OF = { more: ['saved-section'], 'export-section': ['export-section', 'room-section'] }; // la mise en scène suit l'export
+  const TAB_OF = { more: ['saved-section'] };
   function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
