@@ -288,13 +288,14 @@ cd collage && python3 -m http.server 8000
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
    - **mise en scène** (section 05, sous Exporter sur téléphone) : l'œuvre active accrochée dans un
-     salon (`assets/salon.webp`), à sa taille réelle au-dessus d'un canapé de 2,20 m : tableau encadré
-     (baguette noire de 2,2 cm) pour une impression, toile pour un collage avec les originaux. Le
-     salon est un rendu 3D vu de face : sur le plan du mur, l'échelle est la même partout (5 px par
-     cm), l'œuvre est centrée à 150 cm du sol (au moins 18 cm au-dessus du canapé) et le cadrage
-     s'élargit avec sa taille. Crédits du salon : canapé « Glam Velvet Sofa » © 2021 Wayfair LLC
-     (Eric Chadwick), plante « Diffuse Transmission Plant » © 2024 Darmstadt Graphics Group, tous
-     deux sous licence CC BY 4.0 (exemples glTF du Khronos Group) ; éclairage HDRI Poly Haven (CC0) ;
+     salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : tableau
+     encadré (baguette noire de 2,2 cm) pour une impression, toile pour un collage avec les originaux.
+     L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
+     de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm
+     au-dessus du buffet et au-dessus de la lampe ou du vase quand elle s'étend jusqu'à eux ; le
+     cadrage s'élargit avec sa taille. La plante détourée (`assets/salon-plante.webp`) passe devant
+     l'œuvre, et la lumière du mur (`assets/salon-lumiere.webp`, soleil et ombres des feuilles) se pose
+     sur elle ;
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en

@@ -141,7 +141,7 @@ test.describe('Téléphone, onglets', () => {
     // la mise en scène suit l'export, dans l'onglet Exporter
     await p.locator('#sheet-tabs [data-tab="export-section"]').click();
     await expect(p.locator('#room-section')).toBeVisible();
-    await expect(p.locator('#scene-info')).toContainText('canapé');
+    await expect(p.locator('#scene-info')).toContainText('buffet');
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();

@@ -2307,12 +2307,22 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // ---------- Scène ----------
 
-  // Un salon vu de face (rendu 3D) : sur le plan du mur, l'échelle est la même partout,
-  // 5 px par centimètre. L'œuvre y est accrochée à sa taille réelle, au-dessus d'un canapé de
-  // 2,20 m : encadrée pour un tableau imprimé, en toile pour un collage avec les originaux.
-  const SALON = { src: 'assets/salon.webp', w: 2400, h: 1500, pxPerCm: 5, floorY: 1275, centerX: 1200, sofaTop: 79, ceiling: 260 };
+  // Le salon : une photo de face, échelle estimée d'après les meubles (buffet de 2,30 m et 46 cm de
+  // haut, lampe de 45 cm, vase de 38 cm) : 3,9 px par centimètre sur le plan du mur. L'œuvre y est
+  // accrochée à sa taille réelle au-dessus du buffet : encadrée pour un tableau imprimé, en toile pour
+  // un collage avec les originaux. La plante passe devant l'œuvre ; la lumière du mur (soleil, ombres
+  // des feuilles) se pose aussi sur elle.
+  const SALON = {
+    src: 'assets/salon.webp', plant: 'assets/salon-plante.webp', light: 'assets/salon-lumiere.webp',
+    w: 1448, h: 1086, pxPerCm: 3.9, floorY: 938, centerX: 735,
+    minBottom: 66, // 20 cm au-dessus du buffet
+    plantAt: [150, 370], // coin haut-gauche de la plante détourée
+    // ce qui dépasse du buffet (en pixels de la photo) : l'œuvre reste au-dessus quand elle s'y étend
+    obstacles: [{ x0: 280, x1: 405, top: 84 }, { x0: 1030, x1: 1185, top: 89 }],
+    top: 238, // haut de la photo, en cm au-dessus du sol
+  };
   const FRAME_CM = 2.2; // baguette du cadre
-  let salonImg = null, sceneTimer = 0;
+  let salonImgs = null, sceneTimer = 0;
 
   const canvas = $('canvas');
   const ctx = canvas.getContext('2d');
@@ -3633,12 +3643,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // ---------- Mise en scène ----------
 
   function salonReady() {
-    if (!salonImg) {
-      salonImg = new Image();
-      salonImg.onload = () => drawRoomScene();
-      salonImg.src = SALON.src;
+    if (!salonImgs) {
+      salonImgs = ['src', 'plant', 'light'].map((key) => {
+        const im = new Image();
+        im.onload = () => scheduleScene();
+        im.src = SALON[key];
+        return im;
+      });
     }
-    return salonImg.complete && salonImg.naturalWidth > 0;
+    return salonImgs.every((im) => im.complete && im.naturalWidth > 0);
   }
   function scheduleScene() {
     clearTimeout(sceneTimer);
@@ -3649,27 +3662,32 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const comp = state.comp;
     if (!cv || !comp || $('room-section').hidden || !cv.clientWidth) return;
     if (!salonReady()) return;
+    const [photo, plant, light] = salonImgs;
     const framed = printMode();
     const f = framed ? FRAME_CM : 0;
     const Wo = comp.W + 2 * f, Ho = comp.H + 2 * f;
-    // hauteur d'accrochage : centre à 150 cm du sol, bas de l'œuvre au moins 18 cm au-dessus du canapé
-    let mid = Math.max(150, SALON.sofaTop + 18 + Ho / 2);
-    if (mid + Ho / 2 > SALON.ceiling - 12) mid = SALON.ceiling - 12 - Ho / 2;
-    // cadrage : toute la hauteur, du sol au-dessus de l'œuvre, pour la voir avec le canapé et la pièce
-    const k = SALON.pxPerCm, aspect = 1.6;
-    const top = mid + Ho / 2 + 18;
-    const viewW = clamp(Math.max(3 * Wo, (top + 15) * aspect), 260, SALON.w / k);
+    const k = SALON.pxPerCm, aspect = SALON.w / SALON.h;
+    // hauteur d'accrochage : au-dessus d'un meuble bas, centre à 130 cm du sol, bas de l'œuvre au moins
+    // 20 cm au-dessus du buffet, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
+    const ax = SALON.centerX;
+    const half = (Wo / 2) * k;
+    const bottom = SALON.obstacles.reduce((m, o) => (ax + half > o.x0 && ax - half < o.x1 ? Math.max(m, o.top + 10) : m), SALON.minBottom);
+    let mid = Math.max(130, bottom + Ho / 2);
+    if (mid + Ho / 2 > SALON.top - 6) mid = Math.max(bottom + Ho / 2, SALON.top - 6 - Ho / 2);
+    // cadrage : l'œuvre, le buffet et un peu de sol ; plus large pour une grande œuvre
+    const top = mid + Ho / 2 + 15;
+    const viewW = clamp(Math.max(3 * Wo, 260), 260, SALON.w / k);
     const sw = viewW * k, sh = sw / aspect;
-    const ax = SALON.centerX, ay = SALON.floorY - mid * k; // centre de l'œuvre, en pixels du salon
+    const ay = SALON.floorY - mid * k; // centre de l'œuvre, en pixels de la photo
     const sx = clamp(ax - sw / 2, 0, SALON.w - sw);
-    const sy = clamp(Math.min(SALON.floorY + 15 * k - sh, SALON.floorY - top * k), 0, SALON.h - sh);
+    const sy = clamp(Math.min(SALON.floorY + 20 * k - sh, SALON.floorY - top * k), 0, SALON.h - sh);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     const x = cv.getContext('2d');
     x.setTransform(1, 0, 0, 1, 0, 0);
     x.imageSmoothingQuality = 'high';
-    x.drawImage(salonImg, sx, sy, sw, sh, 0, 0, W, H);
+    x.drawImage(photo, sx, sy, sw, sh, 0, 0, W, H);
     const q = W / sw; // pixels du canevas par pixel du salon
     const pc = k * q; // pixels du canevas par centimètre
     const ox = (ax - sx) * q - (Wo / 2) * pc, oy = (ay - sy) * q - (Ho / 2) * pc;
@@ -3712,9 +3730,19 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.strokeStyle = 'rgba(0, 0, 0, 0.25)';
       x.beginPath(); x.moveTo(ix + comp.W * s, iy); x.lineTo(ix + comp.W * s, iy + comp.H * s); x.lineTo(ix, iy + comp.H * s); x.stroke();
     }
+    // la lumière de la pièce sur l'œuvre : soleil, ombres des feuilles, teinte chaude du mur
+    const lr = light.naturalWidth / SALON.w;
+    x.save();
+    x.beginPath(); x.rect(ox, oy, Wo * pc, Ho * pc); x.clip();
+    x.globalCompositeOperation = 'multiply';
+    x.globalAlpha = 0.75;
+    x.drawImage(light, sx * lr, sy * lr, sw * lr, sh * lr, 0, 0, W, H);
+    x.restore();
+    // la plante, devant le mur, passe devant l'œuvre
+    x.drawImage(plant, (SALON.plantAt[0] - sx) * q, (SALON.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
     $('scene-info').textContent = framed
-      ? tr`Tableau encadré de ${fmt(Wo)} × ${fmt(Ho)} cm, au-dessus d’un canapé de 2,20 m.`
-      : tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un canapé de 2,20 m.`;
+      ? tr`Tableau encadré de ${fmt(Wo)} × ${fmt(Ho)} cm, au-dessus d’un buffet de 2,30 m.`
+      : tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un buffet de 2,30 m.`;
   }
   if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
