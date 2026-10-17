@@ -2321,7 +2321,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     obstacles: [{ x0: 280, x1: 405, top: 84 }, { x0: 1030, x1: 1185, top: 89 }],
     top: 238, // haut de la photo, en cm au-dessus du sol
   };
-  const FRAME_CM = 2.2; // baguette du cadre
   let salonImgs = null, sceneTimer = 0;
 
   const canvas = $('canvas');
@@ -3657,6 +3656,91 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     clearTimeout(sceneTimer);
     sceneTimer = setTimeout(drawRoomScene, 300);
   }
+  // Cadres proposés pour un tableau imprimé : la couleur est choisie d'après celles de l'œuvre
+  const FRAME_KINDS = {
+    'bois-clair': { name: tr('bois clair'), profile: 2.2, rgb: [198, 160, 114], grain: true },
+    'bois-fonce': { name: tr('bois foncé'), profile: 2.2, rgb: [94, 63, 43], grain: true },
+    metal: { name: tr('métal'), profile: 1.2, rgb: [178, 180, 182], brushed: true },
+    blanc: { name: tr('blanc'), profile: 2.2, rgb: [241, 238, 232] },
+  };
+  // Teinte générale de l'œuvre (rendue en vignette) : clarté et chaleur moyennes
+  function artTone(comp) {
+    const s = 48 / Math.max(comp.W, comp.H);
+    const c = Extract.makeCanvas(Math.max(1, Math.round(comp.W * s)), Math.max(1, Math.round(comp.H * s)));
+    const x = c.getContext('2d');
+    Compose.renderBg(x, comp, s, false);
+    Compose.renderItems(x, comp, s, false);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    let L = 0, warm = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      L += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      warm += (d[i] - d[i + 2]) / 255;
+      n++;
+    }
+    return { light: L / n, warm: warm / n };
+  }
+  // Œuvre sombre : cadre blanc (bois foncé avec un passe-partout blanc) ; dominante froide (bleus,
+  // verts) : métal ; œuvre claire ou pastel : bois foncé, pour la tenir ; sinon bois clair, chaleureux
+  function pickFrameKind(tone, mat) {
+    if (tone.light < 0.36) return mat ? 'bois-fonce' : 'blanc';
+    if (tone.warm < 0) return 'metal';
+    if (tone.light > 0.62) return 'bois-fonce';
+    return 'bois-clair';
+  }
+  // Avec passe-partout : le plus petit cadre standard qui laisse au moins 4 cm de marge autour de
+  // l'œuvre, sinon un cadre sur mesure (marge de 6 cm)
+  function matFrame(W, H) {
+    const land = W >= H;
+    const fits = FRAMES.map((f) => (land ? [f[0], f[1]] : [f[1], f[0]])).filter(([w, h]) => w >= W + 8 && h >= H + 8);
+    if (fits.length) return fits.sort((a, b) => a[0] * a[1] - b[0] * b[1])[0];
+    return [Math.ceil(W + 12), Math.ceil(H + 12)];
+  }
+  const sceneMat = () => { try { return localStorage.getItem('atelier.passe-partout') === '1'; } catch (e) { return false; } };
+  const shade = (rgb, k) => `rgb(${rgb.map((v) => Math.round(clamp(v * k, 0, 255))).join(',')})`;
+  // Baguette en quatre coupes d'onglet, éclairée d'en haut à gauche (la fenêtre)
+  function drawFrame(x, ox, oy, w, h, p, kind) {
+    const F = FRAME_KINDS[kind];
+    const sides = [
+      { pts: [[ox, oy], [ox + w, oy], [ox + w - p, oy + p], [ox + p, oy + p]], k: 1.1, horiz: true },
+      { pts: [[ox, oy], [ox + p, oy + p], [ox + p, oy + h - p], [ox, oy + h]], k: 1.02, horiz: false },
+      { pts: [[ox + w, oy], [ox + w, oy + h], [ox + w - p, oy + h - p], [ox + w - p, oy + p]], k: 0.84, horiz: false },
+      { pts: [[ox, oy + h], [ox + p, oy + h - p], [ox + w - p, oy + h - p], [ox + w, oy + h]], k: 0.76, horiz: true },
+    ];
+    const rnd = Compose.rng(7);
+    sides.forEach((sd) => {
+      x.save();
+      x.beginPath();
+      sd.pts.forEach(([px, py], i) => (i ? x.lineTo(px, py) : x.moveTo(px, py)));
+      x.closePath();
+      x.clip();
+      x.fillStyle = shade(F.rgb, sd.k);
+      x.fillRect(ox, oy, w, h);
+      if (F.grain || F.brushed) {
+        // veines du bois ou métal brossé, dans le sens de la baguette
+        const len = sd.horiz ? w : h, across = p;
+        for (let i = 0; i < (F.grain ? 14 : 22); i++) {
+          const t = rnd() * across;
+          x.strokeStyle = F.grain ? `rgba(60, 35, 15, ${0.06 + rnd() * 0.12})` : `rgba(255, 255, 255, ${0.08 + rnd() * 0.18})`;
+          x.lineWidth = Math.max(0.5, across * (0.02 + rnd() * 0.05));
+          x.beginPath();
+          if (sd.horiz) {
+            const y0 = sd.pts[0][1] + (sd.pts[0][1] < sd.pts[3][1] ? t : -t);
+            x.moveTo(ox, y0); x.bezierCurveTo(ox + len * 0.3, y0 + (rnd() - 0.5) * across * 0.2, ox + len * 0.7, y0 + (rnd() - 0.5) * across * 0.2, ox + len, y0);
+          } else {
+            const x0 = sd.pts[0][0] + (sd.pts[0][0] < sd.pts[1][0] ? t : -t);
+            x.moveTo(x0, oy); x.bezierCurveTo(x0 + (rnd() - 0.5) * across * 0.2, oy + len * 0.3, x0 + (rnd() - 0.5) * across * 0.2, oy + len * 0.7, x0, oy + len);
+          }
+          x.stroke();
+        }
+      }
+      x.restore();
+    });
+    // arêtes : extérieure éclairée, feuillure sombre
+    x.strokeStyle = 'rgba(255, 255, 255, 0.25)'; x.lineWidth = Math.max(1, p * 0.06);
+    x.strokeRect(ox + 0.5, oy + 0.5, w - 1, h - 1);
+    x.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    x.strokeRect(ox + p, oy + p, w - 2 * p, h - 2 * p);
+  }
   function drawRoomScene() {
     const cv = $('scene-canvas');
     const comp = state.comp;
@@ -3664,8 +3748,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!salonReady()) return;
     const [photo, plant, light] = salonImgs;
     const framed = printMode();
-    const f = framed ? FRAME_CM : 0;
-    const Wo = comp.W + 2 * f, Ho = comp.H + 2 * f;
+    const mat = framed && sceneMat();
+    $('scene-mat').hidden = !framed;
+    $('scene-mat').querySelectorAll('button').forEach((b) => {
+      const on = (b.dataset.mat === '1') === mat;
+      b.classList.toggle('on', on);
+      b.classList.toggle('ink', on);
+    });
+    // œuvre (W × H), ouverture du cadre (Fw × Fh, avec le passe-partout) et encombrement total (Wo × Ho)
+    const [Fw, Fh] = mat ? matFrame(comp.W, comp.H) : [comp.W, comp.H];
+    const kind = framed ? pickFrameKind(artTone(comp), mat) : null;
+    const f = framed ? FRAME_KINDS[kind].profile : 0;
+    const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     const k = SALON.pxPerCm, aspect = SALON.w / SALON.h;
     // hauteur d'accrochage : au-dessus d'un meuble bas, centre à 130 cm du sol, bas de l'œuvre au moins
     // 20 cm au-dessus du buffet, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
@@ -3700,35 +3794,45 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.fillStyle = '#000';
     x.fillRect(ox, oy, Wo * pc, Ho * pc);
     x.restore();
-    if (framed) {
-      // baguette noire mate, arête intérieure légèrement éclairée
-      x.fillStyle = '#211e1b';
-      x.fillRect(ox, oy, Wo * pc, Ho * pc);
-      x.fillStyle = 'rgba(255, 255, 255, 0.09)';
-      x.fillRect(ox, oy, Wo * pc, Math.max(1, 0.25 * pc));
+    const fx = ox + f * pc, fy = oy + f * pc; // ouverture du cadre
+    const ix = fx + ((Fw - comp.W) / 2) * pc, iy = fy + ((Fh - comp.H) / 2) * pc; // l'œuvre
+    if (mat) {
+      // passe-partout blanc cassé, biseau éclairé à droite et en bas, dans l'ombre à gauche et en haut
+      const b = Math.max(1, 0.35 * pc), aw = comp.W * pc, ah = comp.H * pc;
+      x.fillStyle = '#f5f2eb';
+      x.fillRect(fx, fy, Fw * pc, Fh * pc);
+      x.fillStyle = '#e4ded3';
+      x.fillRect(ix - b, iy - b, aw + 2 * b, b); x.fillRect(ix - b, iy - b, b, ah + 2 * b);
+      x.fillStyle = '#fffdf9';
+      x.fillRect(ix - b, iy + ah, aw + 2 * b, b); x.fillRect(ix + aw, iy - b, b, ah + 2 * b);
     }
-    const s = pc;
-    const ix = ox + f * pc, iy = oy + f * pc;
     x.save();
     x.translate(ix, iy);
-    x.beginPath(); x.rect(0, 0, comp.W * s, comp.H * s); x.clip();
-    Compose.renderBg(x, comp, s, false);
-    Compose.renderItems(x, comp, s, false);
+    x.beginPath(); x.rect(0, 0, comp.W * pc, comp.H * pc); x.clip();
+    Compose.renderBg(x, comp, pc, false);
+    Compose.renderItems(x, comp, pc, false);
     x.restore();
     if (framed) {
-      // ombre de la baguette sur l'image, et reflet discret du verre
-      const g = x.createLinearGradient(ix, iy, ix, iy + 1.2 * pc);
-      g.addColorStop(0, 'rgba(0, 0, 0, 0.35)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      x.fillStyle = g; x.fillRect(ix, iy, comp.W * s, 1.2 * pc);
-      const r = x.createLinearGradient(ix, iy, ix + comp.W * s, iy + comp.H * s);
+      if (mat) {
+        // l'œuvre en retrait du passe-partout : fine ombre en haut et à gauche
+        const g = x.createLinearGradient(ix, iy, ix, iy + 0.5 * pc);
+        g.addColorStop(0, 'rgba(0, 0, 0, 0.22)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        x.fillStyle = g; x.fillRect(ix, iy, comp.W * pc, 0.5 * pc);
+      }
+      // ombre de la baguette dans l'ouverture, et reflet discret du verre
+      const g = x.createLinearGradient(fx, fy, fx, fy + 1.2 * pc);
+      g.addColorStop(0, 'rgba(0, 0, 0, 0.3)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      x.fillStyle = g; x.fillRect(fx, fy, Fw * pc, 1.2 * pc);
+      const r = x.createLinearGradient(fx, fy, fx + Fw * pc, fy + Fh * pc);
       r.addColorStop(0, 'rgba(255, 255, 255, 0.10)'); r.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
-      x.fillStyle = r; x.fillRect(ix, iy, comp.W * s, comp.H * s);
+      x.fillStyle = r; x.fillRect(fx, fy, Fw * pc, Fh * pc);
+      drawFrame(x, ox, oy, Wo * pc, Ho * pc, f * pc, kind);
     } else {
       // tranche de la toile : arête claire en haut à gauche, plus sombre en bas à droite
       x.strokeStyle = 'rgba(255, 255, 255, 0.35)'; x.lineWidth = Math.max(1, 0.15 * pc);
-      x.beginPath(); x.moveTo(ix, iy + comp.H * s); x.lineTo(ix, iy); x.lineTo(ix + comp.W * s, iy); x.stroke();
+      x.beginPath(); x.moveTo(ix, iy + comp.H * pc); x.lineTo(ix, iy); x.lineTo(ix + comp.W * pc, iy); x.stroke();
       x.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-      x.beginPath(); x.moveTo(ix + comp.W * s, iy); x.lineTo(ix + comp.W * s, iy + comp.H * s); x.lineTo(ix, iy + comp.H * s); x.stroke();
+      x.beginPath(); x.moveTo(ix + comp.W * pc, iy); x.lineTo(ix + comp.W * pc, iy + comp.H * pc); x.lineTo(ix, iy + comp.H * pc); x.stroke();
     }
     // la lumière de la pièce sur l'œuvre : soleil, ombres des feuilles, teinte chaude du mur
     const lr = light.naturalWidth / SALON.w;
@@ -3740,10 +3844,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.restore();
     // la plante, devant le mur, passe devant l'œuvre
     x.drawImage(plant, (SALON.plantAt[0] - sx) * q, (SALON.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
-    $('scene-info').textContent = framed
-      ? tr`Tableau encadré de ${fmt(Wo)} × ${fmt(Ho)} cm, au-dessus d’un buffet de 2,30 m.`
-      : tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un buffet de 2,30 m.`;
+    const name = framed && FRAME_KINDS[kind].name;
+    $('scene-info').textContent = !framed
+      ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un buffet de 2,30 m.`
+      : mat
+        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti à ses couleurs.`
+        : tr`Cadre ${name} de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti aux couleurs de l’œuvre, au-dessus d’un buffet de 2,30 m.`;
   }
+  $('scene-mat').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    try { localStorage.setItem('atelier.passe-partout', b.dataset.mat); } catch (e) { /* ignoré */ }
+    drawRoomScene();
+  }));
   if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
   // ---------- Branchements ----------

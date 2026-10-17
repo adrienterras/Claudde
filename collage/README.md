@@ -288,8 +288,12 @@ cd collage && python3 -m http.server 8000
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
    - **mise en scène** (section 05, sous Exporter sur téléphone) : l'œuvre active accrochée dans un
-     salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : tableau
-     encadré (baguette noire de 2,2 cm) pour une impression, toile pour un collage avec les originaux.
+     salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
+     collage avec les originaux, tableau encadré pour une impression. Le cadre (bois clair, bois foncé,
+     métal ou blanc) est choisi d'après les couleurs de l'œuvre : sombre → blanc (bois foncé avec
+     passe-partout), dominante froide → métal, claire → bois foncé, sinon bois clair. Un choix « Sans /
+     Avec passe-partout » (mémorisé) agrandit le cadre au plus petit format standard qui laisse 4 cm
+     de marge autour de l'œuvre (cadre sur mesure au-delà).
      L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
      de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm
      au-dessus du buffet et au-dessus de la lampe ou du vase quand elle s'étend jusqu'à eux ; le

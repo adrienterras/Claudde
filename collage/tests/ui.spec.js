@@ -124,7 +124,7 @@ const waitDraft = async (page) => {
 };
 
 test.describe('Téléphone, onglets', () => {
-  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer) ; « Mettre en scène » sous Exporter', async ({ browser }) => {
+  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer) ; « Mettre en scène » sous Exporter ; pas de titre de section', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await ctx.newPage();
@@ -137,11 +137,15 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('#mode-switch')).toBeHidden();
     await expect(p.locator('#new-work')).toBeHidden();
     await expect(p.locator('#saved-section')).toBeVisible();
+    await expect(p.locator('#saved-section > h2')).toBeHidden();
     await expect(p.locator('#room-section')).toBeHidden();
     // la mise en scène suit l'export, dans l'onglet Exporter
     await p.locator('#sheet-tabs [data-tab="export-section"]').click();
     await expect(p.locator('#room-section')).toBeVisible();
     await expect(p.locator('#scene-info')).toContainText('buffet');
+    // l'onglet suffit : ni numéro ni titre de section
+    await expect(p.locator('#export-section > h2')).toBeHidden();
+    await expect(p.locator('#room-section > h2')).toBeHidden();
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
@@ -1473,7 +1477,7 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
 
 test.describe('Mettre en scène', () => {
   // l'œuvre accrochée dans le salon : toile pour un collage, tableau encadré pour une impression,
-  // toujours à la même échelle que la pièce (5 px du salon par centimètre)
+  // toujours à la même échelle que la pièce (3,9 px de la photo par centimètre)
   for (const mode of ['toile', 'impression']) {
     test(`${mode} : l’œuvre est dessinée dans le salon, à sa taille réelle`, async ({ page }) => {
       test.setTimeout(180000);
@@ -1486,15 +1490,35 @@ test.describe('Mettre en scène', () => {
       await expect(page.locator('#room-section')).toBeVisible();
       const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
       const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
-      const label = mode === 'impression' ? `Tableau encadré de ${fmt(W + 4.4)} × ${fmt(H + 4.4)} cm` : `Toile de ${fmt(W)} × ${fmt(H)} cm`;
-      await expect(page.locator('#scene-info')).toContainText(label);
       // le salon et l'œuvre sont bien peints (pas un canevas vide)
+      await expect(page.locator('#scene-info')).not.toBeEmpty();
       const painted = await page.locator('#scene-canvas').evaluate((c) => {
         const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
         let n = 0; for (let i = 3; i < d.length; i += 400) if (d[i] > 0) n++;
         return n / (d.length / 400);
       });
       expect(painted).toBeGreaterThan(0.99);
+      if (mode === 'impression') {
+        // un cadre assorti aux couleurs de l'œuvre, à la taille du cadre choisi
+        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|métal|blanc) de ${fmt(W)} × ${fmt(H)} cm, assorti`));
+        // avec passe-partout : un cadre standard plus grand, au moins 4 cm de marge autour de l'œuvre
+        await page.locator('#scene-mat [data-mat="1"]').click();
+        await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/);
+        const txt = await page.locator('#scene-info').textContent();
+        const m = txt.match(/^Avec passe-partout : cadre .+ de ([\d,]+) × ([\d,]+) cm pour l’œuvre de/);
+        expect(m).toBeTruthy();
+        const num = (v) => Number(v.replace(',', '.'));
+        expect(num(m[1])).toBeGreaterThanOrEqual(W + 8);
+        expect(num(m[2])).toBeGreaterThanOrEqual(H + 8);
+        expect(txt).toContain(`pour l’œuvre de ${fmt(W)} × ${fmt(H)} cm`);
+        // mémorisé
+        await page.reload();
+        await page.waitForFunction(() => window.AtelierGribouille);
+        expect(await page.evaluate(() => localStorage.getItem('atelier.passe-partout'))).toBe('1');
+      } else {
+        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
+        await expect(page.locator('#scene-mat')).toBeHidden();
+      }
     });
   }
 });
