@@ -44,6 +44,8 @@ test.describe('Qualité pour l’impression', () => {
 
   test('un dessin trop petit est signalé : pastille, bandeau, fiche avec conseil, rappel à l’export', async ({ app }) => {
     const { page } = app;
+    // tableau imprimé : les alertes d'impression ont un sens
+    await page.evaluate(() => document.querySelector('#mode-pick [data-mode="impression"], #mode-switch [data-mode="impression"]').click());
     // une image de 620 px, posée en A4 : environ 75 dpi ; un vrai scan à 300 dpi à côté
     await app.import(['noscale-small.jpg', 'scan-300dpi.jpg']);
     const small = await page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /noscale-small/.test(d.name)));
@@ -62,6 +64,15 @@ test.describe('Qualité pour l’impression', () => {
     await expect(page.locator('#detail .quality')).toContainText('300 dpi');
     // rappel au moment d'exporter
     await expect(page.locator('#export-quality')).toBeVisible();
+    // collage avec les originaux : rien n'est imprimé, aucune alerte ; elles reviennent en tableau imprimé
+    await page.evaluate(() => document.querySelector('#mode-switch [data-mode="toile"]').click());
+    await expect(page.locator('#drawings .thumb .q')).toHaveCount(0);
+    await expect(page.locator('#quality-alert')).toBeHidden();
+    await expect(page.locator('#export-quality')).toBeHidden();
+    await expect(page.locator('#detail .quality')).toHaveCount(0);
+    await page.evaluate(() => document.querySelector('#mode-switch [data-mode="impression"]').click());
+    await expect(page.locator('#quality-alert')).toBeVisible();
+    await expect(page.locator('#drawings .thumb .q.bad')).toHaveCount(1);
     // en A6, la même image suffit : plus d'alerte
     await page.evaluate((i) => { const d = AtelierGribouille.state.drawings[i]; d.sizeCm = 14.8; }, small);
     await page.evaluate(() => AtelierGribouille.regenerate());

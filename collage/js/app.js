@@ -941,7 +941,9 @@
 
   // ---------- Qualité pour l'impression (js/quality.js) ----------
 
-  const qualityOf = (d) => (window.Quality ? Quality.assess(Object.assign({}, d, { auto: d.auto })) : { level: 'ok', issues: [] });
+  // seulement pour le tableau imprimé : en collage avec les originaux, rien n'est imprimé, donc aucune
+  // alerte de définition (pastille, bandeau, fiche, rappel à l'export)
+  const qualityOf = (d) => (window.Quality && printMode() ? Quality.assess(Object.assign({}, d, { auto: d.auto })) : { level: 'ok', issues: [] });
   function qualityBadge(d) {
     if (roleOf(d) === 'off') return '';
     const q = qualityOf(d);
@@ -1478,6 +1480,8 @@
     $('guide-box').hidden = m === 'impression';
     syncGroundMode();
     fillFormats();
+    // les alertes d'impression n'existent qu'en tableau imprimé
+    if (state.drawings && state.drawings.length) { refreshLists(); renderDetail(); }
   }
   // impression : fond uni obligatoire (pas de toile nue) ; appelé au changement de mode et quand le
   // sélecteur de fond est construit (après l'initialisation du mode)
@@ -3520,7 +3524,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       Extract.sharpen(src.hd, opts(src.hd, long));
     }));
     for (let i = 0; i < jobs.length; i++) {
-      saveStatus(tr`Netteté pour l’impression : ${i + 1} / ${jobs.length}…`);
+      saveStatus(printMode() ? tr`Netteté pour l’impression : ${i + 1} / ${jobs.length}…` : tr`Netteté des dessins : ${i + 1} / ${jobs.length}…`);
       await tick();
       try { jobs[i](); } catch (e) { console.warn('Netteté impossible', e); }
     }

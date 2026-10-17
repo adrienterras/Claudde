@@ -67,7 +67,7 @@
       const edge = quad.some(([x, y]) => x < m || y < m || x > W - m || y > H - m);
       if (edge) add('cadre', 'warn', tr('Feuille au bord de l’image'), tr('Laissez une marge de fond tout autour de la feuille.'));
       else if (area < 0.12) add('cadre', 'bad', tr('Feuille trop petite dans l’image'), tr('Rapprochez-vous : la feuille doit remplir une bonne partie de l’écran.'));
-      else if (area < 0.22) add('cadre', 'warn', tr('Rapprochez-vous un peu'), tr('Plus la feuille remplit l’écran, plus le dessin sera net à l’impression.'));
+      else if (area < 0.22) add('cadre', 'warn', tr('Rapprochez-vous un peu'), tr('Plus la feuille remplit l’écran, plus le dessin sera net.'));
       else add('cadre', 'ok', tr('Bien cadrée'));
       // à plat : côtés opposés de même longueur, angles droits
       const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
