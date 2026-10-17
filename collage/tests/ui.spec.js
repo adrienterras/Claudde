@@ -200,6 +200,10 @@ test.describe('Fiche d’un dessin sur téléphone', () => {
     const canvasH = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().height);
     expect(canvasH).toBeGreaterThan(150);
     await expect(page.locator('.density-bar')).toBeVisible();
+    // « Retoucher le dessin » visible en entier sans faire défiler : en haut de la fiche, sur toute la largeur
+    const eb = await page.locator('#detail [data-edit]').boundingBox();
+    expect(eb.y + eb.height).toBeLessThan(844 - 40);
+    expect(eb.width).toBeGreaterThan(250);
     // taille en boutons
     await page.locator('#detail [data-cm="42"]').click();
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].sizeCm)).toBe(42);

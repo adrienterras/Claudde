@@ -929,10 +929,13 @@ body.editing { overflow: hidden; }
   body.sheet-tall { --sheet: 86svh; }
   /* fiche d'un dessin : le tiroir à mi-hauteur, l'œuvre reste visible au-dessus et suit les réglages */
   body.sheet-detail:not(.sheet-tall) { --sheet: 52svh; }
+  /* fiche ouverte : de la marge sous le dernier réglage, que la barre du navigateur ne cache rien */
+  body.sheet-detail .panel { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   /* tiroir agrandi : la barre de densité et le cartel n'ont plus de place au-dessus */
   body.sheet-tall .density-bar, body.sheet-tall .label { display: none; }
   .detail { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 10px; }
   .detail > img { width: 56px; height: 56px; }
+  .detail .detail-edit { justify-self: stretch; justify-content: center; padding: 11px 14px; font-size: 0.9rem; }
   .detail .hint { font-size: 0.78rem; }
   .chips button { padding: 8px 2px; font-size: 0.82rem; }
   .panel .brand { display: none; }

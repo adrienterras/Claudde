@@ -1033,6 +1033,8 @@
           <button type="button" data-nav="1" ${idx >= n - 1 ? 'disabled' : ''} aria-label="${tr('Dessin suivant')}" title="${tr('Dessin suivant')}"><svg class="ico"><use href="#i-next"/></svg></button>
         </div>
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
+        <!-- en tête de fiche : visible sans faire défiler, même dans le tiroir à mi-hauteur du téléphone -->
+        ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
         <div class="row stack">${tr('Taille réelle')}
           <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
             ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}
@@ -1058,7 +1060,6 @@
           </div>
           <p class="hint" data-tone-msg hidden></p>
         </div>`}
-        ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
         <p class="hint photo">${d.photo
           ? d.photo.sheet
             ? tr`Photo d’une feuille sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un mur ou une table')} : la feuille a été redressée et recadrée. <button class="link" data-photo="keep">Garder la photo entière</button>`
