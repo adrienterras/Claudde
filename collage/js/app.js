@@ -99,6 +99,8 @@
 
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const mobileQuery = window.matchMedia('(max-width: 860px)');
+  // sur ordinateur, les réglages avancés sont dépliés d'office (sur téléphone, repliés : place comptée)
+  if (!mobileQuery.matches && $('advanced')) $('advanced').open = true;
 
   // Carte « travail en cours » au centre de la scène : roue, titre, étape, progression. Les appels
   // s'emboîtent (une réouverture réimporte des dessins) : la carte reste jusqu'au dernier busyOff.
@@ -1475,7 +1477,6 @@
     $('sizes-hint').textContent = tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
     syncGroundMode();
-    if (!(opts && opts.keep) && was !== m) $('grain').checked = m === 'toile';
     fillFormats();
   }
   // impression : fond uni obligatoire (pas de toile nue) ; appelé au changement de mode et quand le
@@ -1846,8 +1847,7 @@
       rotation: 8, // rotation retenue des découpes (degrés) : réglage retiré, valeur fixe
       everything: allIn(), // densité au maximum : tous les dessins entrent dans l'œuvre
       densityT: (Number($('density').value) - 0.5) / 1.3, // position du curseur, de 0 à 1
-      grain: $('grain').checked && !printMode(),
-      flat: printMode(), // impression : aplat uni, sans effet de peinture ni grain
+      flat: printMode(), // impression : aplat uni, sans effet de peinture
       spread: printMode() && k < 0.6, // affiche aux dessins très réduits : répartis sur toute la surface
       // nombre de sujets fixé par le curseur (affiche : à l'échelle qui va avec ; toile : à taille réelle,
       // sur une toile conseillée à leur mesure) ; tout au maximum
@@ -2022,14 +2022,6 @@
     $('ground-quick').classList.toggle('off', white);
     $('ground-open').disabled = white;
     if (white) setGroundPop(false);
-    const g = $('grain');
-    g.disabled = white;
-    const lab = g.closest('label');
-    lab.classList.toggle('off', white);
-    lab.title = white ? tr('Fond blanc en Galerie : pas de finition toile') : '';
-    let note = lab.querySelector('small');
-    if (white && !note) { note = document.createElement('small'); note.textContent = tr(' — fond blanc'); lab.appendChild(note); }
-    if (!white && note) note.remove();
   }
 
   // Cartel sous l'œuvre, comme au musée.
@@ -2400,7 +2392,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       ctx.clip();
       ctx.translate(ox, oy);
       Compose.renderBg(ctx, comp, s, false);
-      Compose.renderFinish(ctx, comp, s);
       ctx.restore();
       drawSelection(ox, oy, s, dpr);
       return;
@@ -2430,7 +2421,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     ctx.drawImage(state.bgCache.canvas, ox, oy, comp.W * s, comp.H * s);
     ctx.translate(ox, oy);
     Compose.renderItems(ctx, comp, s, shadows);
-    Compose.renderFinish(ctx, comp, s);
     ctx.restore();
 
     drawSelection(ox, oy, s, dpr);
@@ -3123,7 +3113,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.imageSmoothingQuality = 'high';
       Compose.renderBg(x, state.comp, s, false);
       Compose.renderItems(x, state.comp, s, false);
-      Compose.renderFinish(x, state.comp, s);
       x.save();
       x.globalAlpha = 0.28;
       x.fillStyle = '#1c1b15';
@@ -3378,7 +3367,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
           const shadows = false; // pas d'ombre portée
           Compose.renderBg(x, state.comp, scale, shadows);
           Compose.renderItems(x, state.comp, scale, shadows);
-          Compose.renderFinish(x, state.comp, scale);
         }
         releaseHD();
         if (x && !blankCanvas(c)) {
@@ -3639,7 +3627,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.imageSmoothingQuality = 'high';
     Compose.renderBg(x, comp, s, false);
     Compose.renderItems(x, comp, s, false);
-    Compose.renderFinish(x, comp, s);
     return c;
   }
   function openRoom(file) {
@@ -3743,7 +3730,7 @@ Réponds uniquement avec ce JSON, coordonnées normalisées de 0 à 1 par rappor
   document.addEventListener('pointerdown', (e) => { const pop = $('ground-pop'); if (!pop.hidden && !pop.contains(e.target) && e.target !== $('ground-open') && !$('ground-open').contains(e.target)) setGroundPop(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
-  ['format', 'pale', 'density', 'grain'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'format') state.formatManual = true; state.pinned = null; regenerate(); }));
+  ['format', 'pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'format') state.formatManual = true; state.pinned = null; regenerate(); }));
   $('fmt').addEventListener('change', updateExportInfo);
   document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
@@ -4525,10 +4512,10 @@ Réponds uniquement avec ce JSON :
       items.push(it);
     }
     const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
-    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'grain', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
+    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
-      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, orient: canvasOrient(), ground: state.ground, grain: $('grain').checked, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
+      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, orient: canvasOrient(), ground: state.ground, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
       drawings, comp: compData,
     };
   }
@@ -4717,7 +4704,6 @@ Réponds uniquement avec ce JSON :
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) { $('format').value = sv.format; state.formatManual = printMode() || !!sv.formatManual; }
     if (sv.orient) setCanvasOrient(sv.orient);
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
-    if (sv.grain !== undefined) $('grain').checked = sv.grain;
     if (sv.density !== undefined) { $('density').value = sv.density; state.densityBeforeSample = null; }
     if (sv.pale && $('pale')) $('pale').value = sv.pale;
     state.drawings = [];

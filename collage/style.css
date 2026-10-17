@@ -1039,7 +1039,6 @@ body.editing { overflow: hidden; }
 @media (max-width: 480px) { .mode-pick { grid-template-columns: 1fr; } }
 
 /* atelier Impression : le fond est un aplat uni, la finition toile n'a pas de sens */
-body.mode-impression label:has(> #grain) { display: none; }
 
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin-top: 8px; }

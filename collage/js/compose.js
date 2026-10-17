@@ -6,7 +6,7 @@
  * (wcm / hcm) : la composition ne l'agrandit ni ne le réduit jamais,
  * elle se contente de recadrer les pages de fond et de placer les découpes.
  *
- * Une composition = { W, H, bg: [calques de fond], items: [découpes], grain }.
+ * Une composition = { W, H, bg: [calques de fond], items: [découpes] }.
  */
 (function () {
   'use strict';
@@ -1200,10 +1200,10 @@
   }
 
   // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan).
-  // o.flat (atelier Impression) : le fond est un aplat parfaitement uni, sans coups de brosse ni grain de toile
+  // o.flat (atelier Impression) : le fond est un aplat parfaitement uni, sans coups de brosse
   function generate(o) {
     const comp = generateInner(o);
-    if (o.flat) { comp.paint = false; comp.grain = false; }
+    if (o.flat) comp.paint = false;
     if (o.count && (comp.style === 'nuage' || comp.style === 'paysage') && !comp.bg.some((L) => L.panel)) relaxItems(comp);
     if (o.count && !['galerie', 'cabinet', 'frise', 'scene'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
     return comp;
@@ -1299,16 +1299,16 @@
       const g = gallery(W, H, o.pieces, o, R, o.textures);
       const total = new Set(o.textures.map((t) => t.drawing).concat(o.pieces.map((p) => p.drawing)).filter(Boolean)).size;
       // fond blanc, fixe : ni couleur ni effet peinture, ni finition toile — une planche encadrée
-      return { W, H, bg: g.bg || [], items: g.items, frames: g.frames, frameWidth: 0.08, ground: '#fbfaf6', paint: false, grain: false, style, f: 1, scale: 1, kept: g.kept, total, reduced: !!g.reduced };
+      return { W, H, bg: g.bg || [], items: g.items, frames: g.frames, frameWidth: 0.08, ground: '#fbfaf6', paint: false, style, f: 1, scale: 1, kept: g.kept, total, reduced: !!g.reduced };
     }
     if (style === 'scene') {
       const sc = scene(W, H, o.textures, o.pieces, o, R);
-      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...sc.bg], items: sc.items, ground: o.ground || null, groundName: o.groundName || null, grain: o.grain, style, f: 1, scale: 1, kept: sc.kept, total: sc.total };
+      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...sc.bg], items: sc.items, ground: o.ground || null, groundName: o.groundName || null, style, f: 1, scale: 1, kept: sc.kept, total: sc.total };
     }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
       // toile nue (papier) ou aplat de peinture choisi
-      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...cab.bg], items: cab.items, ground: o.ground || null, groundName: o.groundName || null, grain: o.grain, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
+      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...cab.bg], items: cab.items, ground: o.ground || null, groundName: o.groundName || null, style, f: 1, scale: 1, kept: cab.kept, total: cab.total };
     }
     const bg = [];
     let Z = zonesFor(W, H, true);
@@ -1325,7 +1325,7 @@
       if (!o.textures.length) {
         if (!o.ground) bg.push(paperLayer(W, H));
         const items = quiltPack(W, H, o.pieces, o, R);
-        const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
+        const comp = { W, H, bg, items, style, f: 1, scale: 1 };
         if (o.ground) { comp.ground = o.ground; comp.groundName = o.groundName || null; }
         return comp;
       }
@@ -1408,7 +1408,7 @@
     const items = placePieces(W, H, o.pieces, o, Z, R, mode, maps);
     // sans fond de peinture, la toile nue (papier) apparaît là où il n'y a pas de page
     if (o.ground) { for (let i = bg.length - 1; i >= 0; i--) if (bg[i].paper) bg.splice(i, 1); }
-    const comp = { W, H, bg, items, grain: o.grain, style, f: 1, scale: 1 };
+    const comp = { W, H, bg, items, style, f: 1, scale: 1 };
     if (ground) comp.ground = ground;
     else if (o.ground) { comp.ground = o.ground; comp.groundName = o.groundName || null; }
     if (style === 'vitrail') comp.lead = 0.5; // largeur du trait de plomb, en cm
@@ -1738,46 +1738,6 @@
     comp.items.forEach((L) => drawLayer(ctx, L, s, shadows));
   }
 
-  // Finition : grain de toile et léger vignettage, pour unifier le tout comme une œuvre.
-  let grainTile = null;
-  function renderFinish(ctx, comp, s) {
-    if (!comp.grain) return;
-    const w = comp.W * s, h = comp.H * s;
-    if (!grainTile) {
-      grainTile = Extract.makeCanvas(256, 256);
-      const g = grainTile.getContext('2d');
-      const img = g.createImageData(256, 256);
-      const R = rng(11);
-      for (let y = 0; y < 256; y++) {
-        for (let x = 0; x < 256; x++) {
-          const i = (y * 256 + x) * 4;
-          const weave = ((x % 4 < 2) !== (y % 4 < 2)) ? 12 : 0; // trame de toile
-          const v = 128 + (R() - 0.5) * 50 + weave;
-          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-          img.data[i + 3] = 255;
-        }
-      }
-      g.putImageData(img, 0, 0);
-    }
-    ctx.save();
-    ctx.globalCompositeOperation = 'overlay';
-    ctx.globalAlpha = 0.14;
-    const pat = ctx.createPattern(grainTile, 'repeat');
-    // la trame garde la même taille physique quelle que soit la résolution
-    pat.setTransform(new DOMMatrix().scale(Math.max(0.2, s / 60)));
-    ctx.fillStyle = pat;
-    ctx.fillRect(0, 0, w, h);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'multiply';
-    if (!(w > 0 && h > 0)) { ctx.restore(); return; }
-    const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.hypot(w, h) / 2);
-    g.addColorStop(0, 'rgba(255,255,255,0)');
-    g.addColorStop(1, 'rgba(225,210,190,1)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
-  }
-
   // Test de clic sur une découpe (coordonnées en cm), en tenant compte de sa forme.
   function hitItem(L, X, Y) {
     const dx = X - L.x, dy = Y - L.y;
@@ -1791,5 +1751,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, renderFinish, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
+  window.Compose = { galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
 })();

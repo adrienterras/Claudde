@@ -35,7 +35,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(opts.length).toBeGreaterThan(10);
     expect(opts.every((v) => v.startsWith('cadre:'))).toBe(true);
     expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:42x29.7');
-    expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(false);
     await expect(page.locator('#guide-box')).toBeHidden();
     await expect(page.locator('#sizes-hint')).toBeHidden();
     // le cadre 18 × 24 : l'œuvre fait exactement 24 × 18 (paysage), tous les dessins (curseur au
@@ -59,9 +58,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
     const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground, paint: p.comp.paint, grain: p.comp.grain })));
     expect(flat.every((p) => !!p.ground)).toBe(true);
-    // un aplat parfaitement uni : ni coups de brosse ni grain de toile, et le réglage « finition toile » caché
-    expect(flat.every((p) => p.paint === false && !p.grain)).toBe(true);
-    expect(await page.locator('#grain').isVisible()).toBe(false);
+    // un aplat parfaitement uni : pas de coups de brosse
+    expect(flat.every((p) => p.paint === false)).toBe(true);
     // les pixels du fond sont tous de la même couleur
     const uni = await page.evaluate(() => { const c = document.createElement('canvas'); const comp = AtelierGribouille.state.comp; c.width = 200; c.height = 200; const x = c.getContext('2d'); Compose.renderGround(x, comp, 200 / comp.W); const d = x.getImageData(0, 0, 200, Math.floor(200 * comp.H / comp.W)).data; let diff = 0; for (let i = 4; i < d.length; i += 4) if (d[i] !== d[0] || d[i + 1] !== d[1] || d[i + 2] !== d[2]) diff++; return diff; });
     expect(uni).toBe(0);
@@ -247,7 +245,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => document.getElementById('format').value)).toBe(other);
     await expect(page.locator('#scale-info')).not.toContainText('conseillée');
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBe(1);
-    expect(await page.evaluate(() => document.getElementById('grain').checked)).toBe(true);
     // taille réelle : pas d'agrandissement à la main (sauf en Galerie)
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     if ((await page.evaluate(() => AtelierGribouille.state.comp.style)) !== 'galerie') await expect(page.locator('#toolbar [data-act="bigger"]')).toBeHidden();

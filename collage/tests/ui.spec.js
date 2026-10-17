@@ -8,7 +8,9 @@ test.describe('Interface', () => {
     // les sections secondaires sont repliées, les réglages avancés fermés
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
     await expect(page.locator('#room-section')).toHaveClass(/collapsed/);
-    expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(false);
+    // sur ordinateur, les réglages avancés sont dépliés d'office ; plus de « finition toile »
+    expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(true);
+    await expect(page.locator('#grain')).toHaveCount(0);
     // le choix de repli est mémorisé (la section Mes compositions est visible dès le départ)
     await expect(page.locator('#saved-section')).not.toHaveClass(/collapsed/);
     await page.locator('#saved-section > h2').click();
