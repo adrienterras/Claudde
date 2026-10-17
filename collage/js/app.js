@@ -5165,12 +5165,16 @@ Réponds uniquement avec ce JSON :
   const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^panier-[a-z0-9]+$/.test(it.recId)
     && ['print', 'hd', 'guide', 'kit', 'signature'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
     && Number.isFinite(Number(it.W)) && Number.isFinite(Number(it.H));
+  // une œuvre faite avec les dessins originaux n'existe qu'en un exemplaire : guide, kit et Atelier
+  // Signature se commandent à l'unité ; le tableau imprimé et le fichier HD, en plusieurs exemplaires
+  const ONE_OFF = ['guide', 'kit', 'signature'];
+  const maxQty = (it) => (ONE_OFF.includes(it.product) ? 1 : 20);
   function loadCart() {
     let c;
     try { c = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch (e) { c = []; }
     if (!Array.isArray(c)) return [];
     return c.filter(validItem).map((it) => Object.assign(it, {
-      qty: clamp(Math.round(Number(it.qty)) || 1, 1, 20), W: Number(it.W), H: Number(it.H),
+      qty: clamp(Math.round(Number(it.qty)) || 1, 1, maxQty(it)), W: Number(it.W), H: Number(it.H),
       title: String(it.title || ''), styleName: String(it.styleName || ''), refs: Array.isArray(it.refs) ? it.refs.map(String) : [],
       unit: unitPrice(it),
     }));
@@ -5224,6 +5228,8 @@ Réponds uniquement avec ce JSON :
       b.classList.toggle('on', b.dataset.size === choice.size);
       b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
     });
+    choice.qty = clamp(choice.qty, 1, maxQty(choice));
+    box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
     // proportions : l'œuvre est imprimée entière, centrée, avec un passe-partout blanc si besoin
     const fit = box.querySelector('.cart-fit');
@@ -5249,7 +5255,7 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => (r.onchange = () => { choice.product = r.value; renderCartAdd(); }));
     box.querySelectorAll('[data-finish]').forEach((b) => (b.onclick = () => { choice.finish = b.dataset.finish; renderCartAdd(); }));
     box.querySelectorAll('[data-size]').forEach((b) => (b.onclick = () => { choice.size = b.dataset.size; renderCartAdd(); }));
-    box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, 20); renderCartAdd(); }));
+    box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, maxQty(choice)); renderCartAdd(); }));
     $('cart-add-ok').onclick = addPendingToCart;
   })();
 
@@ -5264,7 +5270,7 @@ Réponds uniquement avec ce JSON :
       rec.id = `panier-${id}`;
       rec.cart = true;
       await dbPut(rec);
-      const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: choice.qty };
+      const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       it.unit = unitPrice(it);
       const items = loadCart();
       items.push(it);
@@ -5288,12 +5294,12 @@ Réponds uniquement avec ce JSON :
       li.innerHTML = `<img src="${safeData(it.thumb)}" alt="">
         <div class="cart-item-main"><b>${esc(it.title)}</b><small>${esc(productLabel(it))}</small>
           <span class="cart-item-actions"><button type="button" class="link" data-review>${tr('Revoir')}</button> · <button type="button" class="link" data-remove>${tr('Retirer')}</button></span></div>
-        <div class="cart-item-side"><span class="cart-qty"><button type="button" data-qty="-1" aria-label="${tr('Moins')}" ${it.qty <= 1 ? 'disabled' : ''}>−</button><output aria-label="${tr('Quantité')}">${it.qty}</output><button type="button" data-qty="1" aria-label="${tr('Plus')}" ${it.qty >= 20 ? 'disabled' : ''}>+</button></span>
+        <div class="cart-item-side">${maxQty(it) === 1 ? '' : `<span class="cart-qty"><button type="button" data-qty="-1" aria-label="${tr('Moins')}" ${it.qty <= 1 ? 'disabled' : ''}>−</button><output aria-label="${tr('Quantité')}">${it.qty}</output><button type="button" data-qty="1" aria-label="${tr('Plus')}" ${it.qty >= 20 ? 'disabled' : ''}>+</button></span>`}
           <b class="cart-item-price">${euros(it.unit * it.qty)}</b></div>`;
       li.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => {
         const all = loadCart(), x = all.find((y) => y.id === it.id);
         if (!x) return;
-        x.qty = clamp(x.qty + Number(b.dataset.qty), 1, 20);
+        x.qty = clamp(x.qty + Number(b.dataset.qty), 1, maxQty(x));
         saveCart(all); renderCart();
       }));
       li.querySelector('[data-remove]').onclick = () => {

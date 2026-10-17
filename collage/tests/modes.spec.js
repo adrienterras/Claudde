@@ -263,9 +263,12 @@ test.describe('Atelier Impression et atelier Toile', () => {
     const long = await page.evaluate(() => Math.max(AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H));
     await page.locator('#cart-add input[value="signature"]').check();
     await expect(page.locator('.cart-add-total')).toContainText(long > 75 ? '690' : '490');
+    await expect(page.locator('#cart-add .cart-qty-row')).toBeHidden();
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     await expect(page.locator('#cart .cart-item')).toContainText('Atelier Signature');
+    // une œuvre faite avec les originaux n'existe qu'en un exemplaire : pas de quantité
+    await expect(page.locator('#cart .cart-item .cart-qty')).toHaveCount(0);
     await page.locator('#cart [data-close]').first().click();
     // bascule vers Impression : cadre par défaut, œuvre recomposée à sa taille
     await page.locator('#mode-switch [data-mode="impression"]').click();
