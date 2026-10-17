@@ -293,7 +293,8 @@ cd collage && python3 -m http.server 8000
      métal ou blanc) est choisi d'après les couleurs de l'œuvre : sombre → blanc (bois foncé avec
      passe-partout), dominante froide → métal, claire → bois foncé, sinon bois clair. Un choix « Sans /
      Avec passe-partout » (mémorisé) agrandit le cadre au plus petit format standard qui laisse 4 cm
-     de marge autour de l'œuvre (cadre sur mesure au-delà). « Télécharger la mise en scène » enregistre l'image en
+     de marge autour de l'œuvre, avec des marges proches sur les côtés et en haut et en bas (une œuvre
+     carrée garde un cadre carré) ; cadre sur mesure, 6 cm de marge, quand aucun format ne convient. « Télécharger la mise en scène » enregistre l'image en
      JPEG (2000 × 1500 px).
      L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
      de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm

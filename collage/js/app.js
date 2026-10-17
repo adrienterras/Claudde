@@ -3688,12 +3688,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return 'bois-clair';
   }
   // Avec passe-partout : le plus petit cadre standard qui laisse au moins 4 cm de marge autour de
-  // l'œuvre, sinon un cadre sur mesure (marge de 6 cm)
+  // l'œuvre, des marges proches sur les côtés et en haut et en bas (une œuvre carrée garde un cadre
+  // carré), sinon un cadre sur mesure (marge de 6 cm)
   function matFrame(W, H) {
     const land = W >= H;
-    const fits = FRAMES.map((f) => (land ? [f[0], f[1]] : [f[1], f[0]])).filter(([w, h]) => w >= W + 8 && h >= H + 8);
+    const even = (w, h) => { const mx = (w - W) / 2, my = (h - H) / 2; return Math.max(mx, my) <= 2 * Math.min(mx, my); };
+    const fits = FRAMES.map((f) => (land ? [f[0], f[1]] : [f[1], f[0]])).filter(([w, h]) => w >= W + 8 && h >= H + 8 && even(w, h));
     if (fits.length) return fits.sort((a, b) => a[0] * a[1] - b[0] * b[1])[0];
-    return [Math.ceil(W + 12), Math.ceil(H + 12)];
+    return [Math.ceil(W + 12), Math.ceil(H + 12), true];
   }
   const sceneMat = () => { try { return localStorage.getItem('atelier.passe-partout') === '1'; } catch (e) { return false; } };
   const shade = (rgb, k) => `rgb(${rgb.map((v) => Math.round(clamp(v * k, 0, 255))).join(',')})`;
@@ -3758,7 +3760,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       b.classList.toggle('ink', on);
     });
     // œuvre (W × H), ouverture du cadre (Fw × Fh, avec le passe-partout) et encombrement total (Wo × Ho)
-    const [Fw, Fh] = mat ? matFrame(comp.W, comp.H) : [comp.W, comp.H];
+    const [Fw, Fh, custom] = mat ? matFrame(comp.W, comp.H) : [comp.W, comp.H];
     const kind = framed ? pickFrameKind(artTone(comp), mat) : null;
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
@@ -3851,7 +3853,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     $('scene-info').textContent = !framed
       ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus d’un buffet de 2,30 m.`
       : mat
-        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti à ses couleurs.`
+        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${custom ? tr(' sur mesure') : ''} pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti à ses couleurs.`
         : tr`Cadre ${name} de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti aux couleurs de l’œuvre, au-dessus d’un buffet de 2,30 m.`;
     return true;
   }

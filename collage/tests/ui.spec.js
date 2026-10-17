@@ -1510,6 +1510,11 @@ test.describe('Mettre en scène', () => {
         expect(num(m[1])).toBeGreaterThanOrEqual(W + 8);
         expect(num(m[2])).toBeGreaterThanOrEqual(H + 8);
         expect(txt).toContain(`pour l’œuvre de ${fmt(W)} × ${fmt(H)} cm`);
+        // œuvre carrée : un cadre carré (aucun cadre carré standard ne laisse 4 cm autour d'un
+        // 50 × 50 : cadre sur mesure de 62 × 62)
+        await page.evaluate(() => { const s = document.getElementById('format'); s.value = 'cadre:50x50'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+        await page.waitForFunction(() => AtelierGribouille.state.comp && AtelierGribouille.state.comp.W === 50 && AtelierGribouille.state.comp.H === 50, null, { timeout: 120000 });
+        await expect(page.locator('#scene-info')).toContainText('de 62 × 62 cm sur mesure pour l’œuvre de 50 × 50 cm');
         // mémorisé
         await page.reload();
         await page.waitForFunction(() => window.AtelierGribouille);
