@@ -138,6 +138,7 @@
     'fond, feuilles pâles': 'background, pale sheets',
     'Étapes': 'Steps',
     'Plus': 'More',
+    'Compte': 'Account',
     'Ajoutez d’autres scans à cette œuvre, ou': 'Add more scans to this artwork, or',
     'commencez une nouvelle œuvre': 'start a new artwork',
     'Commencer une nouvelle œuvre': 'Start a new artwork',
