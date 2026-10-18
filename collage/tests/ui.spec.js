@@ -1511,7 +1511,15 @@ test.describe('Mettre en scène', () => {
       expect(painted).toBeGreaterThan(0.99);
       if (mode === 'impression') {
         // un cadre assorti aux couleurs de l'œuvre, à la taille du cadre choisi
-        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|métal|blanc) de ${fmt(W)} × ${fmt(H)} cm, assorti`));
+        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm, assorti`));
+        // le cadre se choisit aussi à la main (mémorisé) ; « Auto » revient au cadre assorti
+        await expect(page.locator('#scene-frame-pick [data-frame="auto"]')).toHaveClass(/on/);
+        expect(await page.locator('#scene-frame-pick button.picked').count()).toBe(1);
+        await page.locator('#scene-frame-pick [data-frame="bois-noir"]').click();
+        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre bois noir de ${fmt(W)} × ${fmt(H)} cm, au-dessus`));
+        expect(await page.evaluate(() => localStorage.getItem('atelier.cadre'))).toBe('bois-noir');
+        await page.locator('#scene-frame-pick [data-frame="auto"]').click();
+        await expect(page.locator('#scene-info')).toContainText(', assorti aux couleurs de l’œuvre');
         // avec passe-partout : un cadre standard plus grand, au moins 4 cm de marge autour de l'œuvre
         await page.locator('#scene-mat [data-mat="1"]').click();
         await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/);

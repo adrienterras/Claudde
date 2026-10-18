@@ -296,8 +296,9 @@ cd collage && python3 -m http.server 8000
      de lumière `assets/chambre-lumiere.webp`). Dans le salon, l'œuvre active est accrochée dans un
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
      collage avec les originaux, tableau encadré pour une impression. Le cadre (bois clair, bois foncé,
-     métal ou blanc) est choisi d'après les couleurs de l'œuvre : sombre → blanc (bois foncé avec
-     passe-partout), dominante froide → métal, claire → bois foncé, sinon bois clair. Un choix « Sans /
+     bois noir, bois blanc ou métal) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
+     il est assorti aux couleurs de l'œuvre : sombre → bois blanc (bois noir avec passe-partout),
+     dominante froide → métal, claire → bois foncé, sinon bois clair. Un choix « Sans /
      Avec passe-partout » (mémorisé) agrandit le cadre au plus petit format standard qui laisse 4 cm
      de marge autour de l'œuvre, avec des marges proches sur les côtés et en haut et en bas (une œuvre
      carrée garde un cadre carré) ; cadre sur mesure, 6 cm de marge, quand aucun format ne convient. « Télécharger la mise en scène » enregistre l'image en

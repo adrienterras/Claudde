@@ -3687,9 +3687,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   const FRAME_KINDS = {
     'bois-clair': { name: tr('bois clair'), profile: 2.2, rgb: [198, 160, 114], grain: true },
     'bois-fonce': { name: tr('bois foncé'), profile: 2.2, rgb: [94, 63, 43], grain: true },
+    'bois-noir': { name: tr('bois noir'), profile: 2.2, rgb: [36, 33, 31], grain: true, vein: (a) => `rgba(255, 255, 255, ${a * 0.45})` },
+    'bois-blanc': { name: tr('bois blanc'), profile: 2.2, rgb: [241, 238, 232], grain: true, vein: (a) => `rgba(120, 95, 70, ${a * 0.5})` },
     metal: { name: tr('métal'), profile: 1.2, rgb: [178, 180, 182], brushed: true },
-    blanc: { name: tr('blanc'), profile: 2.2, rgb: [241, 238, 232] },
   };
+  // le cadre choisi par l'utilisateur ('auto' : assorti aux couleurs de l'œuvre)
+  const sceneFrameChoice = () => { try { const v = localStorage.getItem('atelier.cadre'); return FRAME_KINDS[v] ? v : 'auto'; } catch (e) { return 'auto'; } };
   // Teinte générale de l'œuvre (rendue en vignette) : clarté et chaleur moyennes
   function artTone(comp) {
     const s = 48 / Math.max(comp.W, comp.H);
@@ -3706,10 +3709,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     return { light: L / n, warm: warm / n };
   }
-  // Œuvre sombre : cadre blanc (bois foncé avec un passe-partout blanc) ; dominante froide (bleus,
+  // Œuvre sombre : bois blanc (bois noir avec un passe-partout blanc) ; dominante froide (bleus,
   // verts) : métal ; œuvre claire ou pastel : bois foncé, pour la tenir ; sinon bois clair, chaleureux
   function pickFrameKind(tone, mat) {
-    if (tone.light < 0.36) return mat ? 'bois-fonce' : 'blanc';
+    if (tone.light < 0.36) return mat ? 'bois-noir' : 'bois-blanc';
     if (tone.warm < 0) return 'metal';
     if (tone.light > 0.62) return 'bois-fonce';
     return 'bois-clair';
@@ -3749,7 +3752,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const len = sd.horiz ? w : h, across = p;
         for (let i = 0; i < (F.grain ? 14 : 22); i++) {
           const t = rnd() * across;
-          x.strokeStyle = F.grain ? `rgba(60, 35, 15, ${0.06 + rnd() * 0.12})` : `rgba(255, 255, 255, ${0.08 + rnd() * 0.18})`;
+          const a = F.grain ? 0.06 + rnd() * 0.12 : 0.08 + rnd() * 0.18;
+          x.strokeStyle = F.vein ? F.vein(a) : F.grain ? `rgba(60, 35, 15, ${a})` : `rgba(255, 255, 255, ${a})`;
           x.lineWidth = Math.max(0.5, across * (0.02 + rnd() * 0.05));
           x.beginPath();
           if (sd.horiz) {
@@ -3794,7 +3798,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     });
     // œuvre (W × H), ouverture du cadre (Fw × Fh, avec le passe-partout) et encombrement total (Wo × Ho)
     const [Fw, Fh, custom] = mat ? matFrame(comp.W, comp.H) : [comp.W, comp.H];
-    const kind = framed ? pickFrameKind(artTone(comp), mat) : null;
+    const choice = sceneFrameChoice();
+    const auto = framed ? pickFrameKind(artTone(comp), mat) : null;
+    const kind = framed ? (choice === 'auto' ? auto : choice) : null;
+    if (!out) {
+      $('scene-frame-pick').hidden = !framed;
+      $('scene-frame-pick').querySelectorAll('button').forEach((b) => {
+        b.classList.toggle('on', b.dataset.frame === choice);
+        b.classList.toggle('picked', choice === 'auto' && b.dataset.frame === auto);
+      });
+    }
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     const k = S.pxPerCm, aspect = S.w / S.h;
@@ -3883,11 +3896,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (plant) x.drawImage(plant, (S.plantAt[0] - sx) * q, (S.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
     if (out) return true;
     const name = framed && FRAME_KINDS[kind].name;
+    const matched = choice === 'auto';
     $('scene-info').textContent = !framed
       ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus ${S.over}.`
       : mat
-        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${custom ? tr(' sur mesure') : ''} pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti à ses couleurs.`
-        : tr`Cadre ${name} de ${fmt(comp.W)} × ${fmt(comp.H)} cm, assorti aux couleurs de l’œuvre, au-dessus ${S.over}.`;
+        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${custom ? tr(' sur mesure') : ''} pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
+        : tr`Cadre ${name} de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
     return true;
   }
   // Télécharger la mise en scène en JPEG, en 2000 px de large
@@ -3908,6 +3922,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   });
   $('scene-room').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
     try { localStorage.setItem('atelier.piece', b.dataset.room); } catch (e) { /* ignoré */ }
+    drawRoomScene();
+  }));
+  $('scene-frame-pick').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+    try { localStorage.setItem('atelier.cadre', b.dataset.frame); } catch (e) { /* ignoré */ }
     drawRoomScene();
   }));
   $('scene-mat').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {

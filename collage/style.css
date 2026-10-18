@@ -789,6 +789,16 @@ body.editing { overflow: hidden; }
 .scene-frame { position: relative; border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
 .scene-canvas { width: 100%; height: 100%; display: block; }
 .scene-mat { margin-bottom: 6px; }
+/* nuancier des cadres : le bois en dégradé veiné, le métal brossé ; « Auto » en toutes lettres */
+.swatches.frames button { width: 28px; height: 28px; }
+.swatches.frames button.auto { width: auto; padding: 0 10px; border-radius: 999px; }
+.swatches.frames [data-frame="bois-clair"] { background: linear-gradient(135deg, #cfa878, #b88c5c 55%, #c9a071); }
+.swatches.frames [data-frame="bois-fonce"] { background: linear-gradient(135deg, #6e4a32, #4e3222 55%, #684530); }
+.swatches.frames [data-frame="bois-noir"] { background: linear-gradient(135deg, #2e2a27, #1c1917 55%, #2a2624); }
+.swatches.frames [data-frame="bois-blanc"] { background: linear-gradient(135deg, #f6f3ed, #e6e1d8 55%, #f3efe8); }
+.swatches.frames [data-frame="metal"] { background: linear-gradient(135deg, #d8dadc, #a9adb1 40%, #cfd2d5 60%, #b4b8bc); }
+/* en « Auto », le cadre retenu est signalé d'un anneau en pointillés */
+.swatches.frames button.picked { box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--surface), 0 0 0 4px var(--muted); }
 .scene-body, .scene-controls { display: flex; flex-direction: column; gap: 10px; }
 .scene-size { display: none; }
 /* ordinateur : la mise en scène dans une grande fenêtre, l'image à gauche, les réglages à droite */
