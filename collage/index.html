@@ -87,7 +87,7 @@
   <div class="mobile-brand">
     <span class="brand-mark" aria-hidden="true"></span>
     <span class="mobile-brand-name" aria-hidden="true"><small>Atelier</small> Gribouille</span>
-    <button type="button" class="cart-btn cart-btn-phone" hidden aria-label="Panier"><svg class="ico"><use href="#i-cart"/></svg><b class="cart-count">0</b></button>
+    <button type="button" class="cart-btn cart-btn-phone" hidden aria-label="Commander"><svg class="ico"><use href="#i-cart"/></svg><b class="cart-count">0</b></button>
     <div class="lang-switch mobile-lang" role="group" aria-label="Langue / Language">
       <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
     </div>
@@ -270,7 +270,7 @@
       <p id="export-info" class="hint mono-note"></p>
       <p id="export-quality" class="hint quality-note" hidden></p>
       <p id="export-account" class="hint account-note" hidden><svg class="ico"><use href="#i-user"/></svg><span>Le téléchargement en haute définition et la sauvegarde demandent un compte gratuit : il garde vos œuvres sur tous vos appareils. L’aperçu ci-dessous est libre.</span></p>
-      <button id="add-cart" class="btn btn-primary"><svg class="ico"><use href="#i-cart"/></svg><span>Ajouter au panier</span></button>
+      <button id="add-cart" class="btn btn-primary"><svg class="ico"><use href="#i-cart"/></svg><span>Commander</span></button>
       <button id="export" class="btn"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <button id="export-free" class="btn" hidden><svg class="ico"><use href="#i-eye"/></svg><span>Aperçu sans compte <small>basse définition, filigrane</small></span></button>
       <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
@@ -393,7 +393,7 @@
   </section>
 
   <main class="stage">
-    <button type="button" class="cart-btn cart-btn-desk" hidden><svg class="ico"><use href="#i-cart"/></svg><span>Panier</span><b class="cart-count">0</b></button>
+    <button type="button" class="cart-btn cart-btn-desk" hidden><svg class="ico"><use href="#i-cart"/></svg><span>Commander</span><b class="cart-count">0</b></button>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée" hidden>
       <button data-act="undo" class="history" title="Défaire (Ctrl+Z)" aria-label="Défaire"><svg class="ico"><use href="#i-undo"/></svg><span>Défaire</span></button>
       <button data-act="redo" class="history" title="Refaire (Ctrl+Maj+Z)" aria-label="Refaire"><svg class="ico"><use href="#i-redo"/></svg><span>Refaire</span></button>
@@ -466,7 +466,7 @@
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">
     <div class="acc-card cart-card">
       <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
-      <h2 id="cart-add-title" class="acc-title">Ajouter au panier</h2>
+      <h2 id="cart-add-title" class="acc-title">Commander</h2>
       <div class="cart-what"><img alt=""><p><b class="cart-what-name"></b><small class="cart-what-size"></small></p></div>
       <div class="cart-products" role="radiogroup" aria-label="Produit">
         <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="print" checked><span><b>Tableau imprimé livré</b><small>Papier d’art premium, encadrée ou sur toile · fichier HD offert</small></span><em data-price="print"></em></label>
@@ -485,15 +485,15 @@
       </div>
       <div class="cart-qty-row"><span>Quantité</span><span class="cart-qty"><button type="button" data-qty="-1" aria-label="Moins">−</button><output>1</output><button type="button" data-qty="1" aria-label="Plus">+</button></span></div>
       <p class="hint cart-fit" hidden></p>
-      <button type="button" class="btn btn-primary btn-wide" id="cart-add-ok"><svg class="ico"><use href="#i-cart"/></svg><span>Ajouter au panier</span><b class="cart-add-total"></b></button>
+      <button type="button" class="btn btn-primary btn-wide" id="cart-add-ok"><svg class="ico"><use href="#i-cart"/></svg><span>Ajouter à ma commande</span><b class="cart-add-total"></b></button>
     </div>
   </section>
 
   <section id="cart" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-title">
     <div class="acc-card cart-card">
       <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
-      <h2 id="cart-title" class="acc-title">Votre panier</h2>
-      <p class="cart-empty hint" hidden>Votre panier est vide. Ajoutez une proposition depuis l’onglet Propositions ou l’étape Exporter.</p>
+      <h2 id="cart-title" class="acc-title">Votre commande</h2>
+      <p class="cart-empty hint" hidden>Votre commande est vide. Ajoutez une proposition depuis l’onglet Propositions ou l’étape Exporter.</p>
       <ul class="cart-list"></ul>
       <div class="cart-total"><span>Total TTC</span><b></b></div>
       <p class="hint cart-note">Prix TTC, livraison standard incluse en France métropolitaine. Le fichier HD est inclus avec chaque tableau imprimé.</p>

@@ -179,8 +179,8 @@ cd collage && python3 -m http.server 8000
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
-   - **panier** : chaque proposition (bouton sur sa vignette) ou la composition en cours (étape
-     Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
+   - **panier** (présenté comme « Commander » / « Votre commande » dans l'interface) : chaque
+     proposition (bouton sur sa vignette) ou la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 30 × 40,
      50 × 70 ou 70 × 100, 39 à 199 €) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
      Signature 490 ou 690 €), et la quantité. La composition y est figée telle

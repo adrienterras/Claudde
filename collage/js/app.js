@@ -2145,8 +2145,8 @@
       const add = document.createElement('button');
       add.type = 'button';
       add.className = 'proposal-cart';
-      add.title = tr('Ajouter au panier');
-      add.setAttribute('aria-label', tr`Ajouter « ${pr.style.name} » au panier`);
+      add.title = tr('Commander');
+      add.setAttribute('aria-label', tr`Commander « ${pr.style.name} »`);
       add.innerHTML = '<svg class="ico"><use href="#i-cart"/></svg>';
       // la proposition affichée est prise telle que retouchée ; une autre, telle que proposée
       add.onclick = () => openCartAdd(i === state.active ? state.comp : pr.comp, t || pr.style.name, pr.style.name);
@@ -5491,7 +5491,7 @@ Réponds uniquement avec ce JSON :
     document.querySelectorAll('.cart-btn').forEach((b) => {
       b.hidden = !n;
       b.querySelector('.cart-count').textContent = String(n);
-      b.setAttribute('aria-label', tr`Panier : ${n} article(s)`);
+      b.setAttribute('aria-label', tr`Commande : ${n} article(s)`);
     });
   }
 
@@ -5582,10 +5582,10 @@ Réponds uniquement avec ce JSON :
       saveCart(items);
       window.Atelier.track('Panier', { produit: it.product === 'print' ? `${it.finish} ${it.size}` : it.product });
       closeModal($('cart-add'));
-      openCart(tr`« ${it.title} » est dans votre panier.`);
+      openCart(tr`« ${it.title} » est dans votre commande.`);
     } catch (e) {
       console.error(e);
-      notice(tr`Impossible d’ajouter au panier : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
+      notice(tr`Impossible d’ajouter à la commande : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
     } finally { btn.disabled = false; }
   }
 
