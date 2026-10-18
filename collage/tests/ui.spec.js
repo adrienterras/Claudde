@@ -1533,7 +1533,7 @@ test.describe('Mettre en scène', () => {
         // deux pièces : le salon par défaut, la chambre d'enfant au choix (mémorisé)
         await expect(page.locator('#scene-room [data-room="salon"]')).toHaveClass(/on/);
         await page.locator('#scene-room [data-room="chambre"]').click();
-        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’un lit d’enfant.`);
+        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une étagère de chambre d’enfant.`);
         expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('chambre');
         await page.locator('#scene-room [data-room="salon"]').click();
         await expect(page.locator('#scene-info')).toContainText('buffet');

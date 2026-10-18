@@ -261,7 +261,7 @@
     'L’œuvre accrochée dans un salon, à sa taille réelle': 'The artwork hanging in a living room, at its real size',
     'Cadre {0} de {1} × {2} cm, assorti aux couleurs de l’œuvre, au-dessus {3}.': 'Frame in {0}, {1} × {2} cm, matched to the artwork’s colours, above {3}.',
     'd’un buffet de 2,30 m': 'a 2.30 m sideboard',
-    'd’un lit d’enfant': 'a child’s bed',
+    'd’une étagère de chambre d’enfant': 'a child’s bedroom shelf',
     'Pièce': 'Room',
     'Salon': 'Living room',
     'Chambre d’enfant': 'Child’s bedroom',

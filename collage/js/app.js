@@ -2324,14 +2324,22 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       top: 238, // haut de l'image, en cm au-dessus du sol
       over: tr('d’un buffet de 2,30 m'),
     },
-    // la chambre d'enfant : un rendu 3D (lit de 90 × 190 cm le long du mur), 5 px par cm
+    // la chambre d'enfant : une photo, échelle estimée d'après le mobilier (étagère basse de 55 cm,
+    // paniers de 33 cm, lampe de 30 cm, ours de 30 cm) : 3,1 px par cm sur le mur ; l'œuvre se place
+    // au-dessus de l'étagère, sous la suspension
     chambre: {
       src: 'assets/chambre.webp', light: 'assets/chambre-lumiere.webp',
-      w: 2000, h: 1500, pxPerCm: 5, floorY: 1275, centerX: 1000,
-      minBottom: 101, // 15 cm au-dessus des oreillers
-      obstacles: [{ x0: 20, x1: 455, top: 97 }, { x0: 462, x1: 522, top: 105 }, { x0: 1490, x1: 1530, top: 78 }, { x0: 1640, x1: 1780, top: 78 }],
-      top: 255,
-      over: tr('d’un lit d’enfant'),
+      w: 1374, h: 1030, pxPerCm: 3.1, floorY: 852, centerX: 654,
+      minBottom: 75, // 20 cm au-dessus de l'étagère
+      obstacles: [
+        { x0: 325, x1: 415, top: 92 }, // lampe
+        { x0: 425, x1: 465, top: 79 }, // lapin
+        { x0: 628, x1: 730, top: 73 }, // arc-en-ciel
+        { x0: 888, x1: 1002, top: 88 }, // ours
+        { x0: 1090, x1: 1374, top: 107 }, // tête de lit
+      ],
+      top: 230, // sous la suspension
+      over: tr('d’une étagère de chambre d’enfant'),
     },
   };
   const sceneRoom = () => { try { const v = localStorage.getItem('atelier.piece'); return SCENES[v] ? v : 'salon'; } catch (e) { return 'salon'; } };
