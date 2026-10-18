@@ -158,6 +158,7 @@
     'Baguette': 'Wand',
     'Sensibilité': 'Tolerance',
     'Ajouter au panier': 'Add to cart',
+    'Voir mon panier': 'View my cart',
     'Voir mon panier ({0})': 'View my cart ({0})',
     'Ajouter « {0} » au panier': 'Add “{0}” to cart',
     'papier d’art': 'fine art paper',
