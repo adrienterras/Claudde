@@ -99,8 +99,6 @@
 
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const mobileQuery = window.matchMedia('(max-width: 860px)');
-  // sur ordinateur, les réglages avancés sont dépliés d'office (sur téléphone, repliés : place comptée)
-  if (!mobileQuery.matches && $('advanced')) $('advanced').open = true;
 
   // Carte « travail en cours » au centre de la scène : roue, titre, étape, progression. Les appels
   // s'emboîtent (une réouverture réimporte des dessins) : la carte reste jusqu'au dernier busyOff.
