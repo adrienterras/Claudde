@@ -78,6 +78,7 @@
       <symbol id="i-smaller" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8.5 12h7"/></symbol>
       <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13l8 4.5 8-4.5"/></symbol>
       <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4.5h10v15l-5-3.5-5 3.5z"/></symbol>
+      <symbol id="i-frame" viewBox="0 0 24 24"><path d="M9 6.5 12 3.5l3 3"/><rect x="3.5" y="6.5" width="17" height="14" rx="1"/><path d="M7 17l3.5-4 2.5 2.5 1.5-1.5L17 17"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></symbol>
     </defs>
@@ -189,17 +190,22 @@
       <!-- l'œuvre accrochée dans un salon, à sa taille réelle -->
       <div id="scene-box" class="scene-box">
         <h3 class="scene-title">Mise en scène</h3>
-        <div class="seg scene-room" id="scene-room" role="group" aria-label="Pièce">
-          <button type="button" data-room="salon" class="on ink">Salon</button>
-          <button type="button" data-room="chambre">Chambre d’enfant</button>
+        <div id="scene-body" class="scene-body">
+          <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas></div>
+          <div class="scene-controls">
+            <div class="seg scene-room" id="scene-room" role="group" aria-label="Pièce">
+              <button type="button" data-room="salon" class="on ink">Salon</button>
+              <button type="button" data-room="chambre">Chambre d’enfant</button>
+            </div>
+            <label class="field scene-size"><span>Taille de l’œuvre</span><select id="scene-format"></select></label>
+            <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout" hidden>
+              <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>
+              <button type="button" data-mat="1">Avec passe-partout</button>
+            </div>
+            <p id="scene-info" class="hint mono-note"></p>
+            <button id="scene-save" class="btn" type="button"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger la mise en scène</span></button>
+          </div>
         </div>
-        <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas><button type="button" id="scene-zoom-btn" class="scene-zoom-btn" title="Agrandir la mise en scène" aria-label="Agrandir la mise en scène"><svg class="ico"><use href="#i-expand"/></svg></button></div>
-        <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout" hidden>
-          <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>
-          <button type="button" data-mat="1">Avec passe-partout</button>
-        </div>
-        <p id="scene-info" class="hint mono-note"></p>
-        <button id="scene-save" class="btn" type="button"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger la mise en scène</span></button>
       </div>
     </section>
 
@@ -404,6 +410,7 @@
       <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.1" aria-describedby="density-note">
       <small id="density-note">16 dessins</small>
     </div>
+    <button type="button" id="scene-open" class="scene-open" hidden><svg class="ico"><use href="#i-frame"/></svg><span>Mettre en scène</span></button>
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <div id="empty" class="empty">
       <div>
@@ -432,10 +439,13 @@
     </div>
   </main>
 
-  <div id="scene-zoom" class="scene-zoom" role="dialog" aria-modal="true" aria-label="Mise en scène" hidden>
-    <button type="button" id="scene-zoom-close" class="acc-close scene-zoom-close" aria-label="Fermer">×</button>
-    <canvas id="scene-zoom-canvas"></canvas>
-  </div>
+  <section id="scene-modal" class="account-modal scene-modal" hidden role="dialog" aria-modal="true" aria-labelledby="scene-modal-title">
+    <div class="acc-card scene-card">
+      <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
+      <h2 id="scene-modal-title" class="acc-title">Mise en scène</h2>
+      <div id="scene-modal-body"></div>
+    </div>
+  </section>
 
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">
     <div class="acc-card cart-card">

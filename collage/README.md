@@ -287,7 +287,9 @@ cd collage && python3 -m http.server 8000
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
-   - **mise en scène** (dans la section Tailles, sous le titre « Mise en scène ») : deux pièces au choix
+   - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
+     d'édition, avec le choix de la pièce, de la taille de l'œuvre et du passe-partout et le
+     téléchargement ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : deux pièces au choix
      (mémorisé), le salon ou une chambre d'enfant (photo de face `assets/chambre.webp`, échelle estimée
      d'après le mobilier : étagère basse de 55 cm, paniers de 33 cm, lampe et ours de 30 cm, soit 3,1 px
      par cm sur le mur ; l'œuvre est accrochée au-dessus de l'étagère, sous la suspension, avec la carte
@@ -299,8 +301,7 @@ cd collage && python3 -m http.server 8000
      Avec passe-partout » (mémorisé) agrandit le cadre au plus petit format standard qui laisse 4 cm
      de marge autour de l'œuvre, avec des marges proches sur les côtés et en haut et en bas (une œuvre
      carrée garde un cadre carré) ; cadre sur mesure, 6 cm de marge, quand aucun format ne convient. « Télécharger la mise en scène » enregistre l'image en
-     JPEG (2000 × 1500 px). Sur ordinateur, un clic sur le rendu (ou le bouton en haut à droite)
-     l'agrandit par-dessus la page ; un clic ou Échap le referme.
+     JPEG (2000 × 1500 px).
      L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
      de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm
      au-dessus du buffet et au-dessus de la lampe ou du vase quand elle s'étend jusqu'à eux ; le

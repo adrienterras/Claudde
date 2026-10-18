@@ -1494,7 +1494,11 @@ test.describe('Mettre en scène', () => {
       await page.waitForFunction(() => window.AtelierGribouille);
       await page.setInputFiles('#file', [fixture('page-cutout.png')]);
       await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-      await expect(page.locator('#scene-box')).toBeVisible();
+      // sur ordinateur, la mise en scène s'ouvre dans une fenêtre, depuis la zone d'édition
+      await expect(page.locator('#scene-box')).toBeHidden();
+      await page.locator('#scene-open').click();
+      await expect(page.locator('#scene-modal')).toBeVisible();
+      await expect(page.locator('#scene-modal #scene-canvas')).toBeVisible();
       const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
       const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
       // le salon et l'œuvre sont bien peints (pas un canevas vide)
@@ -1539,17 +1543,12 @@ test.describe('Mettre en scène', () => {
         await expect(page.locator('#scene-info')).toContainText('buffet');
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
-        // la mise en scène s'agrandit par-dessus la page, et se referme (Échap, clic)
-        await page.locator('#scene-zoom-btn').click();
-        await expect(page.locator('#scene-zoom')).toBeVisible();
-        const [small, big] = await page.evaluate(() => [document.getElementById('scene-canvas').clientWidth, document.getElementById('scene-zoom-canvas').clientWidth]);
-        expect(big).toBeGreaterThan(2 * small);
-        await page.keyboard.press('Escape');
-        await expect(page.locator('#scene-zoom')).toBeHidden();
-        await page.locator('#scene-canvas').click();
-        await expect(page.locator('#scene-zoom')).toBeVisible();
-        await page.locator('#scene-zoom').click();
-        await expect(page.locator('#scene-zoom')).toBeHidden();
+        // dans la fenêtre : la taille de l'œuvre se choisit aussi, l'image est grande (Échap la referme, plus bas)
+        expect(await page.locator('#scene-format').inputValue()).toBe(await page.locator('#format').inputValue());
+        const other = await page.locator('#scene-format option').evaluateAll((os, cur) => os.map((o) => o.value).find((v) => v !== cur), await page.locator('#format').inputValue());
+        await page.locator('#scene-format').selectOption(other);
+        await expect.poll(() => page.locator('#format').inputValue()).toBe(other);
+        expect(await page.locator('#scene-canvas').evaluate((c) => c.clientWidth)).toBeGreaterThan(600);
         // la mise en scène se télécharge en JPEG, 2000 × 1500 px
         const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#scene-save').click()]);
         expect(dl.suggestedFilename()).toBe('mise-en-scene-atelier-gribouille.jpg');
@@ -1557,6 +1556,8 @@ test.describe('Mettre en scène', () => {
         expect(buf[0]).toBe(0xff); expect(buf[1]).toBe(0xd8);
         const dims = await page.evaluate((b64) => new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.src = 'data:image/jpeg;base64,' + b64; }), buf.toString('base64'));
         expect(dims).toEqual([2000, 1500]);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('#scene-modal')).toBeHidden();
       }
     });
   }

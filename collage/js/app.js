@@ -2060,6 +2060,7 @@
     updateSettingsFor(state.comp);
     updateGroundName();
     $('density-bar').hidden = !state.comp;
+    $('scene-open').hidden = !state.comp;
     $('toolbar').hidden = !state.comp;
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
@@ -3785,7 +3786,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const [photo, plant, light] = sceneImgs[room];
     const framed = printMode();
     const mat = framed && sceneMat();
-    if (!out) $('scene-mat').hidden = !framed;
+    if (!out) { $('scene-mat').hidden = !framed; syncSceneFormat(); }
     if (!out) $('scene-mat').querySelectorAll('button').forEach((b) => {
       const on = (b.dataset.mat === '1') === mat;
       b.classList.toggle('on', on);
@@ -3898,6 +3899,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (!drawRoomScene({ canvas: c, width: 2000 })) throw new Error('mise en scène indisponible');
       const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
       if (!blob) throw new Error('toBlob');
+      if (navigator.maxTouchPoints > 0 && !$('scene-modal').hidden) closeModal($('scene-modal'));
       if (await saveFile(blob, tr('mise-en-scene-atelier-gribouille.jpg'))) window.Atelier.track('Export', { type: 'mise-en-scene', qualite: 'jpeg' });
     } catch (e) {
       console.error(e);
@@ -3914,23 +3916,39 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }));
   if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
-  // Sur ordinateur, la mise en scène s'agrandit en grand, par-dessus la page
-  function openSceneZoom() {
-    if (mobileQuery.matches || !state.comp) return;
-    const z = $('scene-zoom'), cv = $('scene-zoom-canvas');
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const S = SCENES[sceneRoom()];
-    const fitW = Math.min(window.innerWidth * 0.92, window.innerHeight * 0.86 * (S.w / S.h));
-    if (!drawRoomScene({ canvas: cv, width: Math.round(Math.min(2400, fitW * dpr)) })) return;
-    cv.style.width = `${Math.round(fitW)}px`;
-    z.hidden = false;
-    $('scene-zoom-close').focus({ preventScroll: true });
+  // La mise en scène vit dans la section Tailles sur téléphone ; sur ordinateur, dans une fenêtre
+  // ouverte depuis la zone d'édition (bouton « Mettre en scène »), avec le choix de la taille
+  function placeScene() {
+    const mobile = mobileQuery.matches;
+    (mobile ? $('scene-box') : $('scene-modal-body')).appendChild($('scene-body'));
+    $('scene-box').hidden = !mobile;
+    if (mobile && !$('scene-modal').hidden) closeModal($('scene-modal'));
   }
-  const closeSceneZoom = () => { $('scene-zoom').hidden = true; };
-  $('scene-zoom-btn').addEventListener('click', openSceneZoom);
-  $('scene-canvas').addEventListener('click', openSceneZoom);
-  $('scene-zoom').addEventListener('click', closeSceneZoom);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('scene-zoom').hidden) closeSceneZoom(); });
+  placeScene();
+  mobileQuery.addEventListener('change', placeScene);
+  // le choix de la taille, recopié de celui de la section Tailles
+  function syncSceneFormat() {
+    const f = $('format'), sf = $('scene-format');
+    if (sf.dataset.src !== f.innerHTML) { sf.innerHTML = f.innerHTML; sf.dataset.src = f.innerHTML; }
+    sf.value = f.value;
+  }
+  $('scene-format').addEventListener('change', () => {
+    $('format').value = $('scene-format').value;
+    $('format').dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  function openSceneModal() {
+    if (!state.comp) return;
+    syncSceneFormat();
+    openModal($('scene-modal'));
+    requestAnimationFrame(() => drawRoomScene());
+  }
+  $('scene-open').addEventListener('click', openSceneModal);
+  (() => {
+    const el = $('scene-modal');
+    el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
+    el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) closeModal(el); });
+  })();
 
   // ---------- Branchements ----------
 
