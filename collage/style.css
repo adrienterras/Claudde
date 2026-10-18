@@ -403,7 +403,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 /* sous la barre d'outils : « Panier » (s'il y a des articles) puis le CTA « Commander » */
 .stage-cta { position: absolute; top: 66px; right: 16px; z-index: 5; display: flex; align-items: center; gap: 8px; }
 .cart-btn-desk { padding: 8px 10px 8px 14px; }
-.order-cta { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px 10px 15px; border: 0; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 0.9rem; font-weight: 700; letter-spacing: .02em; cursor: pointer; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .55); }
+.order-cta { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: 0; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 0.9rem; font-weight: 700; letter-spacing: .02em; cursor: pointer; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .55); }
 .order-cta:hover { background: var(--ink); transform: translateY(-1px); }
 .order-cta .ico { width: 18px; height: 18px; }
 .order-cta .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--on-primary); color: var(--primary); font-size: 0.72rem; }
@@ -973,7 +973,7 @@ body.stage-full .scene-open { display: none; }
   .stage-cta { top: auto; right: 10px; bottom: calc(var(--sheet) + 54px); }
   body.sheet-tall .stage-cta, body.sheet-detail .stage-cta { display: none; } /* tiroir agrandi : l'œuvre est cachée, le bouton aussi */
   .cart-btn-desk { display: none; }
-  .order-cta-desk { padding: 9px 15px 9px 12px; font-size: 0.85rem; }
+  .order-cta-desk { padding: 9px 16px; font-size: 0.85rem; }
   .order-cta-desk .cart-count { display: inline-grid; }
   .order-cta-desk .cart-count[hidden] { display: none; }
   .cart-item { grid-template-columns: 56px minmax(0, 1fr) auto; }
