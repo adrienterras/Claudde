@@ -257,6 +257,7 @@
     'Mes exports': 'My exports',
     'Chaque fichier téléchargé est aussi gardé dans votre compte : retéléchargez-le d’ici, depuis n’importe quel appareil.': 'Every downloaded file is also kept in your account: download it again from here, on any device.',
     'Mise en scène': 'Room view',
+    'Agrandir la mise en scène': 'Enlarge the room view',
     'L’œuvre accrochée dans un salon, à sa taille réelle': 'The artwork hanging in a living room, at its real size',
     'Cadre {0} de {1} × {2} cm, assorti aux couleurs de l’œuvre, au-dessus d’un buffet de 2,30 m.': 'Frame in {0}, {1} × {2} cm, matched to the artwork’s colours, above a 2.30 m sideboard.',
     'Avec passe-partout : cadre {0} de {1} × {2} cm{3} pour l’œuvre de {4} × {5} cm, assorti à ses couleurs.': 'With a mount: frame in {0}, {1} × {2} cm{3}, for the {4} × {5} cm artwork, matched to its colours.',

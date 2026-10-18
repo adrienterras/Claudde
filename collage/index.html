@@ -189,7 +189,7 @@
       <!-- l'œuvre accrochée dans un salon, à sa taille réelle -->
       <div id="scene-box" class="scene-box">
         <h3 class="scene-title">Mise en scène</h3>
-        <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas></div>
+        <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas><button type="button" id="scene-zoom-btn" class="scene-zoom-btn" title="Agrandir la mise en scène" aria-label="Agrandir la mise en scène"><svg class="ico"><use href="#i-expand"/></svg></button></div>
         <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout" hidden>
           <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>
           <button type="button" data-mat="1">Avec passe-partout</button>
@@ -427,6 +427,11 @@
       </div>
     </div>
   </main>
+
+  <div id="scene-zoom" class="scene-zoom" role="dialog" aria-modal="true" aria-label="Mise en scène" hidden>
+    <button type="button" id="scene-zoom-close" class="acc-close scene-zoom-close" aria-label="Fermer">×</button>
+    <canvas id="scene-zoom-canvas"></canvas>
+  </div>
 
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">
     <div class="acc-card cart-card">

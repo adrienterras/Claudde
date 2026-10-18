@@ -295,7 +295,8 @@ cd collage && python3 -m http.server 8000
      Avec passe-partout » (mémorisé) agrandit le cadre au plus petit format standard qui laisse 4 cm
      de marge autour de l'œuvre, avec des marges proches sur les côtés et en haut et en bas (une œuvre
      carrée garde un cadre carré) ; cadre sur mesure, 6 cm de marge, quand aucun format ne convient. « Télécharger la mise en scène » enregistre l'image en
-     JPEG (2000 × 1500 px).
+     JPEG (2000 × 1500 px). Sur ordinateur, un clic sur le rendu (ou le bouton en haut à droite)
+     l'agrandit par-dessus la page ; un clic ou Échap le referme.
      L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
      de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm
      au-dessus du buffet et au-dessus de la lampe ou du vase quand elle s'étend jusqu'à eux ; le
@@ -405,7 +406,8 @@ Le parcours simple tient en trois étapes (importer, choisir une proposition, t�
 réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
 avancés », le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
 visibles au-dessus du bouton de téléchargement), et les sections
-Dessins est repliée à la première visite (le choix de chacun est mémorisé).
+Dessins est repliée à la première visite ; sur ordinateur, Importer se replie une fois ses propres dessins
+importés (et se rouvre pour une nouvelle œuvre) (le choix de chacun est mémorisé).
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
    pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
    déplacer ; bouton plein écran, pratique sur téléphone.

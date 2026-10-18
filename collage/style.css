@@ -786,8 +786,13 @@ body.editing { overflow: hidden; }
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .scene-box { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
-.scene-frame { border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
-.scene-canvas { width: 100%; height: 100%; display: block; }
+.scene-frame { position: relative; border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
+.scene-canvas { width: 100%; height: 100%; display: block; cursor: zoom-in; }
+.scene-zoom-btn { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 999px; border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--ink); cursor: pointer; }
+.scene-zoom-btn .ico { width: 16px; height: 16px; }
+.scene-zoom { position: fixed; inset: 0; z-index: 950; display: grid; place-items: center; background: rgba(24, 21, 16, 0.86); cursor: zoom-out; animation: fade .18s ease-out; }
+.scene-zoom canvas { display: block; max-width: 92vw; max-height: 86vh; height: auto; border-radius: 12px; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .7); }
+.scene-zoom-close { position: fixed; top: 16px; right: 16px; }
 .scene-mat { margin-bottom: 6px; }
 .drop.small { padding: 16px 12px; }
 .ed-help { margin: 0; margin-right: auto; color: var(--muted); font-size: 0.78rem; }
@@ -960,6 +965,8 @@ body.editing { overflow: hidden; }
   .panel.tabbed > .step.tab-on { display: flex; }
   .panel.tabbed[data-tab="more"] > .account, .panel.tabbed[data-tab="more"] > .brand-foot { display: flex; }
   .panel.tabbed > .step.tab-on.collapsed > :not(h2) { display: revert !important; }
+  .scene-zoom-btn { display: none; }
+  .scene-canvas { cursor: default; }
   /* l'onglet dit déjà où l'on est : ni numéro ni titre de section */
   .panel.tabbed > .step.tab-on > h2 { display: none; }
   .account { margin-top: 0; }

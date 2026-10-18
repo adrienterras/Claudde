@@ -27,6 +27,7 @@ test.describe('Interface', () => {
     await app.import(['page-cutout.png']);
     const btn = page.locator('#new-work');
     await expect(btn).toBeVisible();
+    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
     // au-dessus de l'étape Importer, sans défiler
     const [b, imp] = await Promise.all([btn.boundingBox(), page.locator('#import-section').boundingBox()]);
     expect(b.y).toBeLessThan(imp.y);
@@ -41,6 +42,8 @@ test.describe('Interface', () => {
     await expect.poll(() => page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
     await expect(btn).toBeHidden();
     await expect(page.locator('#empty')).toBeVisible();
+    // l'étape Importer, repliée après l'import, se rouvre pour la nouvelle œuvre
+    await expect(page.locator('#import-section')).not.toHaveClass(/collapsed/);
   });
 
   test('capteur d’erreur global : une erreur imprévue s’affiche avec son détail', async ({ app }) => {
@@ -395,7 +398,8 @@ test.describe('Brouillon', () => {
     await page.locator('#draft-resume').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#draft-offer')).toBeHidden();
-    // repartir de zéro efface le brouillon
+    // repartir de zéro efface le brouillon (l'étape Importer, repliée après la réouverture, se rouvre d'un clic)
+    await page.locator('#import-section > h2').click();
     await page.locator('#restart').click();
     for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
     expect(await hasDraft(page)).toBe(false);
@@ -760,6 +764,8 @@ test.describe('Panier', () => {
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBe(129);
     await page.locator('#cart [data-close]').first().click();
     // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
+    // (l'étape Importer, repliée après l'import, se rouvre d'un clic sur son titre)
+    await page.locator('#import-section > h2').click();
     await page.locator('#restart').click();
     await page.waitForTimeout(800);
     await page.reload();
@@ -1061,6 +1067,8 @@ test.describe('Retouches partagées (option)', () => {
     await page.waitForTimeout(800);
     expect(sent.filter((r) => /retouches/.test(r.url))).toHaveLength(0);
     // cochée (mémorisée) : image, les deux découpes, la fiche, puis la ligne en base
+    // (la case est dans l'étape Importer, repliée après l'import)
+    await page.locator('#import-section > h2').click();
     await page.locator('#share-cuts-box').check();
     expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBe('1');
     await edit();
@@ -1522,6 +1530,19 @@ test.describe('Mettre en scène', () => {
       } else {
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
         await expect(page.locator('#scene-mat')).toBeHidden();
+        // sur ordinateur, l'étape Importer se replie une fois les dessins importés
+        await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
+        // la mise en scène s'agrandit par-dessus la page, et se referme (Échap, clic)
+        await page.locator('#scene-zoom-btn').click();
+        await expect(page.locator('#scene-zoom')).toBeVisible();
+        const [small, big] = await page.evaluate(() => [document.getElementById('scene-canvas').clientWidth, document.getElementById('scene-zoom-canvas').clientWidth]);
+        expect(big).toBeGreaterThan(2 * small);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('#scene-zoom')).toBeHidden();
+        await page.locator('#scene-canvas').click();
+        await expect(page.locator('#scene-zoom')).toBeVisible();
+        await page.locator('#scene-zoom').click();
+        await expect(page.locator('#scene-zoom')).toBeHidden();
         // la mise en scène se télécharge en JPEG, 2000 × 1500 px
         const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#scene-save').click()]);
         expect(dl.suggestedFilename()).toBe('mise-en-scene-atelier-gribouille.jpg');

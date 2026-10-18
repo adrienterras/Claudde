@@ -390,6 +390,9 @@
       $('restart-offer').hidden = false;
       $('new-work').hidden = false;
       if (!state.restoring) selectTab('compose-section');
+      // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
+      // pas pour l'exemple, qui invite justement à importer ses propres dessins
+      if (!mobileQuery.matches && $('import-section')._collapse && !(opts && opts.sample) && !state.drawings.some((d) => d.sample)) $('import-section')._collapse();
     }
     refreshLists();
     regenerate();
@@ -3878,6 +3881,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }));
   if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
+  // Sur ordinateur, la mise en scène s'agrandit en grand, par-dessus la page
+  function openSceneZoom() {
+    if (mobileQuery.matches || !state.comp) return;
+    const z = $('scene-zoom'), cv = $('scene-zoom-canvas');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const fitW = Math.min(window.innerWidth * 0.92, window.innerHeight * 0.86 * (SALON.w / SALON.h));
+    if (!drawRoomScene({ canvas: cv, width: Math.round(Math.min(2400, fitW * dpr)) })) return;
+    cv.style.width = `${Math.round(fitW)}px`;
+    z.hidden = false;
+    $('scene-zoom-close').focus({ preventScroll: true });
+  }
+  const closeSceneZoom = () => { $('scene-zoom').hidden = true; };
+  $('scene-zoom-btn').addEventListener('click', openSceneZoom);
+  $('scene-canvas').addEventListener('click', openSceneZoom);
+  $('scene-zoom').addEventListener('click', closeSceneZoom);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('scene-zoom').hidden) closeSceneZoom(); });
+
   // ---------- Branchements ----------
 
   const drop = $('drop');
@@ -4160,6 +4180,7 @@ Réponds uniquement avec ce JSON :
   // Tout effacer pour repartir de ses propres scans
   function startOver() {
     state.drawings = [];
+    if ($('import-section')._expand) $('import-section')._expand();
     restoreDensityAfterSample();
     state.title = '';
     state.titles = null;
@@ -5179,10 +5200,12 @@ Réponds uniquement avec ce JSON :
       h.setAttribute('role', 'button'); h.setAttribute('tabindex', '0');
       const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? tr('Développer') : tr('Réduire'); };
       sec._expand = () => apply(false);
+      sec._collapse = () => apply(true);
       apply(saved.includes(sec.id));
       const toggle = () => {
         apply(!sec.classList.contains('collapsed'));
-        const list = [...document.querySelectorAll('aside section.step.collapsed')].map((x) => x.id);
+        // Importer, replié d'office après un import, n'est pas mémorisé : il est ouvert à chaque visite
+        const list = [...document.querySelectorAll('aside section.step.collapsed')].map((x) => x.id).filter((id) => id !== 'import-section');
         try { localStorage.setItem('atelier.collapsed', JSON.stringify(list)); } catch (e) { /* ignoré */ }
       };
       h.addEventListener('click', toggle);
