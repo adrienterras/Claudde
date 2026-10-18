@@ -141,13 +141,17 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('#new-work')).toBeHidden();
     await expect(p.locator('#saved-section')).toBeVisible();
     await expect(p.locator('#saved-section > h2')).toBeHidden();
-    // la mise en scène est dans l'onglet Tailles, sous son titre
+    // la mise en scène est dans l'onglet Tailles, sous son titre ; cet onglet ouvre le tiroir en grand
     await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    await expect(p.locator('body')).toHaveClass(/sheet-tall/);
     await expect(p.locator('#scene-box h3')).toHaveText('Mise en scène');
     await expect(p.locator('#scene-canvas')).toBeVisible();
     await expect(p.locator('#scene-info')).toContainText('buffet');
     // l'onglet suffit : ni numéro ni titre de section
     await expect(p.locator('#sizes-section > h2')).toBeHidden();
+    // un autre onglet ramène le tiroir à sa hauteur normale
+    await p.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await expect(p.locator('body')).not.toHaveClass(/sheet-tall/);
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();

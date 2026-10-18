@@ -5329,6 +5329,7 @@ Réponds uniquement avec ce JSON :
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
   const TAB_OF = { more: ['saved-section'] };
+  let autoTall = false; // le tiroir a été agrandi par l'onglet Tailles (et non par un geste)
   function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
@@ -5337,6 +5338,10 @@ Réponds uniquement avec ce JSON :
     const btn = tabs.querySelector(`[data-tab="${id}"]`);
     if (!btn || ($(id) && $(id).hidden)) return;
     btn.disabled = false;
+    // Tailles (choix du cadre, orientation, mise en scène) : le tiroir s'ouvre en grand ; un autre
+    // onglet le ramène à sa hauteur normale, sauf si c'est un geste qui l'avait agrandi
+    if (id === 'sizes-section') { document.body.classList.add('sheet-tall'); autoTall = true; }
+    else if (autoTall) { document.body.classList.remove('sheet-tall'); autoTall = false; }
     // la fiche d'un dessin (tiroir à mi-hauteur) ne reste ouverte que dans l'onglet Dessins
     document.body.classList.toggle('sheet-detail', id === 'drawings-section' && !!state.current);
     panel.classList.add('tabbed');

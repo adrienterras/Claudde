@@ -968,6 +968,7 @@ body.stage-full .scene-open { display: none; }
   /* téléphone : « Commander » flotte en bas à droite de l'œuvre, au-dessus du curseur ; il porte
      le compteur du panier (pas de bouton « Panier » à part) */
   .stage-cta { top: auto; right: 10px; bottom: calc(var(--sheet) + 54px); }
+  body.sheet-tall .stage-cta, body.sheet-detail .stage-cta { display: none; } /* tiroir agrandi : l'œuvre est cachée, le bouton aussi */
   .cart-btn-desk { display: none; }
   .order-cta-desk { padding: 9px 15px 9px 12px; font-size: 0.85rem; }
   .order-cta-desk .cart-count { display: inline-grid; }
