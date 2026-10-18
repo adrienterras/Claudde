@@ -1549,6 +1549,15 @@ test.describe('Mettre en scène', () => {
         await page.locator('#scene-format').selectOption(other);
         await expect.poll(() => page.locator('#format').inputValue()).toBe(other);
         expect(await page.locator('#scene-canvas').evaluate((c) => c.clientWidth)).toBeGreaterThan(600);
+        // l'orientation aussi, en accord avec la section Tailles
+        const orient = await page.locator('#canvas-orient button.on').getAttribute('data-orient');
+        await expect(page.locator(`#scene-orient [data-orient="${orient}"]`)).toHaveClass(/on/);
+        const flip = orient === 'land' ? 'port' : 'land';
+        await page.locator(`#scene-orient [data-orient="${flip}"]`).click();
+        await expect(page.locator(`#canvas-orient [data-orient="${flip}"]`)).toHaveClass(/on/);
+        await page.waitForFunction((o) => { const c = AtelierGribouille.state.comp; return c && document.getElementById('progress').hidden && ((o === 'port') === (c.H > c.W)); }, flip, { timeout: 120000 });
+        await page.locator(`#scene-orient [data-orient="${orient}"]`).click();
+        await page.waitForFunction((o) => { const c = AtelierGribouille.state.comp; return c && document.getElementById('progress').hidden && ((o === 'port') === (c.H > c.W)); }, orient, { timeout: 120000 });
         // la mise en scène se télécharge en JPEG, 2000 × 1500 px
         const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#scene-save').click()]);
         expect(dl.suggestedFilename()).toBe('mise-en-scene-atelier-gribouille.jpg');

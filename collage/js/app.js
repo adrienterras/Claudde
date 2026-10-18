@@ -1446,7 +1446,7 @@
   function setCanvasOrient(o) {
     state.canvasOrient = o;
     try { localStorage.setItem('atelier.canvasOrient', o); } catch (e) { /* ignoré */ }
-    document.querySelectorAll('#canvas-orient button').forEach((b) => {
+    document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => {
       const on = b.dataset.orient === o;
       b.classList.toggle('on', on); b.classList.toggle('ink', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -4006,7 +4006,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   ['format', 'pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'format') state.formatManual = true; state.pinned = null; regenerate(); }));
   $('fmt').addEventListener('change', updateExportInfo);
-  document.querySelectorAll('#canvas-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
+  // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
+  document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   document.querySelectorAll('#mode-switch button, #mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); state.formatManual = false; if (state.drawings.length) { state.pinned = null; regenerate(); } }));
   initMode();
