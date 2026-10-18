@@ -817,7 +817,11 @@ body.editing { overflow: hidden; }
 /* ordinateur : la mise en scène dans une grande fenêtre, l'image à gauche, les réglages à droite */
 .scene-card { width: min(1180px, 100%); max-height: calc(100vh - 40px); }
 .scene-modal .acc-title { margin: 0; }
-.scene-modal .scene-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+.scene-modal .scene-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
+/* les trois pièces sur une ligne : chaque bouton prend la place de son libellé */
+.scene-room button { flex: 1 1 auto; white-space: nowrap; padding: 5px 6px; }
+/* le bouton de téléchargement tient sur une ligne dans la colonne des réglages (iPad, petit écran) */
+.scene-modal #scene-save { white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; justify-content: center; }
 .scene-modal .scene-frame { margin: 0; width: min(100%, calc((100vh - 170px) * 4 / 3)); }
 .scene-modal .scene-size { display: flex; }
 .scene-modal .scene-mat { margin: 0; }
