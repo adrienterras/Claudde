@@ -771,8 +771,12 @@ test.describe('Panier', () => {
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBe(129);
     await page.locator('#cart [data-close]').first().click();
     await expect(page.locator('#cart')).toBeHidden();
-    // avec des articles, « Commander » ouvre le panier
+    // avec des articles, « Commander » ouvre toujours le choix du produit ; un lien mène au panier
     await page.locator('.order-cta-desk').click();
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await expect(page.locator('#cart-add-view')).toHaveText('Voir mon panier (1)');
+    await page.locator('#cart-add-view').click();
+    await expect(page.locator('#cart-add')).toBeHidden();
     await expect(page.locator('#cart')).toBeVisible();
     await page.locator('#cart [data-close]').first().click();
     await expect(page.locator('#cart')).toBeHidden();

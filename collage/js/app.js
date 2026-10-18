@@ -5520,15 +5520,15 @@ Réponds uniquement avec ce JSON :
     // le CTA « Commander » (téléphone) porte le compteur du panier
     document.querySelectorAll('.order-cta .cart-count').forEach((c) => { c.textContent = String(n); c.hidden = !n; });
   }
-  // « Commander », bien en vue : le panier s'il contient déjà des articles, sinon la composition
-  // affichée est proposée au choix du produit
+  // « Commander », bien en vue : la composition affichée est proposée au choix du produit (la
+  // fenêtre « Ajouter au panier ») ; un lien y mène au panier s'il contient déjà des articles
   function orderNow() {
-    if (loadCart().length) { openCart(); return; }
     if (!state.comp) return;
     const st = STYLES.find((x) => x.id === state.comp.style);
     openCartAdd(state.comp, titleFor(state.comp.style) || (st ? st.name : tr('Composition')), st ? st.name : '');
   }
   document.querySelectorAll('.order-cta').forEach((b) => (b.onclick = orderNow));
+  $('cart-add-view').onclick = () => { closeModal($('cart-add')); openCart(); };
 
   // fenêtres
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
@@ -5583,6 +5583,9 @@ Réponds uniquement avec ce JSON :
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
   }
   function openCartAdd(comp, title, styleName) {
+    const n = loadCart().reduce((t, it) => t + it.qty, 0);
+    $('cart-add-view').hidden = !n;
+    $('cart-add-view').textContent = tr`Voir mon panier (${n})`;
     if (!comp) return;
     pending = { comp, title, styleName, thumb: thumbOfComp(comp) };
     choice.size = suggestedSize(comp.W, comp.H);

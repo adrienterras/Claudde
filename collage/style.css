@@ -409,6 +409,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .order-cta .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--on-primary); color: var(--primary); font-size: 0.72rem; }
 .order-cta .cart-count[hidden] { display: none; }
 .order-cta[hidden] { display: none; }
+.cart-add-view { align-self: flex-start; margin-top: -8px; font-size: 0.85rem; }
 .order-cta-desk .cart-count { display: none; } /* sur ordinateur, le compteur est sur le bouton « Panier » */
 body.stage-full .stage-cta { display: none; }
 .cart-card { width: min(520px, 100%); gap: 12px; }
