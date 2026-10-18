@@ -179,8 +179,8 @@ cd collage && python3 -m http.server 8000
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
-   - **panier** : un CTA « Commander » bien en vue (sous la barre d'outils sur ordinateur, dans
-     l'en-tête sur téléphone, avec le compteur) ouvre le panier s'il contient des articles, sinon le
+   - **panier** : un CTA « Commander » bien en vue (sous la barre d'outils sur ordinateur ; sur
+     téléphone, en bas à droite de l'œuvre, au-dessus du curseur, avec le compteur) ouvre le panier s'il contient des articles, sinon le
      choix du produit pour la composition affichée ; chaque proposition (bouton sur sa vignette) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 30 × 40,

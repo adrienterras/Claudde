@@ -409,7 +409,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .order-cta .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--on-primary); color: var(--primary); font-size: 0.72rem; }
 .order-cta .cart-count[hidden] { display: none; }
 .order-cta[hidden] { display: none; }
-.order-cta-phone { display: none; }
+.order-cta-desk .cart-count { display: none; } /* sur ordinateur, le compteur est sur le bouton « Panier » */
 body.stage-full .stage-cta { display: none; }
 .cart-card { width: min(520px, 100%); gap: 12px; }
 .cart-card .acc-title { text-align: left; padding-right: 36px; }
@@ -964,11 +964,13 @@ body.stage-full .scene-open { display: none; }
   .mobile-brand-name small { font-family: var(--f-body); font-size: 0.56rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink); margin-right: 4px; vertical-align: middle; }
   .mobile-lang { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); margin: 0; }
   .cart-btn-desk { display: none; }
-  .stage-cta { display: none; } /* téléphone : « Commander » est dans l'en-tête */
-  .order-cta-phone { display: inline-flex; position: absolute; right: 98px; top: 50%; transform: translateY(-50%); padding: 7px 12px 7px 10px; font-size: 0.8rem; gap: 6px; }
-  .order-cta-phone[hidden] { display: none; }
-  .order-cta-phone .ico { width: 16px; height: 16px; }
-  .order-cta-phone .cart-count { min-width: 18px; height: 18px; font-size: 0.68rem; }
+  /* téléphone : « Commander » flotte en bas à droite de l'œuvre, au-dessus du curseur ; il porte
+     le compteur du panier (pas de bouton « Panier » à part) */
+  .stage-cta { top: auto; right: 10px; bottom: calc(var(--sheet) + 54px); }
+  .cart-btn-desk { display: none; }
+  .order-cta-desk { padding: 9px 15px 9px 12px; font-size: 0.85rem; }
+  .order-cta-desk .cart-count { display: inline-grid; }
+  .order-cta-desk .cart-count[hidden] { display: none; }
   .cart-item { grid-template-columns: 56px minmax(0, 1fr) auto; }
   .cart-item img { width: 56px; height: 44px; }
   .lang-offer { position: static; grid-column: auto; }
@@ -1049,10 +1051,7 @@ body.stage-full .scene-open { display: none; }
   .density-bar { left: 10px; bottom: calc(var(--sheet) + 6px); padding: 6px 12px; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
-  /* avec le CTA « Commander » dans l'en-tête, le nom se réduit à « Gribouille » */
-  .mobile-brand:has(.order-cta-phone:not([hidden])) .mobile-brand-name small { display: none; }
-  @media (max-width: 380px) { .order-cta-phone { padding: 7px 11px; } .order-cta-phone .ico { display: none; } }
-  @media (max-width: 340px) { .mobile-brand:has(.order-cta-phone:not([hidden])) .mobile-brand-name { display: none; } }
+
 }
 
 /* ---------- Compositions sauvegardées ---------- */
