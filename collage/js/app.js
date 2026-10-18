@@ -3685,11 +3685,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   // Cadres proposés pour un tableau imprimé : la couleur est choisie d'après celles de l'œuvre
   const FRAME_KINDS = {
-    'bois-clair': { name: tr('bois clair'), profile: 2.2, rgb: [198, 160, 114], grain: true },
-    'bois-fonce': { name: tr('bois foncé'), profile: 2.2, rgb: [94, 63, 43], grain: true },
-    'bois-noir': { name: tr('bois noir'), profile: 2.2, rgb: [36, 33, 31], grain: true, vein: (a) => `rgba(255, 255, 255, ${a * 0.45})` },
-    'bois-blanc': { name: tr('bois blanc'), profile: 2.2, rgb: [241, 238, 232], grain: true, vein: (a) => `rgba(120, 95, 70, ${a * 0.5})` },
-    metal: { name: tr('métal'), profile: 1.2, rgb: [178, 180, 182], brushed: true },
+    'bois-clair': { name: tr('bois clair'), profile: 1.5, rgb: [212, 184, 146], grain: true },
+    'bois-fonce': { name: tr('bois foncé'), profile: 1.5, rgb: [96, 70, 50], grain: true },
+    'bois-noir': { name: tr('bois noir'), profile: 1.5, rgb: [38, 36, 34], grain: true, vein: (a) => `rgba(255, 255, 255, ${a * 0.5})` },
+    'bois-blanc': { name: tr('bois blanc'), profile: 1.5, rgb: [242, 240, 235], grain: true, vein: (a) => `rgba(120, 95, 70, ${a * 0.6})` },
+    metal: { name: tr('métal'), profile: 0.9, rgb: [186, 188, 190], brushed: true },
   };
   // le cadre choisi par l'utilisateur ('auto' : assorti aux couleurs de l'œuvre)
   const sceneFrameChoice = () => { try { const v = localStorage.getItem('atelier.cadre'); return FRAME_KINDS[v] ? v : 'auto'; } catch (e) { return 'auto'; } };
@@ -3729,14 +3729,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   const sceneMat = () => { try { return localStorage.getItem('atelier.passe-partout') === '1'; } catch (e) { return false; } };
   const shade = (rgb, k) => `rgb(${rgb.map((v) => Math.round(clamp(v * k, 0, 255))).join(',')})`;
-  // Baguette en quatre coupes d'onglet, éclairée d'en haut à gauche (la fenêtre)
+  // Baguette fine et plate, comme un cadre du commerce : quatre coupes d'onglet, teinte presque
+  // unie (le haut et la gauche à peine plus clairs), veines discrètes, joints d'onglet à peine marqués
   function drawFrame(x, ox, oy, w, h, p, kind) {
     const F = FRAME_KINDS[kind];
     const sides = [
-      { pts: [[ox, oy], [ox + w, oy], [ox + w - p, oy + p], [ox + p, oy + p]], k: 1.1, horiz: true },
-      { pts: [[ox, oy], [ox + p, oy + p], [ox + p, oy + h - p], [ox, oy + h]], k: 1.02, horiz: false },
-      { pts: [[ox + w, oy], [ox + w, oy + h], [ox + w - p, oy + h - p], [ox + w - p, oy + p]], k: 0.84, horiz: false },
-      { pts: [[ox, oy + h], [ox + p, oy + h - p], [ox + w - p, oy + h - p], [ox + w, oy + h]], k: 0.76, horiz: true },
+      { pts: [[ox, oy], [ox + w, oy], [ox + w - p, oy + p], [ox + p, oy + p]], k: 1.03, horiz: true },
+      { pts: [[ox, oy], [ox + p, oy + p], [ox + p, oy + h - p], [ox, oy + h]], k: 1.0, horiz: false },
+      { pts: [[ox + w, oy], [ox + w, oy + h], [ox + w - p, oy + h - p], [ox + w - p, oy + p]], k: 0.95, horiz: false },
+      { pts: [[ox, oy + h], [ox + p, oy + h - p], [ox + w - p, oy + h - p], [ox + w, oy + h]], k: 0.92, horiz: true },
     ];
     const rnd = Compose.rng(7);
     sides.forEach((sd) => {
@@ -3748,31 +3749,39 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.fillStyle = shade(F.rgb, sd.k);
       x.fillRect(ox, oy, w, h);
       if (F.grain || F.brushed) {
-        // veines du bois ou métal brossé, dans le sens de la baguette
+        // quelques veines (ou le brossé du métal), fines et peu contrastées, dans le sens de la baguette
         const len = sd.horiz ? w : h, across = p;
-        for (let i = 0; i < (F.grain ? 14 : 22); i++) {
+        for (let i = 0; i < (F.grain ? 5 : 10); i++) {
           const t = rnd() * across;
-          const a = F.grain ? 0.06 + rnd() * 0.12 : 0.08 + rnd() * 0.18;
-          x.strokeStyle = F.vein ? F.vein(a) : F.grain ? `rgba(60, 35, 15, ${a})` : `rgba(255, 255, 255, ${a})`;
-          x.lineWidth = Math.max(0.5, across * (0.02 + rnd() * 0.05));
+          const a = F.grain ? 0.025 + rnd() * 0.045 : 0.05 + rnd() * 0.08;
+          x.strokeStyle = F.vein ? F.vein(a) : F.grain ? `rgba(70, 45, 20, ${a})` : `rgba(255, 255, 255, ${a})`;
+          x.lineWidth = Math.max(0.5, across * (0.02 + rnd() * 0.04));
           x.beginPath();
           if (sd.horiz) {
             const y0 = sd.pts[0][1] + (sd.pts[0][1] < sd.pts[3][1] ? t : -t);
-            x.moveTo(ox, y0); x.bezierCurveTo(ox + len * 0.3, y0 + (rnd() - 0.5) * across * 0.2, ox + len * 0.7, y0 + (rnd() - 0.5) * across * 0.2, ox + len, y0);
+            x.moveTo(ox, y0); x.bezierCurveTo(ox + len * 0.3, y0 + (rnd() - 0.5) * across * 0.1, ox + len * 0.7, y0 + (rnd() - 0.5) * across * 0.1, ox + len, y0);
           } else {
             const x0 = sd.pts[0][0] + (sd.pts[0][0] < sd.pts[1][0] ? t : -t);
-            x.moveTo(x0, oy); x.bezierCurveTo(x0 + (rnd() - 0.5) * across * 0.2, oy + len * 0.3, x0 + (rnd() - 0.5) * across * 0.2, oy + len * 0.7, x0, oy + len);
+            x.moveTo(x0, oy); x.bezierCurveTo(x0 + (rnd() - 0.5) * across * 0.1, oy + len * 0.3, x0 + (rnd() - 0.5) * across * 0.1, oy + len * 0.7, x0, oy + len);
           }
           x.stroke();
         }
       }
       x.restore();
     });
-    // arêtes : extérieure éclairée, feuillure sombre
-    x.strokeStyle = 'rgba(255, 255, 255, 0.25)'; x.lineWidth = Math.max(1, p * 0.06);
+    // joints d'onglet, à peine visibles
+    x.strokeStyle = 'rgba(0, 0, 0, 0.10)'; x.lineWidth = 1;
+    x.beginPath();
+    x.moveTo(ox, oy); x.lineTo(ox + p, oy + p);
+    x.moveTo(ox + w, oy); x.lineTo(ox + w - p, oy + p);
+    x.moveTo(ox + w, oy + h); x.lineTo(ox + w - p, oy + h - p);
+    x.moveTo(ox, oy + h); x.lineTo(ox + p, oy + h - p);
+    x.stroke();
+    // arête extérieure un peu éclairée, feuillure légèrement marquée
+    x.strokeStyle = 'rgba(255, 255, 255, 0.14)';
     x.strokeRect(ox + 0.5, oy + 0.5, w - 1, h - 1);
-    x.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-    x.strokeRect(ox + p, oy + p, w - 2 * p, h - 2 * p);
+    x.strokeStyle = 'rgba(0, 0, 0, 0.18)';
+    x.strokeRect(ox + p + 0.5, oy + p + 0.5, w - 2 * p - 1, h - 2 * p - 1);
   }
   // Dessine la mise en scène sur le canevas affiché, ou, pour le téléchargement, sur un canevas
   // donné à la largeur voulue (out = { canvas, width })
@@ -3838,23 +3847,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // ombre portée sur le mur, la lumière vient de la fenêtre à gauche
     x.save();
     x.shadowColor = 'rgba(45, 32, 20, 0.38)';
-    x.shadowBlur = (framed ? 1.6 : 2.6) * pc;
-    x.shadowOffsetX = (framed ? 0.8 : 1.4) * pc;
-    x.shadowOffsetY = (framed ? 1.2 : 2) * pc;
+    x.shadowBlur = (framed ? 1.2 : 2.6) * pc;
+    x.shadowOffsetX = (framed ? 0.5 : 1.4) * pc;
+    x.shadowOffsetY = (framed ? 0.9 : 2) * pc;
     x.fillStyle = '#000';
     x.fillRect(ox, oy, Wo * pc, Ho * pc);
     x.restore();
     const fx = ox + f * pc, fy = oy + f * pc; // ouverture du cadre
     const ix = fx + ((Fw - comp.W) / 2) * pc, iy = fy + ((Fh - comp.H) / 2) * pc; // l'œuvre
     if (mat) {
-      // passe-partout blanc cassé, biseau éclairé à droite et en bas, dans l'ombre à gauche et en haut
-      const b = Math.max(1, 0.35 * pc), aw = comp.W * pc, ah = comp.H * pc;
-      x.fillStyle = '#f5f2eb';
+      // passe-partout blanc chaud, biseau blanc tout autour de l'ouverture, un trait d'ombre en haut
+      const b = Math.max(1, 0.3 * pc), aw = comp.W * pc, ah = comp.H * pc;
+      x.fillStyle = '#f4f1ea';
       x.fillRect(fx, fy, Fw * pc, Fh * pc);
-      x.fillStyle = '#e4ded3';
-      x.fillRect(ix - b, iy - b, aw + 2 * b, b); x.fillRect(ix - b, iy - b, b, ah + 2 * b);
-      x.fillStyle = '#fffdf9';
-      x.fillRect(ix - b, iy + ah, aw + 2 * b, b); x.fillRect(ix + aw, iy - b, b, ah + 2 * b);
+      x.fillStyle = '#fbfaf7';
+      x.fillRect(ix - b, iy - b, aw + 2 * b, ah + 2 * b);
+      x.strokeStyle = 'rgba(0, 0, 0, 0.08)'; x.lineWidth = 1;
+      x.strokeRect(ix - b + 0.5, iy - b + 0.5, aw + 2 * b - 1, ah + 2 * b - 1);
     }
     x.save();
     x.translate(ix, iy);
@@ -3864,18 +3873,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.restore();
     if (framed) {
       if (mat) {
-        // l'œuvre en retrait du passe-partout : fine ombre en haut et à gauche
-        const g = x.createLinearGradient(ix, iy, ix, iy + 0.5 * pc);
-        g.addColorStop(0, 'rgba(0, 0, 0, 0.22)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        x.fillStyle = g; x.fillRect(ix, iy, comp.W * pc, 0.5 * pc);
+        // l'œuvre en retrait du passe-partout : un fin trait d'ombre en haut
+        const g = x.createLinearGradient(ix, iy, ix, iy + 0.25 * pc);
+        g.addColorStop(0, 'rgba(0, 0, 0, 0.14)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        x.fillStyle = g; x.fillRect(ix, iy, comp.W * pc, 0.25 * pc);
       }
-      // ombre de la baguette dans l'ouverture, et reflet discret du verre
-      const g = x.createLinearGradient(fx, fy, fx, fy + 1.2 * pc);
-      g.addColorStop(0, 'rgba(0, 0, 0, 0.3)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      x.fillStyle = g; x.fillRect(fx, fy, Fw * pc, 1.2 * pc);
-      const r = x.createLinearGradient(fx, fy, fx + Fw * pc, fy + Fh * pc);
-      r.addColorStop(0, 'rgba(255, 255, 255, 0.10)'); r.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
-      x.fillStyle = r; x.fillRect(fx, fy, Fw * pc, Fh * pc);
+      // ombre légère de la baguette dans l'ouverture, en haut et à gauche ; pas de reflet
+      const g = x.createLinearGradient(fx, fy, fx, fy + 0.6 * pc);
+      g.addColorStop(0, 'rgba(0, 0, 0, 0.16)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      x.fillStyle = g; x.fillRect(fx, fy, Fw * pc, 0.6 * pc);
+      const gl = x.createLinearGradient(fx, fy, fx + 0.5 * pc, fy);
+      gl.addColorStop(0, 'rgba(0, 0, 0, 0.10)'); gl.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      x.fillStyle = gl; x.fillRect(fx, fy, 0.5 * pc, Fh * pc);
       drawFrame(x, ox, oy, Wo * pc, Ho * pc, f * pc, kind);
     } else {
       // tranche de la toile : arête claire en haut à gauche, plus sombre en bas à droite

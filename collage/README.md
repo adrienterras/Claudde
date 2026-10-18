@@ -295,7 +295,9 @@ cd collage && python3 -m http.server 8000
      par cm sur le mur ; l'œuvre est accrochée au-dessus de l'étagère, sous la suspension, avec la carte
      de lumière `assets/chambre-lumiere.webp`). Dans le salon, l'œuvre active est accrochée dans un
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
-     collage avec les originaux, tableau encadré pour une impression. Le cadre (bois clair, bois foncé,
+     collage avec les originaux, tableau encadré pour une impression (baguette fine et plate, comme un
+     cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; passe-partout blanc chaud à biseau blanc ;
+     pas de reflet). Le cadre (bois clair, bois foncé,
      bois noir, bois blanc ou métal) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
      il est assorti aux couleurs de l'œuvre : sombre → bois blanc (bois noir avec passe-partout),
      dominante froide → métal, claire → bois foncé, sinon bois clair. Un choix « Sans /
