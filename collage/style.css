@@ -823,6 +823,9 @@ body.editing { overflow: hidden; }
 .scene-room button { flex: 1 1 auto; white-space: nowrap; padding: 5px 6px; }
 /* le bouton de téléchargement tient sur une ligne dans la colonne des réglages (iPad, petit écran) */
 .scene-modal #scene-save { white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; justify-content: center; }
+/* « Commander l'œuvre » : dans la fenêtre seulement (sur téléphone, le bouton flottant s'en charge) */
+.scene-order { display: none; }
+.scene-modal .scene-order { display: inline-flex; white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; justify-content: center; }
 .scene-modal .scene-frame { margin: 0; width: min(100%, calc((100vh - 170px) * 4 / 3)); }
 .scene-modal .scene-size { display: flex; }
 .scene-modal .scene-mat { margin: 0; }

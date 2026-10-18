@@ -1601,6 +1601,12 @@ test.describe('Mettre en scène', () => {
         expect(buf[0]).toBe(0xff); expect(buf[1]).toBe(0xd8);
         const dims = await page.evaluate((b64) => new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.src = 'data:image/jpeg;base64,' + b64; }), buf.toString('base64'));
         expect(dims).toEqual([2000, 1500]);
+        // « Commander l'œuvre » : la fenêtre se ferme, le choix du produit s'ouvre
+        await page.locator('#scene-order').click();
+        await expect(page.locator('#scene-modal')).toBeHidden();
+        await expect(page.locator('#cart-add')).toBeVisible();
+        await page.locator('#cart-add [data-close]').first().click();
+        await expect(page.locator('#cart-add')).toBeHidden();
         await page.keyboard.press('Escape');
         await expect(page.locator('#scene-modal')).toBeHidden();
       }

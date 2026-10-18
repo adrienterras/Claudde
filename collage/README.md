@@ -290,8 +290,8 @@ cd collage && python3 -m http.server 8000
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
    - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
-     d'édition, avec le choix de la pièce, de la taille et de l'orientation de l'œuvre, du passe-partout et le
-     téléchargement ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : trois pièces au choix
+     d'édition, avec le choix de la pièce, de la taille et de l'orientation de l'œuvre, du passe-partout, le
+     téléchargement et un bouton « Commander l'œuvre » ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : trois pièces au choix
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
      `assets/hall-lumiere.webp`) ; la chambre (photo de face `assets/chambre.webp`, échelle estimée

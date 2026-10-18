@@ -282,6 +282,7 @@
     'métal': 'metal',
     'Passe-partout': 'Mount',
     'Télécharger la mise en scène': 'Download the staging',
+    'Commander l’œuvre': 'Order the artwork',
     'mise-en-scene-atelier-gribouille.jpg': 'staging-atelier-gribouille.jpg',
     'La mise en scène n’a pas pu être produite sur cet appareil.': 'The staging could not be produced on this device.',
     'Sans passe-partout': 'No mount',

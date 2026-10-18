@@ -3956,6 +3956,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       notice(tr('La mise en scène n’a pas pu être produite sur cet appareil.'));
     } finally { btn.disabled = false; }
   });
+  // depuis la fenêtre de mise en scène (ordinateur), commander l'œuvre affichée
+  $('scene-order').addEventListener('click', () => { closeModal($('scene-modal')); orderNow(); });
   $('scene-room').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
     try { localStorage.setItem('atelier.piece', b.dataset.room); } catch (e) { /* ignoré */ }
     drawRoomScene();
