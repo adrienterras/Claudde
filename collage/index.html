@@ -189,6 +189,10 @@
       <!-- l'œuvre accrochée dans un salon, à sa taille réelle -->
       <div id="scene-box" class="scene-box">
         <h3 class="scene-title">Mise en scène</h3>
+        <div class="seg scene-room" id="scene-room" role="group" aria-label="Pièce">
+          <button type="button" data-room="salon" class="on ink">Salon</button>
+          <button type="button" data-room="chambre">Chambre d’enfant</button>
+        </div>
         <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas><button type="button" id="scene-zoom-btn" class="scene-zoom-btn" title="Agrandir la mise en scène" aria-label="Agrandir la mise en scène"><svg class="ico"><use href="#i-expand"/></svg></button></div>
         <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout" hidden>
           <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>

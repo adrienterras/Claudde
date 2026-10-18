@@ -1530,6 +1530,13 @@ test.describe('Mettre en scène', () => {
       } else {
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
         await expect(page.locator('#scene-mat')).toBeHidden();
+        // deux pièces : le salon par défaut, la chambre d'enfant au choix (mémorisé)
+        await expect(page.locator('#scene-room [data-room="salon"]')).toHaveClass(/on/);
+        await page.locator('#scene-room [data-room="chambre"]').click();
+        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’un lit d’enfant.`);
+        expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('chambre');
+        await page.locator('#scene-room [data-room="salon"]').click();
+        await expect(page.locator('#scene-info')).toContainText('buffet');
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
         // la mise en scène s'agrandit par-dessus la page, et se referme (Échap, clic)

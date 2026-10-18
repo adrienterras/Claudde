@@ -287,7 +287,12 @@ cd collage && python3 -m http.server 8000
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
-   - **mise en scène** (dans la section Tailles, sous le titre « Mise en scène ») : l'œuvre active accrochée dans un
+   - **mise en scène** (dans la section Tailles, sous le titre « Mise en scène ») : deux pièces au choix
+     (mémorisé), le salon ou une chambre d'enfant. La chambre (`assets/chambre.webp`) est un rendu 3D vu
+     de face (lit de 90 × 190 cm le long du mur, 5 px par cm sur le mur), avec sa carte de lumière
+     `assets/chambre-lumiere.webp` ; crédits : plante « Diffuse Transmission Plant » © 2024 Darmstadt
+     Graphics Group et pouf « Specular Silk Pouf » © 2023 Wayfair LLC, sous licence CC BY 4.0 (exemples
+     glTF du Khronos Group), éclairage HDRI Poly Haven (CC0). Dans le salon, l'œuvre active est accrochée dans un
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
      collage avec les originaux, tableau encadré pour une impression. Le cadre (bois clair, bois foncé,
      métal ou blanc) est choisi d'après les couleurs de l'œuvre : sombre → blanc (bois foncé avec
