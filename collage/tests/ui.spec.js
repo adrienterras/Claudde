@@ -146,7 +146,7 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('body')).toHaveClass(/sheet-tall/);
     await expect(p.locator('#scene-box h3')).toHaveText('Mise en scène');
     await expect(p.locator('#scene-canvas')).toBeVisible();
-    await expect(p.locator('#scene-info')).toContainText('buffet');
+    await expect(p.locator('#scene-info')).toContainText('chambre d’enfant');
     // l'onglet suffit : ni numéro ni titre de section
     await expect(p.locator('#sizes-section > h2')).toBeHidden();
     // un autre onglet ramène le tiroir à sa hauteur normale
@@ -1567,15 +1567,16 @@ test.describe('Mettre en scène', () => {
       } else {
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
         await expect(page.locator('#scene-mat')).toBeHidden();
-        // trois pièces : le salon par défaut, la chambre d'enfant et l'entrée au choix (mémorisé)
-        await expect(page.locator('#scene-room [data-room="salon"]')).toHaveClass(/on/);
-        await page.locator('#scene-room [data-room="chambre"]').click();
+        // trois pièces : la chambre d'enfant par défaut, le salon et l'entrée au choix (mémorisé)
+        await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une étagère de chambre d’enfant.`);
-        expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('chambre');
-        await page.locator('#scene-room [data-room="hall"]').click();
-        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une console d’entrée.`);
         await page.locator('#scene-room [data-room="salon"]').click();
         await expect(page.locator('#scene-info')).toContainText('buffet');
+        expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('salon');
+        await page.locator('#scene-room [data-room="hall"]').click();
+        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une console d’entrée.`);
+        await page.locator('#scene-room [data-room="chambre"]').click();
+        await expect(page.locator('#scene-info')).toContainText('chambre d’enfant');
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
         // dans la fenêtre : la taille de l'œuvre se choisit aussi, l'image est grande (Échap la referme, plus bas)

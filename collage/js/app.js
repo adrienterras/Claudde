@@ -2366,7 +2366,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       over: tr('d’une console d’entrée'),
     },
   };
-  const sceneRoom = () => { try { const v = localStorage.getItem('atelier.piece'); return SCENES[v] ? v : 'salon'; } catch (e) { return 'salon'; } };
+  const sceneRoom = () => { try { const v = localStorage.getItem('atelier.piece'); return SCENES[v] ? v : 'chambre'; } catch (e) { return 'chambre'; } }; // la chambre d'enfant d'abord
   const sceneImgs = {};
   let sceneTimer = 0;
 
@@ -3843,7 +3843,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
-    const k = S.pxPerCm, aspect = S.w / S.h;
+    // le téléchargement a un format fixe (2000 × 1500) : la photo s'y ajuste à une fraction de pixel près
+    const k = S.pxPerCm, aspect = out ? out.canvas.width / out.canvas.height : S.w / S.h;
     // hauteur d'accrochage : centre à hauteur de regard (150 cm) pour une petite œuvre, un peu plus
     // bas (135 cm) pour une grande qui descend vers le meuble ; le bas reste au moins 20 cm au-dessus
     // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
