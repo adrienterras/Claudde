@@ -2039,9 +2039,20 @@
   function layoutLabel() {
     const label = $('label'), stage = label && label.parentElement;
     if (!stage || window.innerWidth < 861) { document.body.classList.remove('label-above'); return; }
-    const zoom = stage.querySelector('.zoom'), dens = $('density-bar');
+    const zoom = stage.querySelector('.zoom'), dens = $('density-bar'), scene = $('scene-open');
     const sr = stage.getBoundingClientRect();
-    const left = dens && !dens.hidden ? dens.getBoundingClientRect().right - sr.left + 12 : 14;
+    // le bouton « Mettre en scène » suit la barre de densité ; le cartel vient après lui
+    const densR = dens && !dens.hidden ? dens.getBoundingClientRect().right - sr.left : 0;
+    const zoomL = zoom ? zoom.getBoundingClientRect().left - sr.left : sr.width;
+    stage.style.setProperty('--scene-l', `${Math.round(densR ? densR + 10 : 14)}px`);
+    document.body.classList.remove('scene-up');
+    let sceneR = densR;
+    if (scene && !scene.hidden) {
+      sceneR = scene.getBoundingClientRect().right - sr.left;
+      // plus de place sur la ligne (fenêtre étroite) : le bouton monte au-dessus de la barre de densité
+      if (sceneR + 12 > zoomL) { document.body.classList.add('scene-up'); sceneR = densR; }
+    }
+    const left = sceneR ? sceneR + 12 : 14;
     const right = zoom ? sr.right - zoom.getBoundingClientRect().left + 12 : 14;
     const room = sr.width - left - right;
     const above = room < 300;
@@ -2052,7 +2063,7 @@
   window.addEventListener('resize', () => layoutLabel());
   if (window.ResizeObserver) {
     const ro = new ResizeObserver(() => layoutLabel());
-    ['density-bar'].forEach((id) => { if ($(id)) ro.observe($(id)); });
+    ['density-bar', 'scene-open'].forEach((id) => { if ($(id)) ro.observe($(id)); });
     document.querySelectorAll('.zoom').forEach((z) => ro.observe(z));
   }
   function updateLabel() {
@@ -2061,6 +2072,7 @@
     updateGroundName();
     $('density-bar').hidden = !state.comp;
     $('scene-open').hidden = !state.comp;
+    layoutLabel();
     $('toolbar').hidden = !state.comp;
     const partial = $('partial-note');
     if (partial) partial.hidden = true;

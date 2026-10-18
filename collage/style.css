@@ -709,6 +709,10 @@ body.stage-full .density-bar { display: none; }
   .label { left: var(--label-l, 370px); right: var(--label-r, 330px); transform: none; width: fit-content; max-width: none; margin: 0 auto; }
   body.label-above .label { left: 20px; right: 20px; bottom: 70px; }
   body.label-above .stage canvas { inset: 64px 0 118px 0; height: calc(100% - 182px); } /* l'œuvre reste entière au-dessus */
+  /* fenêtre étroite : « Mettre en scène » au-dessus de la barre de densité, le cartel encore au-dessus */
+  body.scene-up .scene-open:not([hidden]) { left: 14px; bottom: 64px; }
+  body.scene-up.label-above .label { bottom: 120px; }
+  body.scene-up.label-above .stage canvas { inset: 64px 0 168px 0; height: calc(100% - 232px); }
 }
 .label span { font-family: var(--f-body); font-size: 0.6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -808,9 +812,10 @@ body.editing { overflow: hidden; }
 .scene-modal .scene-frame { margin: 0; width: min(100%, calc((100vh - 170px) * 4 / 3)); }
 .scene-modal .scene-size { display: flex; }
 .scene-modal .scene-mat { margin: 0; }
-/* bouton « Mettre en scène » dans la zone d'édition, au-dessus du curseur du nombre de dessins */
+/* bouton « Mettre en scène » dans la zone d'édition, à droite du curseur du nombre de dessins,
+   sur la même ligne (layoutLabel le place après la barre de densité et en tient compte pour le cartel) */
 .scene-open:not([hidden]) {
-  position: absolute; left: 14px; bottom: 64px; z-index: 3;
+  position: absolute; left: var(--scene-l, 14px); bottom: 14px; z-index: 3;
   display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border-radius: 999px;
   background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   color: var(--ink); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;

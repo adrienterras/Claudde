@@ -1352,7 +1352,7 @@ test.describe('Fond de toile conseillé', () => {
 });
 
 test.describe('Cartel sur ordinateur', () => {
-  test('le cartel ne passe jamais sous la barre de densité ni sous la barre d’outils, quelle que soit la largeur', async ({ app }) => {
+  test('le cartel et « Mettre en scène » ne passent jamais sous la barre de densité ni sous la barre d’outils, quelle que soit la largeur', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     // un compteur long (« tout ») et un cartel long
@@ -1365,12 +1365,16 @@ test.describe('Cartel sur ordinateur', () => {
       const r = await page.evaluate(() => {
         const box = (el) => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
         const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
-        const label = box(document.getElementById('label')), dens = box(document.getElementById('density-bar')), zoom = box(document.querySelector('.zoom'));
-        return { dens: hit(label, dens), zoom: hit(label, zoom), text: document.getElementById('label-meta').textContent.length };
+        const label = box(document.getElementById('label')), dens = box(document.getElementById('density-bar')), zoom = box(document.querySelector('.zoom')), scene = box(document.getElementById('scene-open'));
+        return { dens: hit(label, dens), zoom: hit(label, zoom), scene: hit(label, scene), sceneDens: hit(scene, dens), sceneZoom: hit(scene, zoom), text: document.getElementById('label-meta').textContent.length };
       });
       expect(r.text).toBeGreaterThan(60);
       expect(r.dens, `cartel sur la densité à ${width} px`).toBe(false);
       expect(r.zoom, `cartel sur la barre d'outils à ${width} px`).toBe(false);
+      // ni le bouton « Mettre en scène » : sur la ligne du curseur, ou au-dessus quand la place manque
+      expect(r.scene, `cartel sur « Mettre en scène » à ${width} px`).toBe(false);
+      expect(r.sceneDens, `« Mettre en scène » sur la densité à ${width} px`).toBe(false);
+      if (width >= 1100) expect(r.sceneZoom, `« Mettre en scène » sur la barre d'outils à ${width} px`).toBe(false);
     }
   });
 });
