@@ -2355,6 +2355,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       top: 230, // sous la suspension
       over: tr('d’une étagère de chambre d’enfant'),
     },
+    // l'entrée : une photo, mur vert sauge, échelle estimée d'après la console (environ 190 × 75 cm)
+    // et la lampe (45 cm) : 4,8 px par cm ; l'œuvre se place au-dessus de la console
+    hall: {
+      src: 'assets/hall.webp', light: 'assets/hall-lumiere.webp',
+      w: 1254, h: 940, pxPerCm: 4.8, floorY: 1060, centerX: 585, // le sol est juste sous le bord bas
+      minBottom: 95, // 20 cm au-dessus de la console
+      obstacles: [{ x0: 185, x1: 375, top: 119 }, { x0: 755, x1: 965, top: 94 }],
+      top: 221,
+      over: tr('d’une console d’entrée'),
+    },
   };
   const sceneRoom = () => { try { const v = localStorage.getItem('atelier.piece'); return SCENES[v] ? v : 'salon'; } catch (e) { return 'salon'; } };
   const sceneImgs = {};

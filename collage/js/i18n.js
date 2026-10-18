@@ -268,6 +268,8 @@
     'bois blanc': 'white wood',
     'd’un buffet de 2,30 m': 'a 2.30 m sideboard',
     'd’une étagère de chambre d’enfant': 'a child’s bedroom shelf',
+    'd’une console d’entrée': 'a hallway console table',
+    'Entrée': 'Hallway',
     'Pièce': 'Room',
     'Salon': 'Living room',
     'Chambre d’enfant': 'Child’s bedroom',

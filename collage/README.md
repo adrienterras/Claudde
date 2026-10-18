@@ -291,8 +291,10 @@ cd collage && python3 -m http.server 8000
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
    - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
      d'édition, avec le choix de la pièce, de la taille et de l'orientation de l'œuvre, du passe-partout et le
-     téléchargement ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : deux pièces au choix
-     (mémorisé), le salon ou une chambre d'enfant (photo de face `assets/chambre.webp`, échelle estimée
+     téléchargement ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : trois pièces au choix
+     (mémorisé) : le salon, une chambre d'enfant ou une entrée au mur vert sauge (photo `assets/hall.webp`,
+     console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
+     `assets/hall-lumiere.webp`) ; la chambre (photo de face `assets/chambre.webp`, échelle estimée
      d'après le mobilier : étagère basse de 55 cm, paniers de 33 cm, lampe et ours de 30 cm, soit 3,1 px
      par cm sur le mur ; l'œuvre est accrochée au-dessus de l'étagère, sous la suspension, avec la carte
      de lumière `assets/chambre-lumiere.webp`). Dans le salon, l'œuvre active est accrochée dans un
