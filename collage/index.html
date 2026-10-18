@@ -87,7 +87,7 @@
   <div class="mobile-brand">
     <span class="brand-mark" aria-hidden="true"></span>
     <span class="mobile-brand-name" aria-hidden="true"><small>Atelier</small> Gribouille</span>
-    <button type="button" class="cart-btn cart-btn-phone" hidden aria-label="Panier"><svg class="ico"><use href="#i-cart"/></svg><b class="cart-count">0</b></button>
+    <button type="button" class="order-cta order-cta-phone" hidden><svg class="ico"><use href="#i-cart"/></svg><span>Commander</span><b class="cart-count" hidden>0</b></button>
     <div class="lang-switch mobile-lang" role="group" aria-label="Langue / Language">
       <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
     </div>
@@ -393,7 +393,10 @@
   </section>
 
   <main class="stage">
-    <button type="button" class="cart-btn cart-btn-desk" hidden><svg class="ico"><use href="#i-cart"/></svg><span>Panier</span><b class="cart-count">0</b></button>
+    <div class="stage-cta">
+      <button type="button" class="cart-btn cart-btn-desk" hidden><svg class="ico"><use href="#i-cart"/></svg><span>Panier</span><b class="cart-count">0</b></button>
+      <button type="button" class="order-cta order-cta-desk" hidden><svg class="ico"><use href="#i-cart"/></svg><span>Commander</span></button>
+    </div>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée" hidden>
       <button data-act="undo" class="history" title="Défaire (Ctrl+Z)" aria-label="Défaire"><svg class="ico"><use href="#i-undo"/></svg><span>Défaire</span></button>
       <button data-act="redo" class="history" title="Refaire (Ctrl+Maj+Z)" aria-label="Refaire"><svg class="ico"><use href="#i-redo"/></svg><span>Refaire</span></button>

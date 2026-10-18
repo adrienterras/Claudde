@@ -726,9 +726,16 @@ test.describe('Panier', () => {
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('.cart-btn-desk')).toBeHidden(); // panier vide : pas de bouton
+    await expect(page.locator('.order-cta-desk')).toBeHidden(); // ni de « Commander » sans œuvre
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const euros = (t) => Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
+    // « Commander », bien en vue : panier vide, il propose la composition affichée
+    await expect(page.locator('.order-cta-desk')).toBeVisible();
+    await page.locator('.order-cta-desk').click();
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await page.locator('#cart-add [data-close]').first().click();
+    await expect(page.locator('#cart-add')).toBeHidden();
     // atelier Impression : tirages et fichier HD ; une proposition (pas celle affichée), en tableau encadré
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
     const style1 = await page.evaluate(() => AtelierGribouille.state.proposals[1].style.id);
@@ -763,6 +770,12 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBe(129);
     await page.locator('#cart [data-close]').first().click();
+    await expect(page.locator('#cart')).toBeHidden();
+    // avec des articles, « Commander » ouvre le panier
+    await page.locator('.order-cta-desk').click();
+    await expect(page.locator('#cart')).toBeVisible();
+    await page.locator('#cart [data-close]').first().click();
+    await expect(page.locator('#cart')).toBeHidden();
     // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
     // (l'étape Importer, repliée après l'import, se rouvre d'un clic sur son titre)
     await page.locator('#import-section > h2').click();

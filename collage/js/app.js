@@ -2072,6 +2072,7 @@
     updateGroundName();
     $('density-bar').hidden = !state.comp;
     $('scene-open').hidden = !state.comp;
+    document.querySelectorAll('.order-cta').forEach((b) => { b.hidden = !state.comp; });
     layoutLabel();
     $('toolbar').hidden = !state.comp;
     const partial = $('partial-note');
@@ -3700,7 +3701,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     'bois-clair': { name: tr('bois clair'), profile: 1.5, rgb: [212, 184, 146], grain: true },
     'bois-fonce': { name: tr('bois foncé'), profile: 1.5, rgb: [96, 70, 50], grain: true },
     'bois-noir': { name: tr('bois noir'), profile: 1.5, rgb: [38, 36, 34], grain: true, vein: (a) => `rgba(255, 255, 255, ${a * 0.5})` },
-    'bois-blanc': { name: tr('bois blanc'), profile: 1.5, rgb: [242, 240, 235], grain: true, vein: (a) => `rgba(120, 95, 70, ${a * 0.6})` },
+    'bois-blanc': { name: tr('bois blanc'), profile: 1.5, rgb: [253, 253, 252], grain: true, flat: true, vein: (a) => `rgba(150, 150, 145, ${a * 0.35})` },
     metal: { name: tr('métal'), profile: 0.9, rgb: [186, 188, 190], brushed: true },
   };
   // le cadre choisi par l'utilisateur ('auto' : assorti aux couleurs de l'œuvre)
@@ -3758,7 +3759,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       sd.pts.forEach(([px, py], i) => (i ? x.lineTo(px, py) : x.moveTo(px, py)));
       x.closePath();
       x.clip();
-      x.fillStyle = shade(F.rgb, sd.k);
+      // les baguettes blanches restent blanches : leur modelé est réduit
+      x.fillStyle = shade(F.rgb, F.flat ? 1 + (sd.k - 1) * 0.35 : sd.k);
       x.fillRect(ox, oy, w, h);
       if (F.grain || F.brushed) {
         // quelques veines (ou le brossé du métal), fines et peu contrastées, dans le sens de la baguette
@@ -5505,7 +5507,18 @@ Réponds uniquement avec ce JSON :
       b.querySelector('.cart-count').textContent = String(n);
       b.setAttribute('aria-label', tr`Panier : ${n} article(s)`);
     });
+    // le CTA « Commander » (téléphone) porte le compteur du panier
+    document.querySelectorAll('.order-cta .cart-count').forEach((c) => { c.textContent = String(n); c.hidden = !n; });
   }
+  // « Commander », bien en vue : le panier s'il contient déjà des articles, sinon la composition
+  // affichée est proposée au choix du produit
+  function orderNow() {
+    if (loadCart().length) { openCart(); return; }
+    if (!state.comp) return;
+    const st = STYLES.find((x) => x.id === state.comp.style);
+    openCartAdd(state.comp, titleFor(state.comp.style) || (st ? st.name : tr('Composition')), st ? st.name : '');
+  }
+  document.querySelectorAll('.order-cta').forEach((b) => (b.onclick = orderNow));
 
   // fenêtres
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
