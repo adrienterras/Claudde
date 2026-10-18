@@ -826,10 +826,11 @@ body.editing { overflow: hidden; }
 .scene-open:not([hidden]) {
   position: absolute; left: var(--scene-l, 14px); bottom: 14px; z-index: 3;
   display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border-radius: 999px;
-  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  color: var(--ink); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  background: var(--accent); border: 1px solid var(--accent);
+  color: var(--on-ink); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 8px 18px -10px rgba(0, 0, 0, .5);
 }
-.scene-open:hover { background: var(--surface); }
+.scene-open:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .scene-open .ico { width: 17px; height: 17px; }
 body.stage-full .scene-open { display: none; }
 .drop.small { padding: 16px 12px; }
