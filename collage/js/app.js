@@ -3844,12 +3844,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     const k = S.pxPerCm, aspect = S.w / S.h;
-    // hauteur d'accrochage : au-dessus d'un meuble bas, centre à 130 cm du sol, bas de l'œuvre au moins
-    // 20 cm au-dessus du buffet, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
+    // hauteur d'accrochage : centre à hauteur de regard (150 cm) pour une petite œuvre, un peu plus
+    // bas (135 cm) pour une grande qui descend vers le meuble ; le bas reste au moins 20 cm au-dessus
+    // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
     const ax = S.centerX;
     const half = (Wo / 2) * k;
     const bottom = S.obstacles.reduce((m, o) => (ax + half > o.x0 && ax - half < o.x1 ? Math.max(m, o.top + 10) : m), S.minBottom);
-    let mid = Math.max(130, bottom + Ho / 2);
+    const eye = Ho <= 60 ? 150 : Ho >= 100 ? 135 : 150 - ((Ho - 60) * 15) / 40;
+    let mid = Math.max(eye, bottom + Ho / 2);
     if (mid + Ho / 2 > S.top - 6) mid = Math.max(bottom + Ho / 2, S.top - 6 - Ho / 2);
     // cadrage : l'œuvre, le buffet et un peu de sol ; plus large pour une grande œuvre
     const top = mid + Ho / 2 + 15;
