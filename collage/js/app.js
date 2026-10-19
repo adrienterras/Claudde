@@ -1802,6 +1802,8 @@
     return clamp(k, 0.05, 1);
   }
 
+  // Tableau imprimé : la taille de l'impression dans le cadre choisi (sous le cadre, dans Tailles et dans la mise en scène)
+  const printSizeText = (f) => (f.mat ? tr`Impression de ${fmt(f.w)} × ${fmt(f.h)} cm avec passe-partout, dans un cadre de ${fmt(f.frameW)} × ${fmt(f.frameH)} cm.` : tr`Impression de ${fmt(f.w)} × ${fmt(f.h)} cm, à la taille du cadre.`);
   // Texte sous le choix de toile : taille calculée, papier disponible, couverture.
   function updateScaleLabel() {
     const f = formatCm();
@@ -1810,8 +1812,7 @@
     const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.frame) {
-      // tableau imprimé : la taille de l'impression dans le cadre choisi
-      txt = f.mat ? tr`Impression de ${fmt(f.w)} × ${fmt(f.h)} cm avec passe-partout, dans un cadre de ${fmt(f.frameW)} × ${fmt(f.frameH)} cm.` : tr`Impression de ${fmt(f.w)} × ${fmt(f.h)} cm, à la taille du cadre.`;
+      txt = printSizeText(f); // tableau imprimé : la taille de l'impression dans le cadre choisi
     } else if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => tr`${stockWord(c.t[0])} ${c.w} × ${c.h} cm (${stockWord(c.t[3])}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
       txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
@@ -2103,7 +2104,7 @@
       if (sceneR + 12 > zoomL) { document.body.classList.add('scene-up'); sceneR = densR; }
     }
     const left = sceneR ? sceneR + 12 : 14;
-    const right = zoom ? sr.right - zoom.getBoundingClientRect().left + 12 : 14;
+    const right = sr.width - zoomL + 12;
     const room = sr.width - left - right;
     const above = room < 300;
     document.body.classList.toggle('label-above', above);
@@ -3898,7 +3899,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!roomReady(room)) return false;
     const [photo, plant, light] = sceneImgs[room];
     const framed = printMode();
-    if (!out) { $('scene-mat').hidden = !framed; syncSceneFormat(); syncMatButtons(); }
+    if (!out) {
+      $('scene-mat-field').hidden = !framed;
+      $('scene-size-info').textContent = framed ? printSizeText(formatCm()) : '';
+      syncSceneFormat(); syncMatButtons();
+    }
     // œuvre (W × H), ouverture du cadre (Fw × Fh : le cadre choisi dans Tailles, ou le plus petit des
     // quatre où une composition rouverte d'un ancien format tient) et encombrement total (Wo × Ho) ;
     // le passe-partout se voit dès que l'ouverture dépasse l'œuvre
@@ -5578,7 +5583,7 @@ Réponds uniquement avec ce JSON :
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
   // d'après le catalogue — jamais celui qui a été stocké)
-  const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^panier-[a-z0-9]+$/.test(it.recId)
+  const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^(panier-[a-z0-9]+|cloud:[0-9a-f-]{8,40})$/.test(it.recId)
     && ['print', 'hd', 'guide', 'kit', 'signature'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
     && Number.isFinite(Number(it.W)) && Number.isFinite(Number(it.H));
   // une œuvre faite avec les dessins originaux n'existe qu'en un exemplaire : guide, kit et Atelier
@@ -5721,6 +5726,7 @@ Réponds uniquement avec ce JSON :
       window.Atelier.track('Panier', { produit: it.product === 'print' ? `${it.finish} ${it.size}` : it.product });
       closeModal($('cart-add'));
       openCart(tr`« ${it.title} » est dans votre panier.`);
+      if (cloudCartOn()) await syncCloudCart(); // connecté : l'article part dans le compte (même panier sur tous les appareils)
     } catch (e) {
       console.error(e);
       notice(tr`Impossible d’ajouter au panier : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
@@ -5744,10 +5750,11 @@ Réponds uniquement avec ce JSON :
         if (!x) return;
         x.qty = clamp(x.qty + Number(b.dataset.qty), 1, maxQty(x));
         saveCart(all); renderCart();
+        if (isCloudItem(x) && cloudCartOn()) window.Account.cloud.cartSet(x.recId, cartMeta(x)).catch((e) => console.error(e));
       }));
       li.querySelector('[data-remove]').onclick = () => {
         saveCart(loadCart().filter((y) => y.id !== it.id));
-        dbDel(it.recId).catch(() => {});
+        if (isCloudItem(it)) { if (cloudCartOn()) window.Account.cloud.del(it.recId).catch((e) => console.error(e)); } else dbDel(it.recId).catch(() => {});
         renderCart();
       };
       li.querySelector('[data-review]').onclick = async () => {
@@ -5769,18 +5776,92 @@ Réponds uniquement avec ce JSON :
     renderCart();
     cartStatus(msg || '');
     openModal($('cart'));
+    // connecté : le panier est relu depuis le compte (articles ajoutés ou retirés sur un autre appareil)
+    if (cloudCartOn()) syncCloudCart().then(() => { if (!$('cart').hidden) renderCart(); });
+  }
+
+  // ---------- Panier partagé par compte ----------
+  /*
+   * Connecté, le panier est le même sur tous les appareils : chaque article est une composition du
+   * compte marquée « panier » (meta.cart : produit, finition, taille, quantité), ses images dans le
+   * dossier de la composition ; elle n'apparaît dans « Mes compositions » qu'une fois commandée. La
+   * liste locale (localStorage) est la copie de travail : à la connexion, à l'ouverture du panier et
+   * avant la commande, elle est alignée sur le compte (les articles ajoutés hors connexion y sont
+   * envoyés, ceux retirés ailleurs disparaissent) ; quantité changée ou article retiré sont répercutés
+   * aussitôt. Déconnecté, les articles du compte ne sont plus à portée : seuls restent les locaux.
+   */
+  const cloudCartOn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
+  const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
+  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H });
+  // la composition locale d'un article, images comprises, prête à partir dans le compte
+  async function cartRecForCloud(it) {
+    const rec = await dbGet(it.recId);
+    if (!rec) return null;
+    for (const sd of rec.drawings) {
+      if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
+      delete sd.ref;
+      await loadSavedRef(sd);
+    }
+    rec.name = it.title;
+    rec.cart = cartMeta(it);
+    return rec;
+  }
+  // un article local devient un article du compte (la copie locale est effacée) ; jamais deux envois du même
+  const cartUploading = new Set();
+  async function cartItemToCloud(it) {
+    if (cartUploading.has(it.id)) return;
+    cartUploading.add(it.id);
+    try {
+      const rec = await cartRecForCloud(it);
+      if (!rec) return;
+      const cid = await window.Account.cloud.put(rec);
+      const all = loadCart(), x = all.find((y) => y.id === it.id);
+      if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
+      dbDel(it.recId).catch(() => {});
+    } catch (e) { console.error(e); cartStatus(tr`Panier non envoyé dans votre compte : ${(e && e.message) || ''}`); } finally { cartUploading.delete(it.id); }
+  }
+  let cartSyncing = null;
+  function syncCloudCart() {
+    if (!cloudCartOn()) return Promise.resolve();
+    if (cartSyncing) return cartSyncing;
+    cartSyncing = (async () => {
+      const remote = await window.Account.cloud.cart();
+      const byRec = new Map(remote.map((r) => [r.recId, r]));
+      const merged = [];
+      for (const it of loadCart()) {
+        if (isCloudItem(it)) {
+          const r = byRec.get(it.recId);
+          if (r) { merged.push(Object.assign({}, it, { qty: r.qty })); byRec.delete(it.recId); }
+          continue; // retiré sur un autre appareil : il disparaît ici aussi
+        }
+        merged.push(it);
+      }
+      byRec.forEach((r) => merged.push(r)); // ajoutés sur un autre appareil
+      saveCart(merged);
+      for (const it of merged.filter((x) => !isCloudItem(x))) await cartItemToCloud(it);
+    })().catch((e) => console.error(e)).finally(() => { cartSyncing = null; });
+    return cartSyncing;
+  }
+  if (window.Account && window.Account.enabled) {
+    window.Account.onChange((u) => {
+      if (u) syncCloudCart();
+      else { const kept = loadCart().filter((it) => !isCloudItem(it)); if (kept.length !== loadCart().length) saveCart(kept); }
+    });
   }
   document.querySelectorAll('.cart-btn').forEach((b) => (b.onclick = () => openCart()));
 
   // Commander : compositions sauvegardées dans le compte, puis message de commande prêt à envoyer.
   async function placeOrder() {
-    const items = loadCart();
-    if (!items.length) return;
+    if (!loadCart().length) return;
     const btn = $('cart-order');
     btn.disabled = true;
     try {
       const A = window.Account;
-      const cloud = !!(A && A.enabled && A.user());
+      const cloud = cloudCartOn();
+      // connecté : le panier du compte fait foi (articles ajoutés ailleurs, ou ici hors connexion)
+      if (cloud) { cartStatus(tr('Panier mis à jour depuis votre compte…')); await syncCloudCart(); }
+      const items = loadCart();
+      if (!items.length) { renderCart(); return; }
       const now = new Date();
       const ref = `AG-${now.toISOString().slice(2, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
       const lines = [];
@@ -5789,16 +5870,14 @@ Réponds uniquement avec ce JSON :
         let saved = '';
         if (cloud) {
           cartStatus(tr`Enregistrement des compositions dans votre compte : ${i + 1} / ${items.length}…`);
-          const rec = await dbGet(it.recId);
-          if (rec) {
-            for (const sd of rec.drawings) {
-              if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
-              delete sd.ref;
-              await loadSavedRef(sd);
-            }
-            rec.name = `${ref} · ${it.title}`.slice(0, 80);
-            delete rec.cart;
-            saved = await A.cloud.put(rec);
+          const name = `${ref} · ${it.title}`.slice(0, 80);
+          if (isCloudItem(it)) {
+            // déjà dans le compte : la composition prend le nom de la commande et quitte le panier
+            await A.cloud.cartSet(it.recId, null, name);
+            saved = it.recId;
+          } else {
+            const rec = await cartRecForCloud(it);
+            if (rec) { rec.name = name; delete rec.cart; saved = await A.cloud.put(rec); }
           }
         }
         lines.push(`${i + 1}. ${it.title} (${it.styleName}, ${fmt(it.W)} × ${fmt(it.H)} cm) — ${productLabel(it)} × ${it.qty} = ${euros(it.unit * it.qty)}${saved ? ` [${saved}]` : ''}`);
@@ -5814,7 +5893,7 @@ Réponds uniquement avec ce JSON :
       try { localStorage.setItem(ORDERS_KEY, JSON.stringify(orders.slice(-30))); } catch (e) { /* ignoré */ }
       window.Atelier.track('Commande', { articles: items.length, total: Math.round(total) });
       // panier vidé (les compositions commandées sont dans le compte, et dans « Mes compositions »)
-      items.forEach((it) => dbDel(it.recId).catch(() => {}));
+      items.forEach((it) => { if (!isCloudItem(it)) dbDel(it.recId).catch(() => {}); });
       saveCart([]);
       if (cloud) renderSaved();
       renderCart();
@@ -5843,7 +5922,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, syncCloudDraft, checkCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, syncCloudDraft, checkCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

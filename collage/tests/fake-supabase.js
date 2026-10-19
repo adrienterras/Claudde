@@ -52,12 +52,13 @@
       q.filters.forEach(([k, v]) => { rows = rows.filter((r) => r[k] === v); });
       if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
       if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(null); }
+      if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }
       if (q.order) rows.sort((a, b) => (a[q.order] < b[q.order] ? 1 : -1));
       if (q.single) return rows.length ? ok(rows[0]) : ko('Row not found');
       return ok(rows);
     };
     const chain = {
-      select() { return chain; }, insert(row) { q.op = 'insert'; q.row = row; return chain; }, delete() { q.op = 'delete'; return chain; },
+      select() { return chain; }, insert(row) { q.op = 'insert'; q.row = row; return chain; }, delete() { q.op = 'delete'; return chain; }, update(row) { q.op = 'update'; q.row = row; return chain; },
       eq(k, v) { q.filters.push([k, v]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; },
       then(res, rej) { return run().then(res, rej); },
     };

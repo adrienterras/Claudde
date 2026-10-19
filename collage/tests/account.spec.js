@@ -269,6 +269,50 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#profile-box')).toBeVisible();
   });
 
+  test('panier partagé par compte : les articles vivent dans le compte et reviennent sur un autre appareil', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'panier@example.org', 'Vert-Prairie-12', 'Pan');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.regenerate(); });
+    await page.waitForTimeout(400);
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="cadre"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    // connecté : l'article part dans le compte (ses images aussi), marqué « panier », une seule fois
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier')).every((it) => it.recId.startsWith('cloud:')), null, { timeout: 60000 });
+    const rows = () => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).map((r) => ({ name: r.name, qty: r.meta.cart.qty, finish: r.meta.cart.finish, size: r.meta.cart.size })));
+    expect(await rows()).toEqual([{ name: await page.locator('#cart .cart-item b').first().textContent(), qty: 1, finish: 'cadre', size: '30x40' }]);
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(6);
+    // la quantité change : le compte suit
+    await page.locator('#cart .cart-item [data-qty="1"]').click();
+    await expect.poll(async () => (await rows())[0].qty).toBe(2);
+    // pas dans « Mes compositions » (tant qu'il n'est pas commandé)
+    await page.locator('#cart [data-close]').first().click();
+    await page.evaluate(() => document.querySelector('#saved-section').classList.contains('collapsed') && document.querySelector('#saved-section > h2').click());
+    await page.evaluate(() => AtelierGribouille.renderSaved && AtelierGribouille.renderSaved());
+    await page.waitForTimeout(500);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
+    // un autre appareil (même compte, panier local vide) : l'article revient, avec sa quantité
+    await page.evaluate(() => localStorage.removeItem('atelier-gribouille:panier'));
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('2', { timeout: 30000 });
+    await page.locator('.cart-btn-desk').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    await expect(page.locator('#cart .cart-item .cart-qty output')).toHaveText('2');
+    // retiré ici : retiré du compte
+    await page.locator('#cart .cart-item [data-remove]').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(0);
+    await expect.poll(async () => (await rows()).length).toBe(0);
+    // déconnecté : le panier du compte n'est plus à portée
+    await page.locator('#cart [data-close]').first().click();
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await expect(page.locator('.cart-btn-desk')).toBeHidden();
+  });
+
   test('commander depuis le panier : connexion demandée, puis compositions enregistrées dans le compte', async ({ acc }) => {
     const { page } = acc;
     // des dessins importés avec un compte, puis déconnecté
@@ -293,7 +337,9 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#auth-submit').click();
     await expect(page.locator('#cart .cart-status')).toContainText('prête', { timeout: 60000 });
     const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
-    expect(uploads).toBe(6); // les deux dessins de la composition commandée (image, page, masques)
+    expect(uploads).toBe(6); // les deux dessins de la composition commandée (image, page, masques), envoyés une seule fois
+    // l'article du panier, parti dans le compte à la connexion, est devenu la composition commandée (plus de « panier »)
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length)).toBe(0);
     const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
     expect(orders).toHaveLength(1);
     await page.locator('#cart [data-close]').first().click();

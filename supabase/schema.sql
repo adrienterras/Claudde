@@ -7,7 +7,9 @@ create table if not exists public.compositions (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null,
   thumb text,                 -- vignette (data URL JPEG, quelques Ko)
-  meta jsonb not null,        -- réglages, mise en place, liste des dessins (chemins des fichiers)
+  meta jsonb not null,        -- réglages, mise en place, liste des dessins (chemins des fichiers) ;
+                              -- meta.draft : l'œuvre en cours ; meta.cart : un article du panier (produit,
+                              -- finition, taille, quantité), même panier sur tous les appareils du compte
   created_at timestamptz not null default now()
 );
 create index if not exists compositions_user_idx on public.compositions (user_id, created_at desc);

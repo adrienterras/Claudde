@@ -400,8 +400,9 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .cart-btn:hover { background: var(--accent-soft); }
 .cart-btn .ico { width: 18px; height: 18px; }
 .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--ink); color: var(--on-ink); font-size: 0.7rem; }
-/* sous la barre d'outils : « Panier » (s'il y a des articles) puis le CTA « Commander » */
-.stage-cta { position: absolute; top: 66px; right: 16px; z-index: 5; display: flex; align-items: center; gap: 8px; }
+/* en bas à droite de l'œuvre, juste au-dessus de la barre de zoom : « Panier » (s'il y a des articles)
+   puis le CTA « Commander » */
+.stage-cta { position: absolute; bottom: 64px; right: 16px; z-index: 5; display: flex; align-items: center; gap: 8px; }
 .cart-btn-desk { padding: 8px 10px 8px 14px; }
 .order-cta { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: 0; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 0.9rem; font-weight: 700; letter-spacing: .02em; cursor: pointer; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .55); }
 .order-cta:hover { background: var(--ink); transform: translateY(-1px); }
@@ -716,12 +717,11 @@ body.stage-full .density-bar { display: none; }
    au-dessus des deux barres : classe label-above) */
 @media (min-width: 861px) {
   .label { left: var(--label-l, 370px); right: var(--label-r, 330px); transform: none; width: fit-content; max-width: none; margin: 0 auto; }
-  body.label-above .label { left: 20px; right: 20px; bottom: 70px; }
-  body.label-above .stage canvas { inset: 64px 0 118px 0; height: calc(100% - 182px); } /* l'œuvre reste entière au-dessus */
-  /* fenêtre étroite : « Mettre en scène » au-dessus de la barre de densité, le cartel encore au-dessus */
+  /* au-dessus de la ligne de « Commander » (et de « Mettre en scène » quand il monte, fenêtre étroite) */
+  body.label-above .label { left: 20px; right: 20px; bottom: 120px; }
+  body.label-above .stage canvas { inset: 64px 0 168px 0; height: calc(100% - 232px); } /* l'œuvre reste entière au-dessus */
+  /* fenêtre étroite : « Mettre en scène » au-dessus de la barre de densité */
   body.scene-up .scene-open:not([hidden]) { left: 14px; bottom: 64px; }
-  body.scene-up.label-above .label { bottom: 120px; }
-  body.scene-up.label-above .stage canvas { inset: 64px 0 168px 0; height: calc(100% - 232px); }
 }
 .label span { font-family: var(--f-body); font-size: 0.6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -813,7 +813,7 @@ body.editing { overflow: hidden; }
 /* en « Auto », le cadre retenu est signalé d'un anneau en pointillés */
 .swatches.frames button.picked { box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--surface), 0 0 0 4px var(--muted); }
 .scene-body, .scene-controls { display: flex; flex-direction: column; gap: 10px; }
-.scene-size, .scene-mat { display: none; } /* téléphone : taille, passe-partout et orientation sont juste au-dessus, dans Tailles */
+.scene-size, .scene-mat-field { display: none; } /* téléphone : taille, passe-partout et orientation sont juste au-dessus, dans Tailles */
 /* ordinateur : la mise en scène dans une grande fenêtre, l'image à gauche, les réglages à droite */
 .scene-card { width: min(1180px, 100%); max-height: calc(100vh - 40px); }
 .scene-modal .acc-title { margin: 0; }
@@ -827,8 +827,10 @@ body.editing { overflow: hidden; }
 .scene-modal .scene-order { display: inline-flex; white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; justify-content: center; }
 .scene-modal .scene-frame { margin: 0; width: min(100%, calc((100vh - 170px) * 4 / 3)); }
 .scene-modal .scene-size { display: flex; }
-.scene-modal .scene-mat { display: flex; margin: 0; }
-.scene-modal .scene-mat[hidden] { display: none; }
+.scene-modal .scene-mat-field { display: block; }
+.scene-modal .scene-mat-field[hidden] { display: none; }
+.scene-modal .scene-mat { margin: 0; }
+.scene-modal p.scene-size { display: block; margin: -4px 0 0; }
 /* bouton « Mettre en scène » dans la zone d'édition, à droite du curseur du nombre de dessins,
    sur la même ligne (layoutLabel le place après la barre de densité et en tient compte pour le cartel) */
 .scene-open:not([hidden]) {
@@ -976,7 +978,7 @@ body.stage-full .scene-open { display: none; }
   .cart-btn-desk { display: none; }
   /* téléphone : « Commander » (petit, avec l'icône du sac) flotte en bas à gauche de l'œuvre, au-dessus
      du curseur, à l'opposé des outils (barre en haut, colonne de zoom à droite) */
-  .stage-cta { top: auto; right: auto; left: 10px; bottom: calc(var(--sheet) + 54px); }
+  .stage-cta { right: auto; left: 10px; bottom: calc(var(--sheet) + 54px); }
   body.sheet-tall .stage-cta, body.sheet-detail .stage-cta { display: none; } /* tiroir agrandi : l'œuvre est cachée, le bouton aussi */
   .order-cta-desk { gap: 6px; padding: 6px 11px 6px 9px; font-size: 0.74rem; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .5); }
   .order-cta-desk .ico { display: block; width: 15px; height: 15px; }

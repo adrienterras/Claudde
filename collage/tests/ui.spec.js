@@ -1421,8 +1421,16 @@ test.describe('Cartel sur ordinateur', () => {
         const box = (el) => { const b = el.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
         const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
         const label = box(document.getElementById('label')), dens = box(document.getElementById('density-bar')), zoom = box(document.querySelector('.zoom')), scene = box(document.getElementById('scene-open'));
-        return { dens: hit(label, dens), zoom: hit(label, zoom), scene: hit(label, scene), sceneDens: hit(scene, dens), sceneZoom: hit(scene, zoom), text: document.getElementById('label-meta').textContent.length };
+        const cta = box(document.querySelector('.order-cta-desk')), stage = box(document.querySelector('.stage'));
+        return { dens: hit(label, dens), zoom: hit(label, zoom), scene: hit(label, scene), sceneDens: hit(scene, dens), sceneZoom: hit(scene, zoom), text: document.getElementById('label-meta').textContent.length,
+          ctaLabel: hit(cta, label), ctaZoom: hit(cta, zoom), ctaScene: hit(cta, scene), ctaDens: hit(cta, dens), ctaLow: cta.t > (stage.t + stage.b) / 2 && cta.b <= stage.b };
       });
+      // « Commander » est en bas de l'œuvre (au-dessus de la barre de zoom), sans rien recouvrir
+      expect(r.ctaLow, `« Commander » en bas à ${width} px`).toBe(true);
+      expect(r.ctaLabel, `« Commander » sur le cartel à ${width} px`).toBe(false);
+      expect(r.ctaZoom, `« Commander » sur la barre de zoom à ${width} px`).toBe(false);
+      expect(r.ctaScene, `« Commander » sur « Mettre en scène » à ${width} px`).toBe(false);
+      expect(r.ctaDens, `« Commander » sur la densité à ${width} px`).toBe(false);
       expect(r.text).toBeGreaterThan(60);
       expect(r.dens, `cartel sur la densité à ${width} px`).toBe(false);
       expect(r.zoom, `cartel sur la barre d'outils à ${width} px`).toBe(false);
@@ -1571,6 +1579,10 @@ test.describe('Mettre en scène', () => {
       if (mode === 'impression') {
         // un cadre assorti aux couleurs de l'œuvre, à la taille du cadre choisi
         await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm, assorti`));
+        // la pièce en premier ; la taille d'impression sous le choix de la taille ; un titre au-dessus du passe-partout
+        expect(await page.evaluate(() => [...document.querySelectorAll('.scene-controls > *')].map((el) => el.id || el.className).slice(0, 5))).toEqual(['scene-room', 'field scene-size', 'scene-size-info', 'scene-mat-field', 'field scene-size']);
+        await expect(page.locator('#scene-size-info')).toHaveText(`Impression de ${fmt(W)} × ${fmt(H)} cm, à la taille du cadre.`);
+        expect((await page.locator('#scene-mat-field').textContent()).trim().startsWith('Passe-partout')).toBe(true);
         // le cadre se choisit aussi à la main (mémorisé) ; « Auto » revient au cadre assorti
         await expect(page.locator('#scene-frame-pick [data-frame="auto"]')).toHaveClass(/on/);
         expect(await page.locator('#scene-frame-pick button.picked').count()).toBe(1);

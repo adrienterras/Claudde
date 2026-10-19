@@ -155,7 +155,7 @@
   async function cloudList() {
     const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').order('created_at', { ascending: false });
     err(error);
-    return (data || []).filter((row) => !(row.meta && row.meta.draft)).map((row) => ({
+    return (data || []).filter((row) => !(row.meta && (row.meta.draft || row.meta.cart))).map((row) => ({
       id: `cloud:${row.id}`, name: row.name, date: row.created_at, thumb: row.thumb, cloud: true,
       comp: (row.meta && row.meta.comp) || {}, nDrawings: row.meta && row.meta.drawings ? row.meta.drawings.length : 0,
     }));
@@ -199,6 +199,7 @@
       drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved }));
     }
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings };
+    if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes compositions » tant qu'il n'est pas commandé
     const { error } = await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
     err(error);
     return `cloud:${id}`;
@@ -357,6 +358,27 @@
     err(error);
   }
 
+  // ---------- Panier dans le compte ----------
+  // Un article du panier est une composition marquée meta.cart (produit, finition, taille, quantité…).
+  async function cloudCart() {
+    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').order('created_at', { ascending: false });
+    err(error);
+    return (data || []).filter((row) => row.meta && row.meta.cart)
+      .map((row) => Object.assign({ id: row.id, recId: `cloud:${row.id}`, refs: [], title: row.name, thumb: row.thumb, date: row.created_at }, row.meta.cart))
+      .reverse();
+  }
+  // quantité ou produit changés (cart), ou article commandé (cart : null, avec le nom de la commande) :
+  // la composition reste, seule sa fiche change
+  async function cloudCartSet(cloudId, cart, name) {
+    const id = cloudId.replace(/^cloud:/, '');
+    const { data, error } = await client.from('compositions').select('meta').eq('id', id).single();
+    err(error);
+    const meta = Object.assign({}, data.meta);
+    if (cart) meta.cart = cart; else delete meta.cart;
+    const { error: e2 } = await client.from('compositions').update(name ? { meta, name } : { meta }).eq('id', id);
+    err(e2);
+  }
+
   async function cloudDel(cloudId) {
     const id = cloudId.replace(/^cloud:/, '');
     const store = client.storage.from(BUCKET);
@@ -373,7 +395,7 @@
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
-    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, draft: cloudDraft, draftPut: cloudDraftPut, draftDel: cloudDraftDel },
+    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, draft: cloudDraft, draftPut: cloudDraftPut, draftDel: cloudDraftDel, cart: cloudCart, cartSet: cloudCartSet },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',
   };

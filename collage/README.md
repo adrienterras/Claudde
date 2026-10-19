@@ -183,7 +183,8 @@ cd collage && python3 -m http.server 8000
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
-   - **panier** : un CTA « Commander » bien en vue (sous la barre d'outils sur ordinateur ; sur
+   - **panier** : un CTA « Commander » bien en vue (sur ordinateur, en bas à droite de l'œuvre, juste
+     au-dessus de la barre de zoom, avec le bouton « Panier » quand il y a des articles ; sur
      téléphone, petit, avec l'icône d'un sac, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » à côté
      (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
@@ -193,7 +194,13 @@ cd collage && python3 -m http.server 8000
      30 × 40, 40 × 50 ou 50 × 70, 29 à 129 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
      Signature 490 ou 690 €), et la quantité. La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
-     brouillon ; la liste est dans localStorage et survit au rechargement. Le panier (bouton en haut,
+     brouillon ; la liste est dans localStorage et survit au rechargement. **Connecté, le panier est le
+     même sur tous les appareils** : chaque article est une composition du compte marquée `meta.cart`
+     (produit, finition, taille, quantité ; images dans le dossier de la composition), absente de « Mes
+     compositions » tant qu'elle n'est pas commandée ; la liste locale est alignée sur le compte à la
+     connexion, à l'ouverture du panier et avant la commande (les articles ajoutés hors connexion y
+     partent, ceux retirés ailleurs disparaissent), quantité et retrait sont répercutés aussitôt, et la
+     commande renomme la composition sans la renvoyer ; déconnecté, seuls les articles locaux restent. Le panier (bouton en haut,
      avec le nombre d'articles) permet de changer les quantités, de retirer un article, de « Revoir »
      une composition dans l'atelier ; « Commander » (compte demandé) enregistre chaque composition
      dans le compte sous la référence de la commande (AG-AAMMJJ-XXXX), garde la commande dans
@@ -301,8 +308,9 @@ cd collage && python3 -m http.server 8000
      taille quand la composition est refaite (curseur de densité, format, nouveau dessin) ; les autres
      pages suivent la nouvelle proposition ;
    - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
-     d'édition, avec, dans l'ordre de la section Tailles du téléphone, la taille de l'œuvre, le passe-partout,
-     l'orientation, puis la pièce et le cadre, le téléchargement et un bouton « Commander l'œuvre » ; sur
+     d'édition, avec la pièce en premier puis, dans l'ordre de la section Tailles du téléphone, la taille de
+     l'œuvre (et, dessous, la taille d'impression qui en découle), le passe-partout sous son titre,
+     l'orientation, puis le cadre, le téléchargement et un bouton « Commander l'œuvre » ; sur
      téléphone, dans la section Tailles, sous le titre « Mise en scène », sans répéter la taille, le
      passe-partout et l'orientation choisis juste au-dessus) : trois pièces au choix
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge (photo `assets/hall.webp`,
