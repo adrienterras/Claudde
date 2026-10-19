@@ -76,6 +76,11 @@ cd collage && python3 -m http.server 8000
    quand il existe, sinon l'image de la vidéo) est jugée de la même façon, avec en plus sa
    définition (grand côté de la feuille en pixels : 140 dpi pour un A4), puis gardée ou reprise ;
    les photos gardées entrent dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
+   Si l'autorisation n'arrive pas (20 s), si elle est refusée, ou si la vidéo ne s'affiche pas (6 s
+   sans image : iPhone en économie d'énergie, caméra prise par une autre application), un message le
+   dit avec « Relancer la vidéo » (une lecture dans un geste) et, toujours, « Prendre la photo avec
+   l'appareil du téléphone » : un champ de fichier `capture="environment"` qui ouvre l'appareil photo
+   natif ; ses photos sont gardées et importées comme les autres.
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux

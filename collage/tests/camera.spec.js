@@ -140,6 +140,36 @@ test.describe('Photographier un dessin', () => {
     expect(ds[0].photo).toBeTruthy();
   });
 
+  test('vidéo qui ne démarre pas (iPhone en économie d’énergie) : message, relance, et l’appareil du téléphone en secours', async ({ app }) => {
+    const page = app.page;
+    // la lecture est refusée et aucune image n'arrive
+    await page.evaluate(() => {
+      window.__plays = 0;
+      HTMLMediaElement.prototype.play = function () { window.__plays++; return Promise.reject(Object.assign(new Error('nope'), { name: 'NotAllowedError' })); };
+      Object.defineProperty(HTMLVideoElement.prototype, 'videoWidth', { get: () => 0, configurable: true });
+    });
+    await page.locator('#camera-open').click();
+    await expect(page.locator('#camera')).toBeVisible();
+    await expect(page.locator('#camera-error')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('#camera-error')).toContainText('L’image de l’appareil photo n’arrive pas (NotAllowedError)');
+    await expect(page.locator('#camera-error button', { hasText: 'Relancer la vidéo' })).toBeVisible();
+    await expect(page.locator('#camera-native-open')).toBeVisible();
+    // « Relancer » retente la lecture (toujours refusée ici) : le message reste
+    await page.locator('#camera-error button', { hasText: 'Relancer la vidéo' }).click();
+    await page.waitForTimeout(3500);
+    expect(await page.evaluate(() => window.__plays)).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('#camera-error')).toBeVisible();
+    // l'appareil du téléphone : le champ de fichier avec capture, dont la photo est gardée et importée
+    expect(await page.evaluate(() => { const i = document.getElementById('camera-native'); return [i.getAttribute('capture'), i.accept]; })).toEqual(['environment', 'image/*']);
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#camera-native-open').click()]);
+    await chooser.setFiles(fixture('page-cutout.png'));
+    await expect(page.locator('#camera')).toBeHidden();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const ds = await app.drawings();
+    expect(ds).toHaveLength(1);
+    expect(ds[0].name).toBe('photo-1.jpg');
+  });
+
   test('fermer sans photo n’importe rien ; Échap ferme', async ({ app }) => {
     const page = app.page;
     await page.locator('#camera-open').click();

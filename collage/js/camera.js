@@ -193,16 +193,28 @@
     $('camera-done').textContent = n ? (n === 1 ? tr('Terminer et importer la photo') : tr`Terminer et importer les ${n} photos`) : tr('Fermer');
   }
 
+  // l'autorisation qui n'arrive jamais (navigateur intégré à une application, demande restée sans
+  // réponse) : on n'attend pas sans fin
+  const OPEN_WAIT = 20000, FRAME_WAIT = 6000;
+  const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { name: 'TimeoutError' })), ms))]);
+  // l'image arrive-t-elle ? (readyState et videoWidth restent à zéro tant que la vidéo ne joue pas)
+  const waitFrames = (video, ms) => new Promise((res) => { const t0 = Date.now(); (function poll() { if (video.readyState >= 2 && video.videoWidth) return res(true); if (Date.now() - t0 > ms) return res(false); setTimeout(poll, 100); })(); });
   async function startStream() {
     if (S.stream) { S.stream.getTracks().forEach((t) => t.stop()); S.stream = null; }
     const want = { video: { facingMode: { ideal: S.facing }, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false };
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia(want); } catch (e) { stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); }
+    try { stream = await withTimeout(navigator.mediaDevices.getUserMedia(want), OPEN_WAIT); } catch (e) {
+      if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'TimeoutError')) throw e;
+      stream = await withTimeout(navigator.mediaDevices.getUserMedia({ video: true, audio: false }), OPEN_WAIT);
+    }
     if (!S) { stream.getTracks().forEach((t) => t.stop()); return; }
     S.stream = stream;
     const video = $('camera-video');
     video.srcObject = stream;
-    try { await video.play(); } catch (e) { /* lecture déjà lancée */ }
+    // iPhone : la lecture peut être refusée hors d'un geste (mode économie d'énergie, autorisation
+    // demandée plus tôt) ; on le note, et on proposera de la relancer d'un appui
+    S.playError = null;
+    try { await video.play(); } catch (e) { S.playError = (e && e.name) || 'play'; }
     try {
       const devs = await navigator.mediaDevices.enumerateDevices();
       $('camera-switch').hidden = devs.filter((d) => d.kind === 'videoinput').length < 2;
@@ -285,6 +297,35 @@
     tick();
   }
 
+  // Un message dans la visée, avec toujours l'issue de secours : l'appareil photo du téléphone
+  // lui-même (champ de fichier avec capture), qui marche partout
+  function showError(text, opts) {
+    const err = $('camera-error');
+    err.hidden = false;
+    err.innerHTML = '';
+    const p = document.createElement('p');
+    p.textContent = text;
+    err.appendChild(p);
+    if (opts && opts.retry) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn'; b.textContent = tr('Relancer la vidéo');
+      b.onclick = async () => {
+        if (!S) return;
+        const video = $('camera-video');
+        try { await video.play(); S.playError = null; } catch (e) { S.playError = (e && e.name) || 'play'; }
+        if (await waitFrames(video, 3000)) { err.hidden = true; if (S) tick(); } else showError(noFramesText(), { retry: true });
+      };
+      err.appendChild(b);
+    }
+    const n = document.createElement('button');
+    n.type = 'button'; n.className = 'btn btn-primary'; n.id = 'camera-native-open';
+    n.innerHTML = '<svg class="ico"><use href="#i-camera"/></svg><span></span>';
+    n.querySelector('span').textContent = tr('Prendre la photo avec l’appareil du téléphone');
+    n.onclick = () => $('camera-native').click();
+    err.appendChild(n);
+  }
+  const noFramesText = () => tr`L’image de l’appareil photo n’arrive pas${S && S.playError ? ` (${S.playError})` : ''}. Sur iPhone, cela arrive en mode économie d’énergie, ou quand la caméra est déjà utilisée par une autre application.`;
+
   async function open(opts) {
     if (S) return;
     S = { stream: null, facing: 'environment', shots: [], timer: null, busy: false, review: null, last: null, onDone: opts && opts.onDone, onError: opts && opts.onError };
@@ -300,15 +341,17 @@
     try {
       await startStream();
       if (S) tick();
+      // la caméra est ouverte mais rien ne s'affiche : on le dit, avec de quoi s'en sortir
+      if (S && !(await waitFrames($('camera-video'), FRAME_WAIT)) && S && !S.review) { $('camera-verdict').textContent = ''; showError(noFramesText(), { retry: true }); }
     } catch (e) {
       console.error(e);
       if (!S) return;
       $('camera-verdict').textContent = '';
-      const err = $('camera-error');
-      err.hidden = false;
-      err.textContent = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')
+      showError(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')
         ? tr('L’accès à l’appareil photo a été refusé. Autorisez-le dans les réglages du navigateur, ou importez des photos depuis la galerie.')
-        : tr('Aucun appareil photo disponible. Importez des photos depuis la galerie.');
+        : e && e.name === 'TimeoutError'
+          ? tr('L’appareil photo ne répond pas (l’autorisation n’a pas été donnée ?). Vous pouvez prendre la photo avec l’appareil du téléphone, ou l’importer depuis la galerie.')
+          : tr('Aucun appareil photo disponible. Importez des photos depuis la galerie.'));
     }
   }
   function close() {
@@ -332,6 +375,14 @@
     $('camera-keep').addEventListener('click', keep);
     $('camera-retake').addEventListener('click', retake);
     $('camera-done').addEventListener('click', close);
+    // l'appareil photo du téléphone (hors navigateur) : les photos prises sont gardées et importées
+    $('camera-native').addEventListener('change', () => {
+      const files = [...$('camera-native').files];
+      $('camera-native').value = '';
+      if (!S || !files.length) return;
+      files.forEach((f) => S.shots.push(new File([f], `photo-${S.shots.length + 1}.jpg`, { type: f.type || 'image/jpeg' })));
+      close();
+    });
     $('camera-switch').addEventListener('click', async () => {
       if (!S) return;
       S.facing = S.facing === 'environment' ? 'user' : 'environment';

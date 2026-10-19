@@ -1134,7 +1134,9 @@ body.stage-full .scene-open { display: none; }
 .camera-tip { margin: 0; color: rgba(255, 255, 255, 0.85); }
 .camera-tip:empty { display: none; }
 .camera-count { margin: 0; font-size: 0.82rem; color: var(--ink-2); font-weight: 600; }
-.camera-error { position: absolute; left: 16px; right: 16px; top: 40%; margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--surface); color: var(--ink); text-align: center; font-size: 0.9rem; }
+.camera-error { position: absolute; left: 16px; right: 16px; top: 40%; margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--surface); color: var(--ink); text-align: center; font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.camera-error[hidden] { display: none; }
+.camera-error p { margin: 0; }
 /* téléphone : comme un appareil photo, le déclencheur en bas ; la barre du haut disparaît si elle est vide */
 @media (max-width: 860px) {
   .camera .ed-bar { grid-row: 1; border-top: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; }
