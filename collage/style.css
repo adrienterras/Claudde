@@ -813,7 +813,7 @@ body.editing { overflow: hidden; }
 /* en « Auto », le cadre retenu est signalé d'un anneau en pointillés */
 .swatches.frames button.picked { box-shadow: 0 0 0 1px var(--line), 0 0 0 3px var(--surface), 0 0 0 4px var(--muted); }
 .scene-body, .scene-controls { display: flex; flex-direction: column; gap: 10px; }
-.scene-size { display: none; }
+.scene-size, .scene-mat { display: none; } /* téléphone : taille, passe-partout et orientation sont juste au-dessus, dans Tailles */
 /* ordinateur : la mise en scène dans une grande fenêtre, l'image à gauche, les réglages à droite */
 .scene-card { width: min(1180px, 100%); max-height: calc(100vh - 40px); }
 .scene-modal .acc-title { margin: 0; }
@@ -827,7 +827,8 @@ body.editing { overflow: hidden; }
 .scene-modal .scene-order { display: inline-flex; white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; justify-content: center; }
 .scene-modal .scene-frame { margin: 0; width: min(100%, calc((100vh - 170px) * 4 / 3)); }
 .scene-modal .scene-size { display: flex; }
-.scene-modal .scene-mat { margin: 0; }
+.scene-modal .scene-mat { display: flex; margin: 0; }
+.scene-modal .scene-mat[hidden] { display: none; }
 /* bouton « Mettre en scène » dans la zone d'édition, à droite du curseur du nombre de dessins,
    sur la même ligne (layoutLabel le place après la barre de densité et en tient compte pour le cartel) */
 .scene-open:not([hidden]) {

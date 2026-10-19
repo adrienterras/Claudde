@@ -301,8 +301,10 @@ cd collage && python3 -m http.server 8000
      taille quand la composition est refaite (curseur de densité, format, nouveau dessin) ; les autres
      pages suivent la nouvelle proposition ;
    - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
-     d'édition, avec le choix de la pièce, de la taille et de l'orientation de l'œuvre, du passe-partout, le
-     téléchargement et un bouton « Commander l'œuvre » ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : trois pièces au choix
+     d'édition, avec, dans l'ordre de la section Tailles du téléphone, la taille de l'œuvre, le passe-partout,
+     l'orientation, puis la pièce et le cadre, le téléchargement et un bouton « Commander l'œuvre » ; sur
+     téléphone, dans la section Tailles, sous le titre « Mise en scène », sans répéter la taille, le
+     passe-partout et l'orientation choisis juste au-dessus) : trois pièces au choix
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
      `assets/hall-lumiere.webp`) ; la chambre (photo de face `assets/chambre.webp`, échelle estimée
