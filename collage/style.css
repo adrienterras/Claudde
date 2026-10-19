@@ -671,7 +671,7 @@ body.bg-mode .stage { outline: 2px dashed var(--olive); outline-offset: -2px; }
 .zoom button.ground-open { display: grid; place-items: center; }
 .ground-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--dot, #f4f2ec); box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 2.5px var(--line); }
 .ground-open.none .ground-dot { background: repeating-linear-gradient(45deg, #efe9dd 0 3px, #e3dccd 3px 6px); }
-.ground-pop { position: absolute; right: 14px; bottom: 64px; z-index: 4; width: min(300px, calc(100% - 28px)); padding: 12px 14px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .55); }
+.ground-pop { position: absolute; right: 14px; bottom: 64px; z-index: 6; width: min(300px, calc(100% - 28px)); padding: 12px 14px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .55); }
 .ground-pop[hidden] { display: none; }
 .ground-pop-head { margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.86rem; }
 .ground-pop-head small { color: var(--muted); font-size: 0.78rem; }

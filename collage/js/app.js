@@ -1355,6 +1355,8 @@
   function groundPaint() {
     return state.ground && state.ground !== 'auto' ? PAINTS.find((c) => c[1] === state.ground) || null : null;
   }
+  // Impression : « sans couleur », un fond blanc pur (la toile nue n'y a pas de sens)
+  const GROUND_WHITE = '#ffffff';
   // 'auto' : la couleur conseillée pour chaque proposition ; '' : toile nue ; sinon une teinte
   function setGround(hex) {
     state.ground = hex === undefined ? 'auto' : hex;
@@ -1368,7 +1370,7 @@
     const el = $('ground-name');
     if (state.comp && state.comp.style === 'galerie') el.textContent = tr('blanc, fixe en Galerie');
     else if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
-    else { const paint = groundPaint(); el.textContent = paint ? paint[0] : tr('toile nue'); }
+    else { const paint = groundPaint(); el.textContent = paint ? paint[0] : state.ground === GROUND_WHITE ? tr('sans couleur (blanc)') : tr('toile nue'); }
     // la pastille près de l'œuvre : la couleur réellement peinte sur la proposition affichée
     const pop = $('ground-pop-name'), btn = $('ground-open');
     if (pop) pop.textContent = el.textContent;
@@ -1427,6 +1429,7 @@
         box.appendChild(b);
       };
       mk(tr('Couleur conseillée selon la composition'), 'auto');
+      mk(tr('Sans couleur (fond blanc)'), GROUND_WHITE);
       mk(tr('Toile nue (lin, sans peinture)'), '');
       PAINTS.forEach(([name, hex]) => mk(name, hex));
       box.querySelector('[data-hex="auto"]').className = 'auto';
@@ -1492,7 +1495,9 @@
   function syncGroundMode() {
     const print = printMode();
     document.querySelectorAll('#ground button[data-hex=""], #ground-quick button[data-hex=""]').forEach((b) => { b.hidden = print; });
-    if (print && state.ground === '') setGround(undefined);
+    // « sans couleur » (blanc pur) n'existe qu'en Impression ; la toile nue, qu'en Toile
+    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"], #ground-quick button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print; });
+    if ((print && state.ground === '') || (!print && state.ground === GROUND_WHITE)) setGround(undefined);
   }
   function initMode() {
     const q = location.search;

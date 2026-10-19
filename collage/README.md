@@ -40,7 +40,8 @@ cd collage && python3 -m http.server 8000
      Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
      guide de création ; finition toile cachée. Le **fond est toujours un aplat de couleur,
      parfaitement uni** (`o.flat` : ni coups de brosse ni grain de toile, `comp.paint = false`), pas de
-     toile nue (la teinte conseillée s'applique d'office), blanc fixe en Galerie. Par-dessus, les
+     toile nue (la teinte conseillée s'applique d'office) mais un choix « sans couleur » (fond blanc
+     pur, `GROUND_WHITE`, proposé seulement dans cet atelier), blanc fixe en Galerie. Par-dessus, les
      **pages très colorées peintes en larges étendues** (paysage, ciel, mer : plus de 55 % de la
      feuille peinte, couleur franche, larges aplats calmes, ou rôle « fond » donné par Claude) se
      collent en fond d'office, toutes (`printBg` dans `planCoverage`) ; les autres pages sont des
@@ -363,7 +364,7 @@ cd collage && python3 -m http.server 8000
      à côté (`#ground-pop`) ; une teinte s'applique tout de suite, la palette reste ouverte pour en
      essayer d'autres et se ferme d'un appui ailleurs ou avec Échap ; elle reste synchronisée avec
      le nuancier des réglages avancés ; sans objet en Galerie (fond blanc fixe) ;
-   - **fond de toile** : au choix, la toile nue (lin) ou un aplat d'acrylique dans les teintes
+   - **fond de toile** : au choix, la toile nue (lin ; en Impression, « sans couleur » : blanc pur) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand
      il n'y a pas assez de dessins ; par défaut, l'app conseille pour chaque proposition la teinte

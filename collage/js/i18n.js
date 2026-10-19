@@ -279,6 +279,8 @@
     'Impression de {0} × {1} cm avec passe-partout, dans un cadre de {2} × {3} cm.': 'Print of {0} × {1} cm with a mount, in a {2} × {3} cm frame.',
     'Impression de {0} × {1} cm, à la taille du cadre.': 'Print of {0} × {1} cm, the size of the frame.',
     '{0} · impression {1} × {2} cm': '{0} · print {1} × {2} cm',
+    'Sans couleur (fond blanc)': 'No colour (white background)',
+    'sans couleur (blanc)': 'no colour (white)',
     '{0} · toile {1} × {2} cm': '{0} · canvas {1} × {2} cm',
     'Panier mis à jour depuis votre compte…': 'Updating the cart from your account…',
     'Panier non envoyé dans votre compte : {0}': 'Cart not sent to your account: {0}',

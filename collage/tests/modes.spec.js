@@ -73,6 +73,15 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('#drawings .thumb').first().click();
     await expect(page.locator('#detail [data-role="texture"]')).toHaveCount(1);
     expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(true);
+    // « Sans couleur » : un fond blanc pur, proposé seulement en Impression
+    expect(await page.evaluate(() => document.querySelector('#ground button[data-hex="#ffffff"]').hidden)).toBe(false);
+    await page.evaluate(() => document.querySelector('#ground button[data-hex="#ffffff"]').click());
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.filter((p) => p.style.id !== 'galerie').every((p) => p.comp.ground === '#ffffff'))).toBe(true);
+    expect(await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 20; c.height = 20; const x = c.getContext('2d'); Compose.renderGround(x, AtelierGribouille.state.comp, 20 / AtelierGribouille.state.comp.W); return Array.from(x.getImageData(5, 5, 1, 1).data); })).toEqual([255, 255, 255, 255]);
+    expect(await page.evaluate(() => document.getElementById('ground-name').textContent)).toBe('sans couleur (blanc)');
+    await page.evaluate(() => document.querySelector('#ground button[data-hex="auto"]').click());
+    await page.waitForTimeout(400);
     await expect(page.locator('#export-info')).toContainText('tableau imprimé de 29,7 × 21 cm');
     // chaque dessin s'agrandit ou se réduit à la main : boutons (10 %), puis poignée carrée
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
@@ -285,6 +294,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // toile : les pages peintes restent des pages de fond, la toile nue reste proposée
     expect(await page.evaluate(() => AtelierGribouille.state.proposals.some((p) => p.comp.bg.some((L) => !L.paper)))).toBe(true);
     expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(false);
+    expect(await page.evaluate(() => document.querySelector('#ground button[data-hex="#ffffff"]').hidden)).toBe(true); // « sans couleur » : Impression seulement
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add input[value="guide"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeVisible();

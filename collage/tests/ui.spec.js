@@ -1461,7 +1461,7 @@ test.describe('Couleur du fond à portée de main', () => {
     await page.locator('#ground-open').click();
     await expect(page.locator('#ground-pop')).toBeVisible();
     // une teinte différente de l'actuelle
-    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
     await page.locator(`#ground-quick button[data-hex="${hex}"]`).click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);
     await expect(page.locator(`#ground-quick button[data-hex="${hex}"]`)).toHaveClass(/on/);
@@ -1479,7 +1479,7 @@ test.describe('Couleur du fond à portée de main', () => {
   test('toute nouvelle création part en couleur automatique ; une œuvre rouverte garde la sienne', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
-    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
     await page.evaluate((h) => document.querySelector(`#ground-quick button[data-hex="${h}"]`).click(), hex);
     expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe(hex);
     // le brouillon garde la couleur choisie
@@ -1522,7 +1522,7 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
     await page.mouse.move(pt.x, pt.y); await page.mouse.down(); await page.mouse.move(pt.x + 60, pt.y + 30, { steps: 6 }); await page.mouse.up();
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { ground: c.ground, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
     // une autre couleur de fond
-    await page.evaluate(() => { const b = [...document.querySelectorAll('#ground button')].find((x) => x.dataset.hex && x.dataset.hex !== 'auto' && x.dataset.hex !== AtelierGribouille.state.comp.ground); b.click(); });
+    await page.evaluate(() => { const b = [...document.querySelectorAll('#ground button')].find((x) => !x.hidden && x.dataset.hex && x.dataset.hex !== 'auto' && x.dataset.hex !== AtelierGribouille.state.comp.ground); b.click(); });
     const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
     expect(after.style).toBe('tournesol');
     expect(after.ground).not.toBe(before.ground);
@@ -1547,7 +1547,7 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
     await page.waitForTimeout(500);
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, pinned: AtelierGribouille.state.pinned === c, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
     expect(before.pinned).toBe(true);
-    await page.evaluate(() => { const b = [...document.querySelectorAll('#ground button')].find((x) => x.dataset.hex && x.dataset.hex !== 'auto' && x.dataset.hex !== AtelierGribouille.state.comp.ground); b.click(); });
+    await page.evaluate(() => { const b = [...document.querySelectorAll('#ground button')].find((x) => !x.hidden && x.dataset.hex && x.dataset.hex !== 'auto' && x.dataset.hex !== AtelierGribouille.state.comp.ground); b.click(); });
     const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
     expect(after.style).toBe(before.style);
     expect(after.ground).not.toBe(before.ground);
