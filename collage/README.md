@@ -16,11 +16,11 @@ cd collage && python3 -m http.server 8000
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, cartes de choix dans
    l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
    - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
-     **quatre cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70 ; seule liste
+     **cinq cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70, 70 × 100 ; seule liste
      proposée, 30 × 40 par défaut, un ancien réglage ramené au cadre le plus proche). Un choix « Sans /
      Avec passe-partout » à côté du cadre (mémorisé, repris par la mise en scène) fixe la taille
      d'impression : sans, elle remplit le cadre (A4 dans le 21 × 30) ; avec, elle prend la taille en
-     dessous (13 × 18, A4, 30 × 40, 40 × 50) et la composition est refaite à cette taille. Les dessins
+     dessous (13 × 18, A4, 30 × 40, 40 × 50, 50 × 70) et la composition est refaite à cette taille. Les dessins
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, `computePrintScale`) qui
      **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
      curseur en demande, comme à la pose) doivent couvrir la part de l'affiche que le curseur fixe,
@@ -191,7 +191,7 @@ cd collage && python3 -m http.server 8000
      présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,
-     30 × 40, 40 × 50 ou 50 × 70, 29 à 129 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
+     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
      Signature 490 ou 690 €), et la quantité. La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
      brouillon ; la liste est dans localStorage et survit au rechargement. **Connecté, le panier est le

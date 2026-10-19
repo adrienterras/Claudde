@@ -1576,7 +1576,7 @@
    * L'œuvre est composée à cette taille exacte, les dessins réduits d'un même facteur pour y tenir.
    */
   /*
-   * Atelier Impression : quatre cadres du commerce, et la taille d'impression qui va avec. Sans
+   * Atelier Impression : cinq cadres du commerce, et la taille d'impression qui va avec. Sans
    * passe-partout, l'impression fait la taille du cadre (21 × 30 : un A4) ; avec passe-partout, elle
    * prend la taille en dessous, le passe-partout faisant la différence. Le choix se fait à côté du
    * cadre (section Tailles) et dans la mise en scène, qui montre le même cadre.
@@ -1586,6 +1586,7 @@
     { key: '30x40', w: 30, h: 40, print: [30, 40], mat: [21, 29.7] },
     { key: '40x50', w: 40, h: 50, print: [40, 50], mat: [30, 40] },
     { key: '50x70', w: 50, h: 70, print: [50, 70], mat: [40, 50] },
+    { key: '70x100', w: 70, h: 100, print: [70, 100], mat: [50, 70] },
   ];
   const FRAME_DEFAULT = 'cadre:30x40';
   const frameOf = (v) => PRINT_FRAMES.find((f) => `cadre:${f.key}` === v) || null;
@@ -1614,7 +1615,7 @@
     syncMatButtons();
     if (printMode() && state.drawings.length) { state.pinned = null; regenerate(); } else { updateScaleLabel(); scheduleScene(); }
   }
-  // le plus petit des quatre cadres où une œuvre tient (pour une composition rouverte d'un ancien format)
+  // le plus petit des cadres où une œuvre tient (pour une composition rouverte d'un ancien format)
   function frameAround(W, H) {
     const land = W >= H;
     const f = PRINT_FRAMES.find((x) => (land ? x.h : x.w) >= W - 0.01 && (land ? x.w : x.h) >= H - 0.01);
@@ -5555,14 +5556,14 @@ Réponds uniquement avec ce JSON :
    */
   const CART_KEY = 'atelier-gribouille:panier', ORDERS_KEY = 'atelier-gribouille:commandes';
   const ORDER_MAIL = 'bonjour@atelier-gribouille.com';
-  // tailles vendues : les quatre cadres de l'atelier Impression (PRINT_FRAMES)
-  const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70] };
+  // tailles vendues : les cadres de l'atelier Impression (PRINT_FRAMES)
+  const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] };
   const PRICES = {
     hd: 14.9, guide: 24.9, kit: 89, signature: 490, signatureGrand: 690,
     print: {
-      papier: { '21x30': 29, '30x40': 39, '40x50': 49, '50x70': 59 },
-      cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129 },
-      toile: { '21x30': 49, '30x40': 69, '40x50': 89, '50x70': 109 },
+      papier: { '21x30': 29, '30x40': 39, '40x50': 49, '50x70': 59, '70x100': 89 },
+      cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129, '70x100': 199 },
+      toile: { '21x30': 49, '30x40': 69, '40x50': 89, '50x70': 109, '70x100': 169 },
     },
   };
   const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée'), toile: tr('sur toile') };

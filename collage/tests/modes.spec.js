@@ -32,8 +32,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
-    // quatre cadres du commerce, rien d'autre ; 30 × 40 par défaut
-    expect(opts).toEqual(['cadre:21x30', 'cadre:30x40', 'cadre:40x50', 'cadre:50x70']);
+    // cinq cadres du commerce, rien d'autre ; 30 × 40 par défaut
+    expect(opts).toEqual(['cadre:21x30', 'cadre:30x40', 'cadre:40x50', 'cadre:50x70', 'cadre:70x100']);
     expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:30x40');
     await expect(page.locator('#guide-box')).toBeHidden();
     await expect(page.locator('#sizes-hint')).toBeHidden();
@@ -140,7 +140,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('.cart-what-size')).toContainText('tableau imprimé de 21 × 29,7 cm');
     // la taille proposée est le cadre choisi ; les quatre tailles, avec leur prix
     await expect(page.locator('#cart-add [data-size="21x30"]')).toHaveClass(/on/);
-    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-size]')].map((b) => b.dataset.size))).toEqual(['21x30', '30x40', '40x50', '50x70']);
+    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-size]')].map((b) => b.dataset.size))).toEqual(['21x30', '30x40', '40x50', '50x70', '70x100']);
     await expect(page.locator('.cart-fit')).toBeHidden(); // l'œuvre fait exactement la taille du cadre
     await page.locator('#cart-add [data-close]').first().click();
     // avec passe-partout : l'impression prend la taille en dessous (13 × 18 dans le 21 × 30), même cadre
