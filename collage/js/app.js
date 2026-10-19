@@ -4521,9 +4521,12 @@ Réponds uniquement avec ce JSON :
   // page ne fait rien perdre. « Commencez une nouvelle œuvre » l'efface pour repartir de zéro.
   // Une réouverture en cours est notée : si la page a planté pendant (mémoire du téléphone), la
   // visite suivante ne la relance pas d'elle-même — elle la propose, pour ne pas planter en boucle.
+  // Une sortie normale de la page (actualiser, changer de page) lève la marque, sauf pendant la
+  // réouverture elle-même : iPhone peut signaler une sortie juste avant de tuer la page faute de
+  // mémoire (Safari affichait alors « un problème récurrent est survenu » à chaque retour) ; quitter
+  // la page pendant la réouverture vaut donc une proposition à la visite suivante, un simple appui.
   const RESUME_KEY = 'atelier-gribouille:reouverture';
-  // une sortie normale de la page (actualiser, changer de page) n'est pas un plantage
-  window.addEventListener('pagehide', () => { try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ } });
+  window.addEventListener('pagehide', () => { if (state.resuming) return; try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ } });
   function forgetDraft() {
     $('draft-offer').hidden = true;
     dbDel(DRAFT_ID).catch(() => {});

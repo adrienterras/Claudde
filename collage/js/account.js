@@ -25,10 +25,22 @@
       user = session ? session.user : null;
       if (event === 'PASSWORD_RECOVERY') recovering = true;
       if (event === 'SIGNED_OUT') recovering = false;
+      if (event === 'SIGNED_IN') cleanAuthUrl();
       notify();
     });
-    client.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; notify(); });
+    client.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; cleanAuthUrl(); notify(); });
     return true;
+  }
+  // Retour d'une connexion Google : le code à usage unique (?code=…) quitte l'adresse une fois lu,
+  // pour qu'un rechargement (ou une page rouverte par Safari après un plantage) reparte d'une
+  // adresse propre, sans retenter l'échange
+  function cleanAuthUrl() {
+    try {
+      const u = new URL(location.href);
+      if (!u.searchParams.has('code') && !u.searchParams.has('error_description')) return;
+      ['code', 'state', 'error', 'error_code', 'error_description'].forEach((k) => u.searchParams.delete(k));
+      history.replaceState(history.state, '', u.pathname + (u.search || '') + u.hash);
+    } catch (e) { /* ignoré */ }
   }
 
   const redirectTo = () => location.origin + location.pathname;

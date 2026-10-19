@@ -201,7 +201,10 @@
   const waitFrames = (video, ms) => new Promise((res) => { const t0 = Date.now(); (function poll() { if (video.readyState >= 2 && video.videoWidth) return res(true); if (Date.now() - t0 > ms) return res(false); setTimeout(poll, 100); })(); });
   async function startStream() {
     if (S.stream) { S.stream.getTracks().forEach((t) => t.stop()); S.stream = null; }
-    const want = { video: { facingMode: { ideal: S.facing }, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false };
+    // téléphone et tablette : 5 Mpx suffisent pour un A4 net (150 dpi) et ménagent la mémoire (4K
+    // sur iPhone : images lourdes à chaque analyse de la visée) ; ordinateur : la webcam donne ce qu'elle a
+    const phone = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const want = { video: { facingMode: { ideal: S.facing }, width: { ideal: phone ? 2560 : 3840 }, height: { ideal: phone ? 1920 : 2160 } }, audio: false };
     let stream;
     try { stream = await withTimeout(navigator.mediaDevices.getUserMedia(want), OPEN_WAIT); } catch (e) {
       if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'TimeoutError')) throw e;

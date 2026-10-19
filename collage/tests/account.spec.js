@@ -269,6 +269,13 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#profile-box')).toBeVisible();
   });
 
+  test('retour de connexion : le code à usage unique quitte l’adresse', async ({ acc }) => {
+    const { page } = acc;
+    await page.goto('index.html?code=7e20c38d-d8f3-4083-ace6-235799df91ff&mode=toile');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await expect.poll(() => page.evaluate(() => location.search)).toBe('?mode=toile');
+  });
+
   test('panier partagé par compte : les articles vivent dans le compte et reviennent sur un autre appareil', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'panier@example.org', 'Vert-Prairie-12', 'Pan');
