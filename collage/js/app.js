@@ -2562,6 +2562,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return { x: L.x + hx * c - hy * s, y: L.y + hx * s + hy * c };
   }
   const layerBase = (L) => (L.kind === 'bg' ? [L.pageW || L.w, L.pageH || L.h] : [L.piece.wcm, L.piece.hcm]);
+  // Une page de fond qu'on redimensionne passe devant les autres pages : agrandie sous elles, on ne
+  // verrait que son cadre de sélection (les pages se recouvrent), et on croirait que rien ne change.
+  function bgToFront(L) {
+    const bg = state.comp && state.comp.bg;
+    if (!bg || L.kind !== 'bg') return;
+    const i = bg.indexOf(L);
+    if (i < 0 || i === bg.length - 1) return;
+    bg.splice(i, 1); bg.push(L);
+    state.bgCache = null;
+  }
   function setLayerScale(L, f) {
     const [bw, bh] = layerBase(L);
     const w0 = L.w, h0 = L.h;
@@ -2666,6 +2676,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (Math.hypot(q.x - p.X, q.y - p.Y) * view.s < 18 * view.dpr) {
           // la poignée carrée agrandit ou réduit la pièce, autour de son centre
           drag = { mode: 'scale', L, d0: Math.max(0.5, Math.hypot(p.X - L.x, p.Y - L.y)), f0: L.scale || 1, w0: L.w, snap: snapshot() };
+          bgToFront(L);
           return;
         }
       }
@@ -3059,6 +3070,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (name === 'bigger' || name === 'smaller') {
         if (!resizable()) return;
         setLayerScale(L, (L.scale || 1) * (name === 'bigger' ? 1.1 : 1 / 1.1));
+        bgToFront(L);
         updateLabel(); render();
         return;
       }
@@ -5523,12 +5535,15 @@ Réponds uniquement avec ce JSON :
   function renderCartButton() {
     const n = loadCart().reduce((s, it) => s + it.qty, 0);
     document.querySelectorAll('.cart-btn').forEach((b) => {
-      b.hidden = !n;
-      b.querySelector('.cart-count').textContent = String(n);
-      b.setAttribute('aria-label', tr`Panier : ${n} article(s)`);
+      // sur ordinateur, le bouton « Panier » n'apparaît qu'avec des articles ; dans l'en-tête du
+      // téléphone, l'icône du chariot reste en place et son compteur ne s'affiche qu'avec des articles
+      const head = b.classList.contains('cart-btn-head');
+      b.hidden = !n && !head;
+      const c = b.querySelector('.cart-count');
+      c.textContent = String(n);
+      c.hidden = head && !n;
+      b.setAttribute('aria-label', n ? tr`Panier : ${n} article(s)` : tr('Panier'));
     });
-    // le CTA « Commander » (téléphone) porte le compteur du panier
-    document.querySelectorAll('.order-cta .cart-count').forEach((c) => { c.textContent = String(n); c.hidden = !n; });
   }
   // « Commander », bien en vue : la composition affichée est proposée au choix du produit (la
   // fenêtre « Ajouter au panier ») ; un lien y mène au panier s'il contient déjà des articles

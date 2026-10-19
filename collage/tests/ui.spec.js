@@ -1165,6 +1165,37 @@ test.describe('Tiroir au doigt sur téléphone', () => {
   });
 });
 
+test.describe('Panier sur téléphone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('l’icône du chariot dans l’en-tête ouvre le panier et porte le compteur ; « Commander » reste petit', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(() => localStorage.removeItem('atelier-gribouille:panier'));
+    const head = page.locator('.cart-btn-head');
+    await expect(head).toBeVisible(); // présent même panier vide
+    await expect(head).toHaveAttribute('aria-label', 'Panier');
+    await expect(head.locator('.cart-count')).toBeHidden();
+    await expect(head.locator('span')).toHaveCount(0); // l'icône seule, sans texte
+    await expect(page.locator('.cart-btn-desk')).toBeHidden();
+    await app.import(['page-cutout.png', 'page-two.png']);
+    const cta = page.locator('.order-cta-desk');
+    await expect(cta).toBeVisible();
+    const b = await cta.boundingBox();
+    expect(b.height).toBeLessThan(36); // bouton discret
+    expect(b.x + b.width).toBeLessThan(390);
+    await cta.click();
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart')).toBeVisible(); // l'ajout ouvre le panier
+    await page.locator('#cart [data-close]').first().click();
+    await expect(page.locator('#cart')).toBeHidden();
+    await expect(head.locator('.cart-count')).toHaveText('1');
+    await expect(head).toHaveAttribute('aria-label', /1 article/);
+    await head.click(); // l'icône de l'en-tête rouvre le panier
+    await expect(page.locator('#cart')).toBeVisible();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+  });
+});
+
 test.describe('Plein écran sur téléphone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   test('le tiroir descend jusqu’à la barre des sections ; une section touchée le fait remonter', async ({ app }) => {

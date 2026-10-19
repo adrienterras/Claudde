@@ -92,6 +92,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(e1.w).toBeGreaterThan(e0.w * 1.3);
     expect(e1.cw / e1.w).toBeCloseTo(e0.cw / e0.w, 3);
     expect(e1.ch / e1.h).toBeCloseTo(e0.ch / e0.h, 3);
+    // la page redimensionnée passe devant les autres pages : sinon, agrandie sous elles, on ne la verrait pas
+    expect(await page.evaluate(() => { const c = AtelierGribouille.state.comp; return c.bg.indexOf(AtelierGribouille.state.selected) === c.bg.length - 1; })).toBe(true);
     for (let i = 0; i < 4; i++) await page.locator('#toolbar [data-act="smaller"]').click();
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     const h = await page.evaluate(() => {

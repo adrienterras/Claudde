@@ -180,8 +180,10 @@ cd collage && python3 -m http.server 8000
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
    - **panier** : un CTA « Commander » bien en vue (sous la barre d'outils sur ordinateur ; sur
-     téléphone, en bas à droite de l'œuvre, au-dessus du curseur, avec le compteur) ouvre le choix du produit pour la composition affichée (avec
-     un lien vers le panier s'il contient déjà des articles) ; chaque proposition (bouton sur sa vignette) ou
+     téléphone, petit, en bas à droite de l'œuvre, au-dessus du curseur) ouvre le choix du produit pour la composition affichée (avec
+     un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » à côté
+     (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
+     présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 30 × 40,
      50 × 70 ou 70 × 100, 39 à 199 €) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
@@ -288,7 +290,9 @@ cd collage && python3 -m http.server 8000
      au plus. Les scans restent des images : un dessin d'enfant ne se vectorise pas sans le trahir ;
    - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
-     ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication) ;
+     ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication).
+     Une page que l'on redimensionne (poignée carrée ou boutons Agrandir / Réduire, en Affiche et en
+     Galerie) passe devant les autres pages : agrandie sous elles, on ne verrait que son cadre ;
    - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
      d'édition, avec le choix de la pièce, de la taille et de l'orientation de l'œuvre, du passe-partout, le
      téléchargement et un bouton « Commander l'œuvre » ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : trois pièces au choix
