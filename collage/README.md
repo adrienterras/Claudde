@@ -553,16 +553,19 @@ Les optimisations ne changent aucun pixel :
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Le site publié a deux parties : la page d'accueil (`landing/`,
-présentation du concept avec, en tête, la vidéo de présentation en 16:9 sur toute la largeur de la
-page (28 s en boucle, muette) puis le héros (titre, boutons, photo de la toile dans le salon) :
-le réel Instagram vertical (hors dépôt) fournit l'animation — sa zone visuelle est recadrée image par
-image et posée à droite à même le fond, sans carte ni ombre (ses bords s'estompent) —, ses légendes
-sont réécrites à gauche en Playfair aux mêmes instants,
-et un carton de fin (logo, promesse, adresse) termine ; rendue par `landing/tools/accueil-video.py`
-(Pillow + ffmpeg, polices du site) en français et en anglais (`img/accueil-video-fr.mp4`, `-en.mp4`,
+présentation du concept avec, en tête, la vidéo de présentation en 16:9, bord à bord sur toute la
+largeur de la page (25 s, muette, lue une fois : la bande se replie ensuite pour laisser la place
+au héros — titre, boutons, photo de la toile dans le salon) : le réel Instagram vertical (hors
+dépôt) fournit l'animation — sa zone visuelle est recadrée image par image et posée à droite à même
+le fond, bords nets —, ses légendes sont réécrites à gauche en Playfair aux mêmes instants ; son
+gros plan sur la toile est réincrusté dans l'écran de l'ordinateur, sans zoom (correspondance
+mesurée par corrélation, `tools/accueil-video-zoom.json`), et sa fin est remplacée par le tableau
+encadré (`tools/accueil-video-tableau.jpg`, tiré du réel) accroché dans la chambre d'enfant de
+l'atelier, sans carton de fin ; rendue par `landing/tools/accueil-video.py` (Pillow + ffmpeg +
+scipy, polices du site) en français et en anglais (`img/accueil-video-fr.mp4`, `-en.mp4`,
 1280 × 720, affiche `accueil-video-poster.webp`, option `--hd` pour une 1920 × 1080) ;
-`accueil-video.js` choisit la version selon la langue et n'enchaîne pas si le système demande moins
-d'animations —, puis comment ça marche, le téléphone, les sept styles, la promesse, les œuvres
+`accueil-video.js` choisit la version selon la langue, lance la lecture d'office (retentée au
+premier geste si le téléphone la refuse) et replie la bande à la fin —, puis comment ça marche, le téléphone, les sept styles, la promesse, les œuvres
 accrochées dans des pièces illustrées, et les questions) à la racine, et
 l'application sous `/atelier/` (`?exemple` charge le jeu d'exemple d'office). Adresse :
 https://ateliergribouille.art (domaine personnalisé

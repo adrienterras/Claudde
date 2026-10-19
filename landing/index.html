@@ -98,7 +98,8 @@
     .hero-art .sticker { position: absolute; left: 18px; bottom: -18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: .8rem; box-shadow: 0 14px 30px -18px rgba(0,0,0,.4); transform: rotate(2deg); }
     .hero-art .sticker b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1rem; }
     /* la vidéo de présentation : une bande sur toute la largeur, au-dessus du héros */
-    .video-band { padding: 0; }
+    .video-band { padding: 0; overflow: hidden; }
+    .video-band.done { transition: height .7s ease, opacity .5s ease; opacity: 0; }
     .hero-video { display: block; width: 100%; height: auto; background: #f6f3ec; }
     .video-band + .hero { padding-top: 56px; }
     /* sections */
@@ -217,7 +218,7 @@
   <main>
     <div class="video-band">
       <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), bord à bord, muette, en boucle ; sa version anglaise est choisie par accueil-video.js -->
-      <video class="hero-video" id="hero-video" autoplay muted loop playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 28 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
+      <video class="hero-video" id="hero-video" autoplay muted playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 25 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
         <source src="img/accueil-video-fr.mp4" type="video/mp4">
       </video>
     </div>

@@ -7,7 +7,7 @@
     "Transformez les dessins de vos enfants en tableau : découpés, réunis en une œuvre unique à imprimer, encadrée ou à réaliser à la main. Gratuit pour composer.": "Turn your children’s drawings into a canvas: cut out, gathered into a unique artwork to print, framed or made by hand. Free to compose.",
     "Atelier Gribouille — les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — children’s drawings become works of art",
     "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon": "A canvas made of cut-out children’s drawings, hanging on a living-room wall",
-    "L’atelier en 28 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main": "The studio in 28 seconds: the drawings imported, cut out and composed into an artwork, then printed and framed or glued by hand",
+    "L’atelier en 25 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main": "The studio in 25 seconds: the drawings imported, cut out and composed into an artwork, then printed and framed or glued by hand",
     "Que faire des dessins de ses enfants ?": "What can I do with my children’s drawings?",
     "Choisissez les plus beaux, scannez-les ou prenez-les en photo, puis réunissez-les dans une œuvre à accrocher. L’atelier la compose gratuitement, et vous pouvez garder les originaux ou les coller vous-même sur la toile.": "Pick the best ones, scan or photograph them, then gather them into an artwork to hang. The studio composes it for free, and you can keep the originals or glue them onto the canvas yourself.",
     "Comment transformer un dessin d’enfant en tableau ?": "How do I turn a child’s drawing into a canvas?",

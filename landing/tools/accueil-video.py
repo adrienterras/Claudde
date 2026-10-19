@@ -1,25 +1,39 @@
 #!/usr/bin/env python3
-"""Vidéo de tête de la page d'accueil (16:9, moins de 30 s), tirée du réel Instagram de présentation.
+"""Vidéo de tête de la page d'accueil (16:9, 25 s), tirée du réel Instagram de présentation.
 
 Le réel (vertical, 1080 × 1920) fournit l'animation : sa zone visuelle (dessins qui s'empilent,
-l'atelier à l'écran, le tableau encadré) est recadrée image par image et posée à droite, à même le
-fond (sans carte ni ombre : ses bords se fondent dans la couleur du fond) ; les légendes du réel sont
-réécrites à gauche, en Playfair, aux mêmes instants ; un carton de fin (logo,
-promesse, adresse) termine. Deux langues. Entrées : le réel (hors dépôt), les polices du site et
-img/logo-mark.png. Sorties : img/accueil-video-fr.mp4, -en.mp4 (1280 × 720), l'affiche
-accueil-video-poster.webp et, avec --hd, une version 1920 × 1080.
-Usage : python3 tools/accueil-video.py --reel <mp4> --fonts <dossier> [--ffmpeg <binaire>] [--hd <sortie.mp4>]
+l'atelier à l'écran) est recadrée image par image et posée à droite, à même le fond, bords nets
+(l'ombre de l'ordinateur, coupée par le bord du réel, s'éteint avant le bord) ; les légendes du
+réel sont réécrites à gauche, en Playfair, aux mêmes instants. Deux écarts avec le réel :
+- son gros plan sur la toile (10,3 s – 14,5 s, le poisson qui tourne) est réincrusté dans l'écran
+  de l'ordinateur, sans zoom : la correspondance (échelle, position) entre chaque image du gros
+  plan et l'écran tel qu'il est à 14,6 s est mesurée par corrélation (accueil-video-zoom.json,
+  calculé une fois, --track pour le refaire) ;
+- sa fin (le tableau encadré sur un mur beige, puis son carton) est remplacée par le même tableau
+  accroché dans la chambre d'enfant de l'atelier (collage/assets/chambre.webp, éclairé par sa carte
+  de lumière), sans carton de fin.
+Entrées : le réel (hors dépôt), les polices du site, le tableau encadré tiré du réel
+(accueil-video-tableau.jpg) et la chambre. Sorties : img/accueil-video-fr.mp4, -en.mp4 (1280 × 720),
+l'affiche accueil-video-poster.webp et, avec --hd, une version 1920 × 1080.
+Usage : python3 tools/accueil-video.py --reel <mp4> --fonts <dossier> [--ffmpeg <binaire>] [--hd <sortie.mp4>] [--track]
 """
-import argparse, os, subprocess
+import argparse, json, os, subprocess
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 FPS = 30
 REEL_W, REEL_H = 1080, 1920
 REEL_END = 25.0          # le carton de fin du réel n'est pas repris
 CROP_Y0, CROP_Y1 = 500, 1560  # zone visuelle du réel, sous ses légendes
-END_S = 3.0               # carton de fin
 INK, INK2 = (43, 42, 34), (78, 76, 62)
+BG = (244, 240, 232)      # le crème du réel autour de ses légendes
+ZOOM_REF = 14.6           # l'écran de l'ordinateur, juste après le dézoom du réel : référence du réincrust
+ZOOM_T0, ZOOM_T1 = 10.0, 14.7  # fenêtre où le gros plan est mesuré
+SCREEN = (132, 776, 1045, 1404)  # la scène de l'atelier (à droite du panneau) dans l'écran de l'image de référence
+ZOOM_START = 10.13        # juste après le fondu blanc du réel : dès là, l'écran est celui de la référence
+BED_T = 18.3              # à partir de là : le tableau dans la chambre (fondu depuis l'ordinateur)
+BED_FADE = 0.5
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 # légendes (début, fin, runs [(texte, italique)]) — aux instants du réel
 CAPTIONS = {
@@ -50,12 +64,67 @@ CAPTIONS = {
         (22.5, 24.9, [('with a ', False), ('step-by-step guide.', True)]),
     ],
 }
-END = {
-    'fr': ('Les dessins d’enfants deviennent des œuvres d’art.', 'Gratuit pour composer · Votre tableau à partir de 14,90 €'),
-    'en': ('Children’s drawings become works of art.', 'Free to compose · Your artwork from €14.90'),
-}
-
 def ease(t): return 1 - (1 - t) ** 3
+
+# ---------- le gros plan du réel, mesuré contre l'écran de référence ----------
+def reel_frames(ffmpeg, reel, t0, t1, w, h, fmt='rgb24'):
+    n = 3 if fmt == 'rgb24' else 1
+    p = subprocess.Popen([ffmpeg, '-loglevel', 'error', '-ss', str(t0), '-t', str(t1 - t0), '-i', reel, '-vf', f'fps={FPS},scale={w}:{h}', '-f', 'rawvideo', '-pix_fmt', fmt, '-'], stdout=subprocess.PIPE)
+    i = 0
+    try:
+        while True:
+            b = p.stdout.read(w * h * n)
+            if len(b) < w * h * n: break
+            yield t0 + i / FPS, np.frombuffer(b, np.uint8).reshape((h, w, 3) if n == 3 else (h, w)); i += 1
+    finally:
+        if p.poll() is None: p.kill()
+        p.wait()
+def reel_frame(ffmpeg, reel, t, w, h, fmt='rgb24'):
+    """une seule image du réel"""
+    return next(iter(reel_frames(ffmpeg, reel, t, t + 0.05, w, h, fmt)))[1]
+
+def track_zoom(ffmpeg, reel, out_json):
+    """Pour chaque image entre ZOOM_T0 et ZOOM_T1 : échelle s et position (x, y), dans l'image de
+    référence, de la zone que l'image couvre (corrélation normalisée, en demi-résolution)."""
+    from scipy.signal import fftconvolve
+    D = 2; W, H = REEL_W // D, REEL_H // D
+    def ncc(R, T):
+        T = T - T.mean(); tn = np.sqrt((T * T).sum()) + 1e-6
+        h, w = T.shape; ones = np.ones_like(T)
+        num = fftconvolve(R, T[::-1, ::-1], mode='valid')
+        s1 = fftconvolve(R, ones, mode='valid'); s2 = fftconvolve(R * R, ones, mode='valid')
+        c = num / (np.sqrt(np.maximum(s2 - s1 * s1 / (h * w), 1e-6)) * tn)
+        k = np.unravel_index(np.argmax(c), c.shape)
+        return float(c[k]), int(k[0]), int(k[1])
+    R = reel_frame(ffmpeg, reel, ZOOM_REF, W, H, 'gray').astype(np.float32)
+    out = []
+    for t, Z in reel_frames(ffmpeg, reel, ZOOM_T0, ZOOM_T1, W, H, 'gray'):
+        best = None
+        for s in np.arange(1.0, 1.7, 0.01):
+            tw, th = int(round(W / s)), int(round(H / s))
+            T = np.asarray(Image.fromarray(Z).resize((tw, th), Image.BILINEAR), np.float32)
+            sc, y, x = ncc(R, T)
+            if best is None or sc > best[0]: best = (sc, float(s), x * D, y * D)
+        out.append({'t': round(t, 3), 's': round(best[1], 3), 'x': best[2], 'y': best[3], 'score': round(best[0], 3)})
+        print(f'  {t:6.2f} s={best[1]:.2f} x={best[2]} y={best[3]} ({best[0]:.2f})', flush=True)
+    json.dump(out, open(out_json, 'w'))
+    return out
+
+def zoom_table(track):
+    """Le relevé, lissé (médiane sur 5 images) : {image: (s, x, y)} pour les images zoomées."""
+    s = np.array([r['s'] for r in track]); x = np.array([r['x'] for r in track], float); y = np.array([r['y'] for r in track], float)
+    def med(a):
+        b = a.copy()
+        for i in range(len(a)): b[i] = np.median(a[max(0, i - 2):i + 3])
+        return b
+    s, x, y = med(s), med(x), med(y)
+    ok = [i for i, r in enumerate(track) if s[i] > 1.005 and r['score'] >= 0.8]  # (score faible : le fondu blanc avant le gros plan)
+    tab = {}
+    for i, r in enumerate(track):
+        f = int(round(r['t'] * FPS))
+        if f < int(round(ZOOM_START * FPS)) or i > ok[-1]: continue
+        tab[f] = (float(s[i]), float(x[i]), float(y[i])) if i in ok else (1.0, 0.0, 0.0)
+    return tab
 
 def wrap(runs, fonts, max_w):
     words = []
@@ -76,38 +145,72 @@ def wrap(runs, fonts, max_w):
     return lines
 
 class Renderer:
-    def __init__(self, out_w, out_h, fonts_dir, logo):
+    def __init__(self, out_w, out_h, fonts_dir):
         self.W, self.H = out_w, out_h
         k = self.k = out_w / 1920
         self.fonts = {False: ImageFont.truetype(os.path.join(fonts_dir, 'PlayfairDisplay[wght].ttf'), int(64 * k)),
                       True: ImageFont.truetype(os.path.join(fonts_dir, 'PlayfairDisplay-Italic[wght].ttf'), int(64 * k))}
-        self.f_brand = ImageFont.truetype(os.path.join(fonts_dir, 'PlayfairDisplay[wght].ttf'), int(124 * k))
-        self.f_tag = ImageFont.truetype(os.path.join(fonts_dir, 'PlayfairDisplay-Italic[wght].ttf'), int(46 * k))
-        self.f_small = ImageFont.truetype(os.path.join(fonts_dir, 'Montserrat[wght].ttf'), int(27 * k))
-        self.f_kicker = ImageFont.truetype(os.path.join(fonts_dir, 'Montserrat[wght].ttf'), int(26 * k))
-        self.f_pill = ImageFont.truetype(os.path.join(fonts_dir, 'Montserrat[wght].ttf'), int(34 * k))
-        self.logo = Image.open(logo).convert('RGBA')
         # zone visuelle du réel : hauteur 1000 (sur 1080), à droite
         self.vis_h = int(1000 * k); self.vis_w = int(self.vis_h * REEL_W / (CROP_Y1 - CROP_Y0))
         self.vis_x = self.W - self.vis_w - int(50 * k); self.vis_y = int(40 * k)
         self.col_x0, self.col_x1 = int(90 * k), self.vis_x - int(60 * k)
-        self.feather = None
+        # l'ombre de l'ordinateur atteint les bords gauche et droit du réel : elle s'éteint sur les
+        # 200 derniers pixels (seuls les pixels proches du fond sont ramenés au fond, pas l'ordinateur)
+        xs = np.arange(REEL_W)
+        self.taper = np.clip(1 - np.minimum(xs, xs[::-1]) / 200.0, 0, 1)[None, :, None]
+        self.bed = None
 
-    def background(self, reel):
-        """Un fond uni : la couleur du réel autour de ses légendes (crème, ou le mur beige à la fin)."""
-        bg = tuple(int(v) for v in reel[150:300, 10:60].reshape(-1, 3).mean(axis=0))
-        return Image.new('RGB', (self.W, self.H), bg)
-    def blend(self, vis):
-        """La zone visuelle du réel, à même le fond : ses quatre bords s'estompent sur quelques dizaines
-        de pixels pour qu'aucun contour ne se voie (ni carte, ni ombre)."""
-        if self.feather is None:
-            f = int(70 * self.k)
-            w, h = vis.size
-            ramp = np.minimum(1, np.minimum(np.arange(w), np.arange(w)[::-1]) / f)
-            rampy = np.minimum(1, np.minimum(np.arange(h), np.arange(h)[::-1]) / f)
-            self.feather = Image.fromarray((np.outer(rampy, ramp) * 255).astype(np.uint8), 'L')
-        v = vis.convert('RGBA'); v.putalpha(self.feather)
-        return v
+    def background(self):
+        return Image.new('RGB', (self.W, self.H), BG)
+    def crop(self, reel):
+        """La zone visuelle du réel, bords nets, l'ombre coupée ramenée au fond près des bords."""
+        c = reel[CROP_Y0:CROP_Y1].astype(np.float32)
+        d = np.abs(c - np.array(BG, np.float32)).max(axis=2, keepdims=True)
+        m = np.clip(1 - (d - 10) / 30.0, 0, 1)
+        c = c + (np.array(BG, np.float32) - c) * self.taper * m
+        return Image.fromarray(c.round().astype(np.uint8), 'RGB').resize((self.vis_w, self.vis_h), Image.LANCZOS)
+    def unzoom(self, reel, ref, s, x, y):
+        """Le gros plan (reel) réincrusté dans l'écran de référence : l'image entière du gros plan
+        couvre, dans ref, la zone (x, y, REEL_W / s, REEL_H / s). Seule sa zone visuelle (sous les
+        légendes du réel) est reprise, et seulement là où elle tombe dans l'écran : la lunette de
+        l'ordinateur et tout le reste viennent de ref (pas de double contour pendant le zoom)."""
+        w, h = int(round(REEL_W / s)), int(round((CROP_Y1 - CROP_Y0) / s))
+        px, py = int(round(x)), int(round(y + CROP_Y0 / s))
+        small = Image.fromarray(reel[CROP_Y0:CROP_Y1], 'RGB').resize((w, h), Image.LANCZOS)
+        x0, y0, x1, y1 = max(px, SCREEN[0]), max(py, SCREEN[1]), min(px + w, SCREEN[2]), min(py + h, SCREEN[3])
+        out = ref.copy()
+        if x1 > x0 and y1 > y0: out.paste(small.crop((x0 - px, y0 - py, x1 - px, y1 - py)), (x0, y0))
+        return np.asarray(out)
+    def bedroom(self, assets, artwork, t):
+        """La chambre d'enfant de l'atelier, le tableau du réel accroché au-dessus de l'étagère (il
+        apparaît en fondu), éclairé par la carte de lumière de la pièce."""
+        if self.bed is None:
+            room = Image.open(os.path.join(assets, 'chambre.webp')).convert('RGB')
+            light = Image.open(os.path.join(assets, 'chambre-lumiere.webp')).convert('L').resize(room.size, Image.BILINEAR)
+            art = Image.open(artwork).convert('RGB')
+            aw = 440; ah = int(round(art.height * aw / art.width))
+            art = art.resize((aw, ah), Image.LANCZOS)
+            ax, ay = 654 - aw // 2, 617 - ah  # centré sur l'étagère, 70 px au-dessus
+            la = np.asarray(light.crop((ax, ay, ax + aw, ay + ah)), np.float32) / 255.0
+            lit = np.asarray(art, np.float32) * (0.72 + 0.28 * la)[:, :, None]
+            art = Image.fromarray(lit.round().astype(np.uint8), 'RGB')
+            shadow = Image.new('RGBA', room.size, (0, 0, 0, 0))
+            ImageDraw.Draw(shadow).rectangle((ax + 4, ay + 10, ax + aw + 4, ay + ah + 10), fill=(40, 25, 10, 110))
+            shadow = shadow.filter(ImageFilter.GaussianBlur(16))
+            over = Image.new('RGBA', room.size, (0, 0, 0, 0))
+            over.alpha_composite(shadow); over.paste(art, (ax, ay))
+            # recadrée à la proportion de la zone visuelle, centrée sur l'étagère
+            cw = int(room.height * self.vis_w / self.vis_h); cx0 = max(0, min(room.width - cw, 654 - cw // 2))
+            box = (cx0, 0, cx0 + cw, room.height)
+            self.bed = (room.crop(box).resize((self.vis_w, self.vis_h), Image.LANCZOS), over.crop(box).resize((self.vis_w, self.vis_h), Image.LANCZOS))
+        room, over = self.bed
+        a = ease(min(1, max(0, (t - (BED_T + 0.2)) / 0.6)))
+        img = room.copy()
+        if a > 0:
+            o = over.copy()
+            if a < 1: o.putalpha(o.split()[3].point(lambda p: int(p * a)))
+            img.paste(o, (0, 0), o)
+        return img
 
     def caption(self, img, t, caps):
         for t0, t1, runs in caps:
@@ -125,64 +228,46 @@ class Renderer:
                     d.text((x, y + li * lh), w, font=self.fonts[it], fill=(INK2 if it else INK) + (int(255 * a),))
                     x += self.fonts[it].getlength(w)
 
-    def frame(self, reel, t, caps):
-        img = self.background(reel)
-        vis = Image.fromarray(reel[CROP_Y0:CROP_Y1], 'RGB').resize((self.vis_w, self.vis_h), Image.LANCZOS)
-        v = self.blend(vis)
-        img.paste(v, (self.vis_x, self.vis_y), v)
+    def frame(self, vis, t, caps):
+        img = self.background()
+        img.paste(vis, (self.vis_x, self.vis_y))
         self.caption(img, t, caps)
         return img
 
-    def end_card(self, t, lang, bg):
-        k = self.k
-        img = Image.new('RGB', (self.W, self.H), bg)
-        a = ease(min(1, t / 0.5))
-        layer = Image.new('RGBA', (self.W, self.H), bg + (0,))
-        d = ImageDraw.Draw(layer)
-        cx = self.W // 2
-        logo = self.logo.resize((int(150 * k), int(150 * k)), Image.LANCZOS)
-        y = int(165 * k)
-        layer.alpha_composite(logo, (cx - logo.width // 2, y)); y += logo.height + int(26 * k)
-        kick = 'A T E L I E R'
-        d.text((cx - self.f_kicker.getlength(kick) / 2, y), kick, font=self.f_kicker, fill=INK + (255,)); y += int(44 * k)
-        d.text((cx - self.f_brand.getlength('Gribouille') / 2, y), 'Gribouille', font=self.f_brand, fill=INK + (255,)); y += int(150 * k)
-        tag, small = END[lang]
-        d.text((cx - self.f_tag.getlength(tag) / 2, y), tag, font=self.f_tag, fill=INK2 + (255,)); y += int(76 * k)
-        d.text((cx - self.f_small.getlength(small) / 2, y), small, font=self.f_small, fill=INK2 + (255,)); y += int(70 * k)
-        pw, ph = int(self.f_pill.getlength('ateliergribouille.art') + 70 * k), int(66 * k)
-        d.rounded_rectangle((cx - pw // 2, y, cx + pw // 2, y + ph), radius=ph // 2, fill=INK + (255,))
-        d.text((cx - self.f_pill.getlength('ateliergribouille.art') / 2, y + int(15 * k)), 'ateliergribouille.art', font=self.f_pill, fill=(248, 245, 239, 255))
-        if a < 1: layer.putalpha(layer.split()[3].point(lambda p: int(p * a)))
-        img.paste(layer, (0, 0), layer)
-        return img
-
-def render(reel_path, lang, out_w, out_h, out_mp4, poster, fonts_dir, ffmpeg, logo):
-    R = Renderer(out_w, out_h, fonts_dir, logo)
-    dec = subprocess.Popen([ffmpeg, '-hide_banner', '-loglevel', 'error', '-i', reel_path, '-t', str(REEL_END), '-r', str(FPS), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{REEL_W}x{REEL_H}', '-'], stdout=subprocess.PIPE)
-    enc = subprocess.Popen([ffmpeg, '-hide_banner', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{out_w}x{out_h}', '-r', str(FPS), '-i', '-',
-                            '-c:v', 'libx264', '-preset', 'slow', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', out_mp4], stdin=subprocess.PIPE)
-    n = REEL_W * REEL_H * 3
-    i = 0; bg = None
-    while True:
-        buf = dec.stdout.read(n)
-        if len(buf) < n: break
-        reel = np.frombuffer(buf, np.uint8).reshape(REEL_H, REEL_W, 3)
-        if bg is None: bg = tuple(int(v) for v in reel[300, 6])
-        img = R.frame(reel, i / FPS, CAPTIONS[lang])
-        if poster and i == int(1.2 * FPS): img.save(poster, 'WEBP', quality=84, method=6)
-        enc.stdin.write(img.tobytes()); i += 1
-    dec.wait()
-    for j in range(int(END_S * FPS)):
-        enc.stdin.write(R.end_card(j / FPS, lang, bg).tobytes()); i += 1
+def render(reel_path, lang, out_w, out_h, out_mp4, poster, fonts_dir, ffmpeg, zoom, artwork, assets):
+    R = Renderer(out_w, out_h, fonts_dir)
+    enc = subprocess.Popen([ffmpeg, '-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{out_w}x{out_h}', '-r', str(FPS), '-i', '-',
+                            '-an', '-c:v', 'libx264', '-preset', 'slow', '-crf', '21', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out_mp4], stdin=subprocess.PIPE)
+    ref = Image.fromarray(reel_frame(ffmpeg, reel_path, ZOOM_REF, REEL_W, REEL_H), 'RGB')
+    caps = CAPTIONS[lang]
+    prev = None  # la dernière image de l'ordinateur, pour les fondus
+    for i, (t, reel) in enumerate(reel_frames(ffmpeg, reel_path, 0, REEL_END, REEL_W, REEL_H)):
+        z = zoom.get(i)
+        if t >= BED_T:
+            vis = R.bedroom(assets, artwork, t)
+            a = ease(min(1, (t - BED_T) / BED_FADE))
+            if a < 1 and prev is not None: vis = Image.blend(prev, vis, a)
+        else:
+            vis = R.crop(R.unzoom(reel, ref, *z) if z else reel)
+            prev = vis
+        img = R.frame(vis, t, caps)
+        if poster and i == 0: img.save(poster, quality=82, method=6)
+        enc.stdin.write(img.tobytes())
     enc.stdin.close(); enc.wait()
-    print(lang, f'{out_w}x{out_h}', round(i / FPS, 1), 's', os.path.getsize(out_mp4) // 1024, 'Ko')
+    n = i + 1
+    print(f'{lang} {out_w}x{out_h} {n / FPS:.1f} s {os.path.getsize(out_mp4) // 1024} Ko')
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--reel', required=True); ap.add_argument('--fonts', required=True); ap.add_argument('--ffmpeg', default='ffmpeg')
-    ap.add_argument('--img', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'img')); ap.add_argument('--hd')
+    ap.add_argument('--img', default=os.path.join(HERE, '..', 'img')); ap.add_argument('--hd')
+    ap.add_argument('--track', action='store_true', help='remesurer le gros plan (accueil-video-zoom.json)')
+    ap.add_argument('--assets', default=os.path.join(HERE, '..', '..', 'collage', 'assets'))
     a = ap.parse_args()
-    logo = os.path.join(a.img, 'logo-mark.png')
-    render(a.reel, 'fr', 1280, 720, os.path.join(a.img, 'accueil-video-fr.mp4'), os.path.join(a.img, 'accueil-video-poster.webp'), a.fonts, a.ffmpeg, logo)
-    render(a.reel, 'en', 1280, 720, os.path.join(a.img, 'accueil-video-en.mp4'), None, a.fonts, a.ffmpeg, logo)
-    if a.hd: render(a.reel, 'fr', 1920, 1080, a.hd, None, a.fonts, a.ffmpeg, logo)
+    zoom_json = os.path.join(HERE, 'accueil-video-zoom.json')
+    track = track_zoom(a.ffmpeg, a.reel, zoom_json) if a.track or not os.path.exists(zoom_json) else json.load(open(zoom_json))
+    zoom = zoom_table(track)
+    artwork = os.path.join(HERE, 'accueil-video-tableau.jpg')
+    render(a.reel, 'fr', 1280, 720, os.path.join(a.img, 'accueil-video-fr.mp4'), os.path.join(a.img, 'accueil-video-poster.webp'), a.fonts, a.ffmpeg, zoom, artwork, a.assets)
+    render(a.reel, 'en', 1280, 720, os.path.join(a.img, 'accueil-video-en.mp4'), None, a.fonts, a.ffmpeg, zoom, artwork, a.assets)
+    if a.hd: render(a.reel, 'fr', 1920, 1080, a.hd, None, a.fonts, a.ffmpeg, zoom, artwork, a.assets)
