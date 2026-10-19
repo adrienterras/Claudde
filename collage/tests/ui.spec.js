@@ -1180,8 +1180,11 @@ test.describe('Panier sur téléphone', () => {
     const cta = page.locator('.order-cta-desk');
     await expect(cta).toBeVisible();
     const b = await cta.boundingBox();
-    expect(b.height).toBeLessThan(36); // bouton discret
-    expect(b.x + b.width).toBeLessThan(390);
+    expect(b.height).toBeLessThan(32); // bouton discret
+    expect(b.x).toBeLessThan(20); // en bas à gauche de l'œuvre, à l'opposé des outils
+    const zoom = await page.locator('.zoom').boundingBox();
+    expect(b.x + b.width).toBeLessThan(zoom.x); // il ne croise pas la colonne d'outils
+    await expect(cta.locator('.ico')).toBeVisible(); // l'icône du sac, sur téléphone
     await cta.click();
     await expect(page.locator('#cart-add')).toBeVisible();
     await page.locator('#cart-add-ok').click();

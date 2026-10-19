@@ -406,6 +406,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .order-cta { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: 0; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 0.9rem; font-weight: 700; letter-spacing: .02em; cursor: pointer; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .55); }
 .order-cta:hover { background: var(--ink); transform: translateY(-1px); }
 .order-cta .ico { width: 18px; height: 18px; }
+.order-cta-desk .ico { display: none; } /* sur ordinateur, le mot seul */
 .order-cta[hidden] { display: none; }
 .cart-add-view { align-self: flex-start; margin-top: -8px; font-size: 0.85rem; }
 .cart-btn-head { display: none; } /* l'icône du chariot dans l'en-tête : téléphone seulement */
@@ -972,10 +973,12 @@ body.stage-full .scene-open { display: none; }
   .cart-btn-head .cart-count[hidden] { display: none; }
   .cart-btn-head + .mobile-lang { margin-left: 0; }
   .cart-btn-desk { display: none; }
-  /* téléphone : « Commander » flotte en bas à droite de l'œuvre, au-dessus du curseur, discret */
-  .stage-cta { top: auto; right: 10px; bottom: calc(var(--sheet) + 54px); }
+  /* téléphone : « Commander » (petit, avec l'icône du sac) flotte en bas à gauche de l'œuvre, au-dessus
+     du curseur, à l'opposé des outils (barre en haut, colonne de zoom à droite) */
+  .stage-cta { top: auto; right: auto; left: 10px; bottom: calc(var(--sheet) + 54px); }
   body.sheet-tall .stage-cta, body.sheet-detail .stage-cta { display: none; } /* tiroir agrandi : l'œuvre est cachée, le bouton aussi */
-  .order-cta-desk { padding: 7px 13px; font-size: 0.78rem; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .5); }
+  .order-cta-desk { gap: 6px; padding: 6px 11px 6px 9px; font-size: 0.74rem; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .5); }
+  .order-cta-desk .ico { display: block; width: 15px; height: 15px; }
   .cart-item { grid-template-columns: 56px minmax(0, 1fr) auto; }
   .cart-item img { width: 56px; height: 44px; }
   .lang-offer { position: static; grid-column: auto; }

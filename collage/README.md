@@ -180,7 +180,7 @@ cd collage && python3 -m http.server 8000
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
    - **panier** : un CTA « Commander » bien en vue (sous la barre d'outils sur ordinateur ; sur
-     téléphone, petit, en bas à droite de l'œuvre, au-dessus du curseur) ouvre le choix du produit pour la composition affichée (avec
+     téléphone, petit, avec l'icône d'un sac, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » à côté
      (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
      présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette) ou
