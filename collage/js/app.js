@@ -385,7 +385,6 @@
     if (state.drawings.length) {
       ['drawings-section', 'sizes-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
-      $('restart-offer').hidden = false;
       $('new-work').hidden = false;
       if (!state.restoring) selectTab('compose-section');
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
@@ -1178,7 +1177,7 @@
       const items = comp.items.filter((x) => x.piece && x.piece.drawing === d);
       const area = (x) => x.w * x.h;
       L = items.find((x) => (x.piece.copyOf || x.piece) === main) || items.sort((a, b) => area(b) - area(a))[0] || null;
-      if (!L && d.analysis.texture) L = comp.bg.filter((x) => x.src === d.analysis.texture.canvas).sort((a, b) => area(b) - area(a))[0] || null;
+      if (!L && d.analysis.texture) L = comp.bg.filter((x) => !x.paper && pageDrawing(x) === d).sort((a, b) => area(b) - area(a))[0] || null;
     }
     state.selected = L;
     updateToolbar();
@@ -1371,24 +1370,6 @@
     if (state.comp && state.comp.style === 'galerie') el.textContent = tr('blanc, fixe en Galerie');
     else if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : state.ground === GROUND_WHITE ? tr('sans couleur (blanc)') : tr('toile nue'); }
-    // la pastille près de l'œuvre : la couleur réellement peinte sur la proposition affichée
-    const pop = $('ground-pop-name'), btn = $('ground-open');
-    if (pop) pop.textContent = el.textContent;
-    if (btn) {
-      const hex = state.comp ? state.comp.ground || '' : state.ground && state.ground !== 'auto' ? state.ground : '';
-      btn.style.setProperty('--dot', hex || '#f4f2ec');
-      btn.classList.toggle('none', !hex);
-      btn.title = tr`Couleur du fond : ${el.textContent}`;
-    }
-  }
-  // palette rapide : s'ouvre près de l'œuvre, reste ouverte pour essayer plusieurs teintes,
-  // se ferme d'un appui ailleurs ou avec Échap
-  function setGroundPop(open) {
-    const pop = $('ground-pop'), btn = $('ground-open');
-    if (!pop || !btn) return;
-    pop.hidden = !open;
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) updateGroundName();
   }
   // Nouveau fond de toile. Une œuvre déjà retouchée à la main, ou rouverte telle quelle (brouillon,
   // composition sauvegardée), garde sa mise en place : seul le fond change (couleur de peinture, ou
@@ -1414,10 +1395,10 @@
     render();
   }
 
-  // les deux nuanciers du fond : celui des réglages avancés, et la palette rapide près de l'œuvre
-  const GROUND_SWATCHES = '#ground button, #ground-quick button';
+  // le nuancier du fond, en bas de la section Propositions
+  const GROUND_SWATCHES = '#ground button';
   function fillGround() {
-    ['ground', 'ground-quick'].forEach((id) => {
+    ['ground'].forEach((id) => {
       const box = $(id);
       if (!box) return;
       const mk = (name, hex) => {
@@ -1462,7 +1443,10 @@
    * les dessins réduits pour y tenir, puis imprimée (papier d'art, encadrée, toile imprimée) ou
    * livrée en fichier HD. « Toile » : les dessins à leur taille réelle sur une toile du commerce ou
    * adaptée à eux, à réaliser soi-même avec les originaux (guide, kit) ou par l'atelier (Signature).
-   * Choix au départ (accueil, ou cartes de l'atelier vide), bascule à tout moment, mémorisé.
+   * Choix au départ : depuis l'accueil (?mode=), ou par les cartes au milieu de l'atelier vide (première
+   * visite, « nouvelle œuvre ») ; une fois l'œuvre commencée, on ne change plus de type d'œuvre (le
+   * mode est gardé avec chaque sauvegarde et chaque brouillon). Le dernier choix est mémorisé et
+   * présélectionné sur les cartes.
    */
   const MODES = ['impression', 'toile'];
   const modeOf = () => (MODES.includes(state.mode) ? state.mode : 'toile');
@@ -1475,9 +1459,7 @@
     try { localStorage.setItem('atelier.mode', m); } catch (e) { /* ignoré */ }
     document.body.classList.toggle('mode-impression', m === 'impression');
     document.body.classList.toggle('mode-toile', m === 'toile');
-    document.querySelectorAll('#mode-switch button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-    const pick = $('mode-pick');
-    if (pick) pick.hidden = true;
+    document.querySelectorAll('#mode-pick button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     $('format-label').textContent = m === 'impression' ? tr('Cadre') : tr('Toile');
     // tableau imprimé : pas d'explication sous le choix du cadre
     $('sizes-hint').hidden = m === 'impression';
@@ -1494,9 +1476,9 @@
   // sélecteur de fond est construit (après l'initialisation du mode)
   function syncGroundMode() {
     const print = printMode();
-    document.querySelectorAll('#ground button[data-hex=""], #ground-quick button[data-hex=""]').forEach((b) => { b.hidden = print; });
+    document.querySelectorAll('#ground button[data-hex=""]').forEach((b) => { b.hidden = print; });
     // « sans couleur » (blanc pur) n'existe qu'en Impression ; la toile nue, qu'en Toile
-    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"], #ground-quick button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print; });
+    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print; });
     if ((print && state.ground === '') || (!print && state.ground === GROUND_WHITE)) setGround(undefined);
   }
   function initMode() {
@@ -1506,7 +1488,11 @@
     try { stored = localStorage.getItem('atelier.mode'); } catch (e) { /* ignoré */ }
     if (m) setMode(m);
     else if (MODES.includes(stored)) setMode(stored);
-    else { const pick = $('mode-pick'); if (pick) pick.hidden = false; fillFormats(); }
+    else fillFormats();
+    // les cartes restent au milieu de l'atelier tant qu'aucune œuvre n'est commencée (l'accueil vide
+    // disparaît avec les premiers dessins) ; le choix mémorisé y est présélectionné
+    const pick = $('mode-pick');
+    if (pick) pick.hidden = false;
   }
 
   function formatCm() {
@@ -1613,12 +1599,61 @@
       b.setAttribute('aria-pressed', sel ? 'true' : 'false');
     });
   }
-  // le passe-partout change la taille d'impression : la composition est refaite (les pages de fond
-  // retouchées à la main sont gardées, voir carryBgEdits)
+  // le passe-partout change la taille d'impression : l'œuvre affichée est mise à cette taille telle
+  // quelle (voir keepPrintComp)
   function setPrintMat(on) {
     try { localStorage.setItem('atelier.passe-partout', on ? '1' : '0'); } catch (e) { /* ignoré */ }
-    syncMatButtons();
-    if (printMode() && state.drawings.length) { state.pinned = null; regenerate(); } else { updateScaleLabel(); scheduleScene(); }
+    if (printMode() && state.drawings.length) keepPrintComp(syncMatButtons, 'fit');
+    else { syncMatButtons(); updateScaleLabel(); scheduleScene(); }
+  }
+  /*
+   * Tableau imprimé : changer de cadre (ou de passe-partout) ne refait pas l'œuvre affichée — elle
+   * est mise à la taille du nouveau cadre telle quelle (places en proportion, dessins et pages à la
+   * même échelle), et changer d'orientation la tourne d'un quart de tour. Les autres propositions
+   * sont recomposées à la nouvelle taille. (Atelier Toile : la composition est refaite, comme avant.)
+   */
+  function fitCompTo(comp, W, H) {
+    const kx = W / comp.W, ky = H / comp.H, km = Math.sqrt(kx * ky);
+    const each = (L, ks) => {
+      L.x *= kx; L.y *= ky; L.w *= ks; L.h *= ks; L.scale = (L.scale || 1) * ks;
+      if (L.clip) L.clip = L.clip.map(([x, y]) => [x * ks, y * ks]);
+    };
+    // un dessin n'est jamais imprimé plus grand que sa taille réelle (sa feuille scannée)
+    const realW = (L) => (L.piece && L.piece.canvas ? L.piece.canvas.width * cmPerPx(L.piece.drawing) : Infinity);
+    comp.items.forEach((L) => each(L, Math.min(km, Math.max(1, realW(L) / L.w))));
+    comp.bg.forEach((L) => each(L, L.paper ? 1 : Math.max(kx, ky))); // les pages de fond couvrent toujours
+    comp.bg.filter((L) => L.paper).forEach((L) => { L.w = W; L.h = H; L.x = W / 2; L.y = H / 2; });
+    if (comp.frames) comp.frames.forEach((f) => { f.x *= kx; f.y *= ky; f.w *= kx; f.h *= ky; });
+    if (comp.lines) comp.lines = comp.lines.map(([x0, y0, x1, y1]) => [x0 * kx, y0 * ky, x1 * kx, y1 * ky]);
+    comp.W = W; comp.H = H;
+    comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => !q.paper && (q.scale || 1) !== 1);
+  }
+  function turnComp(comp, cw) {
+    const W0 = comp.W, H0 = comp.H;
+    const pt = cw ? (x, y) => [H0 - y, x] : (x, y) => [y, W0 - x];
+    [...comp.items, ...comp.bg].forEach((L) => { [L.x, L.y] = pt(L.x, L.y); L.rot = (L.rot || 0) + (cw ? Math.PI / 2 : -Math.PI / 2); });
+    comp.bg.filter((L) => L.paper).forEach((L) => { L.rot = 0; L.x = H0 / 2; L.y = W0 / 2; [L.w, L.h] = [L.h, L.w]; });
+    if (comp.frames) comp.frames.forEach((f) => { const [x, y] = cw ? [H0 - (f.y + f.h), f.x] : [f.y, W0 - (f.x + f.w)]; f.x = x; f.y = y; [f.w, f.h] = [f.h, f.w]; });
+    if (comp.lines) comp.lines = comp.lines.map(([x0, y0, x1, y1]) => [...pt(x0, y0), ...pt(x1, y1)]);
+    comp.W = H0; comp.H = W0;
+  }
+  // change() applique le réglage ; how : 'fit' (même œuvre à la nouvelle taille) ou 'turn' (quart de tour)
+  function keepPrintComp(change, how) {
+    const comp = state.comp;
+    if (!(printMode() && comp && state.drawings.length)) { change(); state.pinned = null; regenerate(); return; }
+    commit();
+    change();
+    const fc = formatCm();
+    if (how === 'turn') { turnComp(comp, fc.w >= fc.h); if (Math.abs(comp.W - fc.w) > 1e-6 || Math.abs(comp.H - fc.h) > 1e-6) fitCompTo(comp, fc.w, fc.h); }
+    else fitCompTo(comp, fc.w, fc.h);
+    if (fc.frame) { comp.frameKey = fc.key; comp.mat = fc.mat; }
+    comp.touched = true;
+    state.pinned = comp;
+    state.bgCache = null;
+    regenerate({ noCommit: true });
+    // les pièces ont été remesurées pour le nouveau cadre (sizePiece) : l'échelle de chaque calque
+    // gardé est reprise d'après sa taille réelle sur l'œuvre, pour que les poignées et boutons partent de là
+    [...comp.items, ...comp.bg].forEach((L) => { if (L.paper) return; const [bw] = layerBase(L); if (bw > 0) L.scale = L.w / bw; });
   }
   // le plus petit des cadres où une œuvre tient (pour une composition rouverte d'un ancien format)
   function frameAround(W, H) {
@@ -2045,6 +2080,8 @@
       return { style: st, comp: Compose.generate(so) };
     });
     const fc = formatCm();
+    const texOf = new Map(o.textures.map((t) => [t.canvas, t.drawing]));
+    state.proposals.forEach((pr) => pr.comp.bg.forEach((L) => { if (!L.paper && !L.drawing && texOf.has(L.src)) L.drawing = texOf.get(L.src); })); // (voir pageDrawing)
     if (fc.frame) state.proposals.forEach((pr) => { pr.comp.frameKey = fc.key; pr.comp.mat = fc.mat; });
     state.active = Math.min(state.active || 0, STYLES.length - 1);
     // une composition rouverte reste telle quelle tant qu'on ne demande pas d'autres propositions
@@ -2082,9 +2119,6 @@
     // fond de toile : sans objet en Galerie (blanc, fixe)
     document.querySelectorAll(GROUND_SWATCHES).forEach((b) => { b.disabled = white; });
     $('ground').classList.toggle('off', white);
-    $('ground-quick').classList.toggle('off', white);
-    $('ground-open').disabled = white;
-    if (white) setGroundPop(false);
   }
 
   // Cartel sous l'œuvre, comme au musée.
@@ -2134,6 +2168,7 @@
     document.querySelectorAll('.order-cta').forEach((b) => { b.hidden = !state.comp; });
     layoutLabel();
     $('toolbar').hidden = !state.comp;
+    $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;
@@ -2141,7 +2176,7 @@
       const c = state.comp;
       const used = new Set();
       c.items.forEach((L) => used.add(L.piece.drawing));
-      state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
+      state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => !L.paper && pageDrawing(L) === d)) used.add(d); });
       usedCount = used.size;
       $('density-note').textContent = tr`${used.size} sur ${state.drawings.length}`;
       // styles qui ne retiennent qu'une sélection : on le dit, et on propose d'ajouter le reste
@@ -2175,7 +2210,7 @@
     if (!c) return [];
     const used = new Set();
     c.items.forEach((L) => used.add(L.piece.drawing));
-    state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => L.src === d.analysis.texture.canvas)) used.add(d); });
+    state.drawings.forEach((d) => { if (d.analysis.texture && c.bg.some((L) => !L.paper && pageDrawing(L) === d)) used.add(d); });
     return state.drawings.filter((d) => roleOf(d) !== 'off' && !used.has(d));
   }
   // Galerie : une case par dessin quand la densité est au maximum
@@ -2357,7 +2392,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // après une retouche, la vignette de la proposition active suit
   let thumbTimer = 0;
   // Ouvre le panneau du dessin dont vient une pièce ou une page de l'œuvre.
-  const drawingOfLayer = (L) => (L.kind === 'piece' ? L.piece.drawing : L.src ? state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src) : null);
+  // (une page garde son dessin dans L.drawing : sa toile source est refaite quand l'orientation change)
+  const pageDrawing = (L) => L.drawing || (L.src ? state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src) : null) || null;
+  const drawingOfLayer = (L) => (L.kind === 'piece' ? L.piece.drawing : pageDrawing(L));
   Compose.setTone((L) => { const d = drawingOfLayer(L); return d && d.tone; });
   function showDrawingOf(L) {
     const d = drawingOfLayer(L);
@@ -2654,7 +2691,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const kx = to.W / from.W, ky = to.H / from.H;
     from.bg.forEach((o) => {
       if (o.paper || !(o.manual || o.sized)) return;
-      const n = to.bg.find((L) => !L.paper && L.src === o.src && !L.manual && !L.sized);
+      const n = to.bg.find((L) => !L.paper && (o.drawing ? L.drawing === o.drawing : L.src === o.src) && !L.manual && !L.sized);
       if (!n) return;
       if (o.sized && sizable) {
         // page entière : la même taille en centimètres ; sinon le même facteur
@@ -3581,7 +3618,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     comp.items.forEach((L) => { const p = L.piece; if (p && p.canvas) bump(p.drawing, (L.w * s) / p.canvas.width); });
     comp.bg.forEach((L) => {
       if (L.paper || !L.src || !L.sw) return;
-      const d = state.drawings.find((x) => x.analysis.texture && x.analysis.texture.canvas === L.src);
+      const d = pageDrawing(L);
       bump(d, (L.w * s) / L.sw);
     });
     return need;
@@ -4132,16 +4169,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     importUserFiles(Array.from(e.dataTransfer.files));
   });
 
-  $('ground-open').addEventListener('click', (e) => { e.stopPropagation(); setGroundPop($('ground-pop').hidden); });
-  document.addEventListener('pointerdown', (e) => { const pop = $('ground-pop'); if (!pop.hidden && !pop.contains(e.target) && e.target !== $('ground-open') && !$('ground-open').contains(e.target)) setGroundPop(false); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
-  ['format', 'pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'format') state.formatManual = true; state.pinned = null; regenerate(); }));
+  ['pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
+  // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose
+  $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));
   $('fmt').addEventListener('change', updateExportInfo);
   // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
-  document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { setCanvasOrient(b.dataset.orient); state.pinned = null; regenerate(); }));
+  document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
-  document.querySelectorAll('#mode-switch button, #mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); state.formatManual = false; if (state.drawings.length) { state.pinned = null; regenerate(); } }));
+  document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); state.formatManual = false; }));
   initMode();
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
@@ -4377,9 +4413,10 @@ Réponds uniquement avec ce JSON :
     state.comp = null;
     state.selected = null;
     state.bgCache = null;
-    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'sample-note', 'label', 'restart-offer', 'new-work'].forEach((id) => ($(id).hidden = true));
+    ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'sample-note', 'label', 'new-work'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
-    $('sample-offer').hidden = !state.sampleManifest;
+    $('empty-sample').hidden = !state.sampleManifest;
+    $('density').value = $('density').max; // une nouvelle œuvre part avec tous les dessins
     refreshLists();
     updateLabel();
     render();
@@ -4398,7 +4435,6 @@ Réponds uniquement avec ce JSON :
     state.densityBeforeSample = null;
   }
   $('clear').onclick = startOver;
-  $('restart').onclick = startOver;
   // Bouton en tête du panneau : on demande confirmation, sauf si l'œuvre n'est faite que de l'exemple.
   $('new-work').onclick = () => {
     const mine = state.drawings.some((d) => !d.sample);
@@ -4426,8 +4462,6 @@ Réponds uniquement avec ce JSON :
       await importFiles(files, sizes, { sample: true });
       state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
       $('sample-note').hidden = false;
-      $('sample-offer').hidden = true;
-      $('restart-offer').hidden = true; // « repartez de zéro » est déjà proposé dans la note d'exemple
     } catch (e) {
       console.error(e);
       setProgress(1, 1);
@@ -5012,7 +5046,7 @@ Réponds uniquement avec ce JSON :
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
-    const texOwner = (src) => state.drawings.findIndex((d) => d.analysis.texture && d.analysis.texture.canvas === src);
+    const texOwner = (L) => { const d = pageDrawing(L); return d ? state.drawings.indexOf(d) : -1; };
     const pick = (L, keys) => { const o = {}; keys.forEach((k) => { if (L[k] !== undefined) o[k] = L[k]; }); return o; };
     const items = [];
     for (const L of comp.items) {
@@ -5021,7 +5055,7 @@ Réponds uniquement avec ce JSON :
       if (p.copyOf) it.copy = { edit: p.canvas !== orig.canvas ? await editOf(p, p.drawing) : null };
       items.push(it);
     }
-    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L.src) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
+    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
@@ -5283,7 +5317,7 @@ Réponds uniquement avec ce JSON :
       ensureMaterial(d);
       const t = d.analysis.texture;
       if (!t) return;
-      comp.bg.push(Object.assign({ kind: 'bg' }, L, { src: t.canvas, sw: L.sw || t.canvas.width, sh: L.sh || t.canvas.height, sx: L.sx || 0, sy: L.sy || 0 }));
+      comp.bg.push(Object.assign({ kind: 'bg' }, L, { drawing: d, src: t.canvas, sw: L.sw || t.canvas.width, sh: L.sh || t.canvas.height, sx: L.sx || 0, sy: L.sy || 0 }));
     });
     comp.bg = comp.bg.filter((L) => L.src);
     for (const L of c.items) {
@@ -6035,11 +6069,9 @@ Réponds uniquement avec ce JSON :
     }
     if (!m || !m.pages || !m.pages.length) return;
     state.sampleManifest = m;
-    $('sample-offer').hidden = false;
     if (!state.resuming) $('empty-sample').hidden = false; // pas pendant la réouverture de l'œuvre en cours
     let busy = false;
     const go = async () => { if (busy) return; busy = true; try { await loadSamples(m); } finally { busy = false; } };
-    $('load-sample').onclick = go;
     $('empty-sample').onclick = go;
     if (window.COLLAGE_AUTOLOAD || /[?&]exemple\b/.test(location.search)) go();
   })();

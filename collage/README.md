@@ -13,8 +13,10 @@ cd collage && python3 -m http.server 8000
 ```
 
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
-   `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, cartes de choix dans
-   l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
+   `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, sinon les deux cartes au
+   milieu de l'atelier vide — à la première visite et après « Commencer une nouvelle œuvre », le
+   dernier choix présélectionné ; une fois l'œuvre commencée, le type d'œuvre ne change plus ; mode
+   gardé avec chaque sauvegarde et chaque brouillon).
    - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
      **cinq cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70, 70 × 100 ; seule liste
      proposée, 30 × 40 par défaut, un ancien réglage ramené au cadre le plus proche). Un choix « Sans /
@@ -379,11 +381,20 @@ cd collage && python3 -m http.server 8000
      demandent que ce qu'il faut (lignes du brouillon ou du panier filtrées côté serveur, sans vignette
      pour le brouillon) : le relire au retour au premier plan et toutes les minutes pesait sur la bande
      passante sortante du compte Supabase. « Oublier cette œuvre » l'efface des deux côtés ;
-   - **couleur du fond à portée de main** : une pastille de la couleur actuelle, en tête de la barre
-     d'outils près de l'œuvre (à droite sur téléphone, en bas sur ordinateur), ouvre la palette juste
-     à côté (`#ground-pop`) ; une teinte s'applique tout de suite, la palette reste ouverte pour en
-     essayer d'autres et se ferme d'un appui ailleurs ou avec Échap ; elle reste synchronisée avec
-     le nuancier des réglages avancés ; sans objet en Galerie (fond blanc fixe) ;
+   - **couleur du fond** : le nuancier (`#ground`) est le dernier bloc de la section Propositions
+     (hors des réglages avancés) ; une teinte s'applique tout de suite à l'œuvre affichée (`applyGround`,
+     mise en place gardée) ; sans objet en Galerie (fond blanc fixe) ;
+   - **tableau imprimé : la taille ne refait pas l'œuvre** : changer de cadre ou de passe-partout met
+     l'œuvre affichée à la nouvelle taille telle quelle (`keepPrintComp` → `fitCompTo` : places en
+     proportion, dessins et pages à la même échelle, cadre noté sur la composition) et changer
+     d'orientation la tourne d'un quart de tour (`turnComp`) ; les autres propositions sont recomposées
+     à la nouvelle taille. En atelier Toile, la composition est refaite comme avant ;
+   - **tous les dessins par défaut** : le curseur de nombre de dessins part au maximum (nouvelle
+     visite, « nouvelle œuvre ») ; l'exemple garde ce réglage, une œuvre rouverte reprend le sien ;
+   - **sans œuvre, rien autour de l'accueil vide** : ni barre d'outils ni barre de zoom (`#zoom-bar`)
+     tant qu'aucune composition n'est affichée ; l'étape Importer ne propose plus l'exemple ni
+     « commencer une nouvelle œuvre » en phrases (le bouton « Voir un exemple » de l'accueil vide et le
+     bouton « Commencer une nouvelle œuvre » suffisent) ;
    - **fond de toile** : au choix, la toile nue (lin ; en Impression, « sans couleur » : blanc pur) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand

@@ -607,6 +607,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .seg button.on.ink { background: var(--ink); }
 .field > .seg { margin-top: 4px; }
 .field small#ground-name { color: var(--muted); font-size: 0.74rem; margin-left: 6px; }
+.ground-field { margin-top: 14px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; background: var(--sw); }
 .swatches button.auto { background: var(--ink); color: var(--on-ink); font: 700 0.7rem var(--f-body); }
@@ -666,15 +667,6 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 body.bg-mode .stage { outline: 2px dashed var(--olive); outline-offset: -2px; }
 .zoom button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
 /* couleur du fond, à portée de main : pastille de la couleur actuelle, palette juste à côté */
-.zoom button.ground-open { display: grid; place-items: center; }
-.ground-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--dot, #f4f2ec); box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 2.5px var(--line); }
-.ground-open.none .ground-dot { background: repeating-linear-gradient(45deg, #efe9dd 0 3px, #e3dccd 3px 6px); }
-.ground-pop { position: absolute; right: 14px; bottom: 64px; z-index: 6; width: min(300px, calc(100% - 28px)); padding: 12px 14px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .55); }
-.ground-pop[hidden] { display: none; }
-.ground-pop-head { margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.86rem; }
-.ground-pop-head small { color: var(--muted); font-size: 0.78rem; }
-.ground-quick { gap: 8px; }
-.ground-quick button { width: 32px; height: 32px; }
 .zoom-val { min-width: 48px; text-align: center; font-family: var(--f-mono); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 body.stage-full .stage { position: fixed; inset: 0; z-index: 40; height: auto; }
 body.stage-full .stage { padding-top: env(safe-area-inset-top, 0px); }
@@ -1035,9 +1027,12 @@ body.stage-full .scene-open { display: none; }
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
   .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }
   body.stage-full .stage { padding-bottom: 0; }
-  .empty { bottom: var(--sheet); padding: 16px 56px 16px 16px; }
-  .empty-pictos img { height: 36px; }
-  .empty-title { font-size: 1.5rem; }
+  /* l'accueil vide : centré quand il tient, sinon il défile (les cartes du choix restent atteignables) */
+  .empty { bottom: var(--sheet); padding: 16px; display: flex; overflow-y: auto; }
+  .empty > div { margin: auto; gap: 10px; pointer-events: auto; }
+  .empty-pictos img { height: 28px; }
+  .empty-title { font-size: 1.3rem; }
+  .empty > div > .hint { font-size: 0.8rem; }
   .toolbar { top: 10px; }
   .toolbar button span { display: none; }
   .toolbar { gap: 0; padding: 4px; }
@@ -1046,8 +1041,6 @@ body.stage-full .scene-open { display: none; }
   .zoom { right: 6px; bottom: auto; top: 62px; flex-direction: column; align-items: center; padding: 3px; gap: 1px; border-radius: 20px; overflow: hidden; }
   .zoom button { width: 32px; height: 32px; }
   .zoom-val { min-width: 0; font-size: 0.6rem; text-align: center; padding: 2px 0; }
-  .ground-pop { right: 50px; top: 62px; bottom: auto; width: min(280px, calc(100% - 66px)); }
-  .ground-quick button { width: 36px; height: 36px; }
   .label { bottom: calc(var(--sheet) + 8px); max-width: calc(100% - 20px); padding: 6px 12px; }
   .label b { font-size: 0.9rem; }
   .label span { display: none; }
@@ -1082,11 +1075,6 @@ body.stage-full .scene-open { display: none; }
 }
 
 /* Deux ateliers : Impression (cadres standard) ou Toile (à réaliser, ou par l'atelier) */
-.mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0 2px; }
-.mode-switch button { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink-2); text-align: left; cursor: pointer; font: inherit; }
-.mode-switch button b { font-size: 0.86rem; }
-.mode-switch button small { font-size: 0.7rem; line-height: 1.3; color: var(--muted); }
-.mode-switch button:hover { border-color: var(--ink); }
 .new-work { margin: 4px 0 2px; padding: 10px 16px; border: 1.5px solid var(--accent); color: var(--accent); background: var(--accent-soft); font-size: 0.9rem; }
 .new-work:hover { background: var(--accent); color: var(--surface); transform: translateY(-1px); }
 .new-work .ico { width: 18px; height: 18px; }
@@ -1094,16 +1082,15 @@ body.stage-full .scene-open { display: none; }
   /* tiroir du téléphone : en tête de l'onglet Importer seulement */
   .panel.tabbed:not([data-tab="import-section"]) > .new-work { display: none; }
   /* le choix du type d'œuvre aussi : seulement dans l'onglet Importer */
-  .panel.tabbed:not([data-tab="import-section"]) > .mode-switch { display: none; }
 }
-.mode-switch button.on { border-color: var(--ink); background: var(--ink); color: var(--on-ink); }
-.mode-switch button.on small { color: var(--on-ink); opacity: .78; }
 .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 520px; margin-top: 6px; pointer-events: auto; }
 .mode-pick-title { grid-column: 1 / -1; margin: 0; font-weight: 600; color: var(--ink); }
 .mode-pick button { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; font: inherit; margin: 0; }
 .mode-pick button b { font-size: 0.95rem; }
 .mode-pick button small { font-size: 0.76rem; line-height: 1.4; color: var(--muted); }
 .mode-pick button:hover { border-color: var(--ink); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mode-pick button.on { border-color: var(--ink); box-shadow: 0 0 0 3px var(--accent-soft); }
+.mode-pick button.on b::before { content: '✓ '; }
 @media (max-width: 480px) { .mode-pick { grid-template-columns: 1fr; } }
 
 /* atelier Impression : le fond est un aplat uni, la finition toile n'a pas de sens */

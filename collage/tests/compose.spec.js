@@ -111,7 +111,7 @@ test.describe('Compositions', () => {
     await page.waitForTimeout(300);
     const b = await sig();
     expect(b).not.toBe(a);
-    await page.locator('#density').fill('1.8');
+    await page.locator('#density').fill('1.1'); // (au maximum par défaut : tous les dessins)
     await page.waitForTimeout(300);
     const c = await sig();
     expect(c).not.toBe(b);
@@ -145,8 +145,8 @@ test.describe('Compositions', () => {
     await app.page.waitForTimeout(300);
     // tous les dessins (curseur au maximum)
     await app.page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
-    // la bascule de mode recompose les propositions (comme le bouton de l'interface)
-    await app.page.locator('#mode-switch [data-mode="impression"]').click();
+    // passage en Impression (par le code : le type d'œuvre ne se change plus une fois l'œuvre commencée)
+    await app.page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.page.waitForTimeout(400);
     await app.select('courtepointe');
     const r = await app.page.evaluate(() => {
@@ -166,7 +166,7 @@ test.describe('Compositions', () => {
     expect(y0).toBeGreaterThan(-0.01 * r.H);
     for (const it of r.items) expect(it.scale || 1).toBeLessThanOrEqual(1.0001);
     for (const it of r.items) expect(Math.abs(it.rot)).toBeLessThan(0.05);
-    await app.page.locator('#mode-switch [data-mode="toile"]').click();
+    await app.page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.page.waitForTimeout(400);
   });
 

@@ -5,7 +5,7 @@
   'use strict';
   var v = document.getElementById('hero-video');
   var band = v && v.closest('.video-band');
-  if (!v || !band) return;
+  if (!v || !band || band.hidden) return; // bande cachée : rien n'est chargé
   var ended = false;
   function play() { if (ended) return; var p = v.play(); if (p && p.catch) p.catch(function () { /* retentée au premier geste */ }); }
   function pick() {

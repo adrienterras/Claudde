@@ -3,25 +3,84 @@ const { test, expect, fixture } = require('./helpers');
 // Deux ateliers : Impression (cadres standard du marché, dessins réduits pour y tenir, tirages et
 // fichier HD) et Toile (taille réelle, toiles du commerce, guide, kit et Atelier Signature).
 test.describe('Atelier Impression et atelier Toile', () => {
-  test('sans choix : les deux cartes sont proposées ; ?mode= choisit, et c’est mémorisé', async ({ page }) => {
+  test('sans choix : les deux cartes au milieu de l’atelier vide ; un clic ou ?mode= choisit, et c’est mémorisé ; plus de bascule ensuite', async ({ page }) => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#mode-pick')).toBeVisible();
-    expect(await page.evaluate(() => document.querySelectorAll('#mode-switch button.on').length)).toBe(0);
+    expect(await page.evaluate(() => document.querySelectorAll('#mode-pick button.on').length)).toBe(0);
     await page.locator('#mode-pick [data-mode="impression"]').click();
-    await expect(page.locator('#mode-pick')).toBeHidden();
-    await expect(page.locator('#mode-switch [data-mode="impression"]')).toHaveClass(/on/);
+    // les cartes restent tant qu'aucune œuvre n'est commencée, le choix présélectionné
+    await expect(page.locator('#mode-pick')).toBeVisible();
+    await expect(page.locator('#mode-pick [data-mode="impression"]')).toHaveClass(/on/);
     expect(await page.evaluate(() => localStorage.getItem('atelier.mode'))).toBe('impression');
     // rechargée sans paramètre : le choix revient ; ?mode=toile le remplace
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
-    await expect(page.locator('#mode-pick')).toBeHidden();
+    await expect(page.locator('#mode-pick [data-mode="impression"]')).toHaveClass(/on/);
     await expect(page.locator('#format-label')).toHaveText('Cadre');
     await page.goto('index.html?mode=toile');
     await page.waitForFunction(() => window.AtelierGribouille);
-    await expect(page.locator('#mode-switch [data-mode="toile"]')).toHaveClass(/on/);
+    await expect(page.locator('#mode-pick [data-mode="toile"]')).toHaveClass(/on/);
     await expect(page.locator('#format-label')).toHaveText('Toile');
+    // le type d'œuvre ne se change plus dans la colonne une fois l'œuvre commencée
+    expect(await page.evaluate(() => !document.getElementById('mode-switch'))).toBe(true);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#mode-pick')).toBeHidden();
+  });
+
+  test('Impression : changer de cadre garde l’œuvre telle quelle (à l’échelle) ; changer d’orientation la tourne d’un quart de tour', async ({ page }) => {
+    test.setTimeout(180000);
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const snap = () => page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, style: c.style, key: c.frameKey, items: c.items.map((L) => [L.x / c.W, L.y / c.H, L.w, L.h, L.rot, (L.piece.canvas.width * L.piece.drawing.sizeCm / L.piece.drawing.srcLong) / L.w]), bg: c.bg.filter((L) => !L.paper).length }; });
+    const a = await snap();
+    expect(a.W).toBe(40); expect(a.H).toBe(30);
+    // un autre cadre : mêmes places en proportion, dessins agrandis d'un même facteur (jamais au-delà
+    // de leur taille réelle), même style
+    await page.selectOption('#format', 'cadre:50x70');
+    await page.waitForTimeout(400);
+    const b = await snap();
+    expect([b.W, b.H, b.key, b.style, b.bg]).toEqual([70, 50, '50x70', a.style, a.bg]);
+    expect(b.items.length).toBe(a.items.length);
+    const km = Math.sqrt((70 / 40) * (50 / 30));
+    a.items.forEach(([x, y, w, h, rot, cap], i) => {
+      const ks = Math.min(km, Math.max(1, cap));
+      expect(b.items[i][0]).toBeCloseTo(x, 3); expect(b.items[i][1]).toBeCloseTo(y, 3);
+      expect(b.items[i][2] / w).toBeCloseTo(ks, 3); expect(b.items[i][3] / h).toBeCloseTo(ks, 3);
+      expect(b.items[i][4]).toBeCloseTo(rot, 6);
+    });
+    // un cadre plus petit : tout est réduit d'un même facteur
+    await page.selectOption('#format', 'cadre:21x30');
+    await page.waitForTimeout(400);
+    const b2 = await snap();
+    expect([b2.W, b2.H]).toEqual([29.7, 21]);
+    const km2 = Math.sqrt((29.7 / 70) * (21 / 50));
+    b.items.forEach(([x, y, w, h, rot], i) => { expect(b2.items[i][0]).toBeCloseTo(x, 3); expect(b2.items[i][2] / w).toBeCloseTo(km2, 3); expect(b2.items[i][4]).toBeCloseTo(rot, 6); });
+    await page.selectOption('#format', 'cadre:50x70');
+    await page.waitForTimeout(400);
+    // portrait : l'œuvre tourne d'un quart de tour (places et inclinaisons tournées, tailles gardées)
+    await page.locator('#canvas-orient [data-orient="port"]').click();
+    await page.waitForTimeout(400);
+    const c = await snap();
+    expect([c.W, c.H, c.style]).toEqual([50, 70, a.style]);
+    b.items.forEach(([x, y, w, h, rot], i) => {
+      expect(c.items[i][2]).toBeCloseTo(w, 3); expect(c.items[i][3]).toBeCloseTo(h, 3);
+      expect(Math.abs(c.items[i][4] - rot)).toBeCloseTo(Math.PI / 2, 6);
+    });
+    // retour en paysage : tout revient
+    await page.locator('#canvas-orient [data-orient="land"]').click();
+    await page.waitForTimeout(400);
+    const d = await snap();
+    expect([d.W, d.H]).toEqual([70, 50]);
+    b.items.forEach(([x, y, w, h, rot], i) => { expect(d.items[i][0]).toBeCloseTo(x, 3); expect(d.items[i][1]).toBeCloseTo(y, 3); expect(d.items[i][4]).toBeCloseTo(rot, 6); });
+    // les autres propositions, elles, sont refaites au nouveau cadre
+    const sizes = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => [p.comp.W, p.comp.H]));
+    sizes.forEach(([W, H]) => expect([W, H]).toEqual([70, 50]));
   });
 
   test('Impression : cadres standard seulement, œuvre à la taille du cadre, dessins réduits, produits impression', async ({ page }) => {
@@ -123,6 +182,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
       const cx = r.left + (v.ox + L.x * v.s) / v.dpr, cy = r.top + (v.oy + L.y * v.s) / v.dpr;
       return { x: r.left + (v.ox + X * v.s) / v.dpr, y: r.top + (v.oy + Y * v.s) / v.dpr, cx, cy };
     });
+    // (la composition a été refaite par le curseur de densité : la pièce n'a plus la taille d'avant)
+    const wd = await page.evaluate(() => AtelierGribouille.state.selected.w);
     await page.mouse.move(h.x, h.y);
     await page.mouse.down();
     // on s'éloigne du centre de 50 % : la pièce grandit d'autant
@@ -130,9 +191,9 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.mouse.move(h.cx + (h.x - h.cx) * 1.5, h.cy + (h.y - h.cy) * 1.5);
     await page.mouse.up();
     const w1 = await page.evaluate(() => AtelierGribouille.state.selected.w);
-    expect(w1 / w0).toBeGreaterThan(1.3); expect(w1 / w0).toBeLessThan(1.7);
+    expect(w1 / wd).toBeGreaterThan(1.3); expect(w1 / wd).toBeLessThan(1.7);
     await page.evaluate(() => { AtelierGribouille.undo(); });
-    expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].w)).toBeCloseTo(w0, 4);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].w)).toBeCloseTo(wd, 4);
     await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
     // portrait : 21 × 29,7
     await page.locator('#canvas-orient [data-orient="port"]').click();
@@ -171,7 +232,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await page.locator('.saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('« Cadre 18x24 » rouverte', { timeout: 120000 });
-    await expect(page.locator('#mode-switch [data-mode="impression"]')).toHaveClass(/on/);
+    expect(await page.evaluate(() => AtelierGribouille.state.mode)).toBe('impression');
     // (cadre, orientation et passe-partout reviennent)
     expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:21x30', 13, 18]);
     await expect(page.locator('#print-mat [data-mat="1"]')).toHaveClass(/on/);
@@ -316,11 +377,11 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // une œuvre faite avec les originaux n'existe qu'en un exemplaire : pas de quantité
     await expect(page.locator('#cart .cart-item .cart-qty')).toHaveCount(0);
     await page.locator('#cart [data-close]').first().click();
-    // bascule vers Impression : cadre par défaut, œuvre recomposée à sa taille
-    await page.locator('#mode-switch [data-mode="impression"]').click();
+    // passage en Impression (par le code : plus de bascule dans l'interface) : cadre par défaut, œuvre recomposée à sa taille
+    await page.evaluate((m) => { AtelierGribouille.setMode(m); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); }, 'impression');
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:30x40', 40, 30]);
-    await page.locator('#mode-switch [data-mode="toile"]').click();
+    await page.evaluate((m) => { AtelierGribouille.setMode(m); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); }, 'toile');
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => /^\d+x\d+$/.test(document.getElementById('format').value))).toBe(true);
     expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBeFalsy();

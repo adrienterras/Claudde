@@ -216,10 +216,12 @@
   </header>
 
   <main>
-    <div class="video-band">
-      <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), bord à bord, muette, en boucle ; sa version anglaise est choisie par accueil-video.js -->
+    <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), bord à bord, muette, lue une fois ; sa
+         version anglaise est choisie par accueil-video.js. Cachée pour l'instant (décision à venir) : retirer `hidden`
+         pour la remettre ; tant que la bande est cachée, rien n'est chargé. -->
+    <div class="video-band" hidden>
       <video class="hero-video" id="hero-video" autoplay muted playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 25 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
-        <source src="img/accueil-video-fr.mp4" type="video/mp4">
+        <source data-src="img/accueil-video-fr.mp4" type="video/mp4">
       </video>
     </div>
     <section class="hero wrap">

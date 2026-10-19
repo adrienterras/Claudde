@@ -127,7 +127,7 @@ const waitDraft = async (page) => {
 };
 
 test.describe('Téléphone, onglets', () => {
-  test('ni le choix du type d’œuvre, ni « Commencer une nouvelle œuvre » (restés dans Importer) ; « Mise en scène » dans Tailles ; pas de titre de section', async ({ browser }) => {
+  test('« Commencer une nouvelle œuvre » seulement dans Importer ; « Mise en scène » dans Tailles ; pas de titre de section', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await ctx.newPage();
@@ -137,7 +137,6 @@ test.describe('Téléphone, onglets', () => {
     await p.setInputFiles('#file', [fixture('page-cutout.png')]);
     await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await p.locator('#sheet-tabs [data-tab="more"]').click();
-    await expect(p.locator('#mode-switch')).toBeHidden();
     await expect(p.locator('#new-work')).toBeHidden();
     await expect(p.locator('#saved-section')).toBeVisible();
     await expect(p.locator('#saved-section > h2')).toBeHidden();
@@ -155,11 +154,9 @@ test.describe('Téléphone, onglets', () => {
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
-      await expect(p.locator('#mode-switch')).toBeHidden();
       await expect(p.locator('#new-work')).toBeHidden();
     }
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
-    await expect(p.locator('#mode-switch')).toBeVisible();
     await expect(p.locator('#new-work')).toBeVisible();
     await ctx.close();
   });
@@ -403,8 +400,8 @@ test.describe('Brouillon', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#draft-offer')).toBeHidden();
     // repartir de zéro efface le brouillon (l'étape Importer, repliée après la réouverture, se rouvre d'un clic)
-    await page.locator('#import-section > h2').click();
-    await page.locator('#restart').click();
+    await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('#new-work').click();
     for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
     expect(await hasDraft(page)).toBe(false);
     await page.reload();
@@ -462,15 +459,14 @@ test.describe('Dessins d’exemple', () => {
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.waitForTimeout(500);
-    await expect(page.locator('#sample-offer')).toBeHidden();
     await expect(page.locator('#empty-sample')).toBeHidden();
     await ctx.close();
   });
 
   test('le jeu d’exemple fourni avec l’app s’analyse correctement', async ({ app }) => {
     const { page } = app;
-    await expect(page.locator('#sample-offer')).toBeVisible();
-    await page.locator('#load-sample').click();
+    await expect(page.locator('#empty-sample')).toBeVisible();
+    await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
     const ds = await app.drawings();
     expect(ds.length).toBe(19);
@@ -486,7 +482,7 @@ test.describe('Dessins d’exemple', () => {
   test('importer ses propres dessins retire les dessins d’exemple', async ({ app }) => {
     const { page } = app;
     const { fixture } = require('./helpers');
-    await page.locator('#load-sample').click();
+    await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(19);
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
@@ -494,8 +490,8 @@ test.describe('Dessins d’exemple', () => {
     const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
     expect(names).toEqual(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#notice')).toContainText('exemple ont été retirés');
-    // le nombre de dessins revient au réglage habituel
-    expect(await page.locator('#density').inputValue()).toBe('1.1');
+    // le nombre de dessins revient au réglage d'avant (tous les dessins, par défaut)
+    expect(await page.locator('#density').inputValue()).toBe('1.8');
     await expect(page.locator('#sample-note')).toBeHidden();
   });
 
@@ -510,7 +506,6 @@ test.describe('Dessins d’exemple', () => {
     await page.route('**/samples/*.png', (r) => { const f = r.request().url().split('/').pop(); r.fulfill({ contentType: 'image/png', body: fs.readFileSync(fixture(f)) }); });
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
-    await expect(page.locator('#sample-offer')).toBeVisible();
     await expect(page.locator('#empty-sample')).toBeVisible();
     // rien n'est chargé d'office
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
@@ -520,10 +515,10 @@ test.describe('Dessins d’exemple', () => {
     // une seule taille connue ne suffit pas à étalonner les autres : Exemple 1 garde l'estimation A4
     expect(ds).toEqual([['Exemple 1', 29.7], ['Exemple 2', 42]]);
     await expect(page.locator('#sample-note')).toBeVisible();
-    await expect(page.locator('#sample-offer')).toBeHidden();
+    await expect(page.locator('#empty-sample')).toBeHidden();
     // « repartir de zéro » remet la proposition
     await page.locator('#clear').click();
-    await expect(page.locator('#sample-offer')).toBeVisible();
+    await expect(page.locator('#empty-sample')).toBeVisible();
     expect(errors).toEqual([]);
     await ctx.close();
   });
@@ -786,8 +781,8 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart')).toBeHidden();
     // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
     // (l'étape Importer, repliée après l'import, se rouvre d'un clic sur son titre)
-    await page.locator('#import-section > h2').click();
-    await page.locator('#restart').click();
+    await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('#new-work').click();
     await page.waitForTimeout(800);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille);
@@ -1449,38 +1444,28 @@ test.describe('Cartel sur ordinateur', () => {
   });
 });
 
-test.describe('Couleur du fond à portée de main', () => {
-  test('la pastille près de l’œuvre ouvre la palette ; une teinte s’applique tout de suite, les deux nuanciers restent d’accord', async ({ app }) => {
+test.describe('Couleur du fond', () => {
+  test('le nuancier est en bas de Propositions ; une teinte s’applique tout de suite ; sans objet en Galerie', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
-    await expect(page.locator('#ground-open')).toBeVisible();
-    await expect(page.locator('#ground-pop')).toBeHidden();
-    // la pastille montre la couleur peinte sur l'œuvre affichée
-    const dot0 = await page.evaluate(() => ({ dot: getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase(), ground: String(AtelierGribouille.state.comp.ground || '#f4f2ec').toLowerCase() }));
-    expect(dot0.dot).toBe(dot0.ground);
-    await page.locator('#ground-open').click();
-    await expect(page.locator('#ground-pop')).toBeVisible();
-    // une teinte différente de l'actuelle
-    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
-    await page.locator(`#ground-quick button[data-hex="${hex}"]`).click();
+    await expect(page.locator('#ground')).toBeVisible();
+    // dernier bloc de la section, hors des réglages avancés (repliés) ; plus de pastille près de l'œuvre
+    expect(await page.evaluate(() => { const sec = document.getElementById('compose-section'); const last = sec.lastElementChild; const g = document.getElementById('ground'); return last.contains(g) && !document.getElementById('advanced').contains(g) && !document.getElementById('ground-open'); })).toBe(true);
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    await page.locator(`#ground button[data-hex="${hex}"]`).click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);
-    await expect(page.locator(`#ground-quick button[data-hex="${hex}"]`)).toHaveClass(/on/);
     await expect(page.locator(`#ground button[data-hex="${hex}"]`)).toHaveClass(/on/);
-    expect(await page.evaluate(() => getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase())).toBe(hex.toLowerCase());
-    // la palette reste ouverte pour essayer d'autres teintes ; Échap la ferme
-    await expect(page.locator('#ground-pop')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.locator('#ground-pop')).toBeHidden();
-    // en Galerie (fond blanc fixe) : pas de palette
+    await expect(page.locator('#ground-name')).not.toHaveText('');
+    // en Galerie (fond blanc fixe) : nuancier sans objet
     await app.select('galerie');
-    await expect(page.locator('#ground-open')).toBeDisabled();
+    await expect(page.locator('#ground')).toHaveClass(/off/);
   });
 
   test('toute nouvelle création part en couleur automatique ; une œuvre rouverte garde la sienne', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
-    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
-    await page.evaluate((h) => document.querySelector(`#ground-quick button[data-hex="${h}"]`).click(), hex);
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    await page.evaluate((h) => document.querySelector(`#ground button[data-hex="${h}"]`).click(), hex);
     expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe(hex);
     // le brouillon garde la couleur choisie
     const draft = () => page.evaluate(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); }; q.onerror = () => res(null); }));
@@ -1495,20 +1480,20 @@ test.describe('Couleur du fond à portée de main', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe('auto');
     await app.import(['page-texture.png']);
     expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe('auto');
-    await expect(page.locator('#ground-quick button[data-hex="auto"]')).toHaveClass(/on/);
+    await expect(page.locator('#ground button[data-hex="auto"]')).toHaveClass(/on/);
   });
 
-  test('sur téléphone, la pastille est dans la barre de droite et la palette tient dans l’écran', async ({ app }) => {
+  test('sur téléphone sans œuvre : ni barre d’outils ni zoom, l’accueil vide est centré ; les barres viennent avec l’œuvre', async ({ app }) => {
     const { page } = app;
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('#empty')).toBeVisible();
+    await expect(page.locator('#toolbar')).toBeHidden();
+    await expect(page.locator('#zoom-bar')).toBeHidden();
+    const c = await page.evaluate(() => { const e = document.querySelector('#empty > div').getBoundingClientRect(); const s = document.getElementById('empty').getBoundingClientRect(); return { dx: Math.abs((e.left + e.right) / 2 - (s.left + s.right) / 2), w: innerWidth }; });
+    expect(c.dx).toBeLessThan(4);
     await app.import(['page-cutout.png', 'page-two.png']);
-    await page.locator('#ground-open').click();
-    await expect(page.locator('#ground-pop')).toBeVisible();
-    const r = await page.evaluate(() => { const b = document.getElementById('ground-pop').getBoundingClientRect(); return { l: b.left, r: b.right, w: innerWidth }; });
-    expect(r.l).toBeGreaterThanOrEqual(0);
-    expect(r.r).toBeLessThanOrEqual(r.w);
-    await page.mouse.click(20, 400);
-    await expect(page.locator('#ground-pop')).toBeHidden();
+    await expect(page.locator('#zoom-bar')).toBeVisible();
+    await expect(page.locator('#toolbar')).toBeVisible();
   });
 });
 
