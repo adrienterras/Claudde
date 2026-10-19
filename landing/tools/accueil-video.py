@@ -2,8 +2,9 @@
 """Vidéo de tête de la page d'accueil (16:9, moins de 30 s), tirée du réel Instagram de présentation.
 
 Le réel (vertical, 1080 × 1920) fournit l'animation : sa zone visuelle (dessins qui s'empilent,
-l'atelier à l'écran, le tableau encadré) est recadrée image par image et posée à droite ; les
-légendes du réel sont réécrites à gauche, en Playfair, aux mêmes instants ; un carton de fin (logo,
+l'atelier à l'écran, le tableau encadré) est recadrée image par image et posée à droite, à même le
+fond (sans carte ni ombre : ses bords se fondent dans la couleur du fond) ; les légendes du réel sont
+réécrites à gauche, en Playfair, aux mêmes instants ; un carton de fin (logo,
 promesse, adresse) termine. Deux langues. Entrées : le réel (hors dépôt), les polices du site et
 img/logo-mark.png. Sorties : img/accueil-video-fr.mp4, -en.mp4 (1280 × 720), l'affiche
 accueil-video-poster.webp et, avec --hd, une version 1920 × 1080.
@@ -11,7 +12,7 @@ Usage : python3 tools/accueil-video.py --reel <mp4> --fonts <dossier> [--ffmpeg 
 """
 import argparse, os, subprocess
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 
 FPS = 30
 REEL_W, REEL_H = 1080, 1920
@@ -90,25 +91,23 @@ class Renderer:
         self.vis_h = int(1000 * k); self.vis_w = int(self.vis_h * REEL_W / (CROP_Y1 - CROP_Y0))
         self.vis_x = self.W - self.vis_w - int(50 * k); self.vis_y = int(40 * k)
         self.col_x0, self.col_x1 = int(90 * k), self.vis_x - int(60 * k)
-        self.shadow = None
+        self.feather = None
 
     def background(self, reel):
         """Un fond uni : la couleur du réel autour de ses légendes (crème, ou le mur beige à la fin)."""
         bg = tuple(int(v) for v in reel[150:300, 10:60].reshape(-1, 3).mean(axis=0))
         return Image.new('RGB', (self.W, self.H), bg)
-    def card(self, vis):
-        """La zone visuelle du réel, en carte aux coins arrondis avec une ombre douce."""
-        k = self.k; r = int(26 * k); pad = int(50 * k)
-        mask = Image.new('L', vis.size, 0)
-        ImageDraw.Draw(mask).rounded_rectangle((0, 0, vis.width - 1, vis.height - 1), radius=r, fill=255)
-        if self.shadow is None:
-            sh = Image.new('RGBA', (vis.width + 2 * pad, vis.height + 2 * pad), (0, 0, 0, 0))
-            ImageDraw.Draw(sh).rounded_rectangle((pad, pad + int(18 * k), pad + vis.width, pad + vis.height + int(18 * k)), radius=r, fill=(40, 25, 10, 60))
-            self.shadow = sh.filter(ImageFilter.GaussianBlur(int(22 * k)))
-        out = self.shadow.copy()
-        v = vis.convert('RGBA'); v.putalpha(mask)
-        out.alpha_composite(v, (pad, pad))
-        return out, pad
+    def blend(self, vis):
+        """La zone visuelle du réel, à même le fond : ses quatre bords s'estompent sur quelques dizaines
+        de pixels pour qu'aucun contour ne se voie (ni carte, ni ombre)."""
+        if self.feather is None:
+            f = int(70 * self.k)
+            w, h = vis.size
+            ramp = np.minimum(1, np.minimum(np.arange(w), np.arange(w)[::-1]) / f)
+            rampy = np.minimum(1, np.minimum(np.arange(h), np.arange(h)[::-1]) / f)
+            self.feather = Image.fromarray((np.outer(rampy, ramp) * 255).astype(np.uint8), 'L')
+        v = vis.convert('RGBA'); v.putalpha(self.feather)
+        return v
 
     def caption(self, img, t, caps):
         for t0, t1, runs in caps:
@@ -129,8 +128,8 @@ class Renderer:
     def frame(self, reel, t, caps):
         img = self.background(reel)
         vis = Image.fromarray(reel[CROP_Y0:CROP_Y1], 'RGB').resize((self.vis_w, self.vis_h), Image.LANCZOS)
-        c, pad = self.card(vis)
-        img.paste(c, (self.vis_x - pad, self.vis_y - pad), c)
+        v = self.blend(vis)
+        img.paste(v, (self.vis_x, self.vis_y), v)
         self.caption(img, t, caps)
         return img
 

@@ -94,7 +94,13 @@
     .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
     .reassure { margin: 18px 0 0; font-size: .82rem; color: var(--muted); }
     .hero-art { position: relative; }
+    .hero-art .photo { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 34px 70px -30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.06); }
+    .hero-art .sticker { position: absolute; left: 18px; bottom: -18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: .8rem; box-shadow: 0 14px 30px -18px rgba(0,0,0,.4); transform: rotate(2deg); }
+    .hero-art .sticker b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1rem; }
+    /* la vidéo de présentation : une bande sur toute la largeur, au-dessus du héros */
+    .video-band { padding: 36px 0 0; }
     .hero-video { display: block; width: 100%; height: auto; border-radius: 18px; background: #f6f3ec; box-shadow: 0 34px 70px -30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.06); }
+    .video-band + .hero { padding-top: 56px; }
     /* sections */
     section { padding: 64px 0; }
     .sec-head { max-width: 60ch; margin-bottom: 34px; }
@@ -168,6 +174,10 @@
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; padding-top: 40px; gap: 36px; }
       .hero-art { order: -1; padding: 0 10px; }
+      .video-band { padding-top: 20px; }
+      .video-band .wrap { width: min(1120px, 100% - 20px); }
+      .hero-video { border-radius: 12px; }
+      .video-band + .hero { padding-top: 48px; }
       .scenes, .steps, .styles { grid-template-columns: 1fr; }
       .duo-sec { grid-template-columns: 1fr; gap: 36px; }
       .duo { order: -1; }
@@ -208,6 +218,14 @@
   </header>
 
   <main>
+    <div class="video-band rise">
+      <div class="wrap">
+        <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), muette, en boucle ; sa version anglaise est choisie par accueil-video.js -->
+        <video class="hero-video" id="hero-video" autoplay muted loop playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 28 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
+          <source src="img/accueil-video-fr.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
     <section class="hero wrap">
       <div class="rise">
         <p class="kicker">Atelier Gribouille</p>
@@ -221,10 +239,8 @@
         <p class="reassure">Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.</p>
       </div>
       <div class="hero-art rise" style="animation-delay:.15s">
-        <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), muette, en boucle ; sa version anglaise est choisie par accueil-video.js -->
-        <video class="hero-video" id="hero-video" autoplay muted loop playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 28 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
-          <source src="img/accueil-video-fr.mp4" type="video/mp4">
-        </video>
+        <img class="photo" src="img/salon-toile.jpg" srcset="img/salon-toile-900.jpg 900w, img/salon-toile.jpg 1800w" sizes="(max-width: 900px) 100vw, 50vw" alt="Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches" width="1413" height="1060">
+        <div class="sticker"><b>Découpés et collés sur toile</b>Tous leurs dessins, une seule œuvre</div>
       </div>
     </section>
 

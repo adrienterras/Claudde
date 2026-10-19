@@ -52,6 +52,8 @@
     "Voir un exemple": "See an example",
     "Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.": "Free to compose. The drawings remain yours: everything happens in your browser, and in your account if you create one.",
     "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches": "A canvas made of cut-out, glued children’s drawings, hanging on the wall of a living room with white mouldings",
+    "Découpés et collés sur toile": "Cut out and glued on canvas",
+    "Tous leurs dessins, une seule œuvre": "All their drawings, one artwork",
     "Accrochée chez vous, elle raconte leur enfance.": "Hanging at home, it tells the story of their childhood.",
     "Dans la chambre, le salon ou l’entrée : l’œuvre encadrée, à sa taille réelle, chez vous.": "In the bedroom, the living room or the hallway: the framed artwork, at its real size, in your home.",
     "Dans la chambre d’enfant": "In the child’s bedroom",
