@@ -356,20 +356,28 @@ cd collage && python3 -m http.server 8000
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
-   - **l'œuvre en cours suit le compte** : connecté, le brouillon est aussi envoyé dans le compte
-     (`Account.cloud.draftPut`, 15 s après le dernier changement sur ordinateur, 6 s sur téléphone, ou
-     dès que la page passe en arrière-plan) : une ligne `compositions` marquée `draft` (une seule par
-     compte, remplacée à chaque envoi, absente de la liste des compositions) et un dossier fixe
-     `<utilisateur>/brouillon/` où chaque image (et chaque planche de découpes) n'est envoyée qu'une
-     fois, nommée d'après sa clé de brouillon ; les fichiers qui ne servent plus sont effacés. Le compte
-     est relu (`checkCloudDraft`) à l'arrivée, à la connexion, chaque fois que la page revient au
-     premier plan (on passe du téléphone à l'ordinateur) et toutes les minutes tant qu'elle est visible :
-     si sa version n'est pas celle connue ici (`atelier.brouillon-compte-vu` : envoyée d'ici ou déjà
-     reçue), elle se rouvre d'elle-même dès que l'œuvre d'ici est à jour dans le compte (un mot le dit
-     si elle remplace l'œuvre affichée) ; si l'œuvre d'ici a des changements jamais envoyés (faite sans
-     compte, ou pas encore partis), celle du compte est seulement proposée (« Reprendre »). Après une
-     réception, la copie locale n'est pas renvoyée (sinon les deux appareils se renverraient la même
-     œuvre sans fin). « Oublier cette œuvre » l'efface des deux côtés ;
+   - **l'œuvre en cours suit le compte, à la demande** : connecté, le brouillon part de lui-même dans le
+     compte (`Account.cloud.draftPut`, 15 s après le dernier changement sur ordinateur, 6 s sur
+     téléphone, ou dès que la page passe en arrière-plan) : une ligne `compositions` marquée `draft`
+     (une seule par compte, remplacée à chaque envoi, absente de la liste des compositions) et un
+     dossier fixe `<utilisateur>/brouillon/` où chaque image (et chaque planche de découpes) n'est
+     envoyée qu'une fois, nommée d'après sa clé de brouillon ; les fichiers qui ne servent plus sont
+     effacés. Les photos prises au téléphone sont ainsi dans le compte quand on passe à l'ordinateur.
+     Rien n'est tiré du compte sans qu'on le demande : le bloc `#cloud-sync` sous la puce du compte
+     (ordinateur : toujours visible ; téléphone : onglets Importer et Compte) porte une ligne d'état
+     (`cloudStatus` : « envoyée à 14:32 », « des changements pas encore envoyés », « dans votre compte :
+     une œuvre de N dessins venue d'un autre appareil »…) et deux boutons : « Recharger depuis mon
+     compte » (`pullCloudDraft` : relit la ligne du compte et rouvre son œuvre à la place de celle
+     affichée ; un deuxième appui confirme si des changements d'ici n'étaient pas encore partis ; « déjà
+     celle de votre compte » si rien de neuf) et « Envoyer dans mon compte » (`pushCloudDraft` : envoi
+     sans attendre le délai). Seule exception : à l'arrivée et à la connexion (`checkCloudDraft`), si
+     rien n'est en cours ici (nouvel appareil, navigateur vidé), l'œuvre du compte se rouvre d'elle-même.
+     Après une réception, la copie locale n'est pas renvoyée (`atelier.brouillon-compte-vu` : date de la
+     version du compte connue ici ; sinon les deux appareils se renverraient la même œuvre sans fin).
+     Le compte n'est donc lu qu'à l'arrivée, à la connexion et sur demande, et les lectures ne
+     demandent que ce qu'il faut (lignes du brouillon ou du panier filtrées côté serveur, sans vignette
+     pour le brouillon) : le relire au retour au premier plan et toutes les minutes pesait sur la bande
+     passante sortante du compte Supabase. « Oublier cette œuvre » l'efface des deux côtés ;
    - **couleur du fond à portée de main** : une pastille de la couleur actuelle, en tête de la barre
      d'outils près de l'œuvre (à droite sur téléphone, en bas sur ordinateur), ouvre la palette juste
      à côté (`#ground-pop`) ; une teinte s'applique tout de suite, la palette reste ouverte pour en
@@ -544,9 +552,11 @@ Les optimisations ne changent aucun pixel :
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Le site publié a deux parties : la page d'accueil (`landing/`,
-présentation du concept avec, en tête, la vidéo de présentation en 16:9 (28 s en boucle, muette) :
+présentation du concept avec, en tête, la vidéo de présentation en 16:9 sur toute la largeur de la
+page (28 s en boucle, muette) puis le héros (titre, boutons, photo de la toile dans le salon) :
 le réel Instagram vertical (hors dépôt) fournit l'animation — sa zone visuelle est recadrée image par
-image dans une carte à droite —, ses légendes sont réécrites à gauche en Playfair aux mêmes instants,
+image et posée à droite à même le fond, sans carte ni ombre (ses bords s'estompent) —, ses légendes
+sont réécrites à gauche en Playfair aux mêmes instants,
 et un carton de fin (logo, promesse, adresse) termine ; rendue par `landing/tools/accueil-video.py`
 (Pillow + ffmpeg, polices du site) en français et en anglais (`img/accueil-video-fr.mp4`, `-en.mp4`,
 1280 × 720, affiche `accueil-video-poster.webp`, option `--hd` pour une 1920 × 1080) ;

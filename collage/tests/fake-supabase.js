@@ -49,7 +49,9 @@
       const uid = db.session && db.session.user.id;
       if (!uid) return ko('JWT expired');
       let rows = db.rows.filter((r) => r.user_id === uid && (r.__table || 'compositions') === table);
-      q.filters.forEach(([k, v]) => { rows = rows.filter((r) => r[k] === v); });
+      // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
+      const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
+      q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'is' ? x == v : op === 'not-is' ? x != v : x === v; }); });
       if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
       if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(null); }
       if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }
@@ -59,7 +61,7 @@
     };
     const chain = {
       select() { return chain; }, insert(row) { q.op = 'insert'; q.row = row; return chain; }, delete() { q.op = 'delete'; return chain; }, update(row) { q.op = 'update'; q.row = row; return chain; },
-      eq(k, v) { q.filters.push([k, v]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; },
+      eq(k, v) { q.filters.push([k, v]); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; },
       then(res, rej) { return run().then(res, rej); },
     };
     return chain;

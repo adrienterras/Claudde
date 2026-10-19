@@ -1019,6 +1019,8 @@ body.stage-full .scene-open { display: none; }
   .panel.tabbed > .step, .panel.tabbed > .account, .panel.tabbed > .brand-foot { display: none; }
   .panel.tabbed > .step.tab-on { display: flex; }
   .panel.tabbed[data-tab="more"] > .account, .panel.tabbed[data-tab="more"] > .brand-foot { display: flex; }
+  .panel.tabbed > .cloud-sync { display: none; }
+  .panel.tabbed[data-tab="more"] > .cloud-sync, .panel.tabbed[data-tab="import-section"] > .cloud-sync { display: grid; }
   .panel.tabbed > .step.tab-on.collapsed > :not(h2) { display: revert !important; }
   .scene-open:not([hidden]) { display: none; } /* téléphone : la mise en scène est dans l'onglet Tailles */
   /* l'onglet dit déjà où l'on est : ni numéro ni titre de section */
@@ -1110,6 +1112,10 @@ body.stage-full .scene-open { display: none; }
 
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin-top: 8px; }
+.cloud-sync { margin: 10px 0 14px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 8px; }
+.cloud-sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.cloud-sync[hidden] { display: none !important; }
+.cloud-sync-btns .btn { width: auto; flex: 1 1 180px; padding: 9px 12px; font-size: 0.82rem; gap: 8px; }
 .import-account { margin-top: 8px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
 .camera-stage { position: relative; min-height: 0; background: #15140f; overflow: hidden; }
 .camera-stage video, .camera-review { position: absolute; inset: 0; width: 100%; height: 100%; }

@@ -164,10 +164,12 @@
   const BUCKET = 'drawings';
   const extOf = (type) => (type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg');
 
+  // (les lignes du brouillon et du panier sont écartées côté serveur : leurs vignettes et leurs
+  // fiches ne transitent pas pour rien)
   async function cloudList() {
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').order('created_at', { ascending: false });
+    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').is('meta->>draft', null).is('meta->>cart', null).order('created_at', { ascending: false });
     err(error);
-    return (data || []).filter((row) => !(row.meta && (row.meta.draft || row.meta.cart))).map((row) => ({
+    return (data || []).map((row) => ({
       id: `cloud:${row.id}`, name: row.name, date: row.created_at, thumb: row.thumb, cloud: true,
       comp: (row.meta && row.meta.comp) || {}, nDrawings: row.meta && row.meta.drawings ? row.meta.drawings.length : 0,
     }));
@@ -261,16 +263,17 @@
   const DRAFT_DIR = 'brouillon';
   let draftFiles = null; // noms des fichiers déjà dans le dossier (relus une fois)
   const safeName = (key) => String(key).replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 80);
+  // la ou les lignes du brouillon seulement, sans vignette : relues à chaque arrivée et à chaque envoi
   async function cloudDraftRows() {
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').order('created_at', { ascending: false });
+    const { data, error } = await client.from('compositions').select('id, name, created_at, meta').not('meta->>draft', 'is', null).order('created_at', { ascending: false });
     err(error);
-    return (data || []).filter((row) => row.meta && row.meta.draft);
+    return data || [];
   }
   async function cloudDraft() {
     if (!user) return null;
     const row = (await cloudDraftRows())[0];
     if (!row) return null;
-    return { id: `cloud:${row.id}`, date: (row.meta && row.meta.date) || row.created_at, nDrawings: row.meta && row.meta.drawings ? row.meta.drawings.length : 0, thumb: row.thumb };
+    return { id: `cloud:${row.id}`, date: (row.meta && row.meta.date) || row.created_at, nDrawings: row.meta && row.meta.drawings ? row.meta.drawings.length : 0 };
   }
   // rec : instantané du brouillon (images par clés, voir snapshotComposition avec refs) ;
   // getBytes(ref) rend { data, type } pour une image, { page, atlases } pour une découpe
@@ -373,9 +376,9 @@
   // ---------- Panier dans le compte ----------
   // Un article du panier est une composition marquée meta.cart (produit, finition, taille, quantité…).
   async function cloudCart() {
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').order('created_at', { ascending: false });
+    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').not('meta->>cart', 'is', null).order('created_at', { ascending: false });
     err(error);
-    return (data || []).filter((row) => row.meta && row.meta.cart)
+    return (data || [])
       .map((row) => Object.assign({ id: row.id, recId: `cloud:${row.id}`, refs: [], title: row.name, thumb: row.thumb, date: row.created_at }, row.meta.cart))
       .reverse();
   }

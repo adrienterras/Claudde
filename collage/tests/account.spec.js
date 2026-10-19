@@ -230,7 +230,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
   });
 
-  test('synchronisation entre appareils : une version plus récente dans le compte se rouvre au retour sur la page, sans être renvoyée', async ({ acc }) => {
+  test('synchronisation entre appareils : la version du compte ne revient que sur « Recharger depuis mon compte », sans être renvoyée ; « Envoyer » part tout de suite', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
@@ -244,21 +244,51 @@ test.describe('Comptes utilisateurs', () => {
     // l'autre appareil a envoyé une version plus récente (ici : la même œuvre, dans un autre style, à une autre date)
     const other = await page.evaluate(() => { const r = window.__fake.db.rows.find((x) => x.meta && x.meta.draft); const t2 = new Date(Date.now() + 60000).toISOString(); r.meta.date = t2; r.meta.comp = Object.assign({}, r.meta.comp, { style: r.meta.comp.style === 'frise' ? 'nuage' : 'frise' }); return { t2, style: r.meta.comp.style }; });
     expect(other.style).not.toBe(style0);
-    // la page revient au premier plan : la version du compte se rouvre d'elle-même
-    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    // la page revient au premier plan : rien ne bouge (le compte n'est plus relu de lui-même)
+    await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus')); });
+    await page.waitForTimeout(1500);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
+    await expect(page.locator('#cloud-sync')).toBeVisible();
+    await expect(page.locator('#cloud-sync-status')).toContainText('dans votre compte');
+    // une relecture (arrivée, connexion) voit la version de l'autre appareil : elle le dit, sans rien
+    // tirer ni envoyer tant qu'on n'a pas choisi — même un changement d'ici reste ici
+    await page.evaluate(() => AtelierGribouille.checkCloudDraft());
+    await expect(page.locator('#cloud-sync-status')).toContainText('venue d’un autre appareil');
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
+    await page.evaluate(() => AtelierGribouille.selectProposal(3));
+    await page.waitForTimeout(3000);
+    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.draft).map((r) => r.meta.date))).toEqual([other.t2]);
+    // « Recharger depuis mon compte » : des changements d'ici non envoyés, un deuxième appui confirme,
+    // et la version du compte remplace celle d'ici
+    await page.locator('#cloud-pull').click();
+    await expect(page.locator('#cloud-sync-status')).toContainText('Appuyez de nouveau');
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).not.toBe(other.style);
+    await page.locator('#cloud-pull').click();
     await page.waitForFunction((st) => AtelierGribouille.state.comp && AtelierGribouille.state.comp.style === st && document.getElementById('progress').hidden, other.style, { timeout: 120000 });
-    await expect(page.locator('#save-status')).toContainText('mise à jour depuis un autre appareil');
+    await expect(page.locator('#save-status')).toContainText('rechargée depuis votre compte');
+    await expect(page.locator('#cloud-sync-status')).toContainText('rechargée depuis votre compte');
     expect(await page.evaluate(() => localStorage.getItem('atelier.brouillon-compte-vu'))).toBe(other.t2);
     // la copie d'ici n'est pas renvoyée au compte (pas de ping-pong entre appareils)
     await page.waitForTimeout(4000);
     await page.evaluate(() => AtelierGribouille.syncCloudDraft());
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.draft).map((r) => r.meta.date))).toEqual([other.t2]);
-    // un vrai changement d'ici repart dans le compte
+    // « Recharger » de nouveau, rien de neuf : l'œuvre reste, un mot le dit
+    await page.locator('#cloud-pull').click();
+    await expect(page.locator('#cloud-sync-status')).toContainText('déjà celle de votre compte');
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(other.style);
+    // un vrai changement d'ici repart dans le compte, tout de suite avec « Envoyer dans mon compte »
     await page.evaluate(() => AtelierGribouille.selectProposal(2));
-    await page.waitForTimeout(3000);
-    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForTimeout(500);
+    await page.locator('#cloud-push').click();
     await page.waitForFunction((t2) => window.__fake.db.rows.find((r) => r.meta && r.meta.draft).meta.date !== t2, other.t2, { timeout: 30000 });
+    await expect(page.locator('#cloud-sync-status')).toContainText('envoyée à');
+    // hors connexion, le bloc disparaît
+    await page.locator('#acc-menu').click();
+    await page.locator('#acc-signout').click();
+    await expect(page.locator('#cloud-sync')).toBeHidden();
   });
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {

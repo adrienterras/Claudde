@@ -125,6 +125,14 @@
       <button type="button" id="acc-open" class="acc-chip"><svg class="ico"><use href="#i-user"/></svg><span>Se connecter ou créer un compte</span></button>
       <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
+    <!-- l'œuvre en cours et le compte : état, « Recharger depuis mon compte », « Envoyer dans mon compte » -->
+    <div id="cloud-sync" class="cloud-sync" hidden>
+      <p id="cloud-sync-status" class="hint"></p>
+      <div class="cloud-sync-btns">
+        <button type="button" id="cloud-pull" class="btn"><svg class="ico"><use href="#i-cloud"/></svg><span>Recharger depuis mon compte</span></button>
+        <button type="button" id="cloud-push" class="btn"><svg class="ico"><use href="#i-upload"/></svg><span>Envoyer dans mon compte</span></button>
+      </div>
+    </div>
 
 
     <section id="import-section" class="step">
