@@ -4507,8 +4507,12 @@ Réponds uniquement avec ce JSON :
       if (epoch !== draftEpoch) return; // « nouvelle œuvre » demandée pendant l'instantané : on n'écrit pas
       rec.id = DRAFT_ID;
       await dbPut(rec);
-      pendingCloud = rec;
-      scheduleCloudDraft();
+      if (skipPushOnce) {
+        // la copie d'ici de l'œuvre reçue du compte : rien à renvoyer (sinon chaque appareil renverrait
+        // la même œuvre à l'autre sans fin)
+        skipPushOnce = false;
+        try { localStorage.setItem(CLOUD_DRAFT_KEY, rec.date); } catch (e) { /* ignoré */ }
+      } else { pendingCloud = rec; scheduleCloudDraft(); }
       // images de dessins retirés depuis : effacées (d'après le magasin lui-même)
       const used = new Set([...rec.drawings.flatMap((x) => [x.ref, savedRef(x)]), ...cartRefs()]);
       const stale = (await filesKeys().catch(() => [])).filter((k) => !used.has(k));
@@ -4599,20 +4603,25 @@ Réponds uniquement avec ce JSON :
   }
 
   /*
-   * L'œuvre en cours dans le compte. Connecté, le brouillon est aussi envoyé dans le compte (une
-   * quinzaine de secondes après le dernier changement, images envoyées une seule fois) : sur un autre
-   * appareil, connecté, l'atelier la retrouve. À l'arrivée : s'il n'y a pas d'œuvre en cours dans ce
-   * navigateur, ou si celle-ci est plus ancienne et déjà envoyée, l'œuvre du compte se rouvre d'elle-
-   * même ; si l'œuvre d'ici est plus récente, elle reste, et si elle n'a jamais été envoyée (faite
-   * sans compte), celle du compte est seulement proposée.
+   * L'œuvre en cours dans le compte. Connecté, le brouillon est aussi envoyé dans le compte (quelques
+   * secondes après le dernier changement — 6 s sur téléphone, 15 s sur ordinateur —, images envoyées
+   * une seule fois) : sur un autre appareil, connecté, l'atelier la retrouve. Le compte est relu à
+   * l'arrivée, à la connexion, chaque fois que la page revient au premier plan, et toutes les minutes :
+   * si sa version n'est pas celle connue ici (envoyée d'ici ou déjà reçue), elle se rouvre d'elle-même
+   * dès que l'œuvre d'ici est à jour dans le compte ; si l'œuvre d'ici a des changements jamais
+   * envoyés (faite sans compte, ou pas encore partis), celle du compte est seulement proposée. Après
+   * une réception, la copie d'ici n'est pas renvoyée : sinon les deux appareils se renverraient la
+   * même œuvre sans fin.
    */
-  const CLOUD_DRAFT_KEY = 'atelier.brouillon-compte'; // date du dernier brouillon envoyé depuis ce navigateur
-  let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false;
+  const CLOUD_DRAFT_KEY = 'atelier.brouillon-compte'; // date du dernier brouillon d'ici envoyé (ou reçu puis copié ici)
+  const CLOUD_SEEN_KEY = 'atelier.brouillon-compte-vu'; // date de la version du compte connue ici (envoyée ou reçue)
+  let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, skipPushOnce = false;
   const cloudSyncable = () => { const A = window.Account; return !!(A && A.enabled && A.user()) && !state.restoring; };
+  const CLOUD_DELAY = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 6000 : 15000;
   function scheduleCloudDraft(delay) {
     if (!cloudSyncable() || !pendingCloud) return;
     clearTimeout(cloudTimer);
-    cloudTimer = setTimeout(syncCloudDraft, delay === undefined ? 15000 : delay);
+    cloudTimer = setTimeout(syncCloudDraft, delay === undefined ? CLOUD_DELAY : delay);
   }
   async function syncCloudDraft() {
     clearTimeout(cloudTimer);
@@ -4624,7 +4633,7 @@ Réponds uniquement avec ce JSON :
       const getBytes = (ref) => filesGet(ref).catch(() => null);
       await window.Account.cloud.draftPut(rec, getBytes);
       if (pendingCloud === rec) pendingCloud = null;
-      try { localStorage.setItem(CLOUD_DRAFT_KEY, rec.date); } catch (e) { /* ignoré */ }
+      try { localStorage.setItem(CLOUD_DRAFT_KEY, rec.date); localStorage.setItem(CLOUD_SEEN_KEY, rec.date); } catch (e) { /* ignoré */ }
     } catch (e) {
       console.warn('œuvre en cours non envoyée dans le compte', e);
     } finally {
@@ -4634,34 +4643,46 @@ Réponds uniquement avec ce JSON :
   }
   // la page se ferme ou passe en arrière-plan : on n'attend pas le délai
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && pendingCloud) syncCloudDraft(); });
-  let cloudChecked = false;
+  let cloudChecking = false;
   async function checkCloudDraft() {
     const A = window.Account;
-    if (!(A && A.enabled && A.user()) || cloudChecked) return;
-    cloudChecked = true;
-    let remote = null;
-    try { remote = await A.cloud.draft(); } catch (e) { console.warn('œuvre en cours du compte illisible', e); return; }
-    if (!remote || !remote.nDrawings) return;
-    await restoreChain; // la réouverture de l'œuvre d'ici, si elle est en cours
-    let local = null;
-    try { local = await dbGet(DRAFT_ID); } catch (e) { local = null; }
-    const localDate = local && local.date ? Date.parse(local.date) : 0;
-    const remoteDate = Date.parse(remote.date) || 0;
-    if (local && remoteDate <= localDate + 1000) return; // l'œuvre d'ici est la plus récente (ou la même)
-    let sentDate = null;
-    try { sentDate = localStorage.getItem(CLOUD_DRAFT_KEY); } catch (e) { sentDate = null; }
-    const localSent = !local || (sentDate && local.date && Date.parse(sentDate) >= localDate);
-    const busyNow = state.drawings.length && !onlySamples() && !localSent;
-    if (!busyNow) { await resumeCloudDraft(remote); return; }
-    // une œuvre faite ici sans compte, jamais envoyée : on propose seulement
-    const box = $('draft-offer');
-    box.querySelector('span').textContent = tr`Une œuvre en cours plus récente (${remote.nDrawings} dessins, sur un autre appareil) est dans votre compte.`;
-    box.hidden = false;
-    $('draft-resume').hidden = false;
-    $('draft-forget').hidden = true;
-    $('draft-resume').onclick = () => { $('draft-resume').hidden = true; resumeCloudDraft(remote); };
+    if (!(A && A.enabled && A.user()) || cloudChecking || state.restoring || state.resuming) return;
+    if (pendingCloud || cloudBusy) return; // des changements d'ici partent : ils font foi, on ne tire pas par-dessus
+    cloudChecking = true;
+    try {
+      let remote = null;
+      try { remote = await A.cloud.draft(); } catch (e) { console.warn('œuvre en cours du compte illisible', e); return; }
+      if (!remote || !remote.nDrawings) return;
+      let seen = null;
+      try { seen = localStorage.getItem(CLOUD_SEEN_KEY); } catch (e) { seen = null; }
+      await restoreChain; // la réouverture de l'œuvre d'ici, si elle est en cours
+      if (pendingCloud || cloudBusy) return;
+      let local = null;
+      try { local = await dbGet(DRAFT_ID); } catch (e) { local = null; }
+      // rien de nouveau (la version envoyée d'ici, ou déjà reçue) : on ne touche à rien, sauf si
+      // l'œuvre a disparu d'ici (navigateur vidé, « nouvelle œuvre ») : elle revient alors du compte
+      if (remote.date === seen && (local || (state.drawings.length && !onlySamples()))) return;
+      const localDate = local && local.date ? Date.parse(local.date) : 0;
+      let sentDate = null;
+      try { sentDate = localStorage.getItem(CLOUD_DRAFT_KEY); } catch (e) { sentDate = null; }
+      const localSent = !local || (sentDate && local.date && Date.parse(sentDate) >= localDate);
+      const busyNow = state.drawings.length && !onlySamples() && !localSent;
+      if (!busyNow) { await resumeCloudDraft(remote, !!state.drawings.length); return; }
+      // une œuvre faite ici sans compte, jamais envoyée : on propose seulement
+      const box = $('draft-offer');
+      box.querySelector('span').textContent = tr`Une œuvre en cours plus récente (${remote.nDrawings} dessins, sur un autre appareil) est dans votre compte.`;
+      box.hidden = false;
+      $('draft-resume').hidden = false;
+      $('draft-forget').hidden = true;
+      $('draft-resume').onclick = () => { $('draft-resume').hidden = true; resumeCloudDraft(remote); };
+    } finally { cloudChecking = false; }
   }
-  async function resumeCloudDraft(remote) {
+  // le compte est relu quand la page revient au premier plan (on passe du téléphone à l'ordinateur),
+  // et toutes les minutes tant qu'elle est visible ; le panier aussi
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { checkCloudDraft(); if (cloudCartOn()) syncCloudCart(); } });
+  window.addEventListener('focus', () => checkCloudDraft());
+  setInterval(() => { if (document.visibilityState === 'visible') checkCloudDraft(); }, 60000);
+  async function resumeCloudDraft(remote, replaced) {
     const box = $('draft-offer');
     box.querySelector('span').textContent = tr`Réouverture de votre œuvre en cours depuis votre compte (${remote.nDrawings} dessins)…`;
     box.hidden = false;
@@ -4673,8 +4694,11 @@ Réponds uniquement avec ce JSON :
     try { await restoreComposition(remote.id); } finally { state.resuming = false; }
     if (!state.comp || !state.drawings.length) { box.querySelector('span').textContent = tr('L’œuvre en cours de votre compte n’a pas pu être rouverte.'); return; }
     box.hidden = true;
-    try { localStorage.setItem(CLOUD_DRAFT_KEY, remote.date); } catch (e) { /* ignoré */ }
-    scheduleDraft(); // la copie d'ici, à jour
+    try { localStorage.setItem(CLOUD_SEEN_KEY, remote.date); } catch (e) { /* ignoré */ }
+    skipPushOnce = true;
+    clearTimeout(draftTimer);
+    saveDraft(); // la copie d'ici, à jour (sans la renvoyer au compte)
+    if (replaced) saveStatus(tr('Votre œuvre a été mise à jour depuis un autre appareil.'));
     selectTab('compose-section');
   }
 
@@ -5371,7 +5395,7 @@ Réponds uniquement avec ce JSON :
         if (next) setTimeout(next, 150); // l'action demandée avant la connexion reprend
       }
       else if (wasSigned === true && !signed) { openPanel(false); setMode('signin'); }
-      if (signed) { checkCloudDraft(); if (pendingCloud) scheduleCloudDraft(); } else cloudChecked = false;
+      if (signed) { checkCloudDraft(); if (pendingCloud) scheduleCloudDraft(); }
       wasSigned = signed;
       $('import-account').hidden = signed;
       $('saved-hint').textContent = signed

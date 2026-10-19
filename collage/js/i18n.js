@@ -281,6 +281,7 @@
     '{0} · impression {1} × {2} cm': '{0} · print {1} × {2} cm',
     'Sans couleur (fond blanc)': 'No colour (white background)',
     'Relancer la vidéo': 'Restart the video',
+    'Votre œuvre a été mise à jour depuis un autre appareil.': 'Your artwork was updated from another device.',
     'Prendre la photo avec l’appareil du téléphone': 'Take the photo with the phone’s camera',
     'L’image de l’appareil photo n’arrive pas{0}. Sur iPhone, cela arrive en mode économie d’énergie, ou quand la caméra est déjà utilisée par une autre application.': 'No image is coming from the camera{0}. On iPhone this happens in Low Power Mode, or when another app is already using the camera.',
     'L’appareil photo ne répond pas (l’autorisation n’a pas été donnée ?). Vous pouvez prendre la photo avec l’appareil du téléphone, ou l’importer depuis la galerie.': 'The camera is not responding (was permission given?). You can take the photo with the phone’s camera, or import it from the gallery.',

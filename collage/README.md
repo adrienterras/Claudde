@@ -356,15 +356,19 @@ cd collage && python3 -m http.server 8000
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
    - **l'œuvre en cours suit le compte** : connecté, le brouillon est aussi envoyé dans le compte
-     (`Account.cloud.draftPut`, une quinzaine de secondes après le dernier changement, ou dès que la
-     page passe en arrière-plan) : une ligne `compositions` marquée `draft` (une seule par compte,
-     remplacée à chaque envoi, absente de la liste des compositions) et un dossier fixe
+     (`Account.cloud.draftPut`, 15 s après le dernier changement sur ordinateur, 6 s sur téléphone, ou
+     dès que la page passe en arrière-plan) : une ligne `compositions` marquée `draft` (une seule par
+     compte, remplacée à chaque envoi, absente de la liste des compositions) et un dossier fixe
      `<utilisateur>/brouillon/` où chaque image (et chaque planche de découpes) n'est envoyée qu'une
-     fois, nommée d'après sa clé de brouillon ; les fichiers qui ne servent plus sont effacés. À
-     l'arrivée, connecté (`checkCloudDraft`) : sans œuvre en cours dans ce navigateur, ou si elle est
-     plus ancienne et déjà envoyée, l'œuvre du compte se rouvre d'elle-même ; si l'œuvre d'ici est
-     plus récente elle reste ; si elle n'a jamais été envoyée (faite sans compte), celle du compte
-     est seulement proposée (« Reprendre »). « Oublier cette œuvre » l'efface des deux côtés ;
+     fois, nommée d'après sa clé de brouillon ; les fichiers qui ne servent plus sont effacés. Le compte
+     est relu (`checkCloudDraft`) à l'arrivée, à la connexion, chaque fois que la page revient au
+     premier plan (on passe du téléphone à l'ordinateur) et toutes les minutes tant qu'elle est visible :
+     si sa version n'est pas celle connue ici (`atelier.brouillon-compte-vu` : envoyée d'ici ou déjà
+     reçue), elle se rouvre d'elle-même dès que l'œuvre d'ici est à jour dans le compte (un mot le dit
+     si elle remplace l'œuvre affichée) ; si l'œuvre d'ici a des changements jamais envoyés (faite sans
+     compte, ou pas encore partis), celle du compte est seulement proposée (« Reprendre »). Après une
+     réception, la copie locale n'est pas renvoyée (sinon les deux appareils se renverraient la même
+     œuvre sans fin). « Oublier cette œuvre » l'efface des deux côtés ;
    - **couleur du fond à portée de main** : une pastille de la couleur actuelle, en tête de la barre
      d'outils près de l'œuvre (à droite sur téléphone, en bas sur ordinateur), ouvre la palette juste
      à côté (`#ground-pop`) ; une teinte s'applique tout de suite, la palette reste ouverte pour en

@@ -213,7 +213,7 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#saved-list .saved')).toHaveCount(0);
     const before = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, n: AtelierGribouille.state.comp.items.length }));
     // un autre appareil : rien en local (base effacée, marque d'envoi effacée), même compte
-    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.brouillon-compte'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.brouillon-compte'); localStorage.removeItem('atelier.brouillon-compte-vu'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const after = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, n: AtelierGribouille.state.comp.items.length }));
@@ -226,6 +226,37 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForTimeout(1500);
     // (sans œuvre locale et arrivée « nouvelle œuvre » : celle du compte se rouvre d'elle-même aussi)
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+  });
+
+  test('synchronisation entre appareils : une version plus récente dans le compte se rouvre au retour sur la page, sans être renvoyée', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(!!(g.result && g.result.drawings && g.result.drawings.length === 2)); g.onerror = () => res(false); }; }), null, { timeout: 60000 });
+    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForFunction(() => window.__fake.db.rows.some((r) => r.meta && r.meta.draft && r.meta.drawings.length === 2));
+    const t1 = await page.evaluate(() => window.__fake.db.rows.find((r) => r.meta && r.meta.draft).meta.date);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.brouillon-compte-vu'))).toBe(t1);
+    const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    // l'autre appareil a envoyé une version plus récente (ici : la même œuvre, dans un autre style, à une autre date)
+    const other = await page.evaluate(() => { const r = window.__fake.db.rows.find((x) => x.meta && x.meta.draft); const t2 = new Date(Date.now() + 60000).toISOString(); r.meta.date = t2; r.meta.comp = Object.assign({}, r.meta.comp, { style: r.meta.comp.style === 'frise' ? 'nuage' : 'frise' }); return { t2, style: r.meta.comp.style }; });
+    expect(other.style).not.toBe(style0);
+    // la page revient au premier plan : la version du compte se rouvre d'elle-même
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await page.waitForFunction((st) => AtelierGribouille.state.comp && AtelierGribouille.state.comp.style === st && document.getElementById('progress').hidden, other.style, { timeout: 120000 });
+    await expect(page.locator('#save-status')).toContainText('mise à jour depuis un autre appareil');
+    expect(await page.evaluate(() => localStorage.getItem('atelier.brouillon-compte-vu'))).toBe(other.t2);
+    // la copie d'ici n'est pas renvoyée au compte (pas de ping-pong entre appareils)
+    await page.waitForTimeout(4000);
+    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.draft).map((r) => r.meta.date))).toEqual([other.t2]);
+    // un vrai changement d'ici repart dans le compte
+    await page.evaluate(() => AtelierGribouille.selectProposal(2));
+    await page.waitForTimeout(3000);
+    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForFunction((t2) => window.__fake.db.rows.find((r) => r.meta && r.meta.draft).meta.date !== t2, other.t2, { timeout: 30000 });
   });
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {
