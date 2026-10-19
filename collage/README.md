@@ -539,11 +539,14 @@ Les optimisations ne changent aucun pixel :
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Le site publié a deux parties : la page d'accueil (`landing/`,
-présentation du concept avec, en tête, un carrousel de six tableaux tirés de la vidéo de présentation
-— `img/accueil-*.webp`, légendes traduites, `carrousel.js` : défilement seul toutes les 4 s, pause
-sous la souris ou au clavier, flèches, points, glissement au doigt, sans défilement automatique si
-le système demande moins d'animations —, œuvres accrochées dans des pièces illustrées, les sept
-styles) à la racine, et
+présentation du concept avec, en tête, la vidéo de présentation en paysage — six tableaux, légende
+en Playfair au-dessus, visuel dessous, fondus enchaînés, 25 s en boucle, muette ; rendue par
+`landing/tools/accueil-video.py` à partir des visuels `img/accueil-*.webp` (tirés de la vidéo de
+présentation) et des polices du site, en français et en anglais (`img/accueil-video-fr.mp4`,
+`-en.mp4`, affiche `accueil-video-poster.webp`) ; `accueil-video.js` choisit la version selon la
+langue et n'enchaîne pas si le système demande moins d'animations —, puis comment ça marche, le
+téléphone, les sept styles, la promesse, les questions et les œuvres accrochées dans des pièces
+illustrées) à la racine, et
 l'application sous `/atelier/` (`?exemple` charge le jeu d'exemple d'office). Adresse :
 https://ateliergribouille.art (domaine personnalisé
 réglé dans Settings → Pages ; l'adresse https://adrienterras.github.io/Claudde/ y redirige). Le dossier
