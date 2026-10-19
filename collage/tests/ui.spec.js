@@ -1422,16 +1422,23 @@ test.describe('Cartel sur ordinateur', () => {
         const hit = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
         const label = box(document.getElementById('label')), dens = box(document.getElementById('density-bar')), zoom = box(document.querySelector('.zoom')), scene = box(document.getElementById('scene-open'));
         const cta = box(document.querySelector('.order-cta-desk')), stage = box(document.querySelector('.stage'));
+        const v = AtelierGribouille.view, cv = document.getElementById('canvas').getBoundingClientRect();
+        const artBottom = cv.top + (v.oy + AtelierGribouille.state.comp.H * v.s) / v.dpr;
         return { dens: hit(label, dens), zoom: hit(label, zoom), scene: hit(label, scene), sceneDens: hit(scene, dens), sceneZoom: hit(scene, zoom), text: document.getElementById('label-meta').textContent.length,
+          under: label.t - artBottom, centred: Math.abs((label.l + label.r) / 2 - (cv.left + cv.right) / 2),
           ctaLabel: hit(cta, label), ctaZoom: hit(cta, zoom), ctaScene: hit(cta, scene), ctaDens: hit(cta, dens), ctaLow: cta.t > (stage.t + stage.b) / 2 && cta.b <= stage.b };
       });
+      // le cartel, petit, juste sous l'œuvre et centré
+      expect(r.under, `cartel sous l'œuvre à ${width} px`).toBeGreaterThan(2);
+      expect(r.under, `cartel collé à l'œuvre à ${width} px`).toBeLessThan(20);
+      expect(r.centred, `cartel centré à ${width} px`).toBeLessThan(2);
       // « Commander » est en bas de l'œuvre (au-dessus de la barre de zoom), sans rien recouvrir
       expect(r.ctaLow, `« Commander » en bas à ${width} px`).toBe(true);
       expect(r.ctaLabel, `« Commander » sur le cartel à ${width} px`).toBe(false);
       expect(r.ctaZoom, `« Commander » sur la barre de zoom à ${width} px`).toBe(false);
       expect(r.ctaScene, `« Commander » sur « Mettre en scène » à ${width} px`).toBe(false);
       expect(r.ctaDens, `« Commander » sur la densité à ${width} px`).toBe(false);
-      expect(r.text).toBeGreaterThan(60);
+      expect(r.text).toBeGreaterThan(10);
       expect(r.dens, `cartel sur la densité à ${width} px`).toBe(false);
       expect(r.zoom, `cartel sur la barre d'outils à ${width} px`).toBe(false);
       // ni le bouton « Mettre en scène » : sur la ligne du curseur, ou au-dessus quand la place manque

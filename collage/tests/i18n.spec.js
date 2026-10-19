@@ -42,7 +42,7 @@ test.describe('langues', () => {
     await page.evaluate(() => { document.getElementById('advanced').open = true; });
     await page.selectOption('#format', { index: 3 });
     await page.waitForTimeout(500);
-    await expect(page.locator('#label-meta')).toContainText('collage of');
+    await expect(page.locator('#label-meta')).toContainText(/ · (canvas|print) /);
     await expect(page.locator('#pieces-count')).toContainText('in the artwork');
     await expect(page.locator('#detail')).toContainText('Real size');
     const missing = await page.evaluate(() => I18n.missing());

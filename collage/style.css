@@ -711,15 +711,11 @@ body.stage-full .density-bar { display: none; }
   text-align: center;
 }
 .label b { font-family: var(--f-display); font-style: italic; font-weight: 400; font-size: 1.02rem; }
-/* sur ordinateur, le cartel est centré dans la bande libre entre la barre de densité et le zoom,
-   et ne la déborde jamais (il s'écrit sur plusieurs lignes au besoin) */
-/* (les bords de la bande sont mesurés par layoutLabel ; si elle est trop étroite, le cartel passe
-   au-dessus des deux barres : classe label-above) */
+/* sur ordinateur, le cartel est petit et se pose juste sous l'œuvre, centré (placeLabel fixe sa hauteur) */
 @media (min-width: 861px) {
-  .label { left: var(--label-l, 370px); right: var(--label-r, 330px); transform: none; width: fit-content; max-width: none; margin: 0 auto; }
-  /* au-dessus de la ligne de « Commander » (et de « Mettre en scène » quand il monte, fenêtre étroite) */
-  body.label-above .label { left: 20px; right: 20px; bottom: 120px; }
-  body.label-above .stage canvas { inset: 64px 0 168px 0; height: calc(100% - 232px); } /* l'œuvre reste entière au-dessus */
+  .label { bottom: auto; top: 50%; padding: 3px 10px; gap: 0; max-width: calc(100% - 40px); }
+  .label b { font-size: 0.86rem; }
+  .label span { font-size: 0.56rem; letter-spacing: .16em; }
   /* fenêtre étroite : « Mettre en scène » au-dessus de la barre de densité */
   body.scene-up .scene-open:not([hidden]) { left: 14px; bottom: 64px; }
 }

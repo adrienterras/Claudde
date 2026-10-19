@@ -278,6 +278,8 @@
     'Avec passe-partout : cadre {0} de {1} × {2} cm pour l’œuvre de {3} × {4} cm{5}.': 'With a mount: frame in {0}, {1} × {2} cm, for the {3} × {4} cm artwork{5}.',
     'Impression de {0} × {1} cm avec passe-partout, dans un cadre de {2} × {3} cm.': 'Print of {0} × {1} cm with a mount, in a {2} × {3} cm frame.',
     'Impression de {0} × {1} cm, à la taille du cadre.': 'Print of {0} × {1} cm, the size of the frame.',
+    '{0} · impression {1} × {2} cm': '{0} · print {1} × {2} cm',
+    '{0} · toile {1} × {2} cm': '{0} · canvas {1} × {2} cm',
     'Panier mis à jour depuis votre compte…': 'Updating the cart from your account…',
     'Panier non envoyé dans votre compte : {0}': 'Cart not sent to your account: {0}',
     'L’œuvre ({0} × {1} cm) est présentée avec un passe-partout dans le cadre de {2}.': 'The artwork ({0} × {1} cm) sits in a mount inside the {2} frame.',

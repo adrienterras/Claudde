@@ -122,7 +122,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.mouse.up();
     const w1 = await page.evaluate(() => AtelierGribouille.state.selected.w);
     expect(w1 / w0).toBeGreaterThan(1.3); expect(w1 / w0).toBeLessThan(1.7);
-    await expect(page.locator('#label-meta')).toContainText('réduits');
     await page.evaluate(() => { AtelierGribouille.undo(); });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].w)).toBeCloseTo(w0, 4);
     await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
@@ -247,8 +246,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
       expect(rows[i].area, JSON.stringify(rows)).toBeLessThanOrEqual(rows[i - 1].area);
     }
     expect(used[4]).toBeLessThan(used[0]);
-    // le cartel compte les dessins vraiment posés
-    rows.forEach((r, i) => expect(r.label).toContain(`collage de ${used[i]} dessins`));
+    // le cartel, petit, dit le type de proposition et la taille de l'impression
+    rows.forEach((r) => expect(r.label).toMatch(/^\S.* · (impression|toile) [\d,]+ × [\d,]+ cm$/));
   });
 
   test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {

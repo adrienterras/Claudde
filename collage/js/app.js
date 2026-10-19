@@ -2090,7 +2090,7 @@
    */
   function layoutLabel() {
     const label = $('label'), stage = label && label.parentElement;
-    if (!stage || window.innerWidth < 861) { document.body.classList.remove('label-above'); return; }
+    if (!stage || window.innerWidth < 861) return;
     const zoom = stage.querySelector('.zoom'), dens = $('density-bar'), scene = $('scene-open');
     const sr = stage.getBoundingClientRect();
     // le bouton « Mettre en scène » suit la barre de densité ; le cartel vient après lui
@@ -2098,19 +2098,21 @@
     const zoomL = zoom ? zoom.getBoundingClientRect().left - sr.left : sr.width;
     stage.style.setProperty('--scene-l', `${Math.round(densR ? densR + 10 : 14)}px`);
     document.body.classList.remove('scene-up');
-    let sceneR = densR;
     if (scene && !scene.hidden) {
-      sceneR = scene.getBoundingClientRect().right - sr.left;
+      const sceneR = scene.getBoundingClientRect().right - sr.left;
       // plus de place sur la ligne (fenêtre étroite) : le bouton monte au-dessus de la barre de densité
-      if (sceneR + 12 > zoomL) { document.body.classList.add('scene-up'); sceneR = densR; }
+      if (sceneR + 12 > zoomL) document.body.classList.add('scene-up');
     }
-    const left = sceneR ? sceneR + 12 : 14;
-    const right = sr.width - zoomL + 12;
-    const room = sr.width - left - right;
-    const above = room < 300;
-    document.body.classList.toggle('label-above', above);
-    stage.style.setProperty('--label-l', `${Math.round(left)}px`);
-    stage.style.setProperty('--label-r', `${Math.round(right)}px`);
+  }
+  // Le cartel (type de proposition, taille de l'impression) se pose juste sous l'œuvre, centré
+  // (ordinateur) ; sur téléphone, il garde sa place au-dessus du tiroir
+  function placeLabel(artBottomPx, dpr) {
+    const label = $('label');
+    if (!label) return;
+    if (mobileQuery.matches) { label.style.top = ''; return; }
+    const top = canvas.offsetTop + artBottomPx / dpr + 8;
+    const max = canvas.offsetTop + canvas.clientHeight - 30; // l'œuvre zoomée déborde : le cartel reste visible en bas
+    label.style.top = `${Math.round(Math.min(top, max))}px`;
   }
   window.addEventListener('resize', () => layoutLabel());
   if (window.ResizeObserver) {
@@ -2157,9 +2159,8 @@
     $('label-title').textContent = t ? `« ${t} »` : '';
     $('label-title').hidden = !t;
     const c = state.comp;
-    const count = c.total ? tr`${c.kept} des ${c.total} dessins, les plus ${c.style === 'galerie' ? tr('adaptés') : tr('beaux')}` : tr`${usedCount} dessins d’enfants`; // ceux qui sont vraiment sur l'œuvre (le curseur peut en écarter)
-    const aside = asideDrawings().length;
-    $('label-meta').textContent = tr`${st.name} · collage de ${count}${aside ? tr` · ${aside} feuille${aside > 1 ? 's' : ''} pâle${aside > 1 ? 's' : ''} mise${aside > 1 ? 's' : ''} de côté` : ''} · ${fmt(c.W)} × ${fmt(c.H)} cm · ${printMode() && scale() * (c.fill || 1) < 0.995 ? tr`dessins réduits à ${Math.round(scale() * (c.fill || 1) * 100)} % pour le cadre` : c.reduced ? tr('dessins réduits pour tenir dans les cases (pour l’impression)') : tr('dessins à taille réelle')}`;
+    // sous l'œuvre, en petit : le type de proposition et la taille de l'impression (ou de la toile)
+    $('label-meta').textContent = printMode() ? tr`${st.name} · impression ${fmt(c.W)} × ${fmt(c.H)} cm` : tr`${st.name} · toile ${fmt(c.W)} × ${fmt(c.H)} cm`;
     renderAside();
     layoutLabel();
   }
@@ -2503,6 +2504,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     Z.py = Math.max(-my, Math.min(my, Z.py));
     const ox = (cw - comp.W * s) / 2 + Z.px, oy = (ch - comp.H * s) / 2 + Z.py;
     view = { s, ox, oy, dpr, fitS };
+    placeLabel(oy + comp.H * s, dpr);
     const shadows = false; // pas d'ombre portée : papier collé à plat
     $('zoom-val').textContent = `${Math.round(Z.z * 100)} %`;
 

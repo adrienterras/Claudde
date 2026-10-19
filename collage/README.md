@@ -173,8 +173,12 @@ cd collage && python3 -m http.server 8000
      bonhomme au crayon), découpées comme les autres ; en montant le curseur elles entrent, découpées
      (les pages d'écriture seule, aux lignes de texte régulières, restant de côté) ; un réglage
      permet de toutes les découper ou de les coller en fond (c'est
-     alors signalé dans le panneau, sur le cartel et sur la couverture du guide) ou de les coller en
+     alors signalé dans le panneau et sur la couverture du guide) ou de les coller en
      fond ; les pages de fond restent entières ;
+   - **cartel** : sous l'œuvre, petit et centré (`placeLabel`, à la hauteur du bas de l'œuvre sur
+     ordinateur ; au-dessus du tiroir sur téléphone, avec le titre seulement), le type de proposition
+     et la taille de l'impression (« Frise · impression 29,7 × 21 cm ») ou de la toile, avec le titre
+     de l'œuvre s'il y en a un ;
    - **œuvre en cours** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
      **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
      œuvre » l'efface. Chaque dessin est relu à la résolution de travail qu'il avait (elle dépend du
@@ -391,7 +395,7 @@ cd collage && python3 -m http.server 8000
      jamais agrandi, si bien qu'au maximum du curseur tous les dessins tiennent, quelle que soit la
      toile ; un dessin sélectionné s'agrandit ou se réduit par pas de 10 % avec deux boutons de la
      barre d'outils, visibles seulement en Galerie ; les dessins y restent tels quels, comme dans les
-     autres styles ; le cartel et le guide signalent la réduction, c'est le seul style qui ne respecte
+     autres styles ; le guide signale la réduction, c'est le seul style qui ne respecte
      pas la taille réelle),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
