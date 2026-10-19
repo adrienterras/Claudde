@@ -108,6 +108,7 @@ test.describe('Photographier un dessin', () => {
 
   test('visée en direct, photo prise et gardée, puis importée dans l’atelier', async ({ app }) => {
     const page = app.page;
+    await page.setViewportSize({ width: 390, height: 844 }); // le bouton n'est là que sur téléphone
     await expect(page.locator('#camera-open')).toBeVisible();
     await page.locator('#camera-open').click();
     await expect(page.locator('#camera')).toBeVisible();
@@ -148,6 +149,7 @@ test.describe('Photographier un dessin', () => {
       HTMLMediaElement.prototype.play = function () { window.__plays++; return Promise.reject(Object.assign(new Error('nope'), { name: 'NotAllowedError' })); };
       Object.defineProperty(HTMLVideoElement.prototype, 'videoWidth', { get: () => 0, configurable: true });
     });
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('#camera-open').click();
     await expect(page.locator('#camera')).toBeVisible();
     await expect(page.locator('#camera-error')).toBeVisible({ timeout: 15000 });
@@ -172,6 +174,7 @@ test.describe('Photographier un dessin', () => {
 
   test('fermer sans photo n’importe rien ; Échap ferme', async ({ app }) => {
     const page = app.page;
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('#camera-open').click();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
     await page.keyboard.press('Escape');

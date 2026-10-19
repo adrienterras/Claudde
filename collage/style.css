@@ -311,8 +311,6 @@ h3 { margin: 6px 0 0; font-size: 0.9rem; font-weight: 600; }
 small { color: var(--muted); font-weight: 400; font-family: var(--f-body); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 
 .hint { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
-.photo-tip { margin-top: 8px; }
-.photo-tip a { color: var(--ink-2); }
 .hint.ai:empty { display: none; }
 .hint.ai { padding: 10px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
 .mono-note { font-family: var(--f-mono); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
@@ -1111,7 +1109,8 @@ body.stage-full .scene-open { display: none; }
 /* atelier Impression : le fond est un aplat uni, la finition toile n'a pas de sens */
 
 /* ---------- Prise de photo dans l'atelier ---------- */
-.camera-open { margin-top: 8px; }
+.camera-open { margin: 0 0 10px; }
+@media (min-width: 861px) { .camera-open { display: none !important; } } /* ordinateur : pas de bouton photo (on photographie au téléphone) */
 .cloud-sync { margin: 10px 0 14px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 8px; }
 .cloud-sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .cloud-sync[hidden] { display: none !important; }

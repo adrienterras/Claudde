@@ -98,8 +98,8 @@
     .hero-art .sticker { position: absolute; left: 18px; bottom: -18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: .8rem; box-shadow: 0 14px 30px -18px rgba(0,0,0,.4); transform: rotate(2deg); }
     .hero-art .sticker b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1rem; }
     /* la vidéo de présentation : une bande sur toute la largeur, au-dessus du héros */
-    .video-band { padding: 36px 0 0; }
-    .hero-video { display: block; width: 100%; height: auto; border-radius: 18px; background: #f6f3ec; box-shadow: 0 34px 70px -30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.06); }
+    .video-band { padding: 0; }
+    .hero-video { display: block; width: 100%; height: auto; background: #f6f3ec; }
     .video-band + .hero { padding-top: 56px; }
     /* sections */
     section { padding: 64px 0; }
@@ -174,10 +174,7 @@
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; padding-top: 40px; gap: 36px; }
       .hero-art { order: -1; padding: 0 10px; }
-      .video-band { padding-top: 20px; }
-      .video-band .wrap { width: min(1120px, 100% - 20px); }
-      .hero-video { border-radius: 12px; }
-      .video-band + .hero { padding-top: 48px; }
+      .video-band + .hero { padding-top: 40px; }
       .scenes, .steps, .styles { grid-template-columns: 1fr; }
       .duo-sec { grid-template-columns: 1fr; gap: 36px; }
       .duo { order: -1; }
@@ -218,13 +215,11 @@
   </header>
 
   <main>
-    <div class="video-band rise">
-      <div class="wrap">
-        <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), muette, en boucle ; sa version anglaise est choisie par accueil-video.js -->
-        <video class="hero-video" id="hero-video" autoplay muted loop playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 28 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
-          <source src="img/accueil-video-fr.mp4" type="video/mp4">
-        </video>
-      </div>
+    <div class="video-band">
+      <!-- la vidéo de présentation en 16:9 (tools/accueil-video.py, tirée du réel), bord à bord, muette, en boucle ; sa version anglaise est choisie par accueil-video.js -->
+      <video class="hero-video" id="hero-video" autoplay muted loop playsinline preload="auto" poster="img/accueil-video-poster.webp" width="1280" height="720" aria-label="L’atelier en 28 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main">
+        <source src="img/accueil-video-fr.mp4" type="video/mp4">
+      </video>
     </div>
     <section class="hero wrap">
       <div class="rise">
@@ -357,6 +352,7 @@
           <details class="qa"><summary>Comment transformer un dessin d’enfant en tableau ?</summary><p>Importez les dessins dans l’atelier : il les détoure comme avec des ciseaux et propose sept compositions avec tous les dessins. Choisissez-en une, ajustez-la, puis téléchargez le fichier haute définition ou commandez le tableau imprimé et encadré.</p></details>
           <details class="qa"><summary>Combien coûte un tableau avec les dessins de mes enfants ?</summary><p>Composer est gratuit. Le fichier haute définition coûte 14,90 €. Imprimée et livrée en France métropolitaine, l’œuvre coûte dès 29 € sur papier premium, dès 49 € sur toile et dès 59 € encadrée. Le kit à réaliser soi-même est à 89 € et l’œuvre faite à la main avec les originaux dès 490 €.</p></details>
           <details class="qa"><summary>Faut-il un scanner ?</summary><p>Non : une photo prise au téléphone suffit. L’atelier retire la table ou le sol autour du dessin et égalise l’éclairage. Pour un grand format, un scan à 300 dpi donne les traits les plus nets. <a href="photographier-les-dessins.html">Nos huit conseils pour bien photographier un dessin</a>.</p></details>
+          <details class="qa"><summary>Comment bien photographier un dessin avec un téléphone ?</summary><p>Lumière du jour, flash éteint, pas d’ombre sur la feuille. Le dessin à plat sur un fond uni (des livres sur les coins s’il gondole). Le téléphone bien parallèle à la feuille, une marge tout autour, un seul dessin par photo. Mise au point sur le dessin, objectif essuyé. Depuis l’atelier sur téléphone, « Photographier un dessin » vous guide en direct : la visée dit si la feuille est trouvée, bien cadrée, nette et bien éclairée. <a href="photographier-les-dessins.html">Les huit conseils en détail</a>.</p></details>
           <details class="qa"><summary>Combien de dessins peut-on réunir sur une toile ?</summary><p>De quelques dessins à plusieurs dizaines : chaque proposition les utilise tous, sur une toile jusqu’à 200 cm. Vous pouvez en retirer, en dupliquer, les déplacer et les retoucher.</p></details>
           <details class="qa"><summary>Que deviennent les dessins que j’importe ?</summary><p>Ils restent dans votre navigateur. Si vous créez un compte gratuit, vos compositions sont gardées dans votre espace, hébergé en Europe, et vous pouvez tout supprimer à tout moment. Les dessins ne servent à rien d’autre qu’à votre œuvre.</p></details>
           <details class="qa"><summary>Est-ce une bonne idée de cadeau ?</summary><p>C’est l’un des cadeaux les plus touchants pour des grands-parents, pour la fête des mères ou des pères, ou pour Noël. Prévoyez quelques jours pour l’impression et la livraison d’un tableau encadré ; le fichier haute définition se télécharge tout de suite.</p></details>

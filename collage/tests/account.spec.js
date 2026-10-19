@@ -108,12 +108,16 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBeTruthy();
     await expect(page.locator('#account-section')).toBeHidden();
-    // photographier : la connexion d'abord
+    // photographier (sur téléphone : le bouton n'est pas sur ordinateur) : la connexion d'abord
+    await expect(page.locator('#camera-open')).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('#sheet-tabs [data-tab="import-section"]').click();
     await page.locator('#camera-open').click();
     await expect(page.locator('#account-section')).toBeVisible();
     await expect(page.locator('#acc-status')).toContainText('photographier vos dessins');
     await expect(page.locator('#camera')).toBeHidden();
     await page.locator('#acc-close').click();
+    await page.setViewportSize({ width: 1440, height: 1000 });
     // des fichiers déposés sans compte : importés tout de suite, à la place de l'exemple
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });

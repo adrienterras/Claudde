@@ -138,6 +138,8 @@
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
       <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link" hidden>Reprendre</button> <button type="button" id="draft-forget" class="link" hidden>Oublier cette œuvre</button></p>
+      <!-- sur téléphone seulement (style.css) : photographier un dessin, avant le dépôt de fichiers -->
+      <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
       <label id="drop" class="drop">
         <input id="file" type="file" multiple accept="application/pdf,image/*,image/heic,image/heif" hidden>
         <svg class="ico ico-lg"><use href="#i-upload"/></svg>
@@ -145,8 +147,6 @@
         <span>PDF de plusieurs pages, JPG ou PNG</span>
       </label>
       <p id="import-account" class="hint import-account" hidden>Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier, exporter ou sauvegarder.</p>
-      <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
-      <p class="hint photo-tip">Pas de scanner ? <a href="../photographier-les-dessins.html" target="_blank" rel="noopener">Conseils pour photographier les dessins avec un téléphone</a></p>
       <label id="share-cuts" class="hint consent" hidden><input type="checkbox" id="share-cuts-box"> <span>Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier. <a href="confidentialite.html#retouches" target="_blank" rel="noopener">En savoir plus</a></span></label>
       <div id="progress" class="progress" hidden><div></div><span></span></div>
       <p id="notice" class="notice" role="status" hidden></p>

@@ -67,8 +67,9 @@ cd collage && python3 -m http.server 8000
    de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
    fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
-   dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin », quand le
-   navigateur donne accès à l'appareil photo) : pendant la visée, chaque image est jugée et l'écran
+   dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
+   zone de dépôt, sur téléphone seulement — largeur ≤ 860 px — et quand le navigateur donne accès à
+   l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée et l'écran
    dit si la photo sera bonne — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
    sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
    droits), netteté et lumière égale (`Quality.sharpness`, `Quality.lighting`, mêmes seuils qu'à
