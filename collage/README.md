@@ -60,11 +60,12 @@ cd collage && python3 -m http.server 8000
      liste suit la proposition affichée. Dès que le client choisit une toile dans la liste
      (`state.formatManual`), son choix est gardé pour toutes les propositions, jusqu'à une nouvelle
      œuvre ou un changement d'atelier ; une composition rouverte garde sa toile.
-1. **Compte requis pour importer** (quand les comptes sont actifs, `config.js`) : sans être
-   connecté, on peut voir et manipuler l'exemple (« Voir un exemple », `?exemple`) ; importer ses
-   propres dessins (zone d'import, glisser-déposer, prise de photo) ouvre la fenêtre de connexion
-   ou d'inscription (`importLocked`, `requireAccount`), puis l'import demandé reprend de lui-même
-   une fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
+1. **Compte requis pour photographier, pas pour importer** (quand les comptes sont actifs,
+   `config.js`) : sans être connecté, on peut voir et manipuler l'exemple (« Voir un exemple »,
+   `?exemple`) et importer ses propres dessins (zone d'import, glisser-déposer, sélecteur de
+   fichiers) ; photographier depuis l'atelier, exporter, sauvegarder ou commander ouvre la fenêtre
+   de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
+   fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
    dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin », quand le
    navigateur donne accès à l'appareil photo) : pendant la visée, chaque image est jugée et l'écran
@@ -543,14 +544,15 @@ Les optimisations ne changent aucun pixel :
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
 push de la branche de l'application. Le site publié a deux parties : la page d'accueil (`landing/`,
-présentation du concept avec, en tête, la vidéo de présentation en paysage — six tableaux, légende
-en Playfair au-dessus, visuel dessous, fondus enchaînés, 25 s en boucle, muette ; rendue par
-`landing/tools/accueil-video.py` à partir des visuels `img/accueil-*.webp` (tirés de la vidéo de
-présentation) et des polices du site, en français et en anglais (`img/accueil-video-fr.mp4`,
-`-en.mp4`, affiche `accueil-video-poster.webp`) ; `accueil-video.js` choisit la version selon la
-langue et n'enchaîne pas si le système demande moins d'animations —, puis comment ça marche, le
-téléphone, les sept styles, la promesse, les questions et les œuvres accrochées dans des pièces
-illustrées) à la racine, et
+présentation du concept avec, en tête, la vidéo de présentation en 16:9 (28 s en boucle, muette) :
+le réel Instagram vertical (hors dépôt) fournit l'animation — sa zone visuelle est recadrée image par
+image dans une carte à droite —, ses légendes sont réécrites à gauche en Playfair aux mêmes instants,
+et un carton de fin (logo, promesse, adresse) termine ; rendue par `landing/tools/accueil-video.py`
+(Pillow + ffmpeg, polices du site) en français et en anglais (`img/accueil-video-fr.mp4`, `-en.mp4`,
+1280 × 720, affiche `accueil-video-poster.webp`, option `--hd` pour une 1920 × 1080) ;
+`accueil-video.js` choisit la version selon la langue et n'enchaîne pas si le système demande moins
+d'animations —, puis comment ça marche, le téléphone, les sept styles, la promesse, les œuvres
+accrochées dans des pièces illustrées, et les questions) à la racine, et
 l'application sous `/atelier/` (`?exemple` charge le jeu d'exemple d'office). Adresse :
 https://ateliergribouille.art (domaine personnalisé
 réglé dans Settings → Pages ; l'adresse https://adrienterras.github.io/Claudde/ y redirige). Le dossier

@@ -123,7 +123,6 @@
     // importer demande un compte (l'exemple reste libre)
     'importer vos dessins': 'import your drawings',
     'photographier vos dessins': 'photograph your drawings',
-    'Créez un compte gratuit ou connectez-vous pour importer vos dessins. L’exemple, lui, se manipule librement.': 'Create a free account or sign in to import your drawings. The example can be explored freely.',
     'Pas de scanner ?': 'No scanner?',
     'Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier.': 'Help improve the cut-out: share my cut-out edits (the drawing concerned and its corrected cut-out), with no account and no file name.',
     'En savoir plus': 'Learn more',
@@ -281,6 +280,7 @@
     '{0} · impression {1} × {2} cm': '{0} · print {1} × {2} cm',
     'Sans couleur (fond blanc)': 'No colour (white background)',
     'Relancer la vidéo': 'Restart the video',
+    'Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier, exporter ou sauvegarder.': 'Import your drawings freely; a free account is only needed to photograph them from the studio, export or save.',
     'Votre œuvre a été mise à jour depuis un autre appareil.': 'Your artwork was updated from another device.',
     'Prendre la photo avec l’appareil du téléphone': 'Take the photo with the phone’s camera',
     'L’image de l’appareil photo n’arrive pas{0}. Sur iPhone, cela arrive en mode économie d’énergie, ou quand la caméra est déjà utilisée par une autre application.': 'No image is coming from the camera{0}. On iPhone this happens in Low Power Mode, or when another app is already using the camera.',

@@ -98,31 +98,33 @@ test.describe('Comptes utilisateurs', () => {
     expect(calls[0][2]).toMatch(/^http:\/\/localhost:\d+\/index\.html$/);
   });
 
-  test('sans compte : l’exemple se manipule librement ; importer ses dessins demande de se connecter, puis l’import reprend', async ({ acc }) => {
+  test('sans compte : l’exemple et l’import de fichiers sont libres ; seule la photo depuis l’atelier demande de se connecter', async ({ acc }) => {
     const { page } = acc;
     await expect(page.locator('#import-account')).toBeVisible();
+    await expect(page.locator('#import-account')).toContainText('librement');
     // l'exemple : chargé et manipulé sans compte
     await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length > 0 && AtelierGribouille.state.drawings.every((d) => d.sample) && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
-    const style = await page.evaluate(() => AtelierGribouille.state.comp.style);
-    expect(style).toBeTruthy();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBeTruthy();
     await expect(page.locator('#account-section')).toBeHidden();
-    // cliquer sur la zone d'import : la connexion d'abord, pas de sélecteur de fichiers
-    await page.locator('#drop').click();
+    // photographier : la connexion d'abord
+    await page.locator('#camera-open').click();
     await expect(page.locator('#account-section')).toBeVisible();
-    await expect(page.locator('#acc-status')).toContainText('importer vos dessins');
+    await expect(page.locator('#acc-status')).toContainText('photographier vos dessins');
+    await expect(page.locator('#camera')).toBeHidden();
     await page.locator('#acc-close').click();
-    // des fichiers déposés quand même : rien n'est importé avant la connexion
+    // des fichiers déposés sans compte : importés tout de suite, à la place de l'exemple
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
-    await expect(page.locator('#account-section')).toBeVisible();
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings.every((d) => d.sample))).toBe(true);
-    // on crée un compte : l'import demandé reprend tout seul, les dessins remplacent l'exemple
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#account-section')).toBeHidden();
+    // connecté ensuite : l'indication disparaît
+    await page.locator('#acc-open').click();
     await page.locator('.auth-tabs [data-mode="signup"]').click();
     await page.fill('#auth-email', 'imp@example.org');
     await page.fill('#auth-password', 'Rouge-Soleil-42');
     await page.locator('#auth-submit').click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#acc-menu')).toBeVisible();
     await expect(page.locator('#import-account')).toBeHidden();
   });
 

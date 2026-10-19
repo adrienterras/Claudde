@@ -4094,12 +4094,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   const drop = $('drop');
   // Les dessins apportés par l'utilisateur remplacent les dessins d'exemple : on ne mélange pas les deux.
-  // Comptes actifs : l'exemple se regarde et se manipule librement, mais importer ses propres dessins
-  // (fichiers, glisser-déposer, photo) demande d'être connecté ; l'import reprend une fois connecté
-  const importLocked = () => { const A = window.Account; return !!(A && A.enabled && !A.user()); };
+  // Importer ses dessins (fichiers, glisser-déposer) est libre, avec ou sans compte ; seule la prise
+  // de photo depuis l'atelier demande d'être connecté (voir camera-open), comme exporter ou sauvegarder
   function importUserFiles(files) {
     if (!files.length) return;
-    if (importLocked()) { requireAccount(tr('importer vos dessins'), () => importUserFiles(files))(); return; }
     if (state.drawings.some((d) => d.sample)) {
       state.drawings = state.drawings.filter((d) => !d.sample);
       state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
@@ -4110,12 +4108,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     importFiles(files);
   }
-  // (avant même d'ouvrir le sélecteur de fichiers : la connexion d'abord, puis le sélecteur)
-  drop.addEventListener('click', (e) => {
-    if (!importLocked()) return;
-    e.preventDefault();
-    requireAccount(tr('importer vos dessins'), () => $('file').click())();
-  });
   $('file').addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     e.target.value = '';
