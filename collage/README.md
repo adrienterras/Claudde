@@ -292,7 +292,10 @@ cd collage && python3 -m http.server 8000
      que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
      ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication).
      Une page que l'on redimensionne (poignée carrée ou boutons Agrandir / Réduire, en Affiche et en
-     Galerie) passe devant les autres pages : agrandie sous elles, on ne verrait que son cadre ;
+     Galerie) passe devant les autres pages : agrandie sous elles, on ne verrait que son cadre. Les pages
+     retouchées à la main (déplacées, tournées, retournées, redimensionnées) gardent leur place et leur
+     taille quand la composition est refaite (curseur de densité, format, nouveau dessin) ; les autres
+     pages suivent la nouvelle proposition ;
    - **mise en scène** (sur ordinateur, fenêtre ouverte par le bouton « Mettre en scène » de la zone
      d'édition, avec le choix de la pièce, de la taille et de l'orientation de l'œuvre, du passe-partout, le
      téléchargement et un bouton « Commander l'œuvre » ; sur téléphone, dans la section Tailles, sous le titre « Mise en scène ») : trois pièces au choix

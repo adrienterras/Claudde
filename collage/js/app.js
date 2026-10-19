@@ -1971,6 +1971,7 @@
     applyOrientations();
     updateScaleLabel();
     activePieces().forEach((p) => (p.placed = false));
+    const prev = state.comp; // pour garder les pages de fond retouchées à la main
     const o = options();
     // toile conseillée (atelier Toile, pas de choix du client) : les styles qui ont leur propre
     // format (bande, grille, nuage, scène) prennent la toile Cultura la plus proche du leur
@@ -1996,6 +1997,7 @@
       const i = STYLES.findIndex((st) => st.id === state.pinned.style);
       if (i >= 0) { state.proposals[i].comp = state.pinned; state.active = i; }
     }
+    if (prev && !state.restoring) { const p = state.proposals.find((pr) => pr.style.id === prev.style); if (p) carryBgEdits(prev, p.comp); }
     state.comp = state.proposals[state.active].comp;
     syncFormatWith(state.comp);
     renderProposals();
@@ -2572,17 +2574,39 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     bg.splice(i, 1); bg.push(L);
     state.bgCache = null;
   }
-  function setLayerScale(L, f) {
+  function setLayerScale(L, f, comp = state.comp) {
     const [bw, bh] = layerBase(L);
     const w0 = L.w, h0 = L.h;
     L.scale = clamp(f, 0.1, 4);
+    L.sized = true; // taille choisie à la main : gardée quand la composition est refaite
     L.w = bw * L.scale; L.h = bh * L.scale;
     // le contour déchiré d'une page (en cm autour de son centre) suit sa taille : sinon il resterait
     // à l'ancienne et masquerait une partie de la page agrandie
     if (L.clip && w0 > 0 && h0 > 0) { const fx = L.w / w0, fy = L.h / h0; L.clip = L.clip.map(([x, y]) => [x * fx, y * fy]); }
     if (L.kind === 'bg') { if (!L.pageW) { L.pageW = bw; L.pageH = bh; } state.bgCache = null; }
-    const comp = state.comp;
     comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => (q.scale || 1) !== 1);
+  }
+  // Les pages de fond retouchées à la main gardent leur place, leur rotation et leur taille quand la
+  // composition est refaite (curseur de densité, format, nouveau dessin) : sans cela, la proposition
+  // refaite les remettait telles quelles et la page qu'on venait d'agrandir reprenait sa taille d'avant.
+  // Les autres pages suivent la nouvelle proposition. La taille n'est gardée que là où elle se règle
+  // (Affiche, Galerie) ; la place suit un changement de format en proportion.
+  function carryBgEdits(from, to) {
+    if (!from || !to || from === to || from.style !== to.style) return;
+    const sizable = to.style === 'galerie' || printMode();
+    const kx = to.W / from.W, ky = to.H / from.H;
+    from.bg.forEach((o) => {
+      if (o.paper || !(o.manual || o.sized)) return;
+      const n = to.bg.find((L) => !L.paper && L.src === o.src && !L.manual && !L.sized);
+      if (!n) return;
+      if (o.sized && sizable) {
+        // page entière : la même taille en centimètres ; sinon le même facteur
+        const f = o.whole && n.whole && n.pageW ? o.w / n.pageW : o.scale || 1;
+        setLayerScale(n, f, to);
+      }
+      if (o.manual) { n.x = o.x * kx; n.y = o.y * ky; n.rot = o.rot; n.flip = o.flip; n.manual = true; }
+    });
+    to.bg.forEach((L) => { if (L.sized) to.reduced = true; });
   }
 
   let drag = null;
@@ -2744,7 +2768,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (drag && drag.mode !== 'pan') {
       if (drag.L && drag.L.kind === 'bg') state.bgCache = null;
       const moved = drag.mode === 'move' ? (drag.L.x !== drag.x0 || drag.L.y !== drag.y0) : drag.mode === 'scale' ? drag.L.w !== drag.w0 : drag.L.rot !== drag.r0;
-      if (moved) { touched(); gestureEnd = Date.now(); if (drag.mode === 'scale') updateLabel(); }
+      if (moved) { touched(); gestureEnd = Date.now(); if (drag.mode === 'scale') updateLabel(); if (drag.L.kind === 'bg') drag.L.manual = true; }
       if (moved && drag.snap) { history.past.push(drag.snap); if (history.past.length > history.max) history.past.shift(); history.future = []; history.lastTag = null; updateHistoryButtons(); }
       refreshActiveThumb();
     }
@@ -3077,7 +3101,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const i = comp.bg.indexOf(L);
       if (name === 'front') { comp.bg.splice(i, 1); comp.bg.push(L); }
       if (name === 'back') { comp.bg.splice(i, 1); comp.bg.splice(comp.bg.findIndex((q) => !q.paper), 0, L); }
-      if (name === 'flip') L.flip = !L.flip;
+      if (name === 'flip') { L.flip = !L.flip; L.manual = true; }
       if (name === 'del') { comp.bg.splice(i, 1); state.selected = null; }
       state.bgCache = null;
       refreshActiveThumb();

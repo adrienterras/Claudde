@@ -94,6 +94,17 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(e1.ch / e1.h).toBeCloseTo(e0.ch / e0.h, 3);
     // la page redimensionnée passe devant les autres pages : sinon, agrandie sous elles, on ne la verrait pas
     expect(await page.evaluate(() => { const c = AtelierGribouille.state.comp; return c.bg.indexOf(AtelierGribouille.state.selected) === c.bg.length - 1; })).toBe(true);
+    // le curseur de densité refait la composition : la page agrandie (et déplacée) garde sa taille et sa place,
+    // les autres pages suivent la nouvelle proposition
+    const before = await page.evaluate(() => { const A = AtelierGribouille, L = A.state.selected; L.x = 7; L.y = 5; L.manual = true; return { w: L.w, i: A.state.comp.bg.indexOf(L), other: A.state.comp.bg.filter((q) => !q.paper && q !== L).map((q) => q.w) }; });
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = String(Number(d.value) - 0.3); d.dispatchEvent(new Event('change')); });
+    await page.waitForTimeout(300);
+    const after = await page.evaluate((i) => { const A = AtelierGribouille, L = A.state.comp.bg[i]; A.state.selected = L; A.render(); return { w: L.w, x: L.x, y: L.y, sized: !!L.sized, n: A.state.comp.bg.length }; }, before.i);
+    expect(after.w).toBeCloseTo(before.w, 3);
+    expect([after.x, after.y]).toEqual([7, 5]);
+    expect(after.sized).toBe(true);
+    // la même page, non retouchée, aurait repris la taille de la proposition (plus petite)
+    expect(before.other.every((w) => w < before.w)).toBe(true);
     for (let i = 0; i < 4; i++) await page.locator('#toolbar [data-act="smaller"]').click();
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     const h = await page.evaluate(() => {
