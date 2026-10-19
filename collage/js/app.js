@@ -1478,6 +1478,8 @@
     $('format-label').textContent = m === 'impression' ? tr('Cadre') : tr('Toile');
     // tableau imprimé : pas d'explication sous le choix du cadre
     $('sizes-hint').hidden = m === 'impression';
+    $('print-mat-field').hidden = m !== 'impression';
+    syncMatButtons();
     $('sizes-hint').textContent = tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
     syncGroundMode();
@@ -1509,10 +1511,13 @@
     if (!/^auto:[\d.]+$|^(cadre:)?\d+(\.\d+)?x\d+(\.\d+)?$/.test(v) || (printMode() && !v.startsWith('cadre:'))) v = printMode() ? FRAME_DEFAULT : 'auto:1.4286';
     const portrait = canvasOrient() === 'port';
     if (v.startsWith('cadre:')) {
-      // impression : la taille du cadre, imposée ; les dessins y sont réduits d'un même facteur (voir scale)
-      const [a, b] = v.slice(6).split('x').map(Number);
+      // impression : la taille d'impression du cadre choisi (toute l'ouverture, ou la taille en dessous
+      // avec le passe-partout), imposée ; les dessins y sont réduits d'un même facteur (voir scale)
+      const f = frameOf(normalizeFrame(v));
+      const mat = printMat();
+      const [a, b] = mat ? f.mat : f.print;
       const w = portrait ? Math.min(a, b) : Math.max(a, b), h = portrait ? Math.max(a, b) : Math.min(a, b);
-      return { w, h, auto: false, frame: true };
+      return { w, h, auto: false, frame: true, key: f.key, mat, frameW: portrait ? f.w : f.h, frameH: portrait ? f.h : f.w };
     }
     if (v.startsWith('auto:')) {
       const r0 = Number(v.slice(5));
@@ -1570,11 +1575,51 @@
    * enseigne : IKEA, Hema, Maisons du Monde, Leroy Merlin, encadreurs…), grand côté en premier.
    * L'œuvre est composée à cette taille exacte, les dessins réduits d'un même facteur pour y tenir.
    */
-  const FRAMES = [
-    [24, 18], [30, 20], [29.7, 21, 'A4'], [30, 24], [42, 29.7, 'A3'], [40, 30], [45, 30], [50, 40], [60, 40], [70, 50], [80, 60], [90, 60], [100, 70],
-    [30, 30], [40, 40], [50, 50],
+  /*
+   * Atelier Impression : quatre cadres du commerce, et la taille d'impression qui va avec. Sans
+   * passe-partout, l'impression fait la taille du cadre (21 × 30 : un A4) ; avec passe-partout, elle
+   * prend la taille en dessous, le passe-partout faisant la différence. Le choix se fait à côté du
+   * cadre (section Tailles) et dans la mise en scène, qui montre le même cadre.
+   */
+  const PRINT_FRAMES = [
+    { key: '21x30', w: 21, h: 30, print: [21, 29.7], mat: [13, 18] },
+    { key: '30x40', w: 30, h: 40, print: [30, 40], mat: [21, 29.7] },
+    { key: '40x50', w: 40, h: 50, print: [40, 50], mat: [30, 40] },
+    { key: '50x70', w: 50, h: 70, print: [50, 70], mat: [40, 50] },
   ];
-  const FRAME_DEFAULT = 'cadre:42x29.7'; // A3
+  const FRAME_DEFAULT = 'cadre:30x40';
+  const frameOf = (v) => PRINT_FRAMES.find((f) => `cadre:${f.key}` === v) || null;
+  // un réglage ancien (A3, 18 × 24, carré…) : le cadre de surface la plus proche
+  function normalizeFrame(v) {
+    if (frameOf(v)) return v;
+    const m = /^cadre:(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)$/.exec(v || '');
+    if (!m) return FRAME_DEFAULT;
+    const a = Number(m[1]) * Number(m[2]);
+    return `cadre:${PRINT_FRAMES.reduce((b, f) => (Math.abs(f.w * f.h - a) < Math.abs(b.w * b.h - a) ? f : b)).key}`;
+  }
+  // passe-partout (atelier Impression), mémorisé ; même choix dans Tailles et dans la mise en scène
+  const printMat = () => { try { return localStorage.getItem('atelier.passe-partout') === '1'; } catch (e) { return false; } };
+  function syncMatButtons() {
+    const on = printMat();
+    document.querySelectorAll('#print-mat button, #scene-mat button').forEach((b) => {
+      const sel = (b.dataset.mat === '1') === on;
+      b.classList.toggle('on', sel); b.classList.toggle('ink', sel);
+      b.setAttribute('aria-pressed', sel ? 'true' : 'false');
+    });
+  }
+  // le passe-partout change la taille d'impression : la composition est refaite (les pages de fond
+  // retouchées à la main sont gardées, voir carryBgEdits)
+  function setPrintMat(on) {
+    try { localStorage.setItem('atelier.passe-partout', on ? '1' : '0'); } catch (e) { /* ignoré */ }
+    syncMatButtons();
+    if (printMode() && state.drawings.length) { state.pinned = null; regenerate(); } else { updateScaleLabel(); scheduleScene(); }
+  }
+  // le plus petit des quatre cadres où une œuvre tient (pour une composition rouverte d'un ancien format)
+  function frameAround(W, H) {
+    const land = W >= H;
+    const f = PRINT_FRAMES.find((x) => (land ? x.h : x.w) >= W - 0.01 && (land ? x.w : x.h) >= H - 0.01);
+    return f ? (land ? [f.h, f.w] : [f.w, f.h]) : [W, H];
+  }
   /*
    * Atelier Toile : seulement les châssis entoilés vendus chez Cultura (catalogue en ligne, octobre
    * 2026), grand côté en premier : [gamme, long, court, nom]. Châssis coton économiques, Monali 3D
@@ -1588,7 +1633,7 @@
   ];
   const CULTURA_LINES = { 'économique': tr('Cultura · châssis coton économique'), '3D': tr('Cultura · Monali 3D (40 mm)'), classique: tr('Cultura · Monali classique') };
   const culturaName = (t) => `${canvasOrient() === 'port' ? `${t[2]} × ${t[1]}` : `${t[1]} × ${t[2]}`} cm${t[3] ? ` · ${t[3]}` : ''}${t[1] === t[2] ? tr(' · carrée') : ''}`;
-  const frameName = (f) => `${tr('Cadre')} ${canvasOrient() === 'port' ? `${fmt(f[1])} × ${fmt(f[0])}` : `${fmt(f[0])} × ${fmt(f[1])}`} cm${f[2] ? ` · ${f[2]}` : ''}`;
+  const frameName = (f) => `${tr('Cadre')} ${canvasOrient() === 'port' ? `${fmt(f.w)} × ${fmt(f.h)}` : `${fmt(f.h)} × ${fmt(f.w)}`} cm`;
   // les codes (20F, IKEA) restent tels quels, les noms communs sont traduits
   const stockWord = (w) => (/^[0-9A-Z]/.test(w) ? w : tr(w));
   const stockName = (t) => (canvasOrient() === 'port' ? `${stockWord(t[0])} · ${t[2]} × ${t[1]} cm` : `${stockWord(t[0])} · ${t[1]} × ${t[2]} cm`);
@@ -1613,14 +1658,14 @@
     if (print) {
       const g = document.createElement('optgroup');
       g.label = tr('Cadres standard du marché');
-      FRAMES.forEach((f) => {
+      PRINT_FRAMES.forEach((f) => {
         const o = document.createElement('option');
-        o.value = `cadre:${f[0]}x${f[1]}`;
+        o.value = `cadre:${f.key}`;
         o.textContent = frameName(f);
         g.appendChild(o);
       });
       sel.appendChild(g);
-      sel.value = current.startsWith('cadre:') ? current : FRAME_DEFAULT;
+      sel.value = current.startsWith('cadre:') ? normalizeFrame(current) : FRAME_DEFAULT;
       if (sel.selectedIndex < 0) sel.value = FRAME_DEFAULT;
       return;
     }
@@ -1765,7 +1810,8 @@
     const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.frame) {
-      txt = ''; // tableau imprimé : le cadre choisi suffit, pas d'explication sous la liste
+      // tableau imprimé : la taille de l'impression dans le cadre choisi
+      txt = f.mat ? tr`Impression de ${fmt(f.w)} × ${fmt(f.h)} cm avec passe-partout, dans un cadre de ${fmt(f.frameW)} × ${fmt(f.frameH)} cm.` : tr`Impression de ${fmt(f.w)} × ${fmt(f.h)} cm, à la taille du cadre.`;
     } else if (f.auto) {
       const near = nearestStock(f.w, f.h, 3).map((c) => tr`${stockWord(c.t[0])} ${c.w} × ${c.h} cm (${stockWord(c.t[3])}, fond ${Math.round((bgArea / c.area) * 100)} %)`);
       txt = tr`Toile calculée : ${f.w} × ${f.h} cm, pour que le fond (${nBg} pages colorées, ${fmt(bgArea / 1e4, 2)} m²) couvre tout en se chevauchant et que les découpes (${fmt(pieceArea / 1e4, 2)} m²) restent aérées. Toiles du commerce les plus proches : ${near.join(' · ')}. Choisissez-en une dans la liste pour composer dessus.`;
@@ -1991,6 +2037,8 @@
       if (printMode() && !so.ground && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       return { style: st, comp: Compose.generate(so) };
     });
+    const fc = formatCm();
+    if (fc.frame) state.proposals.forEach((pr) => { pr.comp.frameKey = fc.key; pr.comp.mat = fc.mat; });
     state.active = Math.min(state.active || 0, STYLES.length - 1);
     // une composition rouverte reste telle quelle tant qu'on ne demande pas d'autres propositions
     if (state.pinned) {
@@ -3779,14 +3827,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Avec passe-partout : le plus petit cadre standard qui laisse au moins 4 cm de marge autour de
   // l'œuvre, des marges proches sur les côtés et en haut et en bas (une œuvre carrée garde un cadre
   // carré), sinon un cadre sur mesure (marge de 6 cm)
-  function matFrame(W, H) {
-    const land = W >= H;
-    const even = (w, h) => { const mx = (w - W) / 2, my = (h - H) / 2; return Math.max(mx, my) <= 2 * Math.min(mx, my); };
-    const fits = FRAMES.map((f) => (land ? [f[0], f[1]] : [f[1], f[0]])).filter(([w, h]) => w >= W + 8 && h >= H + 8 && even(w, h));
-    if (fits.length) return fits.sort((a, b) => a[0] * a[1] - b[0] * b[1])[0];
-    return [Math.ceil(W + 12), Math.ceil(H + 12), true];
-  }
-  const sceneMat = () => { try { return localStorage.getItem('atelier.passe-partout') === '1'; } catch (e) { return false; } };
   const shade = (rgb, k) => `rgb(${rgb.map((v) => Math.round(clamp(v * k, 0, 255))).join(',')})`;
   // Baguette fine et plate, comme un cadre du commerce : quatre coupes d'onglet, teinte presque
   // unie (le haut et la gauche à peine plus clairs), veines discrètes, joints d'onglet à peine marqués
@@ -3858,15 +3898,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!roomReady(room)) return false;
     const [photo, plant, light] = sceneImgs[room];
     const framed = printMode();
-    const mat = framed && sceneMat();
-    if (!out) { $('scene-mat').hidden = !framed; syncSceneFormat(); }
-    if (!out) $('scene-mat').querySelectorAll('button').forEach((b) => {
-      const on = (b.dataset.mat === '1') === mat;
-      b.classList.toggle('on', on);
-      b.classList.toggle('ink', on);
-    });
-    // œuvre (W × H), ouverture du cadre (Fw × Fh, avec le passe-partout) et encombrement total (Wo × Ho)
-    const [Fw, Fh, custom] = mat ? matFrame(comp.W, comp.H) : [comp.W, comp.H];
+    if (!out) { $('scene-mat').hidden = !framed; syncSceneFormat(); syncMatButtons(); }
+    // œuvre (W × H), ouverture du cadre (Fw × Fh : le cadre choisi dans Tailles, ou le plus petit des
+    // quatre où une composition rouverte d'un ancien format tient) et encombrement total (Wo × Ho) ;
+    // le passe-partout se voit dès que l'ouverture dépasse l'œuvre
+    const fc = framed ? formatCm() : null;
+    const [Fw, Fh] = !framed ? [comp.W, comp.H] : fc.frameW >= comp.W - 0.01 && fc.frameH >= comp.H - 0.01 ? [fc.frameW, fc.frameH] : frameAround(comp.W, comp.H);
+    const mat = framed && (Fw > comp.W + 0.3 || Fh > comp.H + 0.3);
     const choice = sceneFrameChoice();
     const auto = framed ? pickFrameKind(artTone(comp), mat) : null;
     const kind = framed ? (choice === 'auto' ? auto : choice) : null;
@@ -3972,8 +4010,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     $('scene-info').textContent = !framed
       ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus ${S.over}.`
       : mat
-        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${custom ? tr(' sur mesure') : ''} pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
-        : tr`Cadre ${name} de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
+        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
+        : tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
     return true;
   }
   // Télécharger la mise en scène en JPEG, en 2000 px de large
@@ -4002,10 +4040,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     try { localStorage.setItem('atelier.cadre', b.dataset.frame); } catch (e) { /* ignoré */ }
     drawRoomScene();
   }));
-  $('scene-mat').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
-    try { localStorage.setItem('atelier.passe-partout', b.dataset.mat); } catch (e) { /* ignoré */ }
-    drawRoomScene();
-  }));
+  document.querySelectorAll('#scene-mat button, #print-mat button').forEach((b) => b.addEventListener('click', () => setPrintMat(b.dataset.mat === '1')));
   if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
   // La mise en scène vit dans la section Tailles sur téléphone ; sur ordinateur, dans une fenêtre
@@ -4883,7 +4918,7 @@ Réponds uniquement avec ce JSON :
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
-      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, orient: canvasOrient(), ground: state.ground, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
+      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, mat: printMat(), orient: canvasOrient(), ground: state.ground, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
       drawings, comp: compData,
     };
   }
@@ -5069,7 +5104,9 @@ Réponds uniquement avec ce JSON :
     setMode(MODES.includes(sv.mode) ? sv.mode : sv.format && sv.format.startsWith('cadre:') ? 'impression' : 'toile', { keep: true });
     // la toile n'est « choisie » que si le client l'avait choisie dans la liste ; sinon elle reste
     // conseillée (une Frise rouverte ne doit pas garder sa bande pour toutes les autres propositions)
+    if (sv.format && sv.format.startsWith('cadre:')) sv.format = normalizeFrame(sv.format); // un ancien cadre : le plus proche des quatre
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) { $('format').value = sv.format; state.formatManual = printMode() || !!sv.formatManual; }
+    if (sv.mat !== undefined && printMode()) { try { localStorage.setItem('atelier.passe-partout', sv.mat ? '1' : '0'); } catch (e) { /* ignoré */ } syncMatButtons(); }
     if (sv.orient) setCanvasOrient(sv.orient);
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
     if (sv.density !== undefined) { $('density').value = sv.density; state.densityBeforeSample = null; }
@@ -5513,10 +5550,15 @@ Réponds uniquement avec ce JSON :
    */
   const CART_KEY = 'atelier-gribouille:panier', ORDERS_KEY = 'atelier-gribouille:commandes';
   const ORDER_MAIL = 'bonjour@atelier-gribouille.com';
-  const SIZES = { '30x40': [30, 40], '50x70': [50, 70], '70x100': [70, 100] };
+  // tailles vendues : les quatre cadres de l'atelier Impression (PRINT_FRAMES)
+  const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70] };
   const PRICES = {
     hd: 14.9, guide: 24.9, kit: 89, signature: 490, signatureGrand: 690,
-    print: { papier: { '30x40': 39, '50x70': 59, '70x100': 89 }, cadre: { '30x40': 79, '50x70': 129, '70x100': 199 }, toile: { '30x40': 69, '50x70': 109, '70x100': 169 } },
+    print: {
+      papier: { '21x30': 29, '30x40': 39, '40x50': 49, '50x70': 59 },
+      cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129 },
+      toile: { '21x30': 49, '30x40': 69, '40x50': 89, '50x70': 109 },
+    },
   };
   const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée'), toile: tr('sur toile') };
   // Atelier Signature : toile 50 × 70 jusqu'à 20 dessins, ou grand format 70 × 100 au-delà de 75 cm
@@ -5589,10 +5631,15 @@ Réponds uniquement avec ce JSON :
     el.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(el); });
   });
 
-  // la taille du commerce la plus proche du format de la composition
-  function suggestedSize(W, H) {
-    const long = Math.max(W, H);
-    return Object.keys(SIZES).reduce((best, k) => (Math.abs(SIZES[k][1] - long) < Math.abs(SIZES[best][1] - long) ? k : best), '30x40');
+  // le cadre d'une composition : celui choisi quand elle a été composée ; sinon celui dont l'impression
+  // (sans ou avec passe-partout) a sa taille ; sinon le plus proche par le grand côté
+  function frameForComp(comp) {
+    if (comp.frameKey && SIZES[comp.frameKey]) return comp.frameKey;
+    const W = Math.max(comp.W, comp.H), H = Math.min(comp.W, comp.H);
+    const same = (p) => Math.abs(Math.max(p[0], p[1]) - W) < 0.3 && Math.abs(Math.min(p[0], p[1]) - H) < 0.3;
+    const f = PRINT_FRAMES.find((x) => same(x.print)) || PRINT_FRAMES.find((x) => same(x.mat));
+    if (f) return f.key;
+    return Object.keys(SIZES).reduce((best, k) => (Math.abs(SIZES[k][1] - W) < Math.abs(SIZES[best][1] - W) ? k : best), '30x40');
   }
 
   let pending = null; // composition à ajouter : { comp, title, styleName }
@@ -5620,13 +5667,17 @@ Réponds uniquement avec ce JSON :
     choice.qty = clamp(choice.qty, 1, maxQty(choice));
     box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
-    // proportions : l'œuvre est imprimée entière, centrée, avec un passe-partout blanc si besoin
+    // proportions : l'œuvre est imprimée entière, centrée ; composée pour un passe-partout, elle est
+    // plus petite que son cadre (c'est voulu) ; sur une autre taille, une marge blanche la complète
     const fit = box.querySelector('.cart-fit');
     if (choice.product === 'print') {
       const [a, b] = SIZES[choice.size], pw = comp.W >= comp.H ? b : a, ph = comp.W >= comp.H ? a : b;
-      const k = Math.min(pw / comp.W, ph / comp.H), dw = Math.abs(pw - comp.W * k), dh = Math.abs(ph - comp.H * k);
-      fit.hidden = dw < 0.6 && dh < 0.6;
-      fit.textContent = tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) sera imprimée entière sur ${sizeLabel(choice.size, comp.W, comp.H)}, avec une marge blanche pour garder ses proportions.`;
+      const exact = Math.abs(pw - comp.W) < 0.6 && Math.abs(ph - comp.H) < 0.6;
+      const matted = !exact && choice.size === frameForComp(comp) && pw >= comp.W && ph >= comp.H;
+      fit.hidden = exact;
+      fit.textContent = matted && choice.finish === 'cadre'
+        ? tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) est présentée avec un passe-partout dans le cadre de ${sizeLabel(choice.size, comp.W, comp.H)}.`
+        : tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) sera imprimée entière sur ${sizeLabel(choice.size, comp.W, comp.H)}, avec une marge blanche pour garder ses proportions.`;
     } else fit.hidden = true;
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
@@ -5637,7 +5688,7 @@ Réponds uniquement avec ce JSON :
     $('cart-add-view').textContent = tr`Voir mon panier (${n})`;
     if (!comp) return;
     pending = { comp, title, styleName, thumb: thumbOfComp(comp) };
-    choice.size = suggestedSize(comp.W, comp.H);
+    choice.size = frameForComp(comp);
     choice.qty = 1;
     renderCartAdd();
     openModal($('cart-add'));
@@ -5792,7 +5843,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, syncCloudDraft, checkCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, syncCloudDraft, checkCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

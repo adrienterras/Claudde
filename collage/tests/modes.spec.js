@@ -32,28 +32,28 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
-    expect(opts.length).toBeGreaterThan(10);
-    expect(opts.every((v) => v.startsWith('cadre:'))).toBe(true);
-    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:42x29.7');
+    // quatre cadres du commerce, rien d'autre ; 30 × 40 par défaut
+    expect(opts).toEqual(['cadre:21x30', 'cadre:30x40', 'cadre:40x50', 'cadre:50x70']);
+    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:30x40');
     await expect(page.locator('#guide-box')).toBeHidden();
     await expect(page.locator('#sizes-hint')).toBeHidden();
-    // le cadre 18 × 24 : l'œuvre fait exactement 24 × 18 (paysage), tous les dessins (curseur au
-    // maximum) sont réduits pour y tenir
+    // le cadre 21 × 30 sans passe-partout : l'œuvre fait exactement un A4 (29,7 × 21, paysage), tous
+    // les dessins (curseur au maximum) sont réduits pour y tenir
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
-    await page.selectOption('#format', 'cadre:24x18');
+    await page.selectOption('#format', 'cadre:21x30');
     await page.waitForTimeout(300);
     const r = await page.evaluate(() => {
       const A = AtelierGribouille, c = A.state.comp;
       const d = A.state.drawings[0], p = c.items.find((L) => L.piece.drawing === d);
-      return { W: c.W, H: c.H, k: A.scale(), all: A.state.proposals.every((pr) => Math.abs(pr.comp.W - 24) < 1e-6 && Math.abs(pr.comp.H - 18) < 1e-6), pieceCm: p ? Math.max(p.w, p.h) : null, sheetCm: d.sizeCm, fits: c.items.every((L) => Math.max(L.w, L.h) <= 30.01) };
+      return { W: c.W, H: c.H, k: A.scale(), all: A.state.proposals.every((pr) => Math.abs(pr.comp.W - 29.7) < 1e-6 && Math.abs(pr.comp.H - 21) < 1e-6), pieceCm: p ? Math.max(p.w, p.h) : null, sheetCm: d.sizeCm, fits: c.items.every((L) => Math.max(L.w, L.h) <= 30.01) };
     });
-    expect(r.W).toBe(24); expect(r.H).toBe(18);
+    expect(r.W).toBe(29.7); expect(r.H).toBe(21);
     expect(r.all).toBe(true);
     // jamais agrandis ; réduits seulement si nécessaire (les pièces d'essai, petites, tiennent presque)
     expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThanOrEqual(1);
     expect(r.fits).toBe(true);
     if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
-    await expect(page.locator('#scale-info')).toBeHidden();
+    await expect(page.locator('#scale-info')).toHaveText('Impression de 29,7 × 21 cm, à la taille du cadre.');
     // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),
     // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
     const flat = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => ({ style: p.style.id, bg: p.comp.bg.length, ground: p.comp.ground, paint: p.comp.paint, grain: p.comp.grain })));
@@ -73,7 +73,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('#drawings .thumb').first().click();
     await expect(page.locator('#detail [data-role="texture"]')).toHaveCount(1);
     expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(true);
-    await expect(page.locator('#export-info')).toContainText('tableau imprimé de 24 × 18 cm');
+    await expect(page.locator('#export-info')).toContainText('tableau imprimé de 29,7 × 21 cm');
     // chaque dessin s'agrandit ou se réduit à la main : boutons (10 %), puis poignée carrée
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     await expect(page.locator('#toolbar [data-act="bigger"]')).toBeVisible();
@@ -126,10 +126,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.evaluate(() => { AtelierGribouille.undo(); });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].w)).toBeCloseTo(w0, 4);
     await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
-    // portrait : 18 × 24
+    // portrait : 21 × 29,7
     await page.locator('#canvas-orient [data-orient="port"]').click();
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([18, 24]);
+    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([21, 29.7]);
     // panier : tirages et fichier HD seulement
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add')).toBeVisible();
@@ -137,7 +137,22 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add input[value="hd"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeHidden();
     await expect(page.locator('#cart-add input[value="signature"]')).toBeHidden();
-    await expect(page.locator('.cart-what-size')).toContainText('tableau imprimé de 18 × 24 cm');
+    await expect(page.locator('.cart-what-size')).toContainText('tableau imprimé de 21 × 29,7 cm');
+    // la taille proposée est le cadre choisi ; les quatre tailles, avec leur prix
+    await expect(page.locator('#cart-add [data-size="21x30"]')).toHaveClass(/on/);
+    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-size]')].map((b) => b.dataset.size))).toEqual(['21x30', '30x40', '40x50', '50x70']);
+    await expect(page.locator('.cart-fit')).toBeHidden(); // l'œuvre fait exactement la taille du cadre
+    await page.locator('#cart-add [data-close]').first().click();
+    // avec passe-partout : l'impression prend la taille en dessous (13 × 18 dans le 21 × 30), même cadre
+    await page.locator('#print-mat [data-mat="1"]').click();
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([13, 18]);
+    await expect(page.locator('#scale-info')).toHaveText('Impression de 13 × 18 cm avec passe-partout, dans un cadre de 21 × 30 cm.');
+    await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/); // même choix dans la mise en scène
+    await page.locator('#add-cart').click();
+    await expect(page.locator('#cart-add [data-size="21x30"]')).toHaveClass(/on/);
+    await page.locator('#cart-add [data-finish="cadre"]').click();
+    await expect(page.locator('.cart-fit')).toHaveText('L’œuvre (13 × 18 cm) est présentée avec un passe-partout dans le cadre de 21 × 30 cm.');
     await page.locator('#cart-add [data-close]').first().click();
     // sauvegardée puis rouverte : le mode et le cadre reviennent
     await page.locator('#save-comp').click();
@@ -149,7 +164,12 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('.saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('« Cadre 18x24 » rouverte', { timeout: 120000 });
     await expect(page.locator('#mode-switch [data-mode="impression"]')).toHaveClass(/on/);
-    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:24x18', 18, 24]);
+    // (cadre, orientation et passe-partout reviennent)
+    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:21x30', 13, 18]);
+    await expect(page.locator('#print-mat [data-mat="1"]')).toHaveClass(/on/);
+    await page.locator('#print-mat [data-mat="0"]').click();
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([21, 29.7]);
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 
@@ -160,7 +180,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'photo-wood.png', 'noscale-small.jpg', 'noscale-medium.jpg'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:29.7x21'; f.dispatchEvent(new Event('change')); });
+    await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:21x30'; f.dispatchEvent(new Event('change')); });
     const counts = [], scales = [];
     for (const v of ['0.5', '0.8', '1.1', '1.4', '1.8']) {
       await page.evaluate((v) => { const d = document.getElementById('density'); d.value = v; d.dispatchEvent(new Event('change')); }, v);
@@ -183,8 +203,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     if (nu.n >= 2) { expect(nu.fx).toBeGreaterThan(0.8); expect(nu.fy).toBeGreaterThan(0.6); }
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
     // dessins très réduits dans un petit cadre, au maximum : Paysage les répartit sur toute l'affiche
-    // (feuilles déclarées de 120 cm : les sujets demandent bien plus que le cadre 24 × 18)
-    await page.evaluate(() => { AtelierGribouille.state.drawings.forEach((d) => { d.sizeCm = 120; }); const f = document.getElementById('format'); f.value = 'cadre:24x18'; f.dispatchEvent(new Event('change')); });
+    // (feuilles déclarées de 120 cm : les sujets demandent bien plus que le cadre 21 × 30)
+    await page.evaluate(() => { AtelierGribouille.state.drawings.forEach((d) => { d.sizeCm = 120; }); const f = document.getElementById('format'); f.value = 'cadre:21x30'; f.dispatchEvent(new Event('change')); });
     await page.waitForTimeout(300);
     const sp = await page.evaluate(() => { const c = AtelierGribouille.state.proposals[0].comp; const ys = c.items.map((L) => L.y / c.H), xs = c.items.map((L) => L.x / c.W); return { k: AtelierGribouille.scale(), n: c.items.length, dy: Math.max(...ys) - Math.min(...ys), dx: Math.max(...xs) - Math.min(...xs) }; });
     expect(sp.k).toBeLessThan(0.6);
@@ -198,15 +218,15 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
-    // un scan A4 à 300 dpi, seul, dans le cadre 100 × 70 : il garderait de la place, mais reste à sa taille
+    // un scan A4 à 300 dpi, seul, dans le cadre 70 × 50 : il garderait de la place, mais reste à sa taille
     await page.setInputFiles('#file', [fixture('scan-300dpi.jpg')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.min; d.dispatchEvent(new Event('change')); const f = document.getElementById('format'); f.value = 'cadre:100x70'; f.dispatchEvent(new Event('change')); });
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.min; d.dispatchEvent(new Event('change')); const f = document.getElementById('format'); f.value = 'cadre:50x70'; f.dispatchEvent(new Event('change')); });
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBeLessThanOrEqual(1.0001);
     const over = await page.evaluate(() => AtelierGribouille.state.proposals.flatMap((p) => p.comp.items.map((L) => { const c = L.piece.drawing.sizeCm / L.piece.drawing.srcLong; return Math.max(L.w / (L.piece.canvas.width * c), L.h / (L.piece.canvas.height * c)); })));
     for (const r of over) expect(r).toBeLessThanOrEqual(1.001);
-    await expect(page.locator('#scale-info')).toBeHidden();
+    await expect(page.locator('#scale-info')).toHaveText('Impression de 70 × 50 cm, à la taille du cadre.');
   });
 
   test('Toile : le curseur règle le nombre de dessins, et la toile conseillée suit (moins de dessins, plus petite)', async ({ page }) => {
@@ -290,7 +310,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // bascule vers Impression : cadre par défaut, œuvre recomposée à sa taille
     await page.locator('#mode-switch [data-mode="impression"]').click();
     await page.waitForTimeout(400);
-    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:42x29.7', 42, 29.7]);
+    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:30x40', 40, 30]);
     await page.locator('#mode-switch [data-mode="toile"]').click();
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => /^\d+x\d+$/.test(document.getElementById('format').value))).toBe(true);

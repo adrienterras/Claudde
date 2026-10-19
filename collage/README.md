@@ -15,8 +15,12 @@ cd collage && python3 -m http.server 8000
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, cartes de choix dans
    l'atelier vide, bascule en haut de la colonne à tout moment, mode gardé avec chaque sauvegarde).
-   - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte d'un **cadre standard du marché**
-     (`FRAMES` : 18 × 24 à 70 × 100, A4, A3, carrés 30 à 50 ; seule liste proposée), les dessins
+   - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
+     **quatre cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70 ; seule liste
+     proposée, 30 × 40 par défaut, un ancien réglage ramené au cadre le plus proche). Un choix « Sans /
+     Avec passe-partout » à côté du cadre (mémorisé, repris par la mise en scène) fixe la taille
+     d'impression : sans, elle remplit le cadre (A4 dans le 21 × 30) ; avec, elle prend la taille en
+     dessous (13 × 18, A4, 30 × 40, 40 × 50) et la composition est refaite à cette taille. Les dessins
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, `computePrintScale`) qui
      **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
      curseur en demande, comme à la pose) doivent couvrir la part de l'affiche que le curseur fixe,
@@ -185,8 +189,8 @@ cd collage && python3 -m http.server 8000
      (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
      présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
-     l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 30 × 40,
-     50 × 70 ou 70 × 100, 39 à 199 €) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
+     l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,
+     30 × 40, 40 × 50 ou 50 × 70, 29 à 129 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
      Signature 490 ou 690 €), et la quantité. La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
      brouillon ; la liste est dans localStorage et survit au rechargement. Le panier (bouton en haut,
@@ -311,10 +315,11 @@ cd collage && python3 -m http.server 8000
      pas de reflet). Le cadre (bois clair, bois foncé,
      bois noir, bois blanc ou métal) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
      il est assorti aux couleurs de l'œuvre : sombre → bois blanc (bois noir avec passe-partout),
-     dominante froide → métal, claire → bois foncé, sinon bois clair. Un choix « Sans /
-     Avec passe-partout » (mémorisé) agrandit le cadre au plus petit format standard qui laisse 4 cm
-     de marge autour de l'œuvre, avec des marges proches sur les côtés et en haut et en bas (une œuvre
-     carrée garde un cadre carré) ; cadre sur mesure, 6 cm de marge, quand aucun format ne convient. « Télécharger la mise en scène » enregistre l'image en
+     dominante froide → métal, claire → bois foncé, sinon bois clair. Le cadre montré est celui choisi
+     dans Tailles ; le choix « Sans / Avec passe-partout » y est le même (il change la taille
+     d'impression, donc la composition), et le passe-partout se voit dès que l'ouverture du cadre
+     dépasse l'œuvre (une composition rouverte d'un ancien format prend le plus petit des quatre
+     cadres où elle tient). « Télécharger la mise en scène » enregistre l'image en
      JPEG (2000 × 1500 px).
      L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
      de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm

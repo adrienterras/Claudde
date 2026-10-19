@@ -1413,7 +1413,7 @@ test.describe('Cartel sur ordinateur', () => {
     // un compteur long (« tout ») et un cartel long
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
-    await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:29.7x21'; f.dispatchEvent(new Event('change')); });
+    await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:21x30'; f.dispatchEvent(new Event('change')); });
     for (const width of [1680, 1440, 1366, 1280, 1150, 900]) {
       await page.setViewportSize({ width, height: 900 });
       await page.waitForTimeout(250);
@@ -1579,21 +1579,15 @@ test.describe('Mettre en scène', () => {
         expect(await page.evaluate(() => localStorage.getItem('atelier.cadre'))).toBe('bois-noir');
         await page.locator('#scene-frame-pick [data-frame="auto"]').click();
         await expect(page.locator('#scene-info')).toContainText(', assorti aux couleurs de l’œuvre');
-        // avec passe-partout : un cadre standard plus grand, au moins 4 cm de marge autour de l'œuvre
+        // avec passe-partout : le même cadre, l'impression prend la taille en dessous (la composition
+        // est refaite à cette taille) ; le choix est le même que dans la section Tailles
         await page.locator('#scene-mat [data-mat="1"]').click();
         await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/);
-        const txt = await page.locator('#scene-info').textContent();
-        const m = txt.match(/^Avec passe-partout : cadre .+ de ([\d,]+) × ([\d,]+) cm pour l’œuvre de/);
-        expect(m).toBeTruthy();
-        const num = (v) => Number(v.replace(',', '.'));
-        expect(num(m[1])).toBeGreaterThanOrEqual(W + 8);
-        expect(num(m[2])).toBeGreaterThanOrEqual(H + 8);
-        expect(txt).toContain(`pour l’œuvre de ${fmt(W)} × ${fmt(H)} cm`);
-        // œuvre carrée : un cadre carré (aucun cadre carré standard ne laisse 4 cm autour d'un
-        // 50 × 50 : cadre sur mesure de 62 × 62)
-        await page.evaluate(() => { const s = document.getElementById('format'); s.value = 'cadre:50x50'; s.dispatchEvent(new Event('change', { bubbles: true })); });
-        await page.waitForFunction(() => AtelierGribouille.state.comp && AtelierGribouille.state.comp.W === 50 && AtelierGribouille.state.comp.H === 50, null, { timeout: 120000 });
-        await expect(page.locator('#scene-info')).toContainText('de 62 × 62 cm sur mesure pour l’œuvre de 50 × 50 cm');
+        await expect(page.locator('#print-mat [data-mat="1"]')).toHaveClass(/on/);
+        await page.waitForFunction(([w, h]) => { const c = AtelierGribouille.state.comp; return c && c.W < w && c.H < h; }, [W, H], { timeout: 120000 });
+        const f = await page.evaluate(() => AtelierGribouille.formatCm());
+        expect([f.frameW, f.frameH]).toEqual([W, H]); // le cadre n'a pas changé
+        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Avec passe-partout : cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm pour l’œuvre de ${fmt(f.w)} × ${fmt(f.h)} cm`));
         // mémorisé
         await page.reload();
         await page.waitForFunction(() => window.AtelierGribouille);
