@@ -94,9 +94,22 @@
     .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
     .reassure { margin: 18px 0 0; font-size: .82rem; color: var(--muted); }
     .hero-art { position: relative; }
-    .hero-art .photo { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 34px 70px -30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.06); }
-    .hero-art .sticker { position: absolute; left: 18px; bottom: -18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: .8rem; box-shadow: 0 14px 30px -18px rgba(0,0,0,.4); transform: rotate(2deg); }
-    .hero-art .sticker b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1rem; }
+    /* carrousel : six tableaux (légende au-dessus, visuel dessous) qui se fondent l'un dans l'autre */
+    .carousel { position: relative; }
+    .carousel .slides { position: relative; aspect-ratio: 4 / 3.55; }
+    .carousel .slide { position: absolute; inset: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; opacity: 0; transition: opacity .9s ease; pointer-events: none; }
+    .carousel .slide.is-active { opacity: 1; pointer-events: auto; }
+    .carousel figcaption { min-height: 2.6em; font-family: var(--f-display); font-size: clamp(1.15rem, 2vw, 1.5rem); line-height: 1.25; text-align: center; color: var(--ink); padding: 0 8px; }
+    .carousel figcaption em { color: var(--ink-2); }
+    .carousel img { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 34px 70px -30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.06); transform: scale(1); transition: transform 5s linear; }
+    .carousel .slide.is-active img { transform: scale(1.025); }
+    .carousel-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
+    .carousel-arrow { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 400 1.2rem/1 var(--f-display); cursor: pointer; }
+    .carousel-arrow:hover { background: var(--surface-2); }
+    .dots { display: flex; gap: 8px; }
+    .dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; transition: transform .2s, background .2s; }
+    .dots button[aria-selected="true"] { background: var(--accent); transform: scale(1.3); }
+    @media (prefers-reduced-motion: reduce) { .carousel .slide, .carousel img { transition: none; } .carousel .slide.is-active img { transform: none; } }
     /* sections */
     section { padding: 64px 0; }
     .sec-head { max-width: 60ch; margin-bottom: 34px; }
@@ -223,8 +236,40 @@
         <p class="reassure">Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.</p>
       </div>
       <div class="hero-art rise" style="animation-delay:.15s">
-        <img class="photo" src="img/salon-toile.jpg" srcset="img/salon-toile-900.jpg 900w, img/salon-toile.jpg 1800w" sizes="(max-width: 900px) 100vw, 50vw" alt="Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches" width="1413" height="1060">
-        <div class="sticker"><b>Découpés et collés sur toile</b>Tous leurs dessins, une seule œuvre</div>
+        <!-- l'atelier en six tableaux, comme la vidéo de présentation : un carrousel qui défile seul -->
+        <div class="carousel" id="carrousel" aria-roledescription="carrousel" aria-label="L’atelier en images">
+          <div class="slides">
+            <figure class="slide is-active">
+              <figcaption>Les dessins de vos enfants <em>méritent mieux qu’un tiroir.</em></figcaption>
+              <img src="img/accueil-tiroir-800.webp" srcset="img/accueil-tiroir-800.webp 800w, img/accueil-tiroir.webp 1200w" sizes="(max-width: 900px) 100vw, 50vw" width="1200" height="900" fetchpriority="high" decoding="async" alt="Une pile de dessins d’enfants, feutres et crayons de couleur">
+            </figure>
+            <figure class="slide">
+              <figcaption>Importez leurs dessins : <em>l’atelier les découpe</em> à leur taille réelle</figcaption>
+              <img src="img/accueil-importer-800.webp" srcset="img/accueil-importer-800.webp 800w, img/accueil-importer.webp 1200w" sizes="(max-width: 900px) 100vw, 50vw" width="1200" height="900" loading="lazy" decoding="async" alt="L’atelier ouvert sur un ordinateur portable, prêt à recevoir les dessins">
+            </figure>
+            <figure class="slide">
+              <figcaption>et <em>compose votre tableau.</em></figcaption>
+              <img src="img/accueil-composer-800.webp" srcset="img/accueil-composer-800.webp 800w, img/accueil-composer.webp 1200w" sizes="(max-width: 900px) 100vw, 50vw" width="1200" height="900" loading="lazy" decoding="async" alt="Une composition de dessins d’enfants découpés, sur l’écran de l’ordinateur">
+            </figure>
+            <figure class="slide">
+              <figcaption>Déplacez, tournez, changez le fond : <em>tout s’ajuste</em> à votre guise.</figcaption>
+              <img src="img/accueil-ajuster-800.webp" srcset="img/accueil-ajuster-800.webp 800w, img/accueil-ajuster.webp 1200w" sizes="(max-width: 900px) 100vw, 50vw" width="1200" height="900" loading="lazy" decoding="async" alt="Le nuancier des fonds et la composition, sur l’écran de l’ordinateur">
+            </figure>
+            <figure class="slide">
+              <figcaption>Imprimé, encadré, <em>accroché.</em></figcaption>
+              <img src="img/accueil-encadre-800.webp" srcset="img/accueil-encadre-800.webp 800w, img/accueil-encadre.webp 1200w" sizes="(max-width: 900px) 100vw, 50vw" width="1200" height="900" loading="lazy" decoding="async" alt="Le tableau imprimé et encadré, accroché au mur">
+            </figure>
+            <figure class="slide">
+              <figcaption>Ou réalisé à la main, <em>avec les originaux,</em> grâce à un guide pas à pas.</figcaption>
+              <img src="img/accueil-originaux-800.webp" srcset="img/accueil-originaux-800.webp 800w, img/accueil-originaux.webp 1200w" sizes="(max-width: 900px) 100vw, 50vw" width="1200" height="900" loading="lazy" decoding="async" alt="Le collage réalisé à la main avec les dessins originaux, encadré au mur">
+            </figure>
+          </div>
+          <div class="carousel-nav">
+            <button type="button" class="carousel-arrow" data-dir="-1" aria-label="Image précédente">‹</button>
+            <div class="dots" role="tablist" aria-label="Choisir une image"></div>
+            <button type="button" class="carousel-arrow" data-dir="1" aria-label="Image suivante">›</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -367,6 +412,7 @@
     </div>
   </footer>
   <script src="i18n.js"></script>
+  <script src="carrousel.js" defer></script>
   <!-- mesure d’audience sans cookies : même réglage que l’application (atelier/config.js, clé analytics) -->
   <script src="atelier/config.js"></script>
   <script src="atelier/js/analytics.js"></script>
