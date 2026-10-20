@@ -1026,6 +1026,7 @@
     const box = $('detail');
     const d = state.current;
     box.hidden = !d;
+    if (typeof syncDetailModal === 'function') syncDetailModal();
     if (!d) return;
     const role = roleOf(d);
     const k = scale();
@@ -1088,6 +1089,7 @@
       </div>`;
     box.querySelector('.detail-close').onclick = () => {
       state.current = null;
+      selectOnArt(null); // comme un re-clic sur la vignette : plus de dessin sélectionné sur l'œuvre
       refreshLists();
       // téléphone : le tiroir reprend sa hauteur normale et montre la liste
       if (mobileQuery.matches) { document.body.classList.remove('sheet-tall', 'sheet-detail'); const panel = document.querySelector('.panel'); if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -2444,11 +2446,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const d = drawingOfLayer(L);
     if (!d || state.current === d) return;
     state.current = d;
-    const sec = $('drawings-section');
-    if (sec && sec.classList.contains('collapsed')) sec.querySelector(':scope > h2').click();
-    refreshLists();
-    const box = $('detail');
-    if (box && !box.hidden && window.matchMedia('(min-width: 861px)').matches) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    refreshLists(); // ordinateur : la fiche s'ouvre en fenêtre (syncDetailModal)
   }
 
   function refreshActiveThumb() {
@@ -4152,6 +4150,30 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   placeScene();
   mobileQuery.addEventListener('change', placeScene);
+  // la fiche d'un dessin (#detail) : sur ordinateur, en fenêtre (#detail-modal, comme la mise en scène),
+  // ouverte dès qu'un dessin est choisi (sur l'œuvre, dans la liste, par une alerte) et fermée par sa
+  // croix, un clic à côté ou Échap ; sur téléphone, dans l'étape Dessins, en haut du tiroir
+  function placeDetail() {
+    const mobile = mobileQuery.matches, box = $('detail');
+    if (mobile) { if (box.parentElement !== $('drawings-section')) $('drawings-section').insertBefore(box, $('drawings')); $('detail-modal').hidden = true; }
+    else if (box.parentElement !== $('detail-modal-body')) $('detail-modal-body').appendChild(box);
+    syncDetailModal();
+  }
+  function syncDetailModal() {
+    // (sans openModal/closeModal, déclarés plus bas : cette fonction tourne dès le chargement)
+    const m = $('detail-modal');
+    if (mobileQuery.matches) { m.hidden = true; return; }
+    if (state.current && m.hidden) { m.hidden = false; const f = m.querySelector('.detail-close'); if (f) f.focus({ preventScroll: true }); }
+    else if (!state.current && !m.hidden) m.hidden = true;
+  }
+  (() => {
+    const el = $('detail-modal');
+    const leave = () => { if (!state.current) return; state.current = null; selectOnArt(null); refreshLists(); };
+    el.addEventListener('click', (e) => { if (e.target === el) leave(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden && !document.body.classList.contains('editing')) leave(); });
+  })();
+  placeDetail();
+  mobileQuery.addEventListener('change', placeDetail);
   // « Commencer une nouvelle œuvre » : sur ordinateur, au-dessus du titre « 01 Importer » ; sur
   // téléphone, dans l'étape Importer sous le consentement de détourage
   function placeNewWork() {
@@ -4262,12 +4284,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('quality-alert-go').onclick = () => {
     const d = (state.qualityList || [])[0];
     if (!d) return;
-    const sec = $('drawings-section');
-    if (mobileQuery.matches) selectTab('drawings-section'); else if (sec._expand) sec._expand();
+    if (mobileQuery.matches) selectTab('drawings-section');
     state.current = d;
-    refreshLists();
-    const box = $('detail');
-    if (box) setTimeout(() => box.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+    refreshLists(); // ordinateur : la fiche s'ouvre en fenêtre
+    if (mobileQuery.matches) { const box = $('detail'); setTimeout(() => box.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60); }
   };
   $('guide').onclick = requireAccount(tr('créer le guide'), exportGuide);
 

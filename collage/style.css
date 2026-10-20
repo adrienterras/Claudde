@@ -811,6 +811,12 @@ body.editing { overflow: hidden; }
 .scene-size, .scene-mat-field { display: none; } /* téléphone : taille, passe-partout et orientation sont juste au-dessus, dans Tailles */
 /* ordinateur : la mise en scène dans une grande fenêtre, l'image à gauche, les réglages à droite */
 .scene-card { width: min(1180px, 100%); max-height: calc(100vh - 40px); }
+/* la fiche d'un dessin en fenêtre (ordinateur) : la carte est la fiche elle-même, avec sa croix */
+.detail-card { width: min(560px, 100%); padding: 0; background: transparent; box-shadow: none; overflow: visible; }
+.detail-modal .detail { position: relative; top: auto; max-height: calc(100vh - 40px); overflow: auto; padding: 18px; box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .6); }
+.detail-modal .detail .detail-close { top: 10px; right: 10px; }
+/* pendant la retouche (éditeur plein écran, ouvert depuis la fiche), la fenêtre s'efface puis revient */
+body.editing .detail-modal { visibility: hidden; }
 .scene-modal .acc-title { margin: 0; }
 .scene-modal .scene-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
 /* les trois pièces sur une ligne : chaque bouton prend la place de son libellé */

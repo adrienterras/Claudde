@@ -402,8 +402,11 @@ cd collage && python3 -m http.server 8000
      d'orientation la tourne d'un quart de tour (`turnComp`) ; les autres propositions sont recomposées
      à la nouvelle taille. En atelier Toile, la composition est refaite comme avant ;
    - **Dessins repliée par défaut** (ordinateur) : la section Dessins est repliée à chaque visite et à
-     chaque nouvelle œuvre (son état n'est pas mémorisé, contrairement aux autres sections) ; elle ne
-     s'ouvre que d'un clic sur un dessin de l'œuvre (`showDrawingOf`) ou sur son titre ;
+     chaque nouvelle œuvre (son état n'est pas mémorisé, contrairement aux autres sections) et ne s'ouvre
+     que par son titre ; la **fiche d'un dessin** (`#detail`) s'ouvre en fenêtre (`#detail-modal`, comme
+     la mise en scène — `placeDetail`, `syncDetailModal`) dès qu'un dessin est choisi (sur l'œuvre :
+     `showDrawingOf`, dans la liste, par une alerte) et se ferme par sa croix, un clic à côté ou Échap ;
+     sur téléphone, la fiche reste en haut du tiroir, dans l'onglet Dessins ;
    - **tous les dessins par défaut** : le curseur de nombre de dessins part au maximum (nouvelle
      visite, « nouvelle œuvre ») ; l'exemple garde ce réglage, une œuvre rouverte reprend le sien ;
    - **sans œuvre, rien autour de l'accueil vide** : ni barre d'outils ni barre de zoom (`#zoom-bar`)

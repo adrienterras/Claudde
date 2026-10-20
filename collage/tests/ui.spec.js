@@ -34,9 +34,9 @@ test.describe('Interface', () => {
     expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
     // sur téléphone : dans l'étape Importer, juste après le consentement de détourage (affiché ou non)
     await page.setViewportSize({ width: 390, height: 844 });
-    expect(await page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('share-cuts'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
+    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('share-cuts'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
-    expect(await page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
     // refus : rien ne change
     page.once('dialog', (d) => { expect(d.message()).toContain('effacée'); d.dismiss(); });
     await btn.click();
@@ -51,7 +51,7 @@ test.describe('Interface', () => {
     await expect(page.locator('#import-section')).not.toHaveClass(/collapsed/);
   });
 
-  test('sur ordinateur, Dessins est repliée à chaque visite et à chaque nouvelle œuvre ; un dessin cliqué sur l’œuvre l’ouvre', async ({ app }) => {
+  test('sur ordinateur, Dessins est repliée à chaque visite et à chaque nouvelle œuvre ; un dessin cliqué sur l’œuvre ouvre sa fiche en fenêtre', async ({ app }) => {
     test.setTimeout(180000);
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
@@ -71,9 +71,12 @@ test.describe('Interface', () => {
     const [x, y] = await page.evaluate(() => window.__pt);
     await page.mouse.dblclick(x, y);
     await page.waitForTimeout(400);
-    const opened = await page.evaluate(() => !document.getElementById('drawings-section').classList.contains('collapsed') || !!document.getElementById('editor') && !document.getElementById('editor').hidden);
+    // la fiche en fenêtre (ou l'éditeur de découpe, si le double-clic l'a ouvert) ; la section reste repliée
+    const opened = await page.evaluate(() => !document.getElementById('detail-modal').hidden || !document.getElementById('editor').hidden);
     expect(opened).toBe(true);
+    await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
     if (await page.evaluate(() => !document.getElementById('editor').hidden)) await page.keyboard.press('Escape');
+    if (await page.evaluate(() => !document.getElementById('detail-modal').hidden)) { await page.locator('#detail .detail-close').click(); await expect(page.locator('#detail-modal')).toBeHidden(); }
     // « nouvelle œuvre » : repliée de nouveau
     await page.evaluate(() => { window.confirm = () => true; });
     await page.locator('#new-work').click();
@@ -713,17 +716,20 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
     await page.waitForFunction(() => AtelierGribouille.state.proposals && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // un dessin choisi dans la liste est sélectionné sur l'œuvre (cadre, poignée, barre d'outils)
     await page.locator('#drawings-section > h2').click();
+    // (sur ordinateur, la fiche s'ouvre en fenêtre : on la referme par sa croix entre deux vignettes)
     for (const i of [1, 0]) {
       await page.locator(`#drawings .thumb[data-i="${i}"]`).click();
       await expect(page.locator('#detail')).toBeVisible();
       expect(await page.evaluate((i) => { const s = AtelierGribouille.state; return !!s.selected && s.selected.piece && s.selected.piece.drawing === s.drawings[i]; }, i)).toBe(true);
       await expect(page.locator('#toolbar [data-act="flip"]')).toBeEnabled();
+      if (i === 1) await page.locator('#detail .detail-close').click();
     }
     // dessin suivant avec ‹ › : la sélection suit
     await page.locator('#detail [data-nav="1"]').click();
     expect(await page.evaluate(() => { const s = AtelierGribouille.state; return s.selected && s.selected.piece.drawing === s.drawings[1]; })).toBe(true);
-    // refermer la fiche (re-clic sur la vignette) retire la sélection
-    await page.locator('#drawings .thumb[data-i="1"]').click();
+    // refermer la fiche (sa croix) retire la sélection
+    await page.locator('#detail .detail-close').click();
+    await expect(page.locator('#detail-modal')).toBeHidden();
     expect(await page.evaluate(() => AtelierGribouille.state.selected)).toBeNull();
     // le brouillon garde la photo HEIC en JPEG, lisible sur n'importe quel navigateur
     let type = null;
