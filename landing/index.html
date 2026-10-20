@@ -86,7 +86,7 @@
     @media (max-width: 900px) { .btn-sm .short { display: inline; } }
     .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
     /* héros */
-    .hero { padding: 72px 0 40px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+    .hero { padding: 72px 0 40px; display: grid; grid-template-columns: .85fr 1.15fr; gap: 44px; align-items: center; } /* la photo, plus grande */
     .kicker { margin: 0 0 14px; font-size: .78rem; letter-spacing: .45em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
     h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(2.4rem, 5vw, 3.9rem); line-height: 1.08; letter-spacing: -.005em; }
     h1 em { font-style: italic; color: var(--accent); }
@@ -97,6 +97,17 @@
     .hero-art .photo { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 34px 70px -30px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.06); }
     .hero-art .sticker { position: absolute; left: 18px; bottom: -18px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: .8rem; box-shadow: 0 14px 30px -18px rgba(0,0,0,.4); transform: rotate(2deg); }
     .hero-art .sticker b { display: block; font-family: var(--f-display); font-weight: 400; font-size: 1rem; }
+    /* trois photos en fondu, 6 s chacune (18 s le tour) ; la vignette suit sa photo ; pause au survol ;
+       sans animation (préférence du système), la première seule */
+    .slides { position: relative; aspect-ratio: 4 / 3; }
+    .slide { position: absolute; inset: 0; margin: 0; opacity: 0; animation: diapo 18s infinite both; }
+    .slide:nth-child(1) { position: relative; animation-delay: -1s; }
+    .slide:nth-child(2) { animation-delay: 5s; }
+    .slide:nth-child(3) { animation-delay: 11s; }
+    .slide .photo { aspect-ratio: 4 / 3; object-fit: cover; }
+    .slides:hover .slide { animation-play-state: paused; }
+    @keyframes diapo { 0% { opacity: 0; } 5.5% { opacity: 1; } 38.8% { opacity: 1; } 44.4% { opacity: 0; } 100% { opacity: 0; } } /* la suivante est pleine avant que celle-ci ne s'efface */
+    @media (prefers-reduced-motion: reduce) { .slide { animation: none; } .slide:nth-child(1) { opacity: 1; } }
     /* la vidéo de présentation : une bande sur toute la largeur, au-dessus du héros */
     .video-band { padding: 0; overflow: hidden; }
     .video-band.done { transition: height .7s ease, opacity .5s ease; opacity: 0; }
@@ -237,8 +248,21 @@
         <p class="reassure">Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.</p>
       </div>
       <div class="hero-art rise" style="animation-delay:.15s">
-        <img class="photo" src="img/salon-toile.jpg" srcset="img/salon-toile-900.jpg 900w, img/salon-toile.jpg 1800w" sizes="(max-width: 900px) 100vw, 50vw" alt="Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches" width="1413" height="1060">
-        <div class="sticker"><b>Découpés et collés sur toile</b>Tous leurs dessins, une seule œuvre</div>
+        <!-- trois photos qui défilent (fondu, CSS seul : la page n'admet pas de script en ligne), chacune avec sa vignette -->
+        <div class="slides">
+          <figure class="slide">
+            <img class="photo" src="img/salon-toile.jpg" srcset="img/salon-toile-900.jpg 900w, img/salon-toile.jpg 1800w" sizes="(max-width: 900px) 100vw, 58vw" alt="Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches" width="1413" height="1060">
+            <div class="sticker"><b>Découpés et collés sur toile</b>Tous leurs dessins, une seule œuvre</div>
+          </figure>
+          <figure class="slide">
+            <img class="photo" src="img/chambre-encadre.jpg" srcset="img/chambre-encadre-900.jpg 900w, img/chambre-encadre.jpg 1600w" sizes="(max-width: 900px) 100vw, 58vw" alt="Une création imprimée et encadrée, faite des dessins d’enfants, accrochée au-dessus d’une étagère de chambre d’enfant" width="1600" height="1200" loading="lazy" decoding="async">
+            <div class="sticker"><b>Imprimés et encadrés</b>Dans leur chambre</div>
+          </figure>
+          <figure class="slide">
+            <img class="photo" src="img/salon-encadre.jpg" srcset="img/salon-encadre-900.jpg 900w, img/salon-encadre.jpg 1600w" sizes="(max-width: 900px) 100vw, 58vw" alt="Une création imprimée et encadrée, faite des dessins d’enfants, accrochée au-dessus d’un buffet de salon" width="1600" height="1200" loading="lazy" decoding="async">
+            <div class="sticker"><b>Imprimés et encadrés</b>Dans votre salon</div>
+          </figure>
+        </div>
       </div>
     </section>
 
