@@ -1095,7 +1095,7 @@ body.stage-full .scene-open { display: none; }
 /* atelier Impression : le fond est un aplat uni, la finition toile n'a pas de sens */
 
 /* ---------- Prise de photo dans l'atelier ---------- */
-.camera-open { margin: 0 0 10px; }
+.camera-open { margin: 14px 0 10px; } /* téléphone : un peu d'air sous la barre d'onglets */
 @media (min-width: 861px) { .camera-open { display: none !important; } } /* ordinateur : pas de bouton photo (on photographie au téléphone) */
 .cloud-sync { margin: 10px 0 14px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 8px; }
 .cloud-sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
