@@ -388,6 +388,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .proposal-cart { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: 0 4px 10px -6px rgba(0, 0, 0, .45); }
 .proposal-cart:hover { background: var(--accent-soft); }
 .proposal-cart .ico { width: 17px; height: 17px; }
+body:not(.mode-impression) .proposal-cart { display: none; } /* collage : pas d'icône panier sur les propositions (« Commander » et l'étape Exporter suffisent) */
 
 /* ---------- Panier ---------- */
 .cart-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; box-shadow: 0 8px 18px -12px rgba(0, 0, 0, .45); }

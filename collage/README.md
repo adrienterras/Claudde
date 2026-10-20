@@ -221,7 +221,7 @@ cd collage && python3 -m http.server 8000
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » à côté
      (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
      présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette, sur ordinateur
-     seulement : pas d'icône panier sur les propositions au téléphone) ou
+     et en tableau imprimé seulement : pas d'icône panier sur les propositions au téléphone ni pour un collage) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,
      30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (17 à 79 € selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office, le kit complet 50 × 70 à 89 € (`kitPrice`, options gardées avec l'article)),

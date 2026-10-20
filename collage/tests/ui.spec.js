@@ -813,8 +813,12 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart-add')).toBeVisible();
     await page.locator('#cart-add [data-close]').first().click();
     await expect(page.locator('#cart-add')).toBeHidden();
+    // collage : pas d'icône panier sur les propositions
+    expect(await page.evaluate(() => AtelierGribouille.state.mode === 'impression')).toBe(false);
+    await expect(page.locator('.proposal-cart').first()).toBeHidden();
     // atelier Impression : tirages et fichier HD ; une proposition (pas celle affichée), en tableau encadré
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    await expect(page.locator('.proposal-cart').first()).toBeVisible();
     const style1 = await page.evaluate(() => AtelierGribouille.state.proposals[1].style.id);
     await page.locator('.proposal-cart').nth(1).click();
     await expect(page.locator('#cart-add')).toBeVisible();
