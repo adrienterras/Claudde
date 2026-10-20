@@ -5,14 +5,17 @@
   // Résolution conservée pour chaque page scannée (plus grand côté) : la plus haute possible, selon
   // le nombre de pages et la mémoire de l'appareil, pour que les découpes gardent tout leur détail à
   // l'impression. Chaque page garde environ 1,6 toile pleine en mémoire (page, texture ou découpes).
-  const SOURCE_MIN = 1400, SOURCE_CAP = 2800, SOURCE_CAP_PHONE = 2000;
+  // Téléphone : Safari (iPhone) plafonne la mémoire totale des canvas et, au-delà, rend des canvas
+  // vides sans rien dire (vignettes noires, pages de fond noires) ; le budget y est fixe et prudent,
+  // et les pages descendent jusqu'à 900 px quand les dessins sont nombreux.
+  const SOURCE_MIN = 1400, SOURCE_MIN_PHONE = 900, SOURCE_CAP = 2800, SOURCE_CAP_PHONE = 2000, PHONE_BUDGET = 110e6;
   function sourceMax(nPages) {
     const mobile = navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900;
-    const mem = Math.min(8, navigator.deviceMemory || (mobile ? 4 : 8)); // Go
-    const budget = mem * (mobile ? 0.05 : 0.1) * 1e9; // octets accordés aux pages
+    const mem = Math.min(8, navigator.deviceMemory || 8); // Go
+    const budget = mobile ? PHONE_BUDGET : mem * 0.1 * 1e9; // octets accordés aux pages
     const perPagePx = 1.6 * 4 * 0.71; // octets par pixel² de grand côté (format ≈ 1/√2)
     const long = Math.sqrt(budget / (Math.max(1, nPages) * perPagePx));
-    return Math.round(Math.max(SOURCE_MIN, Math.min(mobile ? SOURCE_CAP_PHONE : SOURCE_CAP, long)));
+    return Math.round(Math.max(mobile ? SOURCE_MIN_PHONE : SOURCE_MIN, Math.min(mobile ? SOURCE_CAP_PHONE : SOURCE_CAP, long)));
   }
   const $ = (id) => document.getElementById(id);
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
@@ -233,7 +236,10 @@
 
   // Vignette ; en PNG pour les pièces découpées, qui ont un fond transparent.
   function thumbOf(canvas, max, png) {
-    return Extract.scaleTo(canvas, max || 160).toDataURL(png ? 'image/png' : 'image/jpeg', 0.8);
+    const c = Extract.scaleTo(canvas, max || 160);
+    const url = c.toDataURL(png ? 'image/png' : 'image/jpeg', 0.8);
+    Extract.release(c); // (Safari compte la mémoire des canvas jusqu'à leur ramassage)
+    return url;
   }
 
   // Résolution déclarée dans l'en-tête d'une image : JFIF (densité), EXIF (XResolution + unité) ou PNG (pHYs).
@@ -340,12 +346,15 @@
       setProgress(i, pages.length, sv ? tr`Lecture du dessin ${i + 1} / ${pages.length}…` : tr`Analyse du dessin ${i + 1} / ${pages.length}…`);
       await tick();
       try {
+        // réouverture : la résolution de travail d'origine (longs) ; sur téléphone, jamais plus que ce
+        // que l'appareil peut porter (une œuvre faite sur ordinateur, rouverte sur un téléphone)
         const want = longs[pages[i].fileIndex];
-        const src = await pages[i].render(want > 0 ? want : max);
+        const target = want > 0 ? (phone() ? Math.min(want, max) : want) : max;
+        const src = await pages[i].render(target);
         // qualité mesurée sur l'image reçue, avant que l'analyse n'égalise l'éclairage (sur place)
         const q = Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null });
         let X = Extract, analysis, photoDebug = null;
-        if (sv) analysis = await restoreAnalysis(sv);
+        if (sv) analysis = await restoreAnalysis(sv, target);
         else {
           if (legacy[pages[i].fileIndex]) X = await legacyExtract();
           // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
@@ -357,7 +366,9 @@
           id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
           cutPrefs: Extract.cutPrefs(), extract: X === Extract ? null : X,
           orient: 'auto', orientDeg: 0,
-          original: src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
+          // l'image de travail d'origine (réanalyse si l'on change de découpe ou de mode photo) ; sur
+          // téléphone, une page rouverte ne la garde pas en mémoire : elle est relue du fichier au besoin (originalOf)
+          original: sv && phone() && analysis.page !== src.canvas ? null : src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
           fileKey: pages[i].fileKey || null,
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm, physSource: src.physSource || (src.physCm ? 'PDF' : null),
@@ -368,6 +379,7 @@
         };
         // page sauvegardée déjà tournée : la page droite (sans découpe) reste la base, comme à l'import
         if (sv && sv.deg) { d.orientDeg = sv.deg; d.base = unrotatedBase(analysis, sv.deg); }
+        if (!d.original) Extract.release(src.canvas);
         preparePieces(analysis.pieces, d);
         loadSize(d);
         loadOrient(d);
@@ -626,11 +638,20 @@
     return true;
   }
 
+  // L'image de travail d'origine d'un dessin : gardée en mémoire, ou relue de son fichier à la
+  // résolution de travail (téléphone, page rouverte) ; null si rien ne permet de la retrouver
+  async function originalOf(d) {
+    if (d.original) return d.original;
+    if (!d.source) return null;
+    try { return (await renderSource(d.source, d.srcLong)).canvas; } catch (e) { console.warn('image d’origine illisible', e); return null; }
+  }
   // Photo sur une surface : bascule entre le dessin détouré et la photo entière.
   // mode : 'auto' (sol reconnu automatiquement), 'force' (retrait demandé par l'utilisateur), 'keep' (photo entière)
-  function setPhotoMode(d, mode) {
-    if (!d.original || d.photoMode === mode) return;
-    const a = withCut(d, () => EX(d).analyze(d.original, 0, { photo: mode !== 'keep', force: mode === 'force' }));
+  async function setPhotoMode(d, mode) {
+    if (d.photoMode === mode) return;
+    const orig = await originalOf(d);
+    if (!orig) return;
+    const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: mode !== 'keep', force: mode === 'force' }));
     if (mode !== 'keep' && !a.photo) { notice(tr('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.')); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
     d.photoMode = mode;
     d.base = a; d.analysis = a; d.orientDeg = 0;
@@ -2639,7 +2660,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     // fond mis en cache (il ne change pas pendant qu'on déplace les découpes),
     // à une résolution plafonnée pour rester léger quand on zoome fort
-    const bs = Math.min(s, 4096 / comp.W, Math.sqrt(16e6 / (comp.W * comp.H)));
+    const bs = Math.min(s, 4096 / comp.W, Math.sqrt((phone() ? 6e6 : 16e6) / (comp.W * comp.H))); // (téléphone : cache plus léger)
     if (!state.bgCache || Math.abs(state.bgCache.s - bs) > 1e-6 || state.bgCache.shadows !== shadows) {
       const c = Extract.makeCanvas(comp.W * bs, comp.H * bs);
       Compose.renderBg(c.getContext('2d'), comp, bs, shadows);
@@ -4455,9 +4476,9 @@ Réponds uniquement avec ce JSON :
       const res = await sample.json(prompt, { images: sheets, modelTier: 'default', cache: { gcTime: 86400000 } });
       const items = Array.isArray(res && res.dessins) ? res.dessins : [];
       let n = 0;
-      items.forEach((it) => {
+      for (const it of items) {
         const d = all[Number(it.n) - 1];
-        if (!d) return;
+        if (!d) continue;
         d.ai = {
           sujet: String(it.sujet || '').slice(0, 40),
           role: it.role === 'fond' ? 'fond' : 'decoupe',
@@ -4468,8 +4489,9 @@ Réponds uniquement avec ce JSON :
           importance: [1, 2, 3].includes(Number(it.importance)) ? Number(it.importance) : 1,
         };
         // Claude a vu un dessin photographié sur un sol ou une table que la détection a manqué : on force le détourage
-        if (it.photo_sol === true && !d.photo && d.photoMode !== 'keep') {
-          const a = withCut(d, () => EX(d).analyze(d.original, 0, { photo: true, force: true }));
+        const orig = it.photo_sol === true && !d.photo && d.photoMode !== 'keep' ? await originalOf(d) : null;
+        if (orig) {
+          const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: true, force: true }));
           if (a.photo) {
             d.photoMode = 'force';
             d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo;
@@ -4480,7 +4502,7 @@ Réponds uniquement avec ce JSON :
           }
         }
         n++;
-      });
+      }
       if (res && res.titres && typeof res.titres === 'object') {
         state.titles = {};
         STYLES.forEach((st) => { if (res.titres[st.id]) state.titles[st.id] = String(res.titres[st.id]).slice(0, 80); });
@@ -4935,7 +4957,7 @@ Réponds uniquement avec ce JSON :
         return out;
       } catch (e) { console.warn('source haute définition illisible, image de travail sauvegardée', e); }
     }
-    const blob = await toBlob(d.original, 'image/jpeg', 0.92);
+    const blob = await toBlob((await originalOf(d)) || d.analysis.page, 'image/jpeg', 0.92);
     return { data: await blob.arrayBuffer(), type: 'image/jpeg' };
   }
   async function editOf(p, d) {
@@ -5087,26 +5109,38 @@ Réponds uniquement avec ce JSON :
     if (b.close) b.close();
     return c;
   }
-  // l'analyse d'un dessin rebâtie depuis sa sauvegarde : page, pièces (image de la page sous le masque)
-  async function restoreAnalysis(sv) {
-    const page = await canvasFrom(sv.page.data, 'image/jpeg');
+  // l'analyse d'un dessin rebâtie depuis sa sauvegarde : page, pièces (image de la page sous le masque).
+  // maxLong : grand côté maximal pour cet appareil ; une page sauvegardée plus grande (faite sur
+  // ordinateur) est réduite, et ses pièces, masques et repères avec elle (facteur k)
+  async function restoreAnalysis(sv, maxLong) {
+    let page = await canvasFrom(sv.page.data, 'image/jpeg');
+    let k = 1;
+    const long = Math.max(page.width, page.height);
+    if (maxLong > 0 && long > maxLong * 1.05) {
+      k = maxLong / long;
+      const small = Extract.scaleTo(page, maxLong);
+      Extract.release(page);
+      page = small;
+    }
     const atlases = [];
     for (const at of sv.atlases || []) atlases.push(await canvasFrom(at.data, 'image/png'));
     const paper = sv.paper || null;
     const pieces = [];
     for (const q of sv.pieces || []) {
-      const [ai, ax, ay] = q.at, w = q.w, h = q.h;
+      const [ai, ax, ay] = q.at, w = Math.max(1, Math.round(q.w * k)), h = Math.max(1, Math.round(q.h * k));
       const mask = Extract.makeCanvas(w, h);
-      mask.getContext('2d').drawImage(atlases[ai], ax, ay, w, h, 0, 0, w, h);
+      const mctx = mask.getContext('2d');
+      mctx.imageSmoothingQuality = 'high';
+      mctx.drawImage(atlases[ai], ax, ay, q.w, q.h, 0, 0, w, h);
       const crop = Extract.makeCanvas(w, h);
-      crop.getContext('2d').drawImage(page, q.src.x, q.src.y, q.src.w, q.src.h, 0, 0, w, h);
+      crop.getContext('2d').drawImage(page, q.src.x * k, q.src.y * k, q.src.w * k, q.src.h * k, 0, 0, w, h);
       const img = Extract.enhance(crop, q.src.paper || paper);
       Extract.release(crop);
       const ctx = img.getContext('2d');
       ctx.globalCompositeOperation = 'destination-in';
       ctx.drawImage(mask, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
-      const hw = Math.max(4, Math.round(q.hit ? q.hit[0] : w * 0.3)), hh = Math.max(4, Math.round(q.hit ? q.hit[1] : h * 0.3));
+      const hw = Math.max(4, Math.round(q.hit ? q.hit[0] * k : w * 0.3)), hh = Math.max(4, Math.round(q.hit ? q.hit[1] * k : h * 0.3));
       const hc = Extract.makeCanvas(hw, hh);
       const hctx = hc.getContext('2d', { willReadFrequently: true });
       hctx.drawImage(mask, 0, 0, hw, hh);
@@ -5114,7 +5148,7 @@ Réponds uniquement avec ce JSON :
       const hit = new Uint8Array(hw * hh);
       for (let i = 0; i < hit.length; i++) hit[i] = hd[i * 4 + 3] > 127 ? 1 : 0;
       Extract.release(hc); Extract.release(mask);
-      const src = { x: q.src.x, y: q.src.y, w: q.src.w, h: q.src.h };
+      const src = { x: q.src.x * k, y: q.src.y * k, w: q.src.w * k, h: q.src.h * k };
       if (q.src.paper) src.paper = q.src.paper;
       pieces.push({ canvas: img, hit: { w: hw, h: hh, data: hit }, frac: q.frac, colorful: q.colorful, color: q.color || [200, 200, 200], base: q.base === null ? undefined : q.base, object: q.object || undefined, edited: !!q.edited, src });
     }
@@ -5379,9 +5413,10 @@ Réponds uniquement avec ce JSON :
     try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0), saved: rec.drawings.map((sd) => sd.saved || null), legacy }); } finally { state.restoring = false; }
     if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu depuis la sauvegarde.')); return; }
     // réglages par dessin
-    rec.drawings.forEach((sd, i) => {
+    for (let i = 0; i < rec.drawings.length; i++) {
+      const sd = rec.drawings[i];
       const d = state.drawings[i];
-      if (!d) return;
+      if (!d) continue;
       d.ai = sd.ai || null;
       // la découpe apprise au moment de la sauvegarde : le dessin est réanalysé avec, pour retrouver
       // les mêmes pièces (les retouches y sont rejouées par rang)
@@ -5391,20 +5426,21 @@ Réponds uniquement avec ce JSON :
         d.cutPrefs = sd.cut || Object.assign({}, Extract.CUT_DEFAULT);
         if (sd.photoMode) d.photoMode = sd.photoMode;
       } else {
-        if (sd.cut && d.original && JSON.stringify(sd.cut) !== JSON.stringify(d.cutPrefs || Extract.CUT_DEFAULT)) {
+        const orig = sd.cut && JSON.stringify(sd.cut) !== JSON.stringify(d.cutPrefs || Extract.CUT_DEFAULT) ? await originalOf(d) : null;
+        if (orig) {
           d.cutPrefs = sd.cut;
-          const a = withCut(d, () => EX(d).analyze(d.original, 0, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' }));
+          const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' }));
           d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo || null; d.thumb = thumbOf(a.page);
           preparePieces(a.pieces, d);
         }
-        if (sd.photoMode && sd.photoMode !== d.photoMode) setPhotoMode(d, sd.photoMode);
+        if (sd.photoMode && sd.photoMode !== d.photoMode) await setPhotoMode(d, sd.photoMode);
       }
       if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
       if (sd.tone) d.tone = sd.tone; else delete d.tone;
       d.role = ROLES.includes(sd.role) ? sd.role : 'auto'; // rôle effectif figé : la composition compte dessus
       ensureMaterial(d);
       (d.analysis.pieces || []).forEach((p, k) => { if (sd.enabled && sd.enabled[k] !== undefined) p.enabled = sd.enabled[k]; if (sd.pieceAi && sd.pieceAi[k]) p.ai = sd.pieceAi[k]; });
-    });
+    }
     applyOrientations();
     // retouches de découpe, rejouées sur les pages réimportées (après l'orientation : même page)
     let nEdits = 0, nSkipped = 0;
@@ -6167,7 +6203,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, printCount, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, printCount, sourceMax, savedOf, restoreAnalysis, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

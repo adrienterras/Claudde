@@ -1,5 +1,37 @@
 const { test, expect, openStep } = require('./helpers');
 
+test.describe('Réouverture sur un appareil plus petit', () => {
+  test('une page sauvegardée plus grande que ce que l’appareil porte est réduite, pièces et repères avec elle', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    const r = await page.evaluate(async () => {
+      const A = AtelierGribouille, d = A.state.drawings[0];
+      const saved = await A.savedOf(d, false);
+      const long0 = Math.max(saved.page.w || 0, saved.page.h || 0) || Math.max(d.analysis.page.width, d.analysis.page.height);
+      const a = await A.restoreAnalysis(saved, 400);
+      const k = 400 / long0;
+      const p0 = saved.pieces[0], q0 = a.pieces[0];
+      return {
+        long0, long: Math.max(a.page.width, a.page.height), n: a.pieces.length, n0: saved.pieces.length,
+        w0: p0.w, w: q0.canvas.width, srcx0: p0.src.x, srcx: q0.src.x, k,
+        hit: q0.hit.w > 0 && q0.hit.data.some((v) => v === 1),
+        opaque: (() => { const c = q0.canvas, dd = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < dd.length; i += 4) if (dd[i] > 127) n++; return n / (c.width * c.height); })(),
+        budgetPhone: A.sourceMax(28),
+      };
+    });
+    expect(r.long0).toBeGreaterThan(420);
+    expect(r.long).toBe(400);
+    expect(r.n).toBe(r.n0);
+    expect(r.w).toBe(Math.max(1, Math.round(r.w0 * r.k)));
+    expect(r.srcx).toBeCloseTo(r.srcx0 * r.k, 3);
+    expect(r.hit).toBe(true);
+    expect(r.opaque).toBeGreaterThan(0.05); // la pièce réduite garde son dessin sous le masque
+    // sans réduction demandée : la page garde sa taille
+    const same = await page.evaluate(async () => { const A = AtelierGribouille, d = A.state.drawings[0]; const a = await A.restoreAnalysis(await A.savedOf(d, false)); return Math.max(a.page.width, a.page.height); });
+    expect(same).toBe(r.long0);
+  });
+});
+
 test.describe('Compositions sauvegardées', () => {
   test('sauvegarder, recharger, rouvrir : la mise en place est identique', async ({ app }) => {
     const { page } = app;

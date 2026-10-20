@@ -203,7 +203,10 @@ cd collage && python3 -m http.server 8000
    - **œuvre en cours** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
      **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
      œuvre » l'efface. Chaque dessin est relu à la résolution de travail qu'il avait (elle dépend du
-     nombre de dessins importés d'un coup), pour retrouver exactement la même page ; une retouche
+     nombre de dessins importés d'un coup), pour retrouver exactement la même page — jamais plus que
+     ce que l'appareil porte : une œuvre faite sur ordinateur et rouverte sur un téléphone voit ses
+     pages réduites (`restoreAnalysis(sv, maxLong)` : page, masques, pièces et repères au même
+     facteur ; les retouches suivent, par leur rapport de page) ; une retouche
      dont la page ne correspond plus (proportions, empreinte 16 × 16) n'est pas rejouée — la
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
@@ -291,9 +294,13 @@ cd collage && python3 -m http.server 8000
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
      sont découpées comme les autres ; la rotation des découpes est fixe (réglage retiré) ;
    - **résolution d'import** : chaque page est conservée à la plus haute résolution que l'appareil
-     permet (de 1400 à 2800 px de grand côté, 2000 sur téléphone), calculée d'après le nombre de pages
-     et la mémoire disponible ; l'analyse des sujets se fait sur une grille réduite, mais les découpes
-     et les pages de fond gardent cette résolution à l'écran ;
+     permet (de 1400 à 2800 px de grand côté ; sur téléphone, de 900 à 2000 px, avec un budget fixe
+     de 110 Mo pour toutes les pages : Safari sur iPhone plafonne la mémoire totale des canvas et,
+     au-delà, rend des canvas vides sans rien dire — vignettes et pages noires), calculée d'après le
+     nombre de pages ; l'analyse des sujets se fait sur une grille réduite, mais les découpes
+     et les pages de fond gardent cette résolution à l'écran ; sur téléphone, une page rouverte ne
+     garde pas son image d'origine en mémoire (relue du fichier au besoin, `originalOf`), les
+     vignettes libèrent leur canvas et le cache du fond est plus léger ;
    - **export haute définition (300 dpi par défaut, tous formats)** : au moment d'exporter, chaque
      dessin dont une découpe ou une page de fond serait agrandie est relu depuis son fichier d'origine
      (image telle quelle, ou page du PDF rendue à la résolution nécessaire, jusqu'à 6500 px de côté) et
