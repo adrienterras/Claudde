@@ -14,8 +14,9 @@ cd collage && python3 -m http.server 8000
 
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, sinon les deux cartes au
-   milieu de l'atelier vide — à la première visite et après « Commencer une nouvelle œuvre », le
-   dernier choix présélectionné ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
+   milieu de l'atelier vide — à la première visite et après « Commencer une nouvelle œuvre », aucune
+   carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
+   interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
    « Voir un exemple » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer ;
    photographier sur téléphone ; « Changer de type d'œuvre » ramène les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,

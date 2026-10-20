@@ -1521,6 +1521,9 @@
   // (déposer ; photographier sur téléphone) — l'étape Importer du menu reste pour en ajouter ensuite
   function emptyChoice(done) {
     $('mode-pick').hidden = done;
+    // les cartes affichées : aucune n'est présélectionnée, le choix revient à l'utilisateur (le dernier
+    // type mémorisé reste le réglage interne — cadre, fond… — tant qu'aucune carte n'est cliquée)
+    if (!done) document.querySelectorAll('#mode-pick button').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
     $('empty-sample').hidden = done || !state.sampleManifest;
     $('empty-import').hidden = !done;
     if (done) $('empty-import-title').textContent = modeOf() === 'impression' ? tr('Tableau imprimé à partir de vos photos') : tr('Collage avec les dessins originaux');
