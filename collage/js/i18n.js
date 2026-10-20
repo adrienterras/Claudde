@@ -16,7 +16,7 @@
     'Accueil': 'Home',
     'Instagram': 'Instagram',
     'Créer un tableau avec les dessins de vos enfants | Atelier Gribouille': 'Make a canvas of your children’s drawings | Atelier Gribouille',
-    'Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose sept propositions, à imprimer en 300 dpi ou à réaliser à la main.': 'Import your children’s drawings, scanned or photographed: the studio cuts them out and composes seven proposals, to print at 300 dpi or to make by hand.',
+    'Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à sept propositions, à imprimer en 300 dpi ou à réaliser à la main.': 'Import your children’s drawings, scanned or photographed: the studio cuts them out and composes up to seven proposals, to print at 300 dpi or to make by hand.',
     'Les dessins d’enfants': 'Children’s drawings',
     'deviennent des œuvres d’art': 'become works of art',
     'Monogramme Atelier Gribouille': 'Atelier Gribouille monogram',
@@ -136,6 +136,9 @@
     // couleur du fond, à portée de main
     'Couleur du fond': 'Background colour',
     'Couleur du fond : {0}': 'Background colour: {0}',
+    'Couleur du trait': 'Line colour',
+    'Couleur du trait : {0}': 'Line colour: {0}',
+    'noir, comme un feutre fin': 'black, like a fine felt-tip',
     'Toile nue (lin, sans peinture)': 'Bare canvas (linen, unpainted)',
     // importer demande un compte (l'exemple reste libre)
     'importer vos dessins': 'import your drawings',
@@ -341,7 +344,7 @@
     'Nombre de dessins': 'Number of drawings',
     '16 dessins': '16 drawings',
     'Les grands souvenirs commencent par un gribouillage.': 'Great memories start with a scribble.',
-    'Importez les dessins, scannés ou pris en photo : l’atelier les découpe et compose sept propositions, à imprimer ou à réaliser avec les originaux.': 'Import the drawings, scanned or photographed: the studio cuts them out and composes seven proposals, to print or to make with the originals.',
+    'Importez les dessins, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à sept propositions, à imprimer ou à réaliser avec les originaux.': 'Import the drawings, scanned or photographed: the studio cuts them out and composes up to seven proposals, to print or to make with the originals.',
     'Voir un exemple': 'See an example',
     'Votre œuvre': 'Your artwork',
     'Enregistrer l’image': 'Save the image',

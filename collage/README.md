@@ -395,7 +395,14 @@ cd collage && python3 -m http.server 8000
      près de l'œuvre, ouvre la même palette juste à côté (`#ground-pop`, reste ouverte pour essayer
      plusieurs teintes, se ferme d'un appui ailleurs ou avec Échap) ; une teinte s'applique tout de
      suite à l'œuvre affichée (`applyGround`, mise en place gardée), les deux nuanciers restent
-     d'accord ; sans objet en Galerie (fond blanc fixe) ;
+     d'accord ; en Galerie (fond blanc fixe), le même nuancier règle la **couleur du trait** des cases
+     (`state.frameColor`, `setFrameColor`, `comp.frameColor` peint par `renderBg` et dans le PDF ;
+     'auto' = l'encre noire ; ni « toile nue » ni « blanc » pour un trait ; libellés « Couleur du
+     trait » dans la section et sur la pastille) ;
+   - **Galerie en tableau imprimé seulement** : en collage, la Galerie n'est pas proposée
+     (`activeStyles`) — sauf pour une œuvre rouverte dans ce style, qui garde sa place ;
+   - **« Mettre en scène » en haut à gauche** de la zone d'édition sur ordinateur, sous la barre
+     d'outils (celle qui commence par Défaire) ; `layoutLabel` n'a plus à le placer ;
    - **tableau imprimé : pas de taille réelle dans la fiche** : les dessins y sont réduits pour tenir
      dans le cadre, la fiche d'un dessin ne propose donc ni les feuilles A5…A2 / Autre, ni la phrase sur
      la taille lue ou estimée (`renderDetail`, `printMode()`) ; l'orientation, le rôle et la retouche
@@ -432,13 +439,13 @@ cd collage && python3 -m http.server 8000
      avec une couleur très présente à clarté voisine, bonus pour la complémentaire des dominantes,
      fond peu saturé sous des dessins très colorés et teinte moyenne chaude sous des dessins pâles,
      teintes calmes favorisées ; la Galerie fait exception : fond blanc fixe, sans couleur ni
-     effet peinture ni finition toile ; l'aplat est rendu avec un vrai effet de peinture (coups de brosse en deux couches,
+     effet peinture ni finition toile (son nuancier règle la couleur du trait des cases) ; l'aplat est rendu avec un vrai effet de peinture (coups de brosse en deux couches,
      traces des poils, couche inégale), à l'écran, dans les exports et dans le PDF ; le guide indique
      la couleur à peindre ; **toute nouvelle création part en couleur automatique** (conseillée
      selon la composition), une œuvre rouverte (brouillon, composition sauvegardée) reprend la sienne ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
-   - **sept propositions, sept styles** (Paysage sélectionné par défaut), à chaque fois :
+   - **six propositions en collage, sept en tableau imprimé** (Paysage sélectionné par défaut), à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),
      *Courtepointe* (un patchwork : les pages de fond posées bord à bord, presque droites, en
@@ -447,7 +454,8 @@ cd collage && python3 -m http.server 8000
      ne couvrent pas la toile ; sans page de fond — atelier Impression, ou que des découpes — les
      découpes elles-mêmes font les carreaux : rangées pleine largeur, chaque pièce ajustée à sa
      rangée sans jamais être agrandie, le nombre de rangées choisi pour remplir la hauteur),
-     *Galerie* (une grille régulière de cases carrées cernées d'un trait noir fin de 0,8 mm, un sujet
+     *Galerie* (tableau imprimé seulement ; une grille régulière de cases carrées cernées d'un trait
+     fin de 0,8 mm, noir ou de la couleur choisie dans le nuancier du fond, un sujet
      par case, le nombre de cases suivant le curseur de densité, comme une planche de personnages
      encadrée ; ce style est fait pour l'impression : un dessin trop grand pour sa case est réduit,
      jamais agrandi, si bien qu'au maximum du curseur tous les dessins tiennent, quelle que soit la

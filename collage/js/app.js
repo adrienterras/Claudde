@@ -1360,28 +1360,49 @@
   }
   // Impression : « sans couleur », un fond blanc pur (la toile nue n'y a pas de sens)
   const GROUND_WHITE = '#ffffff';
+  // Galerie (tableau imprimé) : le fond reste blanc, mais le trait des cases se colore avec le même
+  // nuancier ; 'auto' = l'encre noire d'origine
+  const FRAME_INK = '#1c1b15';
+  state.frameColor = 'auto';
+  const galleryMode = () => !!(state.comp && state.comp.style === 'galerie');
+  const frameHex = () => (state.frameColor && state.frameColor !== 'auto' ? state.frameColor : FRAME_INK);
+  function setFrameColor(hex) {
+    state.frameColor = !hex || hex === 'auto' ? 'auto' : hex;
+    (state.proposals || []).forEach((pr) => { if (pr.style.id === 'galerie') pr.comp.frameColor = frameHex(); });
+    state.bgCache = null;
+    syncSwatches();
+    updateGroundName();
+    renderProposals();
+    render();
+  }
+  // les deux nuanciers montrent la teinte en vigueur : celle du fond, ou du trait en Galerie
+  function syncSwatches() {
+    const cur = galleryMode() ? (state.frameColor || 'auto') : (state.ground || '');
+    document.querySelectorAll(GROUND_SWATCHES).forEach((b) => {
+      const on = (b.dataset.hex || '') === cur;
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
   // 'auto' : la couleur conseillée pour chaque proposition ; '' : toile nue ; sinon une teinte
   function setGround(hex) {
     state.ground = hex === undefined ? 'auto' : hex;
-    document.querySelectorAll(GROUND_SWATCHES).forEach((b) => {
-      const on = (b.dataset.hex || '') === (state.ground || '');
-      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
-    });
+    syncSwatches();
     updateGroundName();
   }
   function updateGroundName() {
     const el = $('ground-name');
-    if (state.comp && state.comp.style === 'galerie') el.textContent = tr('blanc, fixe en Galerie');
+    const gal = galleryMode();
+    if (gal) el.textContent = state.frameColor === 'auto' ? tr('noir, comme un feutre fin') : ((PAINTS.find(([, h]) => h === state.frameColor) || [])[0] || state.frameColor);
     else if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : state.ground === GROUND_WHITE ? tr('sans couleur (blanc)') : tr('toile nue'); }
-    // la pastille près de l'œuvre : la couleur réellement peinte sur la proposition affichée
+    // la pastille près de l'œuvre : la couleur réellement peinte sur la proposition affichée (le trait, en Galerie)
     const pop = $('ground-pop-name'), btn = $('ground-open');
     if (pop) pop.textContent = el.textContent;
     if (btn) {
-      const hex = state.comp ? state.comp.ground || '' : state.ground && state.ground !== 'auto' ? state.ground : '';
+      const hex = gal ? frameHex() : state.comp ? state.comp.ground || '' : state.ground && state.ground !== 'auto' ? state.ground : '';
       btn.style.setProperty('--dot', hex || '#f4f2ec');
       btn.classList.toggle('none', !hex);
-      btn.title = tr`Couleur du fond : ${el.textContent}`;
+      btn.title = gal ? tr`Couleur du trait : ${el.textContent}` : tr`Couleur du fond : ${el.textContent}`;
     }
   }
   // palette rapide : s'ouvre près de l'œuvre, reste ouverte pour essayer plusieurs teintes,
@@ -1428,7 +1449,7 @@
         b.type = 'button'; b.setAttribute('role', 'radio'); b.title = name; b.setAttribute('aria-label', name);
         b.dataset.hex = hex || '';
         if (hex) b.style.setProperty('--sw', hex); else b.className = 'none';
-        b.onclick = () => { setGround(hex); applyGround(); };
+        b.onclick = () => { if (galleryMode()) setFrameColor(hex); else { setGround(hex); applyGround(); } };
         box.appendChild(b);
       };
       mk(tr('Couleur conseillée selon la composition'), 'auto');
@@ -1499,10 +1520,15 @@
   // sélecteur de fond est construit (après l'initialisation du mode)
   function syncGroundMode() {
     const print = printMode();
-    document.querySelectorAll('#ground button[data-hex=""], #ground-quick button[data-hex=""]').forEach((b) => { b.hidden = print; });
-    // « sans couleur » (blanc pur) n'existe qu'en Impression ; la toile nue, qu'en Toile
-    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"], #ground-quick button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print; });
+    syncSwatchVisibility();
     if ((print && state.ground === '') || (!print && state.ground === GROUND_WHITE)) setGround(undefined);
+  }
+  // « sans couleur » (blanc pur) n'existe qu'en Impression ; la toile nue, qu'en Toile ; ni l'une ni
+  // l'autre pour le trait de la Galerie
+  function syncSwatchVisibility() {
+    const print = printMode(), gal = galleryMode();
+    document.querySelectorAll('#ground button[data-hex=""], #ground-quick button[data-hex=""]').forEach((b) => { b.hidden = print || gal; });
+    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"], #ground-quick button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print || gal; });
   }
   function initMode() {
     const q = location.search;
@@ -2082,6 +2108,12 @@
     return { w: best.w, h: best.h, auto: false, advised: true };
   }
 
+  // la Galerie (grille de cases, dessins réduits) n'a de sens qu'en tableau imprimé ; en collage, elle
+  // n'est pas proposée (sauf pour une œuvre rouverte dans ce style, qui garde sa place)
+  function activeStyles() {
+    const keepGallery = printMode() || (state.pinned && state.pinned.style === 'galerie');
+    return keepGallery ? STYLES : STYLES.filter((st) => st.id !== 'galerie');
+  }
   function regenerate(opts) {
     if (!state.drawings.length) return;
     if (state.comp && !state.restoring && !(opts && opts.noCommit)) commit();
@@ -2099,7 +2131,9 @@
     // format (bande, grille, nuage, scène) prennent la toile Cultura la plus proche du leur
     const advised = !printMode() && !state.formatManual;
     const own = (f) => (o.format.auto ? f : nearestCultura(f));
-    state.proposals = STYLES.map((st, i) => {
+    // une œuvre rouverte en Galerie reprend la couleur de son trait
+    if (state.pinned && state.pinned.style === 'galerie' && state.pinned.frameColor) state.frameColor = state.pinned.frameColor === FRAME_INK ? 'auto' : state.pinned.frameColor;
+    state.proposals = activeStyles().map((st, i) => {
       const so = Object.assign({}, o, { style: st.id, seed: o.seed + i * 7919 });
       if (st.id === 'scene') { so.pieces = sceneSelection(o); if (o.format.auto || advised) so.format = own(sceneFormat(o)); }
       if (st.id === 'galerie' && (o.format.auto || advised)) so.format = own(galleryFormat(o));
@@ -2111,16 +2145,18 @@
       if (state.ground === 'auto' && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
       // impression : fond uni, toujours (pas de toile nue ni de papier)
       if (printMode() && !so.ground && st.id !== 'galerie') { const paint = pickGround(o, st.id); so.ground = paint[1]; so.groundName = paint[0]; }
-      return { style: st, comp: Compose.generate(so) };
+      const comp = Compose.generate(so);
+      if (st.id === 'galerie') comp.frameColor = frameHex();
+      return { style: st, comp };
     });
     const fc = formatCm();
     const texOf = new Map(o.textures.map((t) => [t.canvas, t.drawing]));
     state.proposals.forEach((pr) => pr.comp.bg.forEach((L) => { if (!L.paper && !L.drawing && texOf.has(L.src)) L.drawing = texOf.get(L.src); })); // (voir pageDrawing)
     if (fc.frame) state.proposals.forEach((pr) => { pr.comp.frameKey = fc.key; pr.comp.mat = fc.mat; });
-    state.active = Math.min(state.active || 0, STYLES.length - 1);
+    state.active = Math.min(state.active || 0, state.proposals.length - 1);
     // une composition rouverte reste telle quelle tant qu'on ne demande pas d'autres propositions
     if (state.pinned) {
-      const i = STYLES.findIndex((st) => st.id === state.pinned.style);
+      const i = state.proposals.findIndex((pr) => pr.style.id === state.pinned.style);
       if (i >= 0) { state.proposals[i].comp = state.pinned; state.active = i; }
     }
     if (prev && !state.restoring) { const p = state.proposals.find((pr) => pr.style.id === prev.style); if (p) carryBgEdits(prev, p.comp); }
@@ -2147,15 +2183,17 @@
     return kept;
   }
 
-  // Réglages sans objet pour le style actif : la Galerie a un fond blanc, sans finition toile.
+  // Réglages selon le style actif : en Galerie (fond blanc fixe), le nuancier du fond règle la
+  // couleur du trait des cases ; ailleurs, la couleur du fond
   function updateSettingsFor(comp) {
-    const white = !!(comp && comp.style === 'galerie');
-    // fond de toile : sans objet en Galerie (blanc, fixe)
-    document.querySelectorAll(GROUND_SWATCHES).forEach((b) => { b.disabled = white; });
-    $('ground').classList.toggle('off', white);
-    $('ground-quick').classList.toggle('off', white);
-    $('ground-open').disabled = white;
-    if (white) setGroundPop(false);
+    const gal = !!(comp && comp.style === 'galerie');
+    const label = gal ? tr('Couleur du trait') : tr('Couleur du fond');
+    $('ground-label').textContent = label;
+    $('ground-pop-title').textContent = label;
+    $('ground-pop').setAttribute('aria-label', label);
+    $('ground-open').setAttribute('aria-label', label);
+    syncSwatchVisibility();
+    syncSwatches();
   }
 
   // Cartel sous l'œuvre, comme au musée.
@@ -2167,18 +2205,8 @@
   function layoutLabel() {
     const label = $('label'), stage = label && label.parentElement;
     if (!stage || window.innerWidth < 861) return;
-    const zoom = stage.querySelector('.zoom'), dens = $('density-bar'), scene = $('scene-open');
-    const sr = stage.getBoundingClientRect();
-    // le bouton « Mettre en scène » suit la barre de densité ; le cartel vient après lui
-    const densR = dens && !dens.hidden ? dens.getBoundingClientRect().right - sr.left : 0;
-    const zoomL = zoom ? zoom.getBoundingClientRect().left - sr.left : sr.width;
-    stage.style.setProperty('--scene-l', `${Math.round(densR ? densR + 10 : 14)}px`);
-    document.body.classList.remove('scene-up');
-    if (scene && !scene.hidden) {
-      const sceneR = scene.getBoundingClientRect().right - sr.left;
-      // plus de place sur la ligne (fenêtre étroite) : le bouton monte au-dessus de la barre de densité
-      if (sceneR + 12 > zoomL) document.body.classList.add('scene-up');
-    }
+    // (« Mettre en scène » est en haut à gauche de la zone d'édition, sous la barre d'outils : rien à
+    // mesurer ici ; le cartel se pose sous l'œuvre, voir placeLabel)
   }
   // Le cartel (type de proposition, taille de l'impression) se pose juste sous l'œuvre, centré
   // (ordinateur) ; sur téléphone, il garde sa place au-dessus du tiroir
@@ -3831,12 +3859,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const data = opaque ? c.toDataURL('image/jpeg', 0.9) : c.toDataURL('image/png');
       doc.addImage(data, opaque ? 'JPEG' : 'PNG', x0, y0, x1 - x0, y1 - y0, undefined, 'FAST');
     }
-    // vecteurs : cadres de la galerie, plomb du vitrail, traits de la constellation
-    doc.setDrawColor(28, 27, 21);
+    // vecteurs : cadres de la galerie (dans la couleur de leur trait), plomb du vitrail, traits de la constellation
     if (comp.frames) {
+      const fc = hexRgb(comp.frameColor || FRAME_INK);
+      doc.setDrawColor(fc[0], fc[1], fc[2]);
       doc.setLineWidth(comp.frameWidth || 0.3);
       comp.frames.forEach((f) => doc.rect(f.x, f.y, f.w, f.h, 'S'));
     }
+    doc.setDrawColor(28, 27, 21);
     if (comp.lead) {
       doc.setLineWidth(comp.lead);
       doc.setLineJoin('round');
@@ -5125,7 +5155,7 @@ Réponds uniquement avec ce JSON :
       items.push(it);
     }
     const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
-    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
+    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'frameColor', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
       settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, mat: printMat(), orient: canvasOrient(), ground: state.ground, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
@@ -5405,7 +5435,7 @@ Réponds uniquement avec ce JSON :
     }
     state.pinned = comp;
     regenerate();
-    const i = STYLES.findIndex((st) => st.id === comp.style);
+    const i = state.proposals.findIndex((pr) => pr.style.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
     clearHistory();
     savedStatus(tr`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);

@@ -1694,9 +1694,9 @@
     renderGround(ctx, comp, s);
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
     if (comp.frames) {
-      // galerie : le cadre noir de chaque case, peint au trait
+      // galerie : le cadre de chaque case, peint au trait (noir, ou la couleur choisie : comp.frameColor)
       ctx.save();
-      ctx.strokeStyle = '#1c1b15';
+      ctx.strokeStyle = comp.frameColor || '#1c1b15';
       ctx.lineWidth = (comp.frameWidth || 0.3) * s;
       comp.frames.forEach((f) => ctx.strokeRect(f.x * s, f.y * s, f.w * s, f.h * s));
       ctx.restore();

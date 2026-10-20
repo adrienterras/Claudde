@@ -1554,9 +1554,28 @@ test.describe('Couleur du fond', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);
     await expect(page.locator(`#ground button[data-hex="${hex}"]`)).toHaveClass(/on/);
     await expect(page.locator('#ground-name')).not.toHaveText('');
-    // en Galerie (fond blanc fixe) : nuancier sans objet
+    // en collage, pas de Galerie ; en tableau imprimé, la Galerie (fond blanc fixe) : le même nuancier règle la couleur du trait
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.some((p) => p.style.id === 'galerie'))).toBe(false);
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.select('galerie');
-    await expect(page.locator('#ground')).toHaveClass(/off/);
+    await expect(page.locator('#ground-label')).toHaveText('Couleur du trait');
+    await expect(page.locator('#ground-name')).toContainText('noir');
+    await expect(page.locator('#ground button[data-hex="auto"]')).toHaveClass(/on/);
+    // la teinte la plus sombre du nuancier, pour un trait bien visible
+    const ink = await page.evaluate(() => { const lum = (h) => parseInt(h.slice(1, 3), 16) * 0.3 + parseInt(h.slice(3, 5), 16) * 0.59 + parseInt(h.slice(5, 7), 16) * 0.11; return [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).filter((h) => h && h !== 'auto' && h !== '#ffffff').sort((a, b) => lum(a) - lum(b))[0]; });
+    await page.locator(`#ground button[data-hex="${ink}"]`).click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.frameColor)).toBe(ink);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).not.toBe(ink); // le fond, lui, n'a pas changé
+    await expect(page.locator(`#ground button[data-hex="${ink}"]`)).toHaveClass(/on/);
+    // le trait est bien peint dans cette couleur
+    // (rendu à 50 px par cm : le trait de 0,8 mm fait 4 px ; on lit une bande de pixels autour du bord gauche de la première case)
+    const painted = await page.evaluate((ink) => { const c = document.createElement('canvas'); const comp = AtelierGribouille.state.comp; const k = 50; c.width = Math.ceil(comp.W * k); c.height = Math.ceil(comp.H * k); const x = c.getContext('2d'); Compose.renderBg(x, comp, k); const f = comp.frames[0]; const x0 = Math.round(f.x * k), y0 = Math.round((f.y + f.h / 2) * k); const d = x.getImageData(x0 - 6, y0, 13, 1).data; const px = []; for (let i = 0; i < 13; i++) px.push('#' + [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')); return px; }, ink);
+    expect(painted).toContain(ink.toLowerCase()); // le trait (autour du bord de la case) a la couleur choisie
+    // ni « toile nue » ni « blanc » pour un trait ; un autre style rend le nuancier au fond
+    expect(await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex)).then((l) => l.includes('') || l.includes('#ffffff'))).toBe(false);
+    await app.select('nuage');
+    await expect(page.locator('#ground-label')).toHaveText('Couleur du fond');
+    await expect(page.locator(`#ground button[data-hex="${hex}"]`)).toHaveClass(/on/);
   });
 
   test('la pastille de la barre d’outils ouvre la palette ; une teinte s’applique tout de suite, les deux nuanciers restent d’accord', async ({ app }) => {
@@ -1579,9 +1598,18 @@ test.describe('Couleur du fond', () => {
     await expect(page.locator('#ground-pop')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('#ground-pop')).toBeHidden();
-    // en Galerie (fond blanc fixe) : pas de palette
+    // en Galerie (tableau imprimé) : la pastille montre le trait, la palette le règle
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.select('galerie');
-    await expect(page.locator('#ground-open')).toBeDisabled();
+    await expect(page.locator('#ground-open')).toBeEnabled();
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase())).toBe('#1c1b15');
+    await page.locator('#ground-open').click();
+    await expect(page.locator('#ground-pop-title')).toHaveText('Couleur du trait');
+    const ink = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto'));
+    await page.locator(`#ground-quick button[data-hex="${ink}"]`).click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.frameColor)).toBe(ink);
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase())).toBe(ink.toLowerCase());
+    await page.keyboard.press('Escape');
   });
 
   test('sur téléphone, la pastille est dans la barre de droite et la palette tient dans l’écran', async ({ app }) => {

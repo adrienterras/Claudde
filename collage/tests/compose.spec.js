@@ -1,13 +1,14 @@
 const { test, expect } = require('./helpers');
 
-const STYLES = ['paysage', 'frise', 'nuage', 'tournesol', 'courtepointe', 'cabinet', 'galerie'];
+// (la Galerie n'est proposée qu'en tableau imprimé)
+const STYLES = ['paysage', 'frise', 'nuage', 'tournesol', 'courtepointe', 'cabinet'];
 
 test.describe('Compositions', () => {
   test.beforeEach(async ({ app }) => {
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png']);
   });
 
-  test('sept propositions, Paysage en premier, chacune avec du contenu', async ({ app }) => {
+  test('six propositions en collage (sept en tableau imprimé), Paysage en premier, chacune avec du contenu', async ({ app }) => {
     const ps = await app.proposals();
     expect(ps.map((p) => p.style)).toEqual(STYLES);
     for (const p of ps) {
@@ -15,23 +16,36 @@ test.describe('Compositions', () => {
       expect(p.W).toBeGreaterThan(10);
       expect(p.H).toBeGreaterThan(10);
     }
-    expect(await app.page.locator('#proposals .proposal').count()).toBe(7);
+    expect(await app.page.locator('#proposals .proposal').count()).toBe(STYLES.length);
     await expect(app.page.locator('#proposals .proposal.on')).toContainText('Paysage');
   });
 
-  test('chaque style se sélectionne et se dessine, les boutons de la Galerie n’apparaissent qu’en Galerie', async ({ app }) => {
+  test('chaque style se sélectionne et se dessine ; la Galerie n’existe qu’en tableau imprimé, avec ses boutons', async ({ app }) => {
     const { page } = app;
+    // collage : pas de Galerie parmi les propositions
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id))).toEqual(STYLES);
     for (const id of STYLES) {
       await app.select(id);
       await page.waitForTimeout(200);
       const active = await page.evaluate(() => AtelierGribouille.state.comp.style);
       expect(active).toBe(id);
-      const galleryBtn = page.locator('[data-act="bigger"]');
-      if (id === 'galerie') await expect(galleryBtn).toBeVisible(); else await expect(galleryBtn).toBeHidden();
+      await expect(page.locator('[data-act="bigger"]')).toBeHidden();
     }
+    // tableau imprimé : la Galerie s'ajoute, avec ses boutons agrandir / réduire
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id))).toEqual([...STYLES, 'galerie']);
+    await app.select('galerie');
+    await page.waitForTimeout(200);
+    await expect(page.locator('[data-act="bigger"]')).toBeVisible();
+    // retour au collage : la Galerie disparaît, la proposition affichée reste valable
+    await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.some((p) => p.style.id === 'galerie'))).toBe(false);
+    expect(STYLES).toContain(await page.evaluate(() => AtelierGribouille.state.comp.style));
   });
 
   test('la Galerie, densité au maximum, montre tous les dessins sans chevauchement', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.page.locator('#density').fill('1.8');
     await app.page.waitForTimeout(300);
     await app.select('galerie');
@@ -51,11 +65,14 @@ test.describe('Compositions', () => {
     expect(g.overlaps).toBe(0);
   });
 
-  test('Galerie : cases carrées et même bord des quatre côtés, le nombre de cases s’adapte à la toile', async ({ app }) => {
+  test('Galerie : cases carrées et même bord des quatre côtés, le nombre de cases s’adapte au cadre', async ({ app }) => {
     const { page } = app;
-    for (const fmt of ['70x50', '40x40', '80x60']) {
-      await page.evaluate((v) => { const s = document.getElementById('format'); if (![...s.options].some((o) => o.value === v)) { const o = document.createElement('option'); o.value = v; s.appendChild(o); } s.value = v; s.dispatchEvent(new Event('change')); }, fmt);
-      await page.waitForTimeout(200);
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    for (const fmt of ['cadre:21x30', 'cadre:30x40', 'cadre:50x70']) {
+      await page.selectOption('#format', fmt);
+      // (en tableau imprimé, changer de cadre étire l'œuvre affichée sans la recomposer : on repart d'une grille fraîche)
+      await page.evaluate(() => { AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+      await page.waitForTimeout(300);
       await app.select('galerie');
       const r = await page.evaluate(() => {
         const c = AtelierGribouille.state.comp, F = c.frames;
@@ -72,8 +89,10 @@ test.describe('Compositions', () => {
       });
       expect(r.n).toBeGreaterThan(0);
       expect(r.square).toBe(true);
-      for (const k of ['right', 'top', 'bottom']) expect(r[k], `${fmt} ${k}`).toBeCloseTo(r.left, 3);
-      expect(r.left).toBeGreaterThanOrEqual(1.5);
+      // le cadre est imposé : la grille de cases carrées est centrée (marges égales gauche/droite et haut/bas)
+      expect(r.right, `${fmt} right`).toBeCloseTo(r.left, 3);
+      expect(r.bottom, `${fmt} bottom`).toBeCloseTo(r.top, 3);
+      expect(Math.min(r.left, r.top)).toBeGreaterThanOrEqual(1.5);
       if (r.gapX !== null && r.gapY !== null) expect(r.gapX).toBeCloseTo(r.gapY, 3);
       expect(r.inside).toBe(true);
       expect(r.kept).toBeLessThanOrEqual(r.total);
@@ -82,6 +101,7 @@ test.describe('Compositions', () => {
 
   test('Galerie : une pièce retirée puis remise revient dans son cadre', async ({ app }) => {
     const { page } = app;
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.page.locator('#density').fill('1.8');
     await app.page.waitForTimeout(300);
     await app.select('galerie');
