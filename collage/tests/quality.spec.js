@@ -62,7 +62,8 @@ test.describe('Qualité pour l’impression', () => {
     await expect(page.locator('#detail .quality.bad')).toBeVisible();
     await expect(page.locator('#detail .quality')).toContainText('dpi');
     await expect(page.locator('#detail .quality')).toContainText('300 dpi');
-    // rappel au moment d'exporter
+    // rappel au moment d'exporter (l'étape Exporter, repliée après l'import, s'ouvre par son titre)
+    await page.evaluate(() => { const s = document.getElementById('export-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await expect(page.locator('#export-quality')).toBeVisible();
     // collage avec les originaux : rien n'est imprimé, aucune alerte ; elles reviennent en tableau imprimé
     await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });

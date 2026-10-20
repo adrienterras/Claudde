@@ -1,24 +1,29 @@
-const { test, expect } = require('./helpers');
+const { test, expect, openStep } = require('./helpers');
 
 test.describe('Interface', () => {
-  test('première visite : parcours simple, réglages repliés', async ({ app }) => {
+  test('première visite : toutes les sections repliées, rien de mémorisé ; l’import ouvre Tailles et Propositions', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#import-section')).toBeVisible();
-    await expect(page.locator('#drop')).toBeVisible();
-    // les sections secondaires sont repliées, les réglages avancés fermés
-    await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
-    await expect(page.locator('#sizes-section')).not.toHaveClass(/collapsed/);
-    // les réglages avancés sont repliés par défaut ; plus de « finition toile »
+    // toutes les étapes sont repliées (le dépôt se fait par le bouton au centre), les réglages avancés fermés
+    for (const id of ['import-section', 'drawings-section', 'sizes-section', 'compose-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
+    await expect(page.locator('#drop')).toBeHidden();
     expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(false);
     await expect(page.locator('#grain')).toHaveCount(0);
-    // le choix de repli est mémorisé (la section Mes compositions est visible dès le départ)
-    await expect(page.locator('#saved-section')).not.toHaveClass(/collapsed/);
+    // un titre ouvre son étape ; le choix n'est pas mémorisé
     await page.locator('#saved-section > h2').click();
-    await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
+    await expect(page.locator('#saved-section')).not.toHaveClass(/collapsed/);
+    await page.locator('#import-section > h2').click();
+    await expect(page.locator('#drop')).toBeVisible();
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
-    await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
+    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.collapsed'))).toBeNull();
+    // après un import : Tailles et Propositions ouvertes, Importer repliée, le reste replié
+    await app.import(['page-cutout.png']);
+    await expect(page.locator('#sizes-section')).not.toHaveClass(/collapsed/);
+    await expect(page.locator('#compose-section')).not.toHaveClass(/collapsed/);
+    for (const id of ['import-section', 'drawings-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
   });
 
   test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, sous le consentement sur téléphone, confirmation avant d’effacer', async ({ app }) => {
@@ -47,8 +52,9 @@ test.describe('Interface', () => {
     await expect.poll(() => page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
     await expect(btn).toBeHidden();
     await expect(page.locator('#empty')).toBeVisible();
-    // l'étape Importer, repliée après l'import, se rouvre pour la nouvelle œuvre
-    await expect(page.locator('#import-section')).not.toHaveClass(/collapsed/);
+    // pour la nouvelle œuvre, tout est replié comme à l'arrivée (le dépôt se fait au centre)
+    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
+    await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
   });
 
   test('sur ordinateur, Dessins est repliée à chaque visite et à chaque nouvelle œuvre ; un dessin cliqué sur l’œuvre l’ouvre', async ({ app }) => {
@@ -266,12 +272,9 @@ test.describe('Fiche d’un dessin sur téléphone', () => {
     expect(Math.max(cv.w, cv.h)).toBeLessThanOrEqual(200);
     await page.locator('#detail [data-cm="42"]').click();
     await page.locator('#detail [data-cm="custom"]').click();
-    // orientation : un quart de tour à droite, puis retour à l'automatique
-    await page.locator('#detail [data-rot="90"]').click();
-    const o = await page.evaluate(() => AtelierGribouille.state.drawings[0].orient);
-    expect(o).not.toBe('auto');
-    await page.locator('#detail [data-rot="auto"]').click();
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].orient)).toBe('auto');
+    // plus d'orientation dans la fiche
+    await expect(page.locator('#detail [data-rot]')).toHaveCount(0);
+    await expect(page.locator('#detail')).not.toContainText('Orientation');
     // la croix ne recouvre pas la flèche ›
     const boxes = await page.evaluate(() => ['.detail-close', '[data-nav="1"]'].map((q) => document.querySelector('#detail ' + q).getBoundingClientRect().toJSON()));
     const [x, nx] = boxes;
@@ -818,6 +821,7 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     await page.locator('#cart [data-close]').first().click();
     // la composition en cours, depuis l'étape Exporter, en fichier HD (quantité fixe)
+    await openStep(page, 'export-section'); // (l'étape Exporter est repliée après l'import)
     await page.locator('#add-cart').click();
     await page.locator('#cart-add input[value="hd"]').check();
     await page.locator('#cart-add-ok').click();
@@ -1127,6 +1131,7 @@ test.describe('Retouches partagées (option)', () => {
     });
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await page.locator('#import-section > h2').click(); // (l'étape Importer est repliée à l'arrivée)
     await expect(page.locator('#share-cuts')).toBeVisible();
     await expect(page.locator('#share-cuts-box')).toBeChecked();
     // décochée (refus mémorisé) avant l'import
@@ -1296,10 +1301,9 @@ test.describe('Fiche d’un dessin en tableau imprimé', () => {
     await expect(page.locator('#detail')).not.toContainText('Taille réelle');
     await expect(page.locator('#detail')).not.toContainText('taille réelle');
     await expect(page.locator('#drawings-hint')).toHaveText('Touchez un dessin pour régler son rôle ou le retoucher.');
-    // le reste de la fiche est là : rôle, retouche, orientation
+    // le reste de la fiche est là : rôle, retouche
     await expect(page.locator('#detail [data-role="cutout"]')).toHaveCount(1);
     await expect(page.locator('#detail [data-edit]')).toBeVisible();
-    await expect(page.locator('#detail [data-rot="auto"]')).toBeVisible();
     // en collage, le choix revient
     await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await expect(page.locator('#detail [data-cm="custom"]')).toBeVisible();

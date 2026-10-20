@@ -148,9 +148,8 @@ cd collage && python3 -m http.server 8000
    et se réchauffe ; une feutrine bleue, un lavis gris foncé ou un aplat pâle ne sont pas du papier) ;
    rien n'est corrigé sur une page sans papier blanc visible (≥ 30 % des cases). Un gris neutre resté
    à moins de 30 du papier n'est pas un trait (les traits de couleur pâle gardent leurs seuils).
-   Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **orientation** de la feuille
-   (automatique, droite, couchée à droite, tête en bas, couchée à gauche ; en automatique, une page de
-   fond trop haute pour la toile est couchée), **luminosité, contraste et saturation** (−50 à +50,
+   Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **luminosité, contraste et
+   saturation** (−50 à +50,
    réglés dans la fenêtre de retouche pour une découpe, dans la fiche pour une page de fond ;
    appliqués à l'œuvre, aux vignettes et à l'export ; mémorisés par dessin, « Rétablir » revient au
    scan). **« Ajuster automatiquement »** les règle d'après les pixels réellement collés :
@@ -405,9 +404,12 @@ cd collage && python3 -m http.server 8000
      proportion, dessins et pages à la même échelle, cadre noté sur la composition) et changer
      d'orientation la tourne d'un quart de tour (`turnComp`) ; les autres propositions sont recomposées
      à la nouvelle taille. En atelier Toile, la composition est refaite comme avant ;
-   - **Dessins repliée par défaut** (ordinateur) : la section Dessins est repliée à chaque visite et à
-     chaque nouvelle œuvre (son état n'est pas mémorisé, contrairement aux autres sections) ; elle ne
-     s'ouvre que d'un clic sur un dessin de l'œuvre (`showDrawingOf`) ou sur son titre ;
+   - **toutes les sections repliées par défaut** (ordinateur) : à l'arrivée et à chaque nouvelle œuvre,
+     toutes les étapes sont repliées et rien n'est mémorisé (`collapsibleSections`) ; un import ouvre
+     Tailles et Propositions et replie Importer ; Dessins ne s'ouvre que d'un clic sur un dessin de
+     l'œuvre (`showDrawingOf`) ou sur son titre ;
+   - **pas d'orientation dans la fiche** : l'orientation d'une feuille reste automatique
+     (`effectiveOrient`) ; la pièce se tourne sur l'œuvre, par la barre d'outils ;
    - **tous les dessins par défaut** : le curseur de nombre de dessins part au maximum (nouvelle
      visite, « nouvelle œuvre ») ; l'exemple garde ce réglage, une œuvre rouverte reprend le sien ;
    - **sans œuvre, rien autour de l'accueil vide** : ni barre d'outils ni barre de zoom (`#zoom-bar`)
@@ -498,9 +500,9 @@ confidentialité à relire dans `confidentialite.html`.
 Le parcours simple tient en trois étapes (importer, choisir une proposition, télécharger) : les
 réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
 avancés », le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
-visibles au-dessus du bouton de téléchargement), et les sections
-Dessins est repliée à la première visite ; sur ordinateur, Importer se replie une fois ses propres dessins
-importés (et se rouvre pour une nouvelle œuvre) (le choix de chacun est mémorisé).
+visibles au-dessus du bouton de téléchargement) ; sur ordinateur, toutes les sections sont repliées à
+l'arrivée et pour une nouvelle œuvre, l'import ouvre Tailles et Propositions et replie Importer (rien
+n'est mémorisé).
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
    pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
    déplacer ; bouton plein écran, pratique sur téléphone.

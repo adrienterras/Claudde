@@ -75,6 +75,9 @@
     const el = $('notice');
     el.textContent = text || '';
     el.hidden = !text;
+    // ordinateur : l'avis est dans l'étape Importer, repliée à l'arrivée ; elle s'ouvre pour le montrer
+    const sec = $('import-section');
+    if (text && !mobileQuery.matches && sec && sec._expand) sec._expand();
   }
 
   const state = {
@@ -391,6 +394,8 @@
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
       // pas pour l'exemple, qui invite justement à importer ses propres dessins
       if (!mobileQuery.matches && $('import-section')._collapse && !(opts && opts.sample) && !state.drawings.some((d) => d.sample)) $('import-section')._collapse();
+      // et Tailles et Propositions, repliées à l'arrivée, s'ouvrent avec les dessins
+      if (!mobileQuery.matches) ['sizes-section', 'compose-section'].forEach((id) => { if ($(id)._expand) $(id)._expand(); });
     }
     refreshLists();
     regenerate();
@@ -540,10 +545,6 @@
       if (v && ORIENTS.some(([k]) => k === v)) d.orient = v;
     } catch (e) { /* stockage indisponible */ }
   }
-  function saveOrient(d) {
-    try { localStorage.setItem(orientKey(d), d.orient); } catch (e) { /* ignoré */ }
-  }
-
   // ---------- Luminosité et contraste ----------
 
   // { b, c, s } en % (−50 à +50) : luminosité, contraste, saturation ; absent ou nul : le dessin tel que scanné
@@ -1034,8 +1035,6 @@
     const [aw, ah] = ar >= 1 ? [longOnArt, longOnArt / ar] : [longOnArt * ar, longOnArt];
     const idx = state.drawings.indexOf(d), n = state.drawings.length;
     const std = SHEETS.find(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05);
-    const deg = d.orient === 'auto' ? (d.orientDeg || 0) : Number(d.orient);
-    const orientName = (ORIENTS.find(([k]) => k === (d.orient === 'auto' ? 'auto' : String(deg))) || ORIENTS[0])[1];
     const main = mainPiece(d);
     // tableau imprimé : les dessins sont réduits pour tenir dans le cadre, leur taille réelle ne sert
     // à rien ; la fiche n'en propose pas le choix (ni la phrase sur la taille lue ou estimée)
@@ -1062,13 +1061,6 @@
         <label class="row" data-custom ${std ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
           <input type="number" min="3" max="${MAX_CM}" step="0.1" value="${fmt(d.sizeCm).replace(',', '.')}">
         </label>`}
-        <div class="row">${tr('Orientation')}
-          <span class="orient">
-            <button type="button" data-rot="-90" aria-label="${tr('Tourner à gauche')}" title="${tr('Tourner à gauche')}"><svg class="ico"><use href="#i-rot-left"/></svg></button>
-            <button type="button" data-rot="90" aria-label="${tr('Tourner à droite')}" title="${tr('Tourner à droite')}"><svg class="ico"><use href="#i-rot-right"/></svg></button>
-            <button type="button" data-rot="auto" class="${d.orient === 'auto' ? 'on' : ''}" title="${esc(orientName)}">${tr('Auto')}</button>
-          </span>
-        </div>
         ${main ? '' : `<div class="tone" role="group" aria-label="${tr('Luminosité, contraste et saturation')}">
           ${[['b', tr('Luminosité')], ['c', tr('Contraste')], ['s', tr('Saturation')]].map(([k, label]) => `<label class="row"><span>${label}</span>
             <input type="range" min="-50" max="50" step="1" value="${(d.tone && d.tone[k]) || 0}" data-tone="${k}"><output>${toneText((d.tone && d.tone[k]) || 0)}</output></label>`).join('')}
@@ -1103,14 +1095,8 @@
       refreshLists();
       regenerate();
     }));
-    box.querySelectorAll('[data-rot]').forEach((b) => (b.onclick = () => {
-      const r = b.dataset.rot;
-      d.orient = r === 'auto' ? 'auto' : String((((deg + Number(r)) % 360) + 360) % 360);
-      saveOrient(d);
-      state.pinned = null;
-      regenerate();
-      refreshLists();
-    }));
+    // (l'orientation de la feuille n'est plus proposée dans la fiche : elle reste automatique — effectiveOrient —
+    // ou celle mémorisée d'une ancienne œuvre ; les boutons de la barre d'outils tournent la pièce sur l'œuvre)
     // dessin précédent / suivant, sans fermer la fiche
     box.querySelectorAll('[data-nav]').forEach((b) => (b.onclick = () => {
       const next = state.drawings[idx + Number(b.dataset.nav)];
@@ -4475,8 +4461,8 @@ Réponds uniquement avec ce JSON :
   // Tout effacer pour repartir de ses propres scans
   function startOver() {
     state.drawings = [];
-    if ($('import-section')._expand) $('import-section')._expand();
-    if ($('drawings-section')._collapse) $('drawings-section')._collapse(); // Dessins repliée pour la nouvelle œuvre
+    // ordinateur : toutes les étapes repliées, comme à l'arrivée (Tailles et Propositions se rouvriront à l'import)
+    document.querySelectorAll('aside section.step').forEach((sec) => { if (sec._collapse) sec._collapse(); });
     restoreDensityAfterSample();
     state.title = '';
     state.titles = null;
@@ -4538,6 +4524,8 @@ Réponds uniquement avec ce JSON :
       await importFiles(files, sizes, { sample: true });
       state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
       $('sample-note').hidden = false;
+      // ordinateur : l'étape Importer (repliée à l'arrivée) montre la note de l'exemple, qui invite à importer ses dessins
+      if (!mobileQuery.matches && $('import-section')._expand) $('import-section')._expand();
     } catch (e) {
       console.error(e);
       setProgress(1, 1);
@@ -4669,6 +4657,7 @@ Réponds uniquement avec ce JSON :
         : tr`La dernière réouverture de votre œuvre (${rec.drawings.length} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.`;
       box.hidden = false;
       if (mobileQuery.matches) { setStageFull(false); selectTab('import-section'); } // la proposition est dans le tiroir : il remonte
+      else if ($('import-section')._expand) $('import-section')._expand(); // ordinateur : l'étape, repliée à l'arrivée, montre la proposition
       $('draft-resume').hidden = false;
       $('draft-forget').hidden = false;
       $('draft-resume').onclick = () => { $('draft-resume').hidden = true; $('draft-forget').hidden = true; resumeDraft(true); };
@@ -5590,11 +5579,10 @@ Réponds uniquement avec ce JSON :
   // sauf Dessins, repliée à chaque visite et à chaque nouvelle œuvre : elle ne s'ouvre que d'un clic
   // sur un dessin de l'œuvre (showDrawingOf) ou sur son titre.
   (function collapsibleSections() {
-    let saved = [];
-    // à la première visite, seules les étapes essentielles sont ouvertes (importer, tailles, propositions, exporter)
-    const DEFAULT_COLLAPSED = ['drawings-section'];
-    try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); if (!Array.isArray(saved)) saved = DEFAULT_COLLAPSED; } catch (e) { saved = DEFAULT_COLLAPSED; }
-    if (!saved.includes('drawings-section')) saved.push('drawings-section');
+    // ordinateur : toutes les étapes sont repliées à l'arrivée et à chaque nouvelle œuvre (rien n'est
+    // mémorisé) ; un import ouvre Tailles et Propositions (et replie Importer) ; un clic sur un titre
+    // ouvre ou replie l'étape. Sur téléphone, l'onglet choisi montre son étape quoi qu'il en soit.
+    try { localStorage.removeItem('atelier.collapsed'); } catch (e) { /* ignoré */ }
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const h = sec.querySelector(':scope > h2');
       if (!h || !sec.id) return;
@@ -5606,13 +5594,8 @@ Réponds uniquement avec ce JSON :
       const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? tr('Développer') : tr('Réduire'); };
       sec._expand = () => apply(false);
       sec._collapse = () => apply(true);
-      apply(saved.includes(sec.id));
-      const toggle = () => {
-        apply(!sec.classList.contains('collapsed'));
-        // Importer, replié d'office après un import, n'est pas mémorisé : il est ouvert à chaque visite
-        const list = [...document.querySelectorAll('aside section.step.collapsed')].map((x) => x.id).filter((id) => id !== 'import-section' && id !== 'drawings-section');
-        try { localStorage.setItem('atelier.collapsed', JSON.stringify(list)); } catch (e) { /* ignoré */ }
-      };
+      apply(true);
+      const toggle = () => apply(!sec.classList.contains('collapsed'));
       h.addEventListener('click', toggle);
       h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     });

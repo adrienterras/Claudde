@@ -1,4 +1,4 @@
-const { test, expect, fixture } = require('./helpers');
+const { test, expect, fixture, openStep } = require('./helpers');
 
 // Deux ateliers : Impression (cadres standard du marché, dessins réduits pour y tenir, tirages et
 // fichier HD) et Toile (taille réelle, toiles du commerce, guide et kit DIY).
@@ -213,7 +213,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('#canvas-orient [data-orient="port"]').click();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([21, 29.7]);
-    // panier : tirages et fichier HD seulement
+    // panier : tirages et fichier HD seulement (l'étape Exporter, repliée après l'import, s'ouvre par son titre)
+    await page.evaluate(() => { const s = document.getElementById('export-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add')).toBeVisible();
     await expect(page.locator('#cart-add input[value="print"]')).toBeVisible();
@@ -243,6 +244,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#save-status')).toContainText('sauvegardée');
     await page.goto('index.html?mode=toile&nouveau');
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
+    await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('« Cadre 18x24 » rouverte', { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.mode)).toBe('impression');
@@ -364,6 +366,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     if ((await page.evaluate(() => AtelierGribouille.state.comp.style)) !== 'galerie') await expect(page.locator('#toolbar [data-act="bigger"]')).toBeHidden();
     await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
+    await page.evaluate(() => { const s = document.getElementById('export-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await expect(page.locator('#guide-box')).toBeVisible();
     // toile : les pages peintes restent des pages de fond, la toile nue reste proposée
     expect(await page.evaluate(() => AtelierGribouille.state.proposals.some((p) => p.comp.bg.some((L) => !L.paper)))).toBe(true);

@@ -1,4 +1,4 @@
-const { test, expect } = require('./helpers');
+const { test, expect, openStep } = require('./helpers');
 
 test.describe('Export', () => {
   test.beforeEach(async ({ app }) => {
@@ -15,6 +15,7 @@ test.describe('Export', () => {
 
   test('téléchargement JPEG : un vrai fichier image', async ({ app }) => {
     const { page } = app;
+    await openStep(page, 'export-section');
     await page.locator('#dpi').selectOption('150');
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
     expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
@@ -29,6 +30,7 @@ test.describe('Export', () => {
 
   test('export PDF à l’échelle : un document PDF', async ({ app }) => {
     const { page } = app;
+    await openStep(page, 'export-section');
     await page.locator('#fmt').selectOption('application/pdf');
     await expect(page.locator('#export-info')).toContainText('PDF');
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
@@ -75,6 +77,7 @@ test.describe('Export', () => {
 
   test('guide de création : un PDF de plusieurs pages', async ({ app }) => {
     const { page } = app;
+    await openStep(page, 'export-section');
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#guide').click()]);
     expect(download.suggestedFilename()).toMatch(/guide.*\.pdf$/);
     const buf = require('fs').readFileSync(await download.path());
@@ -86,6 +89,7 @@ test.describe('Export', () => {
     const { page } = app;
     // iPhone et tablettes : le téléchargement n'est lancé que par un toucher sur le fichier prêt
     await page.evaluate(() => Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { get: () => 5 }));
+    await openStep(page, 'export-section');
     for (const [fmt, ext] of [['image/png', /\.png$/], ['application/pdf', /\.pdf$/]]) {
       await page.locator('#fmt').selectOption(fmt);
       await page.locator('#dpi').selectOption('screen');
@@ -110,6 +114,7 @@ test.describe('Export', () => {
         return this.canvas.width * this.canvas.height > 2e6 ? new ImageData(a[2], a[3]) : orig.apply(this, a);
       };
     });
+    await openStep(page, 'export-section');
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
     expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
     await expect(page.locator('#notice')).toContainText('Image réduite');

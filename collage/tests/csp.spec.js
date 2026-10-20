@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { test, expect, fixture } = require('./helpers');
+const { test, expect, fixture, openStep } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html'];
@@ -51,6 +51,7 @@ test.describe('Politique de sécurité du contenu', () => {
     await page.setInputFiles('#file', [fixture('two-pages.pdf'), fixture('page-cutout.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // export PDF (jsPDF) puis guide de création
+    await openStep(page, 'export-section');
     await page.locator('#fmt').selectOption('application/pdf');
     await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
     await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#guide').click()]);

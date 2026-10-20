@@ -43,4 +43,8 @@ const test = base.extend({
   },
 });
 
-module.exports = { test, expect, fixture, FIXTURES };
+// Ordinateur : les étapes sont repliées à l'arrivée (Tailles et Propositions s'ouvrent à l'import) ;
+// avant d'agir dans Exporter, Mes compositions ou Importer, on ouvre l'étape par son titre
+const openStep = (page, id) => page.evaluate((id) => { const s = document.getElementById(id); if (s && s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); }, id);
+
+module.exports = { test, expect, fixture, FIXTURES, openStep };

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { test: base, expect, fixture } = require('./helpers');
+const { test: base, expect, fixture, openStep } = require('./helpers');
 
 const FAKE = fs.readFileSync(path.join(__dirname, 'fake-supabase.js'), 'utf8');
 
@@ -112,6 +112,7 @@ test.describe('Comptes utilisateurs', () => {
 
   test('sans compte : l’exemple et l’import de fichiers sont libres ; seule la photo depuis l’atelier demande de se connecter', async ({ acc }) => {
     const { page } = acc;
+    await openStep(page, 'import-section'); // (l'étape Importer est repliée à l'arrivée)
     await expect(page.locator('#import-account')).toBeVisible();
     await expect(page.locator('#import-account')).toContainText('librement');
     // l'exemple : chargé et manipulé sans compte
@@ -153,6 +154,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
     await expect(page.locator('#acc-open')).toBeVisible();
     // déconnecté : le bouton de téléchargement ouvre la fenêtre de compte avec une explication
+    await openStep(page, 'export-section');
     await page.locator('#export').click();
     await expect(page.locator('#account-section')).toBeVisible();
     await expect(page.locator('#acc-status')).toContainText('télécharger votre œuvre');
@@ -164,11 +166,13 @@ test.describe('Comptes utilisateurs', () => {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#auth-submit').click()]);
     expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
     await expect(page.locator('#save-status')).toContainText('gardé dans votre compte', { timeout: 60000 });
+    await openStep(page, 'saved-section');
     await expect(page.locator('#exports-box')).toBeVisible();
     await expect(page.locator('#exports-list .saved')).toHaveCount(1);
     await expect(page.locator('#exports-list .saved-meta')).toContainText('JPEG');
     // sauvegarder sans être connecté : même mécanisme
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
     await expect(page.locator('#acc-status')).toContainText('sauvegarder votre composition');
     await page.locator('#acc-close').click();
@@ -179,11 +183,13 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
     await page.fill('#save-name', 'Dans le cloud');
     await page.locator('#save-form button[type=submit]').click();
     await expect(page.locator('#save-status')).toContainText('dans votre compte', { timeout: 60000 });
     // une seule entrée, celle du compte (plus de copie locale quand les comptes sont actifs)
+    await openStep(page, 'saved-section');
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved-where')).toContainText('mon compte');
     // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques
@@ -194,6 +200,7 @@ test.describe('Comptes utilisateurs', () => {
     // sur un autre appareil (page rechargée, rien en local), la composition du compte se rouvre
     await page.reload();
     await page.waitForFunction(() => window.Account && window.Account.user() && document.querySelectorAll('#saved-list .saved').length === 1);
+    await openStep(page, 'saved-section');
     await page.locator('#saved-list .saved').first().click();
     // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
     await expect(page.locator('#saved-status')).toContainText('« Dans le cloud » rouverte', { timeout: 120000 });
@@ -363,6 +370,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.regenerate(); });
     await page.waitForTimeout(400);
+    await openStep(page, 'export-section');
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await page.locator('#cart-add-ok').click();
@@ -409,6 +417,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
     await expect(page.locator('#acc-open')).toBeVisible();
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    await openStep(page, 'export-section');
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="toile"]').click();
     await page.locator('#cart-add-ok').click();

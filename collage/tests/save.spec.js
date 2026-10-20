@@ -1,4 +1,4 @@
-const { test, expect } = require('./helpers');
+const { test, expect, openStep } = require('./helpers');
 
 test.describe('Compositions sauvegardées', () => {
   test('sauvegarder, recharger, rouvrir : la mise en place est identique', async ({ app }) => {
@@ -10,6 +10,7 @@ test.describe('Compositions sauvegardées', () => {
       c.items[0].x += 3.5; c.items[0].rot = 0.3; // une retouche manuelle doit être conservée
       return { style: c.style, n: c.items.length, bg: c.bg.length, first: [c.items[0].x, c.items[0].y, c.items[0].rot], W: c.W, H: c.H };
     });
+    await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
     await expect(page.locator('#save-form')).toBeVisible();
     await page.fill('#save-name', 'Essai automatique');
@@ -26,6 +27,7 @@ test.describe('Compositions sauvegardées', () => {
       const note = () => { const b = document.getElementById('busy'); if (!b.hidden) window.__busy.push(document.getElementById('busy-title').textContent + ' | ' + document.getElementById('busy-step').textContent); };
       new MutationObserver(note).observe(document.getElementById('busy'), { attributes: true, subtree: true, childList: true, characterData: true });
     });
+    await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
     // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
     await expect(page.locator('#saved-status')).toContainText('« Essai automatique » rouverte', { timeout: 120000 });
@@ -88,12 +90,14 @@ test.describe('Retouches de découpe sauvegardées', () => {
     expect(edited.edited).toBe(true);
     expect(edited.opaque).toBeLessThan(before.opaque * 0.9);
 
+    await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
     await page.fill('#save-name', 'Avec retouche');
     await page.locator('#save-form button[type=submit]').click();
     await expect(page.locator('#save-status')).toContainText('sauvegardée');
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
+    await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('« Avec retouche » rouverte', { timeout: 120000 });
     const after = await coverage();
@@ -153,12 +157,14 @@ test.describe('Dessin dupliqué', () => {
     expect(s1[1].opaque).toBeLessThan(s0[0].opaque * 0.9);
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].analysis.pieces[0].edited)).toBeFalsy();
 
+    await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
     await page.fill('#save-name', 'Avec copie');
     await page.locator('#save-form button[type=submit]').click();
     await expect(page.locator('#save-status')).toContainText('sauvegardée');
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
+    await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
     // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
     await expect(page.locator('#saved-status')).toContainText('« Avec copie » rouverte', { timeout: 120000 });
@@ -184,6 +190,7 @@ test.describe('Découpes autonomes', () => {
     const same = (a, b) => { expect(b.length).toBe(a.length); a.forEach((x, i) => { expect(b[i].at).toBe(x.at); expect(b[i].size).toBe(x.size); expect(b[i].opaque).toBe(x.opaque); x.rgb.forEach((v, k) => expect(Math.abs(b[i].rgb[k] - v)).toBeLessThan(3)); }); };
     const before = await digest();
     expect(before.items.length).toBeGreaterThan(1);
+    await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
     await page.fill('#save-name', 'Autonome');
     await page.locator('#save-form button[type=submit]').click();
@@ -196,6 +203,7 @@ test.describe('Découpes autonomes', () => {
       const orig = Extract.analyze;
       Extract.analyze = (...a) => { window.__analyses++; const r = orig(...a); if (r.pieces) r.pieces = r.pieces.slice(0, 1); return r; };
     });
+    await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('« Autonome » rouverte', { timeout: 120000 });
     const after = await digest();
