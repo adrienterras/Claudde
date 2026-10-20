@@ -5874,7 +5874,26 @@ Réponds uniquement avec ce JSON :
     },
   };
   const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée') };
-  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : PRICES[it.product]);
+  /*
+   * Kit DIY : une base (guide personnalisé imprimé et gabarits de découpe à l'échelle, livrés) et des
+   * options à cocher, chacune avec sa marge. Coûts estimés (achat, TTC) → prix de vente :
+   *  - toile vierge sur châssis, à la taille de l'œuvre : de ~9 € (30 × 40) à ~45 € (grand format)
+   *    → 17 € à 79 € selon la surface (KIT_CANVAS) ;
+   *  - colle vinylique et vernis de finition : ~5 € → 11 € ;
+   *  - pinceaux plats (deux) : ~2,50 € → 6 € ;
+   *  - base (impression du guide et des gabarits, emballage, livraison) : ~20 € → 45 €.
+   * Le kit complet en 50 × 70 reste à 89 € (45 + 27 + 11 + 6), le prix affiché sur la page Tarifs.
+   */
+  const KIT_BASE = 45;
+  const KIT_OPTIONS = { toile: null, colle: 11, pinceau: 6 }; // (toile : selon la surface)
+  const KIT_CANVAS = [[1200, 17], [2000, 22], [3600, 27], [5400, 35], [7500, 45], [10000, 59], [Infinity, 79]]; // [surface max en cm², prix]
+  const kitCanvasPrice = (W, H) => KIT_CANVAS.find(([a]) => Number(W) * Number(H) <= a)[1];
+  // options d'un article (relu du navigateur ou du compte : seules les trois options connues, en booléens ;
+  // un ancien kit sans options est le kit complet)
+  const kitOpts = (it) => { const k = it.kit && typeof it.kit === 'object' ? it.kit : {}; return { toile: k.toile !== false, colle: k.colle !== false, pinceau: k.pinceau !== false }; };
+  const kitOptionPrice = (k, W, H) => (k === 'toile' ? kitCanvasPrice(W, H) : KIT_OPTIONS[k]);
+  const kitPrice = (it) => { const o = kitOpts(it); return Object.keys(KIT_OPTIONS).reduce((t, k) => t + (o[k] ? kitOptionPrice(k, it.W, it.H) : 0), KIT_BASE); };
+  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : it.product === 'kit' ? kitPrice(it) : PRICES[it.product]);
   // produits de chaque atelier : impression (tirages, fichier) ou toile (guide et kit, à réaliser soi-même)
   const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit'] };
   const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
@@ -5883,7 +5902,11 @@ Réponds uniquement avec ce JSON :
     if (it.product === 'print') return tr`Tableau imprimé ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
-    if (it.product === 'kit') return tr`Kit DIY, toile ${toile} cm`;
+    if (it.product === 'kit') {
+      const o = kitOpts(it);
+      const parts = [tr('guide imprimé et gabarits'), o.toile ? tr`toile ${toile} cm` : tr('sans toile'), o.colle ? tr('colle et vernis') : null, o.pinceau ? tr('pinceaux') : null].filter(Boolean);
+      return tr`Kit DIY : ${parts.join(', ')}`;
+    }
     return { hd: tr('Fichier HD'), guide: tr('Guide DIY') }[it.product];
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
@@ -5953,7 +5976,7 @@ Réponds uniquement avec ce JSON :
   }
 
   let pending = null; // composition à ajouter : { comp, title, styleName }
-  const choice = { product: 'print', finish: 'cadre', size: '50x70', qty: 1 };
+  const choice = { product: 'print', finish: 'cadre', size: '50x70', qty: 1, kit: { toile: true, colle: true, pinceau: true } };
   function renderCartAdd() {
     const box = $('cart-add'), { comp } = pending;
     box.querySelector('.cart-what img').src = pending.thumb;
@@ -5965,8 +5988,17 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('[data-mode]').forEach((el) => { el.hidden = el.dataset.mode !== modeOf(); });
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => { r.checked = r.value === choice.product; r.closest('.cart-prod').classList.toggle('on', r.checked); });
     box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(PRICES.print.papier['30x40'])}`;
-    ['hd', 'guide', 'kit'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
+    ['hd', 'guide'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
+    box.querySelector('[data-price="kit"]').textContent = euros(kitPrice({ W: comp.W, H: comp.H, kit: choice.kit }));
     box.querySelector('input[value="kit"]').closest('label').querySelector('b').textContent = tr`Kit DIY ${fmt(comp.W)} × ${fmt(comp.H)}`;
+    // les options du kit, chacune avec son prix (la toile, à la taille de l'œuvre)
+    box.querySelector('.cart-kit').hidden = choice.product !== 'kit' || printMode();
+    box.querySelectorAll('.cart-kit input[data-kit]').forEach((c) => {
+      const k = c.dataset.kit;
+      c.checked = !!choice.kit[k];
+      c.closest('label').querySelector('em').textContent = `+ ${euros(kitOptionPrice(k, comp.W, comp.H))}`;
+      if (k === 'toile') c.closest('label').querySelector('b').textContent = tr`Toile vierge sur châssis ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
+    });
     box.querySelector('.cart-print').hidden = choice.product !== 'print' || !printMode();
     box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
     box.querySelectorAll('[data-size]').forEach((b) => {
@@ -6008,6 +6040,7 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('[data-finish]').forEach((b) => (b.onclick = () => { choice.finish = b.dataset.finish; renderCartAdd(); }));
     box.querySelectorAll('[data-size]').forEach((b) => (b.onclick = () => { choice.size = b.dataset.size; renderCartAdd(); }));
     box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, maxQty(choice)); renderCartAdd(); }));
+    box.querySelectorAll('.cart-kit input[data-kit]').forEach((c) => (c.onchange = () => { choice.kit[c.dataset.kit] = c.checked; renderCartAdd(); }));
     $('cart-add-ok').onclick = addPendingToCart;
   })();
 
@@ -6023,6 +6056,7 @@ Réponds uniquement avec ce JSON :
       rec.cart = true;
       await dbPut(rec);
       const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
+      if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
       it.unit = unitPrice(it);
       const items = loadCart();
       items.push(it);
@@ -6096,7 +6130,7 @@ Réponds uniquement avec ce JSON :
    */
   const cloudCartOn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
   const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
-  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H });
+  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined });
   // la composition locale d'un article, images comprises, prête à partir dans le compte
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);
@@ -6226,7 +6260,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, printCount, sourceMax, savedOf, restoreAnalysis, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

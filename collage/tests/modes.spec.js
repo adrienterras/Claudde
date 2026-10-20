@@ -419,10 +419,27 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add input[value="signature"]')).toHaveCount(0); // l'offre Atelier Signature n'existe plus
     await expect(page.locator('#cart-add input[value="print"]')).toBeHidden();
     await expect(page.locator('#cart-add .cart-print')).toBeHidden();
-    // kit DIY : 89 €, à l'unité
+    // kit DIY, à l'unité : une base (guide imprimé et gabarits, 45 €) et trois options cochées d'office,
+    // chacune avec son prix ; la toile est tarifée selon la taille de l'œuvre
     await page.locator('#cart-add input[value="kit"]').check();
-    await expect(page.locator('.cart-add-total')).toContainText('89');
+    await expect(page.locator('#cart-add .cart-kit')).toBeVisible();
     await expect(page.locator('#cart-add .cart-qty-row')).toBeHidden();
+    const euro = (t) => Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
+    const total = async () => euro(await page.locator('.cart-add-total').textContent());
+    const opt = async (k) => euro(await page.locator(`#cart-add .cart-opt:has([data-kit="${k}"]) em`).textContent());
+    for (const k of ['toile', 'colle', 'pinceau']) await expect(page.locator(`#cart-add [data-kit="${k}"]`)).toBeChecked();
+    const [pt, pc, pp] = [await opt('toile'), await opt('colle'), await opt('pinceau')];
+    expect(pc).toBe(11); expect(pp).toBe(6); expect(pt).toBeGreaterThanOrEqual(17);
+    expect(await total()).toBeCloseTo(45 + pt + pc + pp, 2);
+    await expect(page.locator('#cart-add [data-price="kit"]')).toHaveText(await page.locator('.cart-add-total').textContent());
+    // sans toile ni pinceaux : le prix suit
+    await page.locator('#cart-add [data-kit="toile"]').uncheck();
+    await page.locator('#cart-add [data-kit="pinceau"]').uncheck();
+    expect(await total()).toBeCloseTo(45 + pc, 2);
+    await page.locator('#cart-add [data-kit="toile"]').check();
+    expect(await total()).toBeCloseTo(45 + pt + pc, 2);
+    // le kit complet en 50 × 70 reste à 89 €
+    expect(await page.evaluate(() => AtelierGribouille.kitPrice({ W: 70, H: 50 }))).toBe(89);
     await expect(page.locator('#cart-add input[value="kit"]').locator('xpath=..').locator('b')).toHaveText(await page.evaluate(() => `Kit DIY ${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`));
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
@@ -430,6 +447,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // la toile annoncée est celle de la composition, à sa taille
     const dims = await page.evaluate(() => `${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`);
     await expect(page.locator('#cart .cart-item small')).toContainText(`toile ${dims} cm`);
+    // l'article garde ses options : sans pinceaux, avec colle et vernis
+    await expect(page.locator('#cart .cart-item small')).toContainText('colle et vernis');
+    await expect(page.locator('#cart .cart-item small')).not.toContainText('pinceaux');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier'))[0].kit)).toEqual({ toile: true, colle: true, pinceau: false });
     // une œuvre faite avec les originaux n'existe qu'en un exemplaire : pas de quantité
     await expect(page.locator('#cart .cart-item .cart-qty')).toHaveCount(0);
     await page.locator('#cart [data-close]').first().click();

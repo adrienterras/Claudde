@@ -423,6 +423,15 @@ body.stage-full .stage-cta { display: none; }
 .cart-prod em { font-style: normal; font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
 .cart-print { display: grid; gap: 8px; padding: 0 2px 4px 30px; }
 .cart-print[hidden] { display: none; }
+/* options du kit DIY : cases à cocher, chacune avec son prix */
+.cart-kit { display: grid; gap: 6px; padding: 0 2px 4px 30px; }
+.cart-kit[hidden] { display: none; }
+.cart-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 9px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.cart-opt input { margin: 2px 0 0; accent-color: var(--ink); }
+.cart-opt span { display: grid; gap: 1px; }
+.cart-opt b { font-size: 0.84rem; }
+.cart-opt small { color: var(--muted); font-size: 0.74rem; }
+.cart-opt em { font-style: normal; font-weight: 600; font-size: 0.82rem; white-space: nowrap; }
 .cart-finish button { padding: 7px 4px; font-size: 0.8rem; }
 .cart-finish button.on { background: var(--ink); color: var(--on-ink); font-weight: 600; }
 .chips.cart-sizes { grid-template-columns: repeat(3, 1fr); border-radius: 14px; }

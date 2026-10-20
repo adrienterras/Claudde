@@ -506,7 +506,13 @@
         </div>
         <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="hd"><span><b>Fichier HD</b><small>300 dpi, JPEG, PNG ou PDF à l’échelle, à imprimer où vous voulez</small></span><em data-price="hd"></em></label>
         <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="guide"><span><b>Guide DIY</b><small>Le guide de découpe et de collage à l’échelle, en PDF, pour réaliser l’œuvre avec les originaux</small></span><em data-price="guide"></em></label>
-        <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="kit"><span><b>Kit DIY 50 × 70</b><small>Toile vierge sur châssis, guide imprimé, gabarits à l’échelle et fournitures de collage, livrés</small></span><em data-price="kit"></em></label>
+        <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="kit"><span><b>Kit DIY 50 × 70</b><small>Guide imprimé et gabarits à l’échelle, livrés ; choisissez ce qui les accompagne</small></span><em data-price="kit"></em></label>
+        <!-- les options du kit (prix de chacune à côté ; la toile à la taille de l'œuvre) -->
+        <div class="cart-kit" data-mode="toile" hidden role="group" aria-label="Options du kit">
+          <label class="cart-opt"><input type="checkbox" data-kit="toile" checked><span><b>Toile vierge sur châssis</b><small>À la taille de l’œuvre</small></span><em></em></label>
+          <label class="cart-opt"><input type="checkbox" data-kit="colle" checked><span><b>Colle et vernis</b><small>Colle vinylique et vernis de finition</small></span><em></em></label>
+          <label class="cart-opt"><input type="checkbox" data-kit="pinceau" checked><span><b>Pinceaux</b><small>Deux pinceaux plats, pour la colle et le vernis</small></span><em></em></label>
+        </div>
       </div>
       <div class="cart-qty-row"><span>Quantité</span><span class="cart-qty"><button type="button" data-qty="-1" aria-label="Moins">−</button><output>1</output><button type="button" data-qty="1" aria-label="Plus">+</button></span></div>
       <p class="hint cart-fit" hidden></p>
