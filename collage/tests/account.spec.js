@@ -115,6 +115,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#camera-open').click();
     await expect(page.locator('#account-section')).toBeVisible();
     await expect(page.locator('#acc-status')).toContainText('photographier vos dessins');
+    await expect(page.locator('#camera')).toBeHidden();
     await page.locator('#acc-close').click();
     await page.setViewportSize({ width: 1440, height: 1000 });
     // des fichiers déposés sans compte : importés tout de suite, à la place de l'exemple
