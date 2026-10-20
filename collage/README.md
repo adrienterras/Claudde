@@ -394,7 +394,7 @@ cd collage && python3 -m http.server 8000
    - **sans œuvre, rien autour de l'accueil vide** : ni barre d'outils ni barre de zoom (`#zoom-bar`)
      tant qu'aucune composition n'est affichée ; l'étape Importer ne propose plus l'exemple ni
      « commencer une nouvelle œuvre » en phrases (le bouton « Voir un exemple » de l'accueil vide et le
-     bouton « Commencer une nouvelle œuvre » suffisent) ;
+     bouton « Commencer une nouvelle œuvre », sous le consentement de détourage dans Importer, suffisent) ;
    - **fond de toile** : au choix, la toile nue (lin ; en Impression, « sans couleur » : blanc pur) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand

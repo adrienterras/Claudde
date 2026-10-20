@@ -21,17 +21,18 @@ test.describe('Interface', () => {
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
   });
 
-  test('« Commencer une nouvelle œuvre » : bien en vue en tête du panneau, confirmation avant d’effacer', async ({ app }) => {
+  test('« Commencer une nouvelle œuvre » : dans Importer, sous le consentement de détourage, confirmation avant d’effacer', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#new-work')).toBeHidden();
     await app.import(['page-cutout.png']);
     const btn = page.locator('#new-work');
-    await expect(btn).toBeVisible();
+    // l'étape Importer se replie après l'import : un clic sur son titre la rouvre, le bouton est dessous
     await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
-    // au-dessus de l'étape Importer, sans défiler
-    const [b, imp] = await Promise.all([btn.boundingBox(), page.locator('#import-section').boundingBox()]);
-    expect(b.y).toBeLessThan(imp.y);
-    expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
+    await expect(btn).toBeHidden();
+    await page.locator('#import-section > h2').click();
+    await expect(btn).toBeVisible();
+    // dans l'étape Importer, juste après le consentement de détourage (affiché ou non)
+    expect(await page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('share-cuts'); return document.getElementById('import-section').contains(b) && !!(c.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) && c.nextElementSibling === b; })).toBe(true);
     // refus : rien ne change
     page.once('dialog', (d) => { expect(d.message()).toContain('effacée'); d.dismiss(); });
     await btn.click();
@@ -401,6 +402,7 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
     // repartir de zéro efface le brouillon (l'étape Importer, repliée après la réouverture, se rouvre d'un clic)
     await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('#import-section > h2').click(); // (l'étape Importer, repliée après l'import, se rouvre d'un clic)
     await page.locator('#new-work').click();
     for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
     expect(await hasDraft(page)).toBe(false);
@@ -782,6 +784,7 @@ test.describe('Panier', () => {
     // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
     // (l'étape Importer, repliée après l'import, se rouvre d'un clic sur son titre)
     await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('#import-section > h2').click(); // (l'étape Importer, repliée après l'import, se rouvre d'un clic)
     await page.locator('#new-work').click();
     await page.waitForTimeout(800);
     await page.reload();

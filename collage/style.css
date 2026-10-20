@@ -1075,12 +1075,11 @@ body.stage-full .scene-open { display: none; }
 }
 
 /* Deux ateliers : Impression (cadres standard) ou Toile (à réaliser, ou par l'atelier) */
-.new-work { margin: 4px 0 2px; padding: 10px 16px; border: 1.5px solid var(--accent); color: var(--accent); background: var(--accent-soft); font-size: 0.9rem; }
+.new-work { margin: 12px 0 2px; padding: 10px 16px; border: 1.5px solid var(--accent); color: var(--accent); background: var(--accent-soft); font-size: 0.9rem; }
 .new-work:hover { background: var(--accent); color: var(--surface); transform: translateY(-1px); }
 .new-work .ico { width: 18px; height: 18px; }
 @media (max-width: 860px) {
   /* tiroir du téléphone : en tête de l'onglet Importer seulement */
-  .panel.tabbed:not([data-tab="import-section"]) > .new-work { display: none; }
   /* le choix du type d'œuvre aussi : seulement dans l'onglet Importer */
 }
 .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 520px; margin-top: 6px; pointer-events: auto; }
