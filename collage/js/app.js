@@ -2802,21 +2802,25 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return { px: (e.clientX - r.left) * view.dpr, py: (e.clientY - r.top) * view.dpr };
   }
 
-  function hitAt(p) {
-    if (state.bgMode) {
-      const bg = state.comp.bg;
-      for (let i = bg.length - 1; i >= 0; i--) {
-        const L = bg[i];
-        if (L.paper) continue;
-        const dx = p.X - L.x, dy = p.Y - L.y, c = Math.cos(L.rot), sn = Math.sin(L.rot);
-        const lx = dx * c + dy * sn, ly = -dx * sn + dy * c;
-        if (Math.abs(lx) <= L.w / 2 && Math.abs(ly) <= L.h / 2) return L;
-      }
-      return null;
+  // la page de fond (hors papier) sous un point, la plus haute d'abord
+  function hitBg(p) {
+    const bg = state.comp.bg;
+    for (let i = bg.length - 1; i >= 0; i--) {
+      const L = bg[i];
+      if (L.paper) continue;
+      const dx = p.X - L.x, dy = p.Y - L.y, c = Math.cos(L.rot), sn = Math.sin(L.rot);
+      const lx = dx * c + dy * sn, ly = -dx * sn + dy * c;
+      if (Math.abs(lx) <= L.w / 2 && Math.abs(ly) <= L.h / 2) return L;
     }
+    return null;
+  }
+  // ce qu'on attrape sur l'œuvre : une découpe d'abord ; sinon la page de fond dessous, qui se
+  // déplace, se tourne ou se redimensionne comme une découpe, sans passer par « Fond seul »
+  function hitAt(p) {
+    if (state.bgMode) return hitBg(p);
     const items = state.comp.items;
     for (let i = items.length - 1; i >= 0; i--) if (Compose.hitItem(items[i], p.X, p.Y)) return items[i];
-    return null;
+    return hitBg(p);
   }
 
   // Mode « fond seul » : on ne voit que les pages de fond, et on les déplace à sa guise.
@@ -2917,7 +2921,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     } else {
       L.rot = drag.r0 + Math.atan2(p.Y - L.y, p.X - L.x) - drag.a0;
     }
-    if (L.kind === 'bg' && !state.bgMode) { render(); return; }
+    // une page de fond bougée dans l'œuvre complète : le fond est redessiné en direct (sans son cache)
+    if (L.kind === 'bg' && !state.bgMode) { state.bgCache = null; render(); return; }
     const r1 = layerRect(L);
     renderRect([Math.min(r0[0], r1[0]), Math.min(r0[1], r1[1]), Math.max(r0[2], r1[2]), Math.max(r0[3], r1[3])]);
   });

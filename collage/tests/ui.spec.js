@@ -1072,6 +1072,64 @@ test.describe('Rendu pendant un glissement', () => {
   });
 });
 
+test.describe('Pages de fond sur l’œuvre', () => {
+  test('une page de fond s’attrape et se déplace à même l’œuvre, sans « Fond seul » ; une découpe passe avant', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await app.select('paysage');
+    const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const pixels = () => page.evaluate(async () => {
+      const c = document.getElementById('canvas');
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      const h = await crypto.subtle.digest('SHA-1', d);
+      return [...new Uint8Array(h)].map((x) => x.toString(16).padStart(2, '0')).join('');
+    });
+    await frames();
+    // un point d'une page de fond que ne couvre aucune découpe
+    const pt = await page.evaluate(() => {
+      const A = AtelierGribouille, c = A.state.comp, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+      const inBg = (L, X, Y) => { const dx = X - L.x, dy = Y - L.y, co = Math.cos(L.rot), sn = Math.sin(L.rot); const lx = dx * co + dy * sn, ly = -dx * sn + dy * co; return Math.abs(lx) <= L.w / 2 && Math.abs(ly) <= L.h / 2; };
+      const pages = c.bg.filter((L) => !L.paper);
+      for (let i = pages.length - 1; i >= 0; i--) {
+        const L = pages[i];
+        for (let gy = 0.1; gy < 1; gy += 0.1) for (let gx = 0.1; gx < 1; gx += 0.1) {
+          const X = L.x + (gx - 0.5) * L.w, Y = L.y + (gy - 0.5) * L.h;
+          if (X < 0.5 || Y < 0.5 || X > c.W - 0.5 || Y > c.H - 0.5) continue;
+          if (!inBg(L, X, Y)) continue;
+          if (c.items.some((it) => Compose.hitItem(it, X, Y))) continue;
+          if (pages.slice(i + 1).some((q) => inBg(q, X, Y))) continue;
+          return { x: r.left + (X * v.s + v.ox) / v.dpr, y: r.top + (Y * v.s + v.oy) / v.dpr, index: c.bg.indexOf(L), x0: L.x };
+        }
+      }
+      return null;
+    });
+    expect(pt).not.toBeNull();
+    const before = await pixels();
+    await page.mouse.move(pt.x, pt.y);
+    await page.mouse.down();
+    await frames();
+    expect(await page.evaluate((i) => { const s = AtelierGribouille.state; return s.selected && s.selected.kind === 'bg' && s.selected === s.comp.bg[i]; }, pt.index)).toBe(true);
+    expect(await page.evaluate(() => AtelierGribouille.state.bgMode)).toBeFalsy();
+    for (let j = 1; j <= 6; j++) { await page.mouse.move(pt.x + j * 8, pt.y + j * 3); await frames(); }
+    // pendant le geste, l'œuvre complète (découpes comprises) suit la page
+    const during = await pixels();
+    expect(during).not.toBe(before);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items.length)).toBeGreaterThan(0);
+    await page.mouse.up();
+    await frames();
+    const moved = await page.evaluate((i) => AtelierGribouille.state.comp.bg[i].x, pt.index);
+    expect(moved).toBeGreaterThan(pt.x0 + 1);
+    // la barre d'outils agit sur la page (devant / derrière, miroir, retirer)
+    await expect(page.locator('#toolbar [data-act="flip"]')).toBeEnabled();
+    // une découpe reste prioritaire : cliquer dessus la sélectionne, pas la page dessous
+    const piece = await page.evaluate(() => { const A = AtelierGribouille, v = A.view, L = A.state.comp.items[0], r = document.getElementById('canvas').getBoundingClientRect(); return { x: r.left + (L.x * v.s + v.ox) / v.dpr, y: r.top + (L.y * v.s + v.oy) / v.dpr }; });
+    await page.mouse.click(piece.x, piece.y);
+    await frames();
+    expect(await page.evaluate(() => AtelierGribouille.state.selected && AtelierGribouille.state.selected.kind)).toBe('piece');
+    expect(app.errors).toEqual([]);
+  });
+});
+
 test.describe('Découpe apprise des retouches', () => {
   test('gommer un sujet entier apprend « sujets voisins séparés », proposé aux autres dessins, mémorisé', async ({ page }) => {
     const { fixture } = require('./helpers');

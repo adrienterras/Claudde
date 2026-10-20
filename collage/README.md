@@ -323,9 +323,11 @@ cd collage && python3 -m http.server 8000
      de fond posée tournée comme une image JPEG, les découpes et papiers déchirés en PNG avec leur
      transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 300 dpi
      au plus. Les scans restent des images : un dessin d'enfant ne se vectorise pas sans le trahir ;
-   - **mode « Fond seul »** (bouton près du zoom) : on ne voit que le fond peint et les pages de fond,
-     que l'on déplace, tourne, met devant ou derrière, retourne ou retire à sa guise ; « Tout voir »
-     ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication).
+   - **pages de fond à même l'œuvre** : un clic qui ne touche aucune découpe attrape la page de fond
+     dessous (`hitAt` → `hitBg`), que l'on déplace, tourne ou redimensionne comme une découpe, le fond
+     redessiné en direct pendant le geste ; le **mode « Fond seul »** (bouton près du zoom) reste
+     pour voir les pages sans les découpes : on les déplace, tourne, met devant ou derrière, retourne
+     ou retire à sa guise ; « Tout voir » ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication).
      Une page que l'on redimensionne (poignée carrée ou boutons Agrandir / Réduire, en Affiche et en
      Galerie) passe devant les autres pages : agrandie sous elles, on ne verrait que son cadre. Les pages
      retouchées à la main (déplacées, tournées, retournées, redimensionnées) gardent leur place et leur
