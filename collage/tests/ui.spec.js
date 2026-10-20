@@ -51,6 +51,36 @@ test.describe('Interface', () => {
     await expect(page.locator('#import-section')).not.toHaveClass(/collapsed/);
   });
 
+  test('sur ordinateur, Dessins est repliée à chaque visite et à chaque nouvelle œuvre ; un dessin cliqué sur l’œuvre l’ouvre', async ({ app }) => {
+    test.setTimeout(180000);
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    const sec = page.locator('#drawings-section');
+    await expect(sec).toHaveClass(/collapsed/);
+    // ouverte par son titre, elle est de nouveau repliée à la visite suivante (son état n'est pas mémorisé)
+    await page.locator('#drawings-section > h2').click();
+    await expect(sec).not.toHaveClass(/collapsed/);
+    // (le brouillon doit être écrit avant de recharger : c'est lui qui rouvre l'œuvre)
+    await waitDraft(page);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
+    // un dessin cliqué sur l'œuvre : la section s'ouvre sur sa fiche
+    await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
+    await page.evaluate(() => { const L = AtelierGribouille.state.comp.items[0]; const v = AtelierGribouille.view; const r = document.getElementById('canvas').getBoundingClientRect(); const x = r.left + (v.ox + L.x * v.s) / v.dpr, y = r.top + (v.oy + L.y * v.s) / v.dpr; window.__pt = [x, y]; });
+    const [x, y] = await page.evaluate(() => window.__pt);
+    await page.mouse.dblclick(x, y);
+    await page.waitForTimeout(400);
+    const opened = await page.evaluate(() => !document.getElementById('drawings-section').classList.contains('collapsed') || !!document.getElementById('editor') && !document.getElementById('editor').hidden);
+    expect(opened).toBe(true);
+    if (await page.evaluate(() => !document.getElementById('editor').hidden)) await page.keyboard.press('Escape');
+    // « nouvelle œuvre » : repliée de nouveau
+    await page.evaluate(() => { window.confirm = () => true; });
+    await page.locator('#new-work').click();
+    await expect.poll(() => page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    expect(await page.evaluate(() => document.getElementById('drawings-section').classList.contains('collapsed'))).toBe(true);
+  });
+
   test('capteur d’erreur global : une erreur imprévue s’affiche avec son détail', async ({ app }) => {
     const { page, errors } = app;
     await expect(page.locator('#fatal')).toBeHidden();

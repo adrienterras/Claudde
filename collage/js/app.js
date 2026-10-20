@@ -4472,6 +4472,7 @@ Réponds uniquement avec ce JSON :
   function startOver() {
     state.drawings = [];
     if ($('import-section')._expand) $('import-section')._expand();
+    if ($('drawings-section')._collapse) $('drawings-section')._collapse(); // Dessins repliée pour la nouvelle œuvre
     restoreDensityAfterSample();
     state.title = '';
     state.titles = null;
@@ -5581,12 +5582,15 @@ Réponds uniquement avec ce JSON :
     });
   })();
 
-  // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé.
+  // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé —
+  // sauf Dessins, repliée à chaque visite et à chaque nouvelle œuvre : elle ne s'ouvre que d'un clic
+  // sur un dessin de l'œuvre (showDrawingOf) ou sur son titre.
   (function collapsibleSections() {
     let saved = [];
-    // à la première visite, seules les étapes essentielles sont ouvertes (importer, propositions, tailles, exporter)
+    // à la première visite, seules les étapes essentielles sont ouvertes (importer, tailles, propositions, exporter)
     const DEFAULT_COLLAPSED = ['drawings-section'];
     try { const v = localStorage.getItem('atelier.collapsed'); saved = v === null ? DEFAULT_COLLAPSED : JSON.parse(v); if (!Array.isArray(saved)) saved = DEFAULT_COLLAPSED; } catch (e) { saved = DEFAULT_COLLAPSED; }
+    if (!saved.includes('drawings-section')) saved.push('drawings-section');
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const h = sec.querySelector(':scope > h2');
       if (!h || !sec.id) return;
@@ -5602,7 +5606,7 @@ Réponds uniquement avec ce JSON :
       const toggle = () => {
         apply(!sec.classList.contains('collapsed'));
         // Importer, replié d'office après un import, n'est pas mémorisé : il est ouvert à chaque visite
-        const list = [...document.querySelectorAll('aside section.step.collapsed')].map((x) => x.id).filter((id) => id !== 'import-section');
+        const list = [...document.querySelectorAll('aside section.step.collapsed')].map((x) => x.id).filter((id) => id !== 'import-section' && id !== 'drawings-section');
         try { localStorage.setItem('atelier.collapsed', JSON.stringify(list)); } catch (e) { /* ignoré */ }
       };
       h.addEventListener('click', toggle);

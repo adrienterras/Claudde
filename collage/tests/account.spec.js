@@ -22,6 +22,18 @@ const test = base.extend({
   },
 });
 
+// attend que le brouillon (n dessins) soit écrit dans IndexedDB : page.evaluate attend la promesse,
+// ce que page.waitForFunction ne fait pas pour une fonction qui rend une promesse
+const hasDraft = (page, n) => page.evaluate((n) => new Promise((res) => {
+  const q = indexedDB.open('atelier-gribouille');
+  q.onsuccess = () => { const db = q.result; try { const g = db.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => { db.close(); res(!!(g.result && g.result.drawings && g.result.drawings.length === n)); }; g.onerror = () => { db.close(); res(false); }; } catch (e) { db.close(); res(false); } };
+  q.onerror = () => res(false);
+}), n);
+const waitDraft = async (page, n) => {
+  for (let i = 0; i < 120; i++) { if (await hasDraft(page, n)) return; await page.waitForTimeout(500); }
+  throw new Error('brouillon jamais écrit');
+};
+
 async function signUpAndIn(page, email, pw, name) {
   await page.locator('#acc-open').click();
   await page.locator('.auth-tabs [data-mode="signup"]').click();
@@ -203,7 +215,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // le brouillon d'ici, puis son envoi dans le compte (sans attendre le délai)
-    await page.waitForFunction(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(!!(g.result && g.result.drawings && g.result.drawings.length === 2)); g.onerror = () => res(false); }; q.onerror = () => res(false); }), null, { timeout: 60000 });
+    await waitDraft(page, 2);
     await page.evaluate(() => AtelierGribouille.syncCloudDraft());
     await page.waitForFunction(() => window.__fake.db.rows.some((r) => r.meta && r.meta.draft && r.meta.drawings.length === 2));
     const first = await page.evaluate(() => ({ uploads: window.__fake.calls.filter((c) => c[0] === 'upload').length, rows: window.__fake.db.rows.length }));
@@ -240,7 +252,7 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await page.waitForFunction(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(!!(g.result && g.result.drawings && g.result.drawings.length === 2)); g.onerror = () => res(false); }; }), null, { timeout: 60000 });
+    await waitDraft(page, 2);
     await page.evaluate(() => AtelierGribouille.syncCloudDraft());
     await page.waitForFunction(() => window.__fake.db.rows.some((r) => r.meta && r.meta.draft && r.meta.drawings.length === 2));
     const t1 = await page.evaluate(() => window.__fake.db.rows.find((r) => r.meta && r.meta.draft).meta.date);
