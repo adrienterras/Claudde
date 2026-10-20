@@ -554,7 +554,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .tag.off { background: var(--muted); color: var(--on-ink); }
 
 .detail {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2;
+  /* dans le flux : entre la phrase de la section et les dessins, sans flotter au-dessus d'eux */
+  position: relative;
   /* en-tête : vignette à gauche, nom et ‹ › à droite ; les réglages dessous, sur toute la largeur */
   display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 12px; row-gap: 10px; align-items: start;
   padding: 12px;
@@ -802,6 +803,12 @@ body.editing { overflow: hidden; }
   .ed-card .ed-bar { padding-right: 62px; } /* place pour la croix */
 }
 .scene-box { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+/* ordinateur : section Tailles sans passe-partout (il se choisit dans la mise en scène), et un second
+   bouton « Mettre en scène » sous l'orientation ; téléphone : la mise en scène est déjà dans la section */
+.scene-open-side { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 4px; }
+.scene-open-side .ico { width: 17px; height: 17px; }
+@media (min-width: 861px) { #print-mat-field { display: none !important; } }
+@media (max-width: 860px) { .scene-open-side { display: none !important; } }
 .scene-frame { position: relative; border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
 .scene-canvas { width: 100%; height: 100%; display: block; }
 .scene-mat { margin-bottom: 6px; }

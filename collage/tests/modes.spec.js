@@ -98,7 +98,12 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
-    const c = (n, t, pages) => page.evaluate(([n, t, pages]) => AtelierGribouille.printCount(n, t, pages), [n, t, pages]);
+    // (une découpe par dessin, de poids décroissant)
+    const c = (n, t, pages, per = 1) => page.evaluate(([n, t, pages, per]) => {
+      const pieces = [];
+      for (let i = 0; i < n; i++) for (let j = 0; j < per; j++) pieces.push({ drawing: 'd' + i, wcm: 30 - i * 0.5, hcm: 30 - i * 0.5, colorful: 0.5, importance: 1 });
+      return AtelierGribouille.printCount(pieces, t, pages);
+    }, [n, t, pages, per]);
     // 28 dessins : 5 pages de fond et 23 découpes
     expect(await c(23, 0, 5)).toBe(1);        // en bas : les pages et une découpe (6 sur 28)
     expect(await c(23, 1, 5)).toBe(23);       // en haut : tout
@@ -109,6 +114,9 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await c(10, 0.5, 0)).toBe(6);
     expect(await c(10, 1, 0)).toBe(10);
     expect(await c(1, 0, 4)).toBe(1);
+    // plusieurs découpes par dessin : ce sont les dessins qui comptent (3 découpes chacun, 10 dessins)
+    expect(await c(10, 0.5, 0, 3)).toBe(18); // 6 dessins, chacun avec toutes ses découpes
+    expect(await c(10, 1, 0, 3)).toBe(30);
     // monotone
     let prev = 0;
     for (let t = 0; t <= 1.0001; t += 0.05) { const v = await c(23, t, 5); expect(v).toBeGreaterThanOrEqual(prev); prev = v; }
@@ -247,8 +255,17 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-size]')].map((b) => b.dataset.size))).toEqual(['21x30', '30x40', '40x50', '50x70', '70x100']);
     await expect(page.locator('.cart-fit')).toBeHidden(); // l'œuvre fait exactement la taille du cadre
     await page.locator('#cart-add [data-close]').first().click();
-    // avec passe-partout : l'impression prend la taille en dessous (13 × 18 dans le 21 × 30), même cadre
-    await page.locator('#print-mat [data-mat="1"]').click();
+    // avec passe-partout : l'impression prend la taille en dessous (13 × 18 dans le 21 × 30), même cadre.
+    // Sur ordinateur, la section Tailles n'a plus le choix du passe-partout : il se fait dans la mise en
+    // scène, ouverte par le bouton sous l'orientation
+    await expect(page.locator('#print-mat-field')).toBeHidden();
+    await openStep(page, 'sizes-section');
+    await expect(page.locator('#scene-open-side')).toBeVisible();
+    await page.locator('#scene-open-side').click();
+    await expect(page.locator('#scene-modal')).toBeVisible();
+    await page.locator('#scene-mat [data-mat="1"]').click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#scene-modal')).toBeHidden();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([13, 18]);
     await expect(page.locator('#scale-info')).toHaveText('Impression de 13 × 18 cm avec passe-partout, dans un cadre de 21 × 30 cm.');
@@ -272,7 +289,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // (cadre, orientation et passe-partout reviennent)
     expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:21x30', 13, 18]);
     await expect(page.locator('#print-mat [data-mat="1"]')).toHaveClass(/on/);
-    await page.locator('#print-mat [data-mat="0"]').click();
+    await page.evaluate(() => document.querySelector('#print-mat [data-mat="0"]').click()); // (caché sur ordinateur)
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([21, 29.7]);
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));

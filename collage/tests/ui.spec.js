@@ -247,6 +247,9 @@ test.describe('Fiche d’un dessin sur téléphone', () => {
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
     await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('#detail')).toBeVisible();
+    // la fiche est dans le flux, entre la phrase de la section et les dessins (elle ne flotte pas)
+    expect(await page.locator('#detail').evaluate((el) => getComputedStyle(el).position)).not.toBe('sticky');
+    expect(await page.evaluate(() => { const d = document.getElementById('detail'), g = document.getElementById('drawings'), h = document.getElementById('drawings-hint'); return !!(h.compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(d.compareDocumentPosition(g) & Node.DOCUMENT_POSITION_FOLLOWING) && d.getBoundingClientRect().bottom <= g.getBoundingClientRect().top + 1; })).toBe(true);
     await page.waitForTimeout(300);
     // l'œuvre reste visible au-dessus de la fiche
     const canvasH = await page.locator('#canvas').evaluate((el) => el.getBoundingClientRect().height);

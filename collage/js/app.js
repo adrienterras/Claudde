@@ -1886,12 +1886,25 @@
   // haut, tout. (Une découpe par dessin le plus souvent.) Et la surface qu'elles demandent ensemble
   // (de 90 % de l'affiche à 140 % : elles se chevauchent et la remplissent).
   const printPages = () => state.drawings.filter((d) => roleOf(d) === 'texture').length;
-  const printCount = (n, t, pages = printPages()) => {
-    const total = pages + n;
-    if (n <= 0 || total <= 0) return 0;
-    const lo = Math.min(1, (pages + 1) / total);
-    return clamp(Math.round(total * (lo + (1 - lo) * clamp(t, 0, 1))) - pages, 1, n);
-  };
+  // l'ordre dans lequel la pose retient les sujets (les plus forts d'abord : même poids que dans compose)
+  const pieceWeight = (p) => Math.sqrt((p.wcm || p.canvas.width) * (p.hcm || p.canvas.height)) * Math.pow(Math.max(0.05, p.colorful || 0), 1.3) * (p.importance || 1);
+  // les découpes retenues pour une position du curseur : le début de cet ordre, jusqu'à ce que le
+  // nombre de dessins voulu soit atteint (« N sur M » compte des dessins : un dessin peut avoir
+  // plusieurs découpes, et les pages de fond sont toujours posées)
+  function printKeep(pieces, t, pages = printPages()) {
+    const sorted = pieces.slice().sort((a, b) => pieceWeight(b) - pieceWeight(a));
+    if (!sorted.length) return sorted;
+    const total = pages + new Set(sorted.map((p) => p.drawing)).size;
+    const lo = Math.min(total, pages + 1);
+    const want = clamp(Math.round(lo + (total - lo) * clamp(t, 0, 1)), lo, total) - pages;
+    const seen = new Set();
+    let k = 0;
+    while (k < sorted.length && seen.size < want) { seen.add(sorted[k].drawing); k++; }
+    // les autres découpes des dessins déjà retenus qui suivent dans l'ordre viennent aussi (en haut : tout)
+    while (k < sorted.length && seen.has(sorted[k].drawing)) k++;
+    return sorted.slice(0, Math.max(1, k));
+  }
+  const printCount = (pieces, t, pages) => printKeep(pieces, t, pages).length;
   const printCover = (t) => 1.15 + 0.3 * t;
   const densityT = () => (allIn() ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1));
   // Toile : part des découpes posées pour une position du curseur (régulière, un peu plus de la moitié au départ),
@@ -1902,14 +1915,14 @@
   function computePrintScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
-    const list = activePieces().filter((p) => p.enabled).map((p) => { const c = cmPerPx(p.drawing); return { a: p.canvas.width * c * p.canvas.height * c }; }).sort((x, y) => y.a - x.a);
-    const n = list.length;
-    if (!n) return 1;
+    const pieces = activePieces().filter((p) => p.enabled);
+    if (!pieces.length) return 1;
+    const areaOf = (p) => { const c = cmPerPx(p.drawing); return p.canvas.width * c * p.canvas.height * c; };
     const t = densityT();
-    // échelle pour une position du curseur : les sujets retenus (les plus grands d'abord) demandent
-    // ensemble la surface fixée ; jamais au-delà de leur taille réelle
+    // échelle pour une position du curseur : les sujets retenus (les plus forts d'abord, comme à la
+    // pose) demandent ensemble la surface fixée ; jamais au-delà de leur taille réelle
     const raw = (tt) => {
-      const area = list.slice(0, printCount(n, tt)).reduce((a, x) => a + x.a, 0);
+      const area = printKeep(pieces, tt).reduce((a, p) => a + areaOf(p), 0);
       return Math.min(1, Math.sqrt((printCover(tt) * w * h) / Math.max(1, area)));
     };
     // en montant le curseur, les dessins ne regrandissent jamais : l'échelle est la plus petite
@@ -2036,7 +2049,7 @@
       spread: printMode() && k < 0.6, // affiche aux dessins très réduits : répartis sur toute la surface
       // nombre de sujets fixé par le curseur (affiche : à l'échelle qui va avec ; toile : à taille réelle,
       // sur une toile conseillée à leur mesure) ; tout au maximum
-      count: printMode() ? printCount(pieces.length, densityT()) : allIn() ? 0 : Math.max(1, Math.round(pieces.length * toileKeep())),
+      count: printMode() ? printCount(pieces, densityT()) : allIn() ? 0 : Math.max(1, Math.round(pieces.length * toileKeep())),
       maxGrow: printMode() ? 1 / Math.max(0.05, k) : 1, // affiche : agrandissement encore permis pour remplir le cadre, jusqu'à la taille réelle
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
@@ -2261,6 +2274,7 @@
     updateGroundName();
     $('density-bar').hidden = !state.comp;
     $('scene-open').hidden = !state.comp;
+    $('scene-open-side').hidden = !state.comp;
     document.querySelectorAll('.order-cta').forEach((b) => { b.hidden = !state.comp; });
     layoutLabel();
     $('toolbar').hidden = !state.comp;
@@ -4238,6 +4252,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     requestAnimationFrame(() => drawRoomScene());
   }
   $('scene-open').addEventListener('click', openSceneModal);
+  $('scene-open-side').addEventListener('click', openSceneModal);
   (() => {
     const el = $('scene-modal');
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));

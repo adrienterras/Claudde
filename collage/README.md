@@ -31,9 +31,11 @@ cd collage && python3 -m http.server 8000
      **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
      curseur en demande, comme à la pose) doivent couvrir la part de l'affiche que le curseur fixe,
      si bien que le nombre de dessins posés grandit pas à pas avec le curseur (plus on en demande,
-     plus ils sont réduits) ; le curseur fixe le nombre de sujets (`printCount`, linéaire et pages
-     de fond comprises : à mi-course, la moitié des dessins est sur l'œuvre, comme le dit
-     « N sur M » ; en bas, les pages et une découpe ; en haut, tout) et la surface
+     plus ils sont réduits) ; le curseur fixe le nombre de **dessins** sur l'œuvre (`printKeep`,
+     linéaire et pages de fond comprises : à mi-course, la moitié des dessins, comme le dit
+     « N sur M » ; en bas, les pages et une découpe ; en haut, tout — les découpes sont retenues dans
+     l'ordre de la pose, les plus fortes d'abord, jusqu'au nombre de dessins voulu, un dessin
+     pouvant avoir plusieurs découpes) et la surface
      qu'ils demandent ensemble (`printCover` : de 90 % à 140 % de l'affiche, ils se chevauchent et
      la remplissent à toute position du curseur) ; la pose reçoit ce nombre (`o.count`) sans
      plafond de couverture ; jamais au-delà de leur taille réelle. Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
@@ -417,7 +419,11 @@ cd collage && python3 -m http.server 8000
    - **Galerie en tableau imprimé seulement** : en collage, la Galerie n'est pas proposée
      (`activeStyles`) — sauf pour une œuvre rouverte dans ce style, qui garde sa place ;
    - **« Mettre en scène » en haut à gauche** de la zone d'édition sur ordinateur, sous la barre
-     d'outils (celle qui commence par Défaire) ; `layoutLabel` n'a plus à le placer ;
+     d'outils (celle qui commence par Défaire) ; `layoutLabel` n'a plus à le placer ; un second
+     bouton (`#scene-open-side`) l'ouvre aussi depuis la section Tailles, sous l'orientation ; sur
+     ordinateur, cette section n'a plus le choix du passe-partout (il se fait dans la mise en scène) ;
+   - **fiche d'un dessin dans le flux** : entre la phrase de la section Dessins et les dessins, elle
+     ne flotte plus au-dessus de la liste (plus de `position: sticky`) ;
    - **tableau imprimé : pas de taille réelle dans la fiche** : les dessins y sont réduits pour tenir
      dans le cadre, la fiche d'un dessin ne propose donc ni les feuilles A5…A2 / Autre, ni la phrase sur
      la taille lue ou estimée (`renderDetail`, `printMode()`) ; l'orientation, le rôle et la retouche
