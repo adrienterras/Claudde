@@ -57,7 +57,7 @@ test.describe('page d’accueil en anglais', () => {
   test('tout le texte de l’accueil et de la page Tarifs est traduit', async ({ browser }) => {
     const path = require('path');
     const LANDING = path.resolve(__dirname, '..', '..', 'landing');
-    const ALLOW = new Set(['Atelier', 'Gribouille', 'Atelier Gribouille', '© Atelier Gribouille', 'ateliergribouille.art', 'FR', 'EN', '×', 'This site is also available in English.', 'View in English', 'Contact', 'Instagram', 'Atelier Signature']);
+    const ALLOW = new Set(['Atelier', 'Gribouille', 'Atelier Gribouille', '© Atelier Gribouille', 'ateliergribouille.art', 'FR', 'EN', '×', 'This site is also available in English.', 'View in English', 'Contact', 'Instagram']);
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     const collect = () => page.evaluate(() => {

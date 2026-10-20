@@ -1,7 +1,7 @@
 const { test, expect, fixture } = require('./helpers');
 
 // Deux ateliers : Impression (cadres standard du marché, dessins réduits pour y tenir, tirages et
-// fichier HD) et Toile (taille réelle, toiles du commerce, guide, kit et Atelier Signature).
+// fichier HD) et Toile (taille réelle, toiles du commerce, guide et kit DIY).
 test.describe('Atelier Impression et atelier Toile', () => {
   test('sans choix : les deux cartes au milieu de l’atelier vide ; un clic ou ?mode= choisit, et c’est mémorisé ; plus de bascule ensuite', async ({ page }) => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -205,7 +205,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add input[value="print"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="hd"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeHidden();
-    await expect(page.locator('#cart-add input[value="signature"]')).toBeHidden();
     await expect(page.locator('.cart-what-size')).toContainText('tableau imprimé de 21 × 29,7 cm');
     // la taille proposée est le cadre choisi ; les quatre tailles, avec leur prix
     await expect(page.locator('#cart-add [data-size="21x30"]')).toHaveClass(/on/);
@@ -320,7 +319,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     rows.forEach((r) => expect(r.label).toMatch(/^\S.* · (impression|toile) [\d,]+ × [\d,]+ cm$/));
   });
 
-  test('Toile : taille réelle et toiles du commerce, guide, kit et Atelier Signature ; la bascule recompose', async ({ page }) => {
+  test('Toile : taille réelle et toiles du commerce, guide et kit DIY (plus d’Atelier Signature) ; la bascule recompose', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=toile');
@@ -359,18 +358,17 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add input[value="guide"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeVisible();
-    await expect(page.locator('#cart-add input[value="signature"]')).toBeVisible();
+    await expect(page.locator('#cart-add input[value="signature"]')).toHaveCount(0); // l'offre Atelier Signature n'existe plus
     await expect(page.locator('#cart-add input[value="print"]')).toBeHidden();
     await expect(page.locator('#cart-add .cart-print')).toBeHidden();
-    // Atelier Signature : 490 € jusqu'à 75 cm, 690 € au-delà
-    const long = await page.evaluate(() => Math.max(AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H));
-    await page.locator('#cart-add input[value="signature"]').check();
-    await expect(page.locator('.cart-add-total')).toContainText(long > 75 ? '690' : '490');
+    // kit DIY : 89 €, à l'unité
+    await page.locator('#cart-add input[value="kit"]').check();
+    await expect(page.locator('.cart-add-total')).toContainText('89');
     await expect(page.locator('#cart-add .cart-qty-row')).toBeHidden();
     await expect(page.locator('#cart-add input[value="kit"]').locator('xpath=..').locator('b')).toHaveText(await page.evaluate(() => `Kit DIY ${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`));
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
-    await expect(page.locator('#cart .cart-item')).toContainText('Atelier Signature');
+    await expect(page.locator('#cart .cart-item')).toContainText('Kit DIY');
     // la toile annoncée est celle de la composition, à sa taille
     const dims = await page.evaluate(() => `${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`);
     await expect(page.locator('#cart .cart-item small')).toContainText(`toile ${dims} cm`);

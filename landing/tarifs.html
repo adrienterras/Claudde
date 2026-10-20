@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Tarifs : tableau et toile avec les dessins d’enfants | Atelier Gribouille</title>
-  <meta name="description" content="Composer est gratuit. Votre tableau de dessins d’enfants en fichier HD dès 14,90 €, imprimé et encadré dès 79 €, ou réalisé à la main avec les originaux dès 490 €.">
+  <meta name="description" content="Composer est gratuit. Votre tableau de dessins d’enfants en fichier HD dès 14,90 €, imprimé et encadré dès 79 €, ou à réaliser vous-même avec les originaux (kit DIY 89 €).">
   <link rel="canonical" href="https://ateliergribouille.art/tarifs.html">
   <!-- page hors des moteurs de recherche (prix sans contexte) : noindex, et absente du plan du site ; elle ne doit
        pas être bloquée dans robots.txt, sinon Google ne verrait pas cette consigne -->
   <meta name="robots" content="noindex, follow">
   <meta property="og:title" content="Tarifs — Atelier Gribouille">
-  <meta property="og:description" content="À télécharger dès 14,90 €, à accrocher dès 79 €, réalisé à la main dès 490 €.">
+  <meta property="og:description" content="À télécharger dès 14,90 €, à accrocher dès 79 €, à réaliser vous-même dès 24,90 €.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://ateliergribouille.art/tarifs.html">
   <meta property="og:image" content="https://ateliergribouille.art/img/salon-toile.jpg">
@@ -106,7 +106,7 @@
     /* page tarifs */
     .head { padding: 64px 0 36px; max-width: 62ch; }
     .head p { margin: 16px 0 0; color: var(--ink-2); font-size: 1.05rem; }
-    .doors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; padding-bottom: 56px; }
+    .doors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding-bottom: 56px; }
     .door { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 22px 24px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 40px -32px rgba(0,0,0,.35); }
     .door.star { background: var(--ink); color: var(--craie); border-color: var(--ink); }
     .door.star .muted, .door.star .from { color: rgba(248,245,239,.72); }
@@ -139,7 +139,6 @@
     .cta { text-align: center; padding: 64px 0 80px; border-top: 1px solid var(--line); }
     .cta h2 { font-style: italic; }
     .cta .actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
-    @media (min-width: 901px) and (max-width: 1180px) { .doors { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 900px) {
       .head { padding: 40px 0 28px; }
       .doors { grid-template-columns: 1fr; }
@@ -172,7 +171,7 @@
       <div class="head">
         <p class="kicker">Tarifs</p>
         <h1>Composer est gratuit. <em>Le reste est simple.</em></h1>
-        <p>Importez, composez et prévisualisez autant que vous voulez. Vous ne payez que lorsque vous voulez emporter votre œuvre : en fichier, imprimée chez vous, ou réalisée à la main avec les dessins originaux.</p>
+        <p>Importez, composez et prévisualisez autant que vous voulez. Vous ne payez que lorsque vous voulez emporter votre œuvre : en fichier, imprimée chez vous, ou à réaliser vous-même avec les dessins originaux.</p>
       </div>
 
       <div class="doors">
@@ -216,18 +215,6 @@
           <a class="btn btn-ghost" href="atelier/?mode=toile" target="_blank" rel="noopener">Commander le kit</a>
         </article>
 
-        <article class="door">
-          <span class="from">Réalisé à la main · dès 490 €</span>
-          <h2>Atelier Signature</h2>
-          <p class="price">490 €</p>
-          <ul>
-            <li>Toile 50 × 70, jusqu’à 20 dessins originaux numérisés, découpés et collés à la main</li>
-            <li>Validation de la composition avant découpe, une série de modifications</li>
-            <li>Fichiers numérisés et retour des dessins non utilisés inclus</li>
-          </ul>
-          <p class="muted">Grand format 70 × 100, jusqu’à 30 dessins : 690 €. Encadrement en supplément.</p>
-          <a class="btn btn-ghost" href="mailto:bonjour@atelier-gribouille.com?subject=Atelier%20Signature">Demander un devis</a>
-        </article>
       </div>
     </div>
 
@@ -269,22 +256,6 @@
       </div>
     </section>
 
-    <section class="block" id="signature">
-      <div class="wrap">
-        <h2>Réalisée à la main, avec les originaux</h2>
-        <p>Vous nous confiez les dessins ; nous les numérisons, composons avec vous, puis découpons et collons les originaux sur la toile. Il n’en existe qu’une.</p>
-        <table>
-          <thead><tr><th>Offre</th><th>Ce qui est compris</th><th>Prix</th></tr></thead>
-          <tbody>
-            <tr><td>Atelier Signature</td><td>Toile 50 × 70 cm, jusqu’à 20 dessins : numérisation, composition, découpe et collage à la main</td><td class="p">490 €</td></tr>
-            <tr><td>Atelier Signature Grand</td><td>Toile 70 × 100 cm, jusqu’à 30 dessins</td><td class="p">690 €</td></tr>
-            <tr><td>Projet exceptionnel</td><td>Très grand format, nombreux dessins, commande collective</td><td class="p">Sur devis</td></tr>
-          </tbody>
-        </table>
-        <p class="note">Compris : validation de la composition avant toute découpe, une série de modifications, les fichiers numérisés et le retour des dessins non utilisés. Encadrement en supplément.</p>
-      </div>
-    </section>
-
     <section class="block">
       <div class="wrap">
         <h2>Questions fréquentes</h2>
@@ -292,7 +263,7 @@
           <div><h3>Dois-je payer pour essayer ?</h3><p>Non. Importer, composer, retoucher et prévisualiser l’œuvre sur la toile ou dans une photo de votre salon est gratuit, sans limite de temps.</p></div>
           <div><h3>Que signifie « par composition » ?</h3><p>Vous payez une fois pour une composition donnée. Pendant 30 jours, vous pouvez la corriger et la retélécharger autant que nécessaire, sans abonnement.</p></div>
           <div><h3>Puis-je faire imprimer le fichier ailleurs ?</h3><p>Oui. Le fichier HD est à vous : 300 dpi, aux dimensions exactes des toiles et cadres du commerce, avec un PDF à l’échelle si vous préférez.</p></div>
-          <div><h3>Les dessins originaux sont-ils abîmés ?</h3><p>Pour les tableaux imprimés, jamais : seuls les scans sont utilisés. Pour l’Atelier Signature, les originaux sont découpés et collés sur la toile ; ceux qui ne sont pas utilisés vous sont rendus.</p></div>
+          <div><h3>Les dessins originaux sont-ils abîmés ?</h3><p>Pour les tableaux imprimés, jamais : seuls les scans sont utilisés. Avec le kit DIY, c’est vous qui découpez et collez les originaux : ne coupez que ceux que vous voulez voir sur la toile.</p></div>
           <div><h3>Livrez-vous hors de France ?</h3><p>Les tarifs affichés incluent la livraison standard en France métropolitaine. Pour l’Europe, écrivez-nous : nous établissons un devis de transport.</p></div>
           <div><h3>Et pour un cadeau ?</h3><p>Le tableau encadré 50 × 70 est pensé pour ça : prêt à accrocher, livré protégé. Indiquez-nous une adresse de livraison différente lors de la commande.</p></div>
         </div>

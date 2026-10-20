@@ -1443,7 +1443,7 @@
    * Deux ateliers. « Impression » : l'œuvre est composée à la taille d'un cadre standard du marché,
    * les dessins réduits pour y tenir, puis imprimée (papier d'art, encadrée, toile imprimée) ou
    * livrée en fichier HD. « Toile » : les dessins à leur taille réelle sur une toile du commerce ou
-   * adaptée à eux, à réaliser soi-même avec les originaux (guide, kit) ou par l'atelier (Signature).
+   * adaptée à eux, à réaliser soi-même avec les originaux (guide, kit).
    * Choix au départ : depuis l'accueil (?mode=), ou par les cartes au milieu de l'atelier vide (première
    * visite, « nouvelle œuvre ») ; une fois l'œuvre commencée, on ne change plus de type d'œuvre (le
    * mode est gardé avec chaque sauvegarde et chaque brouillon). Le dernier choix est mémorisé et
@@ -5708,7 +5708,7 @@ Réponds uniquement avec ce JSON :
   // tailles vendues : les cadres de l'atelier Impression (PRINT_FRAMES)
   const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] };
   const PRICES = {
-    hd: 14.9, guide: 24.9, kit: 89, signature: 490, signatureGrand: 690,
+    hd: 14.9, guide: 24.9, kit: 89,
     print: {
       papier: { '21x30': 29, '30x40': 39, '40x50': 49, '50x70': 59, '70x100': 89 },
       cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129, '70x100': 199 },
@@ -5716,29 +5716,26 @@ Réponds uniquement avec ce JSON :
     },
   };
   const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée'), toile: tr('sur toile') };
-  // Atelier Signature : toile 50 × 70 jusqu'à 20 dessins, ou grand format 70 × 100 au-delà de 75 cm
-  const signatureGrand = (it) => Math.max(Number(it.W), Number(it.H)) > 75;
-  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : it.product === 'signature' ? (signatureGrand(it) ? PRICES.signatureGrand : PRICES.signature) : PRICES[it.product]);
-  // produits de chaque atelier : impression (tirages, fichier) ou toile (à réaliser, ou par l'atelier)
-  const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit', 'signature'] };
+  const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : PRICES[it.product]);
+  // produits de chaque atelier : impression (tirages, fichier) ou toile (guide et kit, à réaliser soi-même)
+  const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit'] };
   const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
   const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
   function productLabel(it) {
     if (it.product === 'print') return tr`Tableau imprimé ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
-    if (it.product === 'signature') return signatureGrand(it) ? tr`Atelier Signature Grand (toile ${toile} cm, jusqu’à 30 dessins)` : tr`Atelier Signature (toile ${toile} cm, jusqu’à 20 dessins)`;
     if (it.product === 'kit') return tr`Kit DIY, toile ${toile} cm`;
     return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD') }[it.product];
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
   // d'après le catalogue — jamais celui qui a été stocké)
   const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^(panier-[a-z0-9]+|cloud:[0-9a-f-]{8,40})$/.test(it.recId)
-    && ['print', 'hd', 'guide', 'kit', 'signature'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
+    && ['print', 'hd', 'guide', 'kit'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
     && Number.isFinite(Number(it.W)) && Number.isFinite(Number(it.H));
-  // une œuvre faite avec les dessins originaux n'existe qu'en un exemplaire : guide, kit et Atelier
-  // Signature se commandent à l'unité ; le tableau imprimé et le fichier HD, en plusieurs exemplaires
-  const ONE_OFF = ['guide', 'kit', 'signature'];
+  // une œuvre faite avec les dessins originaux n'existe qu'en un exemplaire : guide et kit se
+  // commandent à l'unité ; le tableau imprimé et le fichier HD, en plusieurs exemplaires
+  const ONE_OFF = ['guide', 'kit'];
   const maxQty = (it) => (ONE_OFF.includes(it.product) ? 1 : 20);
   function loadCart() {
     let c;
@@ -5812,7 +5809,6 @@ Réponds uniquement avec ce JSON :
     box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(PRICES.print.papier['30x40'])}`;
     ['hd', 'guide', 'kit'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
     box.querySelector('input[value="kit"]').closest('label').querySelector('b').textContent = tr`Kit DIY ${fmt(comp.W)} × ${fmt(comp.H)}`;
-    box.querySelector('[data-price="signature"]').textContent = euros(signatureGrand(comp) ? PRICES.signatureGrand : PRICES.signature);
     box.querySelector('.cart-print').hidden = choice.product !== 'print' || !printMode();
     box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
     box.querySelectorAll('[data-size]').forEach((b) => {

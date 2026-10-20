@@ -52,8 +52,8 @@ cd collage && python3 -m http.server 8000
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
      Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et
-     carrés ; seule liste proposée), pour réaliser l'œuvre avec les originaux : guide DIY, kit DIY, ou
-     **Atelier Signature** (collage fait à la main par l'atelier : 490 € jusqu'à 75 cm, 690 € au-delà).
+     carrés ; seule liste proposée), pour réaliser l'œuvre soi-même avec les originaux : guide DIY ou
+     kit DIY (l'offre « Atelier Signature », collage fait par l'atelier, a été retirée).
      La toile est **conseillée d'office** (`pickCanvas`) : chaque toile Cultura est jugée sur le fond
      (les pages colorées la couvrent avec un franc chevauchement, sans manquer de papier), l'air laissé
      aux découpes (curseur), sa proportion (classique en tête, bande en dernier), sa taille par rapport
@@ -206,8 +206,8 @@ cd collage && python3 -m http.server 8000
      présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,
-     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €, Atelier
-     Signature 490 ou 690 €), et la quantité. La composition y est figée telle
+     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €),
+     et la quantité. La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
      brouillon ; la liste est dans localStorage et survit au rechargement. **Connecté, le panier est le
      même sur tous les appareils** : chaque article est une composition du compte marquée `meta.cart`
