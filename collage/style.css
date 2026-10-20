@@ -808,6 +808,10 @@ body.editing { overflow: hidden; }
 .scene-open-side { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 4px; }
 .scene-open-side .ico { width: 17px; height: 17px; }
 @media (min-width: 861px) { #print-mat-field { display: none !important; } }
+/* collage : pas de scène « entrée » ; et, dans la fenêtre de mise en scène (ordinateur), ni taille ni
+   orientation (elles se règlent dans la section Tailles) */
+body.mode-toile #scene-room [data-room="hall"] { display: none !important; }
+body.mode-toile .scene-modal .scene-size { display: none !important; }
 @media (max-width: 860px) { .scene-open-side { display: none !important; } }
 .scene-frame { position: relative; border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
 .scene-canvas { width: 100%; height: 100%; display: block; }

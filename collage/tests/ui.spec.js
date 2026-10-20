@@ -131,9 +131,13 @@ test.describe('Interface', () => {
     const { fixture } = require('./helpers');
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
-    await expect(page.locator('#compose-section')).toBeVisible();
+    // juste après l'import : l'onglet Tailles, tiroir à hauteur normale (l'œuvre reste visible)
+    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'sizes-section');
+    await expect(page.locator('#sizes-section')).toBeVisible();
+    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
     await expect(page.locator('#import-section')).toBeHidden();
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await expect(page.locator('#compose-section')).toBeVisible();
     await expect(page.locator('#toolbar')).toBeVisible();
     // l'onglet Dessins ouvre la section même si elle était repliée par défaut
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
@@ -1859,33 +1863,23 @@ test.describe('Mettre en scène', () => {
       } else {
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
         await expect(page.locator('#scene-mat')).toBeHidden();
-        // trois pièces : la chambre d'enfant par défaut, le salon et l'entrée au choix (mémorisé)
+        // collage : deux pièces, la chambre d'enfant par défaut et le salon (mémorisé) ; pas d'entrée
         await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
+        await expect(page.locator('#scene-room [data-room="hall"]')).toBeHidden();
         await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une étagère de chambre d’enfant.`);
         await page.locator('#scene-room [data-room="salon"]').click();
         await expect(page.locator('#scene-info')).toContainText('buffet');
         expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('salon');
-        await page.locator('#scene-room [data-room="hall"]').click();
-        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une console d’entrée.`);
+        // une entrée mémorisée (choisie pour un tableau imprimé) devient la chambre d'enfant pour un collage
+        await page.evaluate(() => { localStorage.setItem('atelier.piece', 'hall'); document.querySelector('#scene-room [data-room="salon"]').click(); localStorage.setItem('atelier.piece', 'hall'); });
         await page.locator('#scene-room [data-room="chambre"]').click();
         await expect(page.locator('#scene-info')).toContainText('chambre d’enfant');
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
-        // dans la fenêtre : la taille de l'œuvre se choisit aussi, l'image est grande (Échap la referme, plus bas)
-        expect(await page.locator('#scene-format').inputValue()).toBe(await page.locator('#format').inputValue());
-        const other = await page.locator('#scene-format option').evaluateAll((os, cur) => os.map((o) => o.value).find((v) => v !== cur), await page.locator('#format').inputValue());
-        await page.locator('#scene-format').selectOption(other);
-        await expect.poll(() => page.locator('#format').inputValue()).toBe(other);
+        // collage : dans la fenêtre, ni taille ni orientation (elles se règlent dans la section Tailles) ; l'image est grande
+        await expect(page.locator('#scene-format')).toBeHidden();
+        await expect(page.locator('#scene-orient')).toBeHidden();
         expect(await page.locator('#scene-canvas').evaluate((c) => c.clientWidth)).toBeGreaterThan(600);
-        // l'orientation aussi, en accord avec la section Tailles
-        const orient = await page.locator('#canvas-orient button.on').getAttribute('data-orient');
-        await expect(page.locator(`#scene-orient [data-orient="${orient}"]`)).toHaveClass(/on/);
-        const flip = orient === 'land' ? 'port' : 'land';
-        await page.locator(`#scene-orient [data-orient="${flip}"]`).click();
-        await expect(page.locator(`#canvas-orient [data-orient="${flip}"]`)).toHaveClass(/on/);
-        await page.waitForFunction((o) => { const c = AtelierGribouille.state.comp; return c && document.getElementById('progress').hidden && ((o === 'port') === (c.H > c.W)); }, flip, { timeout: 120000 });
-        await page.locator(`#scene-orient [data-orient="${orient}"]`).click();
-        await page.waitForFunction((o) => { const c = AtelierGribouille.state.comp; return c && document.getElementById('progress').hidden && ((o === 'port') === (c.H > c.W)); }, orient, { timeout: 120000 });
         // la mise en scène se télécharge en JPEG, 2000 × 1500 px
         const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#scene-save').click()]);
         expect(dl.suggestedFilename()).toBe('mise-en-scene-atelier-gribouille.jpg');

@@ -402,7 +402,7 @@
       $('empty').hidden = true;
       $('new-work').hidden = false;
       if (mobileQuery.matches) setStageFull(false); // le tiroir remonte avec les premiers dessins
-      if (!state.restoring) selectTab('compose-section');
+      if (!state.restoring) selectTab('sizes-section', { normal: true }); // téléphone : après un import, l'onglet Tailles, tiroir à hauteur normale
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
       // pas pour l'exemple, qui invite justement à importer ses propres dessins
       if (!mobileQuery.matches && $('import-section')._collapse && !(opts && opts.sample) && !state.drawings.some((d) => d.sample)) $('import-section')._collapse();
@@ -2571,7 +2571,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       over: tr('d’une console d’entrée'),
     },
   };
-  const sceneRoom = () => { try { const v = localStorage.getItem('atelier.piece'); return SCENES[v] ? v : 'chambre'; } catch (e) { return 'chambre'; } }; // la chambre d'enfant d'abord
+  // la chambre d'enfant d'abord ; l'entrée n'est proposée qu'en tableau imprimé (pas pour un collage)
+  const sceneRoom = () => { let v = null; try { v = localStorage.getItem('atelier.piece'); } catch (e) { /* ignoré */ } return SCENES[v] && (v !== 'hall' || printMode()) ? v : 'chambre'; };
   const sceneImgs = {};
   let sceneTimer = 0;
 
@@ -5713,7 +5714,7 @@ Réponds uniquement avec ce JSON :
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
   const TAB_OF = { more: ['saved-section'] };
   let autoTall = false; // le tiroir a été agrandi par l'onglet Tailles (et non par un geste)
-  function selectTab(id) {
+  function selectTab(id, opts) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
     if (!panel || !tabs) return;
@@ -5723,7 +5724,8 @@ Réponds uniquement avec ce JSON :
     btn.disabled = false;
     // Tailles (choix du cadre, orientation, mise en scène) : le tiroir s'ouvre en grand ; un autre
     // onglet le ramène à sa hauteur normale, sauf si c'est un geste qui l'avait agrandi
-    if (id === 'sizes-section') { document.body.classList.add('sheet-tall'); autoTall = true; }
+    // (opts.normal : Tailles sans agrandir le tiroir — juste après un import, l'œuvre reste visible)
+    if (id === 'sizes-section' && !(opts && opts.normal)) { document.body.classList.add('sheet-tall'); autoTall = true; }
     else if (autoTall) { document.body.classList.remove('sheet-tall'); autoTall = false; }
     // la fiche d'un dessin (tiroir à mi-hauteur) ne reste ouverte que dans l'onglet Dessins
     document.body.classList.toggle('sheet-detail', id === 'drawings-section' && !!state.current);

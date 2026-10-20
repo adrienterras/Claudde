@@ -422,6 +422,10 @@ cd collage && python3 -m http.server 8000
      d'outils (celle qui commence par Défaire) ; `layoutLabel` n'a plus à le placer ; un second
      bouton (`#scene-open-side`) l'ouvre aussi depuis la section Tailles, sous l'orientation ; sur
      ordinateur, cette section n'a plus le choix du passe-partout (il se fait dans la mise en scène) ;
+   - **collage et mise en scène** : pas de scène « entrée » (la chambre d'enfant la remplace si elle
+     était mémorisée, `sceneRoom`) ; sur ordinateur, la fenêtre de mise en scène n'a ni taille ni
+     orientation (elles se règlent dans la section Tailles) ;
+   - **téléphone, après un import** : l'onglet Tailles s'ouvre (et non Propositions) ;
    - **fiche d'un dessin dans le flux** : entre la phrase de la section Dessins et les dessins, elle
      ne flotte plus au-dessus de la liste (plus de `position: sticky`) ;
    - **tableau imprimé : pas de taille réelle dans la fiche** : les dessins y sont réduits pour tenir
