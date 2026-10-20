@@ -667,6 +667,15 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 body.bg-mode .stage { outline: 2px dashed var(--olive); outline-offset: -2px; }
 .zoom button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
 /* couleur du fond, à portée de main : pastille de la couleur actuelle, palette juste à côté */
+.zoom button.ground-open { display: grid; place-items: center; }
+.ground-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--dot, #f4f2ec); box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 2.5px var(--line); }
+.ground-open.none .ground-dot { background: repeating-linear-gradient(45deg, #efe9dd 0 3px, #e3dccd 3px 6px); }
+.ground-pop { position: absolute; right: 14px; bottom: 64px; z-index: 6; width: min(300px, calc(100% - 28px)); padding: 12px 14px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .55); }
+.ground-pop[hidden] { display: none; }
+.ground-pop-head { margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.86rem; }
+.ground-pop-head small { color: var(--muted); font-size: 0.78rem; }
+.ground-quick { gap: 8px; }
+.ground-quick button { width: 32px; height: 32px; }
 .zoom-val { min-width: 48px; text-align: center; font-family: var(--f-mono); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 body.stage-full .stage { position: fixed; inset: 0; z-index: 40; height: auto; }
 body.stage-full .stage { padding-top: env(safe-area-inset-top, 0px); }
@@ -1041,6 +1050,8 @@ body.stage-full .scene-open { display: none; }
   .zoom { right: 6px; bottom: auto; top: 62px; flex-direction: column; align-items: center; padding: 3px; gap: 1px; border-radius: 20px; overflow: hidden; }
   .zoom button { width: 32px; height: 32px; }
   .zoom-val { min-width: 0; font-size: 0.6rem; text-align: center; padding: 2px 0; }
+  .ground-pop { right: 50px; top: 62px; bottom: auto; width: min(280px, calc(100% - 66px)); }
+  .ground-quick button { width: 36px; height: 36px; }
   .label { bottom: calc(var(--sheet) + 8px); max-width: calc(100% - 20px); padding: 6px 12px; }
   .label b { font-size: 0.9rem; }
   .label span { display: none; }

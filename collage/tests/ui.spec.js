@@ -21,18 +21,22 @@ test.describe('Interface', () => {
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
   });
 
-  test('« Commencer une nouvelle œuvre » : dans Importer, sous le consentement de détourage, confirmation avant d’effacer', async ({ app }) => {
+  test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, sous le consentement sur téléphone, confirmation avant d’effacer', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#new-work')).toBeHidden();
     await app.import(['page-cutout.png']);
     const btn = page.locator('#new-work');
-    // l'étape Importer se replie après l'import : un clic sur son titre la rouvre, le bouton est dessous
-    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
-    await expect(btn).toBeHidden();
-    await page.locator('#import-section > h2').click();
     await expect(btn).toBeVisible();
-    // dans l'étape Importer, juste après le consentement de détourage (affiché ou non)
-    expect(await page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('share-cuts'); return document.getElementById('import-section').contains(b) && !!(c.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) && c.nextElementSibling === b; })).toBe(true);
+    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
+    // au-dessus de l'étape Importer, sans défiler
+    const [b, imp] = await Promise.all([btn.boundingBox(), page.locator('#import-section').boundingBox()]);
+    expect(b.y).toBeLessThan(imp.y);
+    expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
+    // sur téléphone : dans l'étape Importer, juste après le consentement de détourage (affiché ou non)
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('share-cuts'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    expect(await page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
     // refus : rien ne change
     page.once('dialog', (d) => { expect(d.message()).toContain('effacée'); d.dismiss(); });
     await btn.click();
@@ -402,7 +406,6 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
     // repartir de zéro efface le brouillon (l'étape Importer, repliée après la réouverture, se rouvre d'un clic)
     await page.evaluate(() => { window.confirm = () => true; });
-    await page.locator('#import-section > h2').click(); // (l'étape Importer, repliée après l'import, se rouvre d'un clic)
     await page.locator('#new-work').click();
     for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
     expect(await hasDraft(page)).toBe(false);
@@ -784,7 +787,6 @@ test.describe('Panier', () => {
     // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
     // (l'étape Importer, repliée après l'import, se rouvre d'un clic sur son titre)
     await page.evaluate(() => { window.confirm = () => true; });
-    await page.locator('#import-section > h2').click(); // (l'étape Importer, repliée après l'import, se rouvre d'un clic)
     await page.locator('#new-work').click();
     await page.waitForTimeout(800);
     await page.reload();
@@ -1452,8 +1454,8 @@ test.describe('Couleur du fond', () => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#ground')).toBeVisible();
-    // dernier bloc de la section, hors des réglages avancés (repliés) ; plus de pastille près de l'œuvre
-    expect(await page.evaluate(() => { const sec = document.getElementById('compose-section'); const last = sec.lastElementChild; const g = document.getElementById('ground'); return last.contains(g) && !document.getElementById('advanced').contains(g) && !document.getElementById('ground-open'); })).toBe(true);
+    // dernier bloc de la section, hors des réglages avancés (repliés)
+    expect(await page.evaluate(() => { const sec = document.getElementById('compose-section'); const last = sec.lastElementChild; const g = document.getElementById('ground'); return last.contains(g) && !document.getElementById('advanced').contains(g); })).toBe(true);
     const hex = await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
     await page.locator(`#ground button[data-hex="${hex}"]`).click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);
@@ -1462,6 +1464,44 @@ test.describe('Couleur du fond', () => {
     // en Galerie (fond blanc fixe) : nuancier sans objet
     await app.select('galerie');
     await expect(page.locator('#ground')).toHaveClass(/off/);
+  });
+
+  test('la pastille de la barre d’outils ouvre la palette ; une teinte s’applique tout de suite, les deux nuanciers restent d’accord', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await expect(page.locator('#ground-open')).toBeVisible();
+    await expect(page.locator('#ground-pop')).toBeHidden();
+    // la pastille montre la couleur peinte sur l'œuvre affichée
+    const dot0 = await page.evaluate(() => ({ dot: getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase(), ground: String(AtelierGribouille.state.comp.ground || '#f4f2ec').toLowerCase() }));
+    expect(dot0.dot).toBe(dot0.ground);
+    await page.locator('#ground-open').click();
+    await expect(page.locator('#ground-pop')).toBeVisible();
+    const hex = await page.evaluate(() => [...document.querySelectorAll('#ground-quick button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
+    await page.locator(`#ground-quick button[data-hex="${hex}"]`).click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);
+    await expect(page.locator(`#ground-quick button[data-hex="${hex}"]`)).toHaveClass(/on/);
+    await expect(page.locator(`#ground button[data-hex="${hex}"]`)).toHaveClass(/on/);
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('ground-open')).getPropertyValue('--dot').trim().toLowerCase())).toBe(hex.toLowerCase());
+    // la palette reste ouverte pour essayer d'autres teintes ; Échap la ferme
+    await expect(page.locator('#ground-pop')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#ground-pop')).toBeHidden();
+    // en Galerie (fond blanc fixe) : pas de palette
+    await app.select('galerie');
+    await expect(page.locator('#ground-open')).toBeDisabled();
+  });
+
+  test('sur téléphone, la pastille est dans la barre de droite et la palette tient dans l’écran', async ({ app }) => {
+    const { page } = app;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await page.locator('#ground-open').click();
+    await expect(page.locator('#ground-pop')).toBeVisible();
+    const r = await page.evaluate(() => { const b = document.getElementById('ground-pop').getBoundingClientRect(); return { l: b.left, r: b.right, w: innerWidth }; });
+    expect(r.l).toBeGreaterThanOrEqual(0);
+    expect(r.r).toBeLessThanOrEqual(r.w);
+    await page.mouse.click(20, 400);
+    await expect(page.locator('#ground-pop')).toBeHidden();
   });
 
   test('toute nouvelle création part en couleur automatique ; une œuvre rouverte garde la sienne', async ({ app }) => {

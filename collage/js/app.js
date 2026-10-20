@@ -1371,6 +1371,24 @@
     if (state.comp && state.comp.style === 'galerie') el.textContent = tr('blanc, fixe en Galerie');
     else if (state.ground === 'auto') el.textContent = state.comp && state.comp.groundName ? tr`conseillé · ${state.comp.groundName}` : tr('conseillé selon la composition');
     else { const paint = groundPaint(); el.textContent = paint ? paint[0] : state.ground === GROUND_WHITE ? tr('sans couleur (blanc)') : tr('toile nue'); }
+    // la pastille près de l'œuvre : la couleur réellement peinte sur la proposition affichée
+    const pop = $('ground-pop-name'), btn = $('ground-open');
+    if (pop) pop.textContent = el.textContent;
+    if (btn) {
+      const hex = state.comp ? state.comp.ground || '' : state.ground && state.ground !== 'auto' ? state.ground : '';
+      btn.style.setProperty('--dot', hex || '#f4f2ec');
+      btn.classList.toggle('none', !hex);
+      btn.title = tr`Couleur du fond : ${el.textContent}`;
+    }
+  }
+  // palette rapide : s'ouvre près de l'œuvre, reste ouverte pour essayer plusieurs teintes,
+  // se ferme d'un appui ailleurs ou avec Échap
+  function setGroundPop(open) {
+    const pop = $('ground-pop'), btn = $('ground-open');
+    if (!pop || !btn) return;
+    pop.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) updateGroundName();
   }
   // Nouveau fond de toile. Une œuvre déjà retouchée à la main, ou rouverte telle quelle (brouillon,
   // composition sauvegardée), garde sa mise en place : seul le fond change (couleur de peinture, ou
@@ -1396,10 +1414,10 @@
     render();
   }
 
-  // le nuancier du fond, en bas de la section Propositions
-  const GROUND_SWATCHES = '#ground button';
+  // les deux nuanciers du fond : en bas de la section Propositions, et la palette rapide près de l'œuvre
+  const GROUND_SWATCHES = '#ground button, #ground-quick button';
   function fillGround() {
-    ['ground'].forEach((id) => {
+    ['ground', 'ground-quick'].forEach((id) => {
       const box = $(id);
       if (!box) return;
       const mk = (name, hex) => {
@@ -1477,9 +1495,9 @@
   // sélecteur de fond est construit (après l'initialisation du mode)
   function syncGroundMode() {
     const print = printMode();
-    document.querySelectorAll('#ground button[data-hex=""]').forEach((b) => { b.hidden = print; });
+    document.querySelectorAll('#ground button[data-hex=""], #ground-quick button[data-hex=""]').forEach((b) => { b.hidden = print; });
     // « sans couleur » (blanc pur) n'existe qu'en Impression ; la toile nue, qu'en Toile
-    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print; });
+    document.querySelectorAll(`#ground button[data-hex="${GROUND_WHITE}"], #ground-quick button[data-hex="${GROUND_WHITE}"]`).forEach((b) => { b.hidden = !print; });
     if ((print && state.ground === '') || (!print && state.ground === GROUND_WHITE)) setGround(undefined);
   }
   function initMode() {
@@ -2120,6 +2138,9 @@
     // fond de toile : sans objet en Galerie (blanc, fixe)
     document.querySelectorAll(GROUND_SWATCHES).forEach((b) => { b.disabled = white; });
     $('ground').classList.toggle('off', white);
+    $('ground-quick').classList.toggle('off', white);
+    $('ground-open').disabled = white;
+    if (white) setGroundPop(false);
   }
 
   // Cartel sous l'œuvre, comme au musée.
@@ -4109,6 +4130,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   placeScene();
   mobileQuery.addEventListener('change', placeScene);
+  // « Commencer une nouvelle œuvre » : sur ordinateur, au-dessus du titre « 01 Importer » ; sur
+  // téléphone, dans l'étape Importer sous le consentement de détourage
+  function placeNewWork() {
+    const btn = $('new-work'), sec = $('import-section'), consent = $('share-cuts');
+    if (!btn || !sec) return;
+    if (mobileQuery.matches) { if (consent && consent.nextElementSibling !== btn) consent.after(btn); }
+    else if (sec.previousElementSibling !== btn) sec.before(btn);
+  }
+  placeNewWork();
+  mobileQuery.addEventListener('change', placeNewWork);
   // le choix de la taille, recopié de celui de la section Tailles
   function syncSceneFormat() {
     const f = $('format'), sf = $('scene-format');
@@ -4175,6 +4206,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     importUserFiles(Array.from(e.dataTransfer.files));
   });
 
+  $('ground-open').addEventListener('click', (e) => { e.stopPropagation(); setGroundPop($('ground-pop').hidden); });
+  document.addEventListener('pointerdown', (e) => { const pop = $('ground-pop'); if (!pop.hidden && !pop.contains(e.target) && e.target !== $('ground-open') && !$('ground-open').contains(e.target)) setGroundPop(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   ['pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
   // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose

@@ -133,6 +133,7 @@
     'L’œuvre en cours de votre compte n’a pas pu être rouverte.': 'The work in progress in your account could not be reopened.',
     // couleur du fond, à portée de main
     'Couleur du fond': 'Background colour',
+    'Couleur du fond : {0}': 'Background colour: {0}',
     'Toile nue (lin, sans peinture)': 'Bare canvas (linen, unpainted)',
     // importer demande un compte (l'exemple reste libre)
     'importer vos dessins': 'import your drawings',

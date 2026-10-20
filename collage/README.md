@@ -382,8 +382,11 @@ cd collage && python3 -m http.server 8000
      pour le brouillon) : le relire au retour au premier plan et toutes les minutes pesait sur la bande
      passante sortante du compte Supabase. « Oublier cette œuvre » l'efface des deux côtés ;
    - **couleur du fond** : le nuancier (`#ground`) est le dernier bloc de la section Propositions
-     (hors des réglages avancés) ; une teinte s'applique tout de suite à l'œuvre affichée (`applyGround`,
-     mise en place gardée) ; sans objet en Galerie (fond blanc fixe) ;
+     (hors des réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
+     près de l'œuvre, ouvre la même palette juste à côté (`#ground-pop`, reste ouverte pour essayer
+     plusieurs teintes, se ferme d'un appui ailleurs ou avec Échap) ; une teinte s'applique tout de
+     suite à l'œuvre affichée (`applyGround`, mise en place gardée), les deux nuanciers restent
+     d'accord ; sans objet en Galerie (fond blanc fixe) ;
    - **tableau imprimé : la taille ne refait pas l'œuvre** : changer de cadre ou de passe-partout met
      l'œuvre affichée à la nouvelle taille telle quelle (`keepPrintComp` → `fitCompTo` : places en
      proportion, dessins et pages à la même échelle, cadre noté sur la composition) et changer
@@ -397,7 +400,8 @@ cd collage && python3 -m http.server 8000
      choix du type d'œuvre prennent tout l'écran ; il remonte sur Importer avec le choix d'une carte
      (ou d'un onglet), et avec les premiers dessins (`setStageFull`) ; l'étape Importer ne propose plus l'exemple ni
      « commencer une nouvelle œuvre » en phrases (le bouton « Voir un exemple » de l'accueil vide et le
-     bouton « Commencer une nouvelle œuvre », sous le consentement de détourage dans Importer, suffisent) ;
+     bouton « Commencer une nouvelle œuvre » suffisent : au-dessus du titre « 01 Importer » sur
+     ordinateur, sous le consentement de détourage dans Importer sur téléphone — `placeNewWork`) ;
    - **fond de toile** : au choix, la toile nue (lin ; en Impression, « sans couleur » : blanc pur) ou un aplat d'acrylique dans les teintes
      classiques du commerce (blanc de titane, jaune de Naples, ocre, cadmiums, terres, verts, bleus,
      violet, gris de Payne, noir de Mars) ; il couvre toute la toile et permet une œuvre aérée quand
