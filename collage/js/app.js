@@ -442,10 +442,11 @@
     });
   }
 
-  // Bandeau « tailles à vérifier » : les feuilles dont la taille n'a pas pu être reconnue.
+  // Bandeau « tailles à vérifier » : les feuilles dont la taille n'a pas pu être reconnue. Sans objet
+  // en tableau imprimé (les dessins y sont réduits au cadre : seule leur taille relative compte).
   function renderUncertain() {
     const box = $('sizes-check');
-    const list = state.drawings.filter((d) => d.uncertain && d.sizeMode === 'auto');
+    const list = printMode() ? [] : state.drawings.filter((d) => d.uncertain && d.sizeMode === 'auto');
     box.hidden = !list.length;
     const alert = $('sizes-alert');
     if (alert) {
@@ -1488,8 +1489,8 @@
     $('guide-box').hidden = m === 'impression';
     syncGroundMode();
     fillFormats();
-    // les alertes d'impression n'existent qu'en tableau imprimé
-    if (state.drawings && state.drawings.length) { refreshLists(); renderDetail(); }
+    // les alertes d'impression n'existent qu'en tableau imprimé ; la vérification des tailles, qu'en collage
+    if (state.drawings && state.drawings.length) { refreshLists(); renderDetail(); renderUncertain(); }
   }
   // impression : fond uni obligatoire (pas de toile nue) ; appelé au changement de mode et quand le
   // sélecteur de fond est construit (après l'initialisation du mode)

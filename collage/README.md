@@ -159,7 +159,9 @@ cd collage && python3 -m http.server 8000
    (le scan médian est supposé A4) ; elle n'est arrondie à un format standard que si la feuille en a
    les proportions. Un bandeau **« Tailles à vérifier »** liste les feuilles douteuses (bandes, rouleaux,
    très grands ou très petits formats) avec un champ pour saisir leur plus grand côté : c'est cette
-   taille qui fixe celle du dessin dans l'œuvre.
+   taille qui fixe celle du dessin dans l'œuvre. Ce bandeau (et l'alerte de la section Propositions)
+   n'existe qu'en collage avec les originaux : en tableau imprimé, les dessins sont réduits au cadre
+   et seule leur taille relative compte (`renderUncertain`, relancé au changement de mode).
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    de TOUS les dessins, et **à leur taille réelle** : rien n'est réduit ni agrandi, puisque l'œuvre
    sera réalisée avec les originaux. C'est la toile qui s'adapte :

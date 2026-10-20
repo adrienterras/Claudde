@@ -106,6 +106,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:30x40');
     await expect(page.locator('#guide-box')).toBeHidden();
     await expect(page.locator('#sizes-hint')).toBeHidden();
+    // pas de vérification des tailles en tableau imprimé (la photo importée serait « à vérifier » en collage)
+    await expect(page.locator('#sizes-alert')).toBeHidden();
+    await expect(page.locator('#sizes-check')).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.some((d) => d.uncertain))).toBe(true);
     // le cadre 21 × 30 sans passe-partout : l'œuvre fait exactement un A4 (29,7 × 21, paysage), tous
     // les dessins (curseur au maximum) sont réduits pour y tenir
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
