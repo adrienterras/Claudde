@@ -1503,6 +1503,7 @@
     syncMatButtons();
     $('sizes-hint').textContent = tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
+    $('drawings-hint').textContent = m === 'impression' ? tr('Touchez un dessin pour régler son rôle ou le retoucher.') : tr('Touchez un dessin pour régler son rôle et sa taille réelle.');
     syncGroundMode();
     fillFormats();
     // les alertes d'impression n'existent qu'en tableau imprimé ; la vérification des tailles, qu'en collage

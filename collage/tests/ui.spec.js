@@ -1295,6 +1295,7 @@ test.describe('Fiche d’un dessin en tableau imprimé', () => {
     await expect(page.locator('#detail [data-custom]')).toHaveCount(0);
     await expect(page.locator('#detail')).not.toContainText('Taille réelle');
     await expect(page.locator('#detail')).not.toContainText('taille réelle');
+    await expect(page.locator('#drawings-hint')).toHaveText('Touchez un dessin pour régler son rôle ou le retoucher.');
     // le reste de la fiche est là : rôle, retouche, orientation
     await expect(page.locator('#detail [data-role="cutout"]')).toHaveCount(1);
     await expect(page.locator('#detail [data-edit]')).toBeVisible();
@@ -1303,6 +1304,7 @@ test.describe('Fiche d’un dessin en tableau imprimé', () => {
     await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await expect(page.locator('#detail [data-cm="custom"]')).toBeVisible();
     await expect(page.locator('#detail')).toContainText('Taille réelle');
+    await expect(page.locator('#drawings-hint')).toContainText('sa taille réelle');
     expect(app.errors).toEqual([]);
   });
 });

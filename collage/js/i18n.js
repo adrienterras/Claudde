@@ -223,6 +223,7 @@
     'La dernière réouverture de votre œuvre ({0} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.': 'The last reopening of your work ({0} drawings) did not finish: the page may have closed for lack of memory.',
     ' (plus de place sur les étagères)': ' (no room left on the shelves)',
     'Touchez un dessin pour régler son rôle et sa taille réelle.': 'Tap a drawing to set its role and its real size.',
+    'Touchez un dessin pour régler son rôle ou le retoucher.': 'Tap a drawing to set its role or touch it up.',
     'Le téléchargement en haute définition et la sauvegarde demandent un compte gratuit : il garde vos œuvres sur tous vos appareils. L’aperçu ci-dessous est libre.': 'High-definition download and saving require a free account: it keeps your artworks on all your devices. The preview below is free to use.',
     'Aperçu sans compte': 'Preview without an account',
     'basse définition, filigrane': 'low resolution, watermark',
