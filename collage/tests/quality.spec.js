@@ -54,7 +54,7 @@ test.describe('Qualité pour l’impression', () => {
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     // une seule pastille rouge, sur le petit dessin
     await expect(page.locator('#drawings .thumb .q.bad')).toHaveCount(1);
-    await expect(page.locator('#drawings .thumb').nth(small).locator('.q.bad')).toHaveCount(1);
+    await expect(page.locator(`#drawings .thumb[data-i="${small}"]`).locator('.q.bad')).toHaveCount(1);
     // bandeau dans Propositions, et « Voir lesquels » ouvre la fiche du dessin
     await expect(page.locator('#quality-alert')).toBeVisible();
     await expect(page.locator('#quality-alert')).toContainText('flou');
@@ -76,7 +76,7 @@ test.describe('Qualité pour l’impression', () => {
     // en A6, la même image suffit : plus d'alerte
     await page.evaluate((i) => { const d = AtelierGribouille.state.drawings[i]; d.sizeCm = 14.8; }, small);
     await page.evaluate(() => AtelierGribouille.regenerate());
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('#quality-alert')).toBeHidden();
     await expect(page.locator('#export-quality')).toBeHidden();
     expect(app.errors).toEqual([]);

@@ -143,7 +143,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(roles['page-cutout.png']).toBe('cutout');
     expect(roles['page-two.png']).toBe('cutout');
     await page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('#detail [data-role="texture"]')).toHaveCount(1);
     expect(await page.evaluate(() => document.querySelector('#ground button[data-hex=""]').hidden)).toBe(true);
     // « Sans couleur » : un fond blanc pur, proposé seulement en Impression

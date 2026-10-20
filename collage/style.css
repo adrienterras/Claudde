@@ -180,9 +180,6 @@ button, select, input { font: inherit; color: inherit; }
 body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 
 /* légende des rôles */
-.roles-legend { list-style: none; margin: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-radius: var(--r-sm); background: var(--surface-2); font-size: 0.78rem; color: var(--ink-2); line-height: 1.4; }
-.roles-legend li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: center; }
-.roles-legend .tag { justify-self: start; }
 
 /* bandeaux : tailles à vérifier, sélection partielle, compte avant export */
 #cut-learned { position: relative; padding-right: 40px; }
@@ -515,6 +512,9 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 
 /* Dessins et pièces */
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.drawings-groups { display: grid; gap: 12px; }
+.drawings-group h4 { margin: 0 0 6px; font-size: 0.72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.drawings-group h4 small { font-weight: 400; letter-spacing: 0; text-transform: none; }
 .grid.pieces { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 
 .thumb {
@@ -548,7 +548,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .tag { display: inline-block; font-size: 0.64rem; font-weight: 600; padding: 1px 6px; border-radius: 999px; letter-spacing: .01em; }
 .tag.cutout { background: var(--accent); color: var(--on-ink); }
 .tag.photo { background: var(--ink); color: var(--on-ink); }
-.thumb .tag.photo { left: 4px; bottom: 24px; }
+.thumb .tag.photo { left: 4px; bottom: 4px; }
 .hint.photo { padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-2); }
 .tag.texture { background: var(--texture); color: var(--on-ink); }
 .tag.off { background: var(--muted); color: var(--on-ink); }

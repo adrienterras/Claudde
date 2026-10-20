@@ -983,12 +983,25 @@
     renderQuality();
     const dEl = $('drawings');
     dEl.innerHTML = '';
-    state.drawings.forEach((d) => {
+    // par type, dans l'ordre des plans : les fonds (arrière-plan), les découpes (premier plan), les ignorés
+    const GROUPS = [['texture', tr('Arrière-plan')], ['cutout', tr('Premier plan')], ['off', tr('Non utilisé')]];
+    const grids = {};
+    GROUPS.forEach(([role, name]) => {
+      const n = state.drawings.filter((d) => roleOf(d) === role).length;
+      if (!n) return;
+      const g = document.createElement('div');
+      g.className = `drawings-group ${role}`;
+      g.innerHTML = `<h4>${name} <small>(${n})</small></h4><div class="grid"></div>`;
+      dEl.appendChild(g);
+      grids[role] = g.querySelector('.grid');
+    });
+    state.drawings.forEach((d, i) => {
       const role = roleOf(d);
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
+      el.dataset.i = String(i);
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
-      el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}><b class="tag ${role}">${roleLabel(d)}</b>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
+      el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
@@ -1002,7 +1015,7 @@
           if (panel && box) setTimeout(() => { panel.scrollTo({ top: Math.max(0, box.offsetTop - 12), behavior: 'smooth' }); }, 60);
         }
       };
-      dEl.appendChild(el);
+      (grids[role] || dEl).appendChild(el);
     });
     $('drawings-count').textContent = `(${state.drawings.length})`;
     renderDetail();

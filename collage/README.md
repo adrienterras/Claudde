@@ -89,7 +89,9 @@ cd collage && python3 -m http.server 8000
    l'appareil du téléphone » : un champ de fichier `capture="environment"` qui ouvre l'appareil photo
    natif ; ses photos sont gardées et importées comme les autres. Sur téléphone et tablette, la
    visée demande 2560 × 1920 (assez pour un A4 à 150 dpi, sans peser sur la mémoire) ; 4K sur ordinateur.
-2. **Dessins** : chaque page est classée automatiquement
+2. **Dessins** (section du même nom : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
+   *Premier plan* les découpes, *Non utilisé* les ignorés — sans badge de rôle ; la fiche d'un dessin
+   change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
      ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, un contour

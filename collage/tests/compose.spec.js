@@ -140,7 +140,7 @@ test.describe('Compositions', () => {
   test('Courtepointe sans page de fond (atelier Impression) : les découpes en rangées pleine largeur, toute la toile couverte', async ({ app }) => {
     // la page peinte serait collée en fond : ici on la veut en découpe, pour une œuvre sans page de fond
     await app.page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
-    await app.page.locator('#drawings .thumb').nth(2).click();
+    await app.page.locator('#drawings .thumb[data-i="2"]').click();
     await app.page.locator('#detail [data-role="cutout"]').click();
     await app.page.waitForTimeout(300);
     // tous les dessins (curseur au maximum)

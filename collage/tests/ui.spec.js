@@ -101,9 +101,9 @@ test.describe('Interface', () => {
     await expect(page.locator('#toolbar')).toBeVisible();
     // l'onglet Dessins ouvre la section même si elle était repliée par défaut
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
-    await expect(page.locator('#drawings .thumb').first()).toBeVisible();
+    await expect(page.locator('#drawings .thumb[data-i="0"]')).toBeVisible();
     // la fiche d'un dessin s'ouvre dans un tiroir agrandi et se ferme par sa croix
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('#detail')).toBeVisible();
     await expect(page.locator('body')).toHaveClass(/sheet-detail/);
     await page.locator('#detail .detail-close').click();
@@ -180,7 +180,7 @@ test.describe('Téléphone, tiroir agrandi', () => {
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('body')).toHaveClass(/sheet-detail/);
     // tiroir agrandi à fond (glissement vers le haut) : la zone de l'œuvre n'a presque plus de place
     await page.evaluate(() => document.body.classList.add('sheet-tall'));
@@ -209,7 +209,7 @@ test.describe('Fiche d’un dessin sur téléphone', () => {
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png'), fixture('page-texture.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('#detail')).toBeVisible();
     await page.waitForTimeout(300);
     // l'œuvre reste visible au-dessus de la fiche
@@ -376,7 +376,7 @@ test.describe('Brouillon', () => {
     const otherStyle = await page.evaluate(() => AtelierGribouille.state.comp.style);
     expect(otherStyle).not.toBe(pinnedStyle);
     await page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     await page.locator('#detail [data-role="texture"]').click();
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(otherStyle);
@@ -555,7 +555,7 @@ test.describe('Luminosité, contraste et saturation', () => {
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.locator('#drawings-section > h2').click();
-    await page.locator('#drawings .thumb').first().click();
+    await page.locator('#drawings .thumb[data-i="0"]').click();
     // une découpe : pas de curseurs dans la fiche, ils sont dans la fenêtre de retouche
     await expect(page.locator('#detail [data-tone="b"]')).toHaveCount(0);
     const fit = await page.evaluate(() => {
@@ -605,7 +605,7 @@ test.describe('Luminosité, contraste et saturation', () => {
     expect(await page.evaluate(() => !!AtelierGribouille.state.drawings[0].analysis.pieces[0].edited)).toBe(false);
     expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, comp)).toBe(true);
     expect(await mean()).toBeLessThan(m0 - 1);
-    expect(await page.locator('#drawings .thumb').first().locator('img').evaluate((i) => i.style.filter)).toContain('brightness(0.6)');
+    expect(await page.locator('#drawings .thumb[data-i="0"]').locator('img').evaluate((i) => i.style.filter)).toContain('brightness(0.6)');
     expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(true);
 
     // en rouvrant, les curseurs reprennent le réglage ; automatique puis Rétablir
@@ -684,7 +684,7 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
     // un dessin choisi dans la liste est sélectionné sur l'œuvre (cadre, poignée, barre d'outils)
     await page.locator('#drawings-section > h2').click();
     for (const i of [1, 0]) {
-      await page.locator('#drawings .thumb').nth(i).click();
+      await page.locator(`#drawings .thumb[data-i="${i}"]`).click();
       await expect(page.locator('#detail')).toBeVisible();
       expect(await page.evaluate((i) => { const s = AtelierGribouille.state; return !!s.selected && s.selected.piece && s.selected.piece.drawing === s.drawings[i]; }, i)).toBe(true);
       await expect(page.locator('#toolbar [data-act="flip"]')).toBeEnabled();
@@ -693,7 +693,7 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
     await page.locator('#detail [data-nav="1"]').click();
     expect(await page.evaluate(() => { const s = AtelierGribouille.state; return s.selected && s.selected.piece.drawing === s.drawings[1]; })).toBe(true);
     // refermer la fiche (re-clic sur la vignette) retire la sélection
-    await page.locator('#drawings .thumb').nth(1).click();
+    await page.locator('#drawings .thumb[data-i="1"]').click();
     expect(await page.evaluate(() => AtelierGribouille.state.selected)).toBeNull();
     // le brouillon garde la photo HEIC en JPEG, lisible sur n'importe quel navigateur
     let type = null;
@@ -1224,7 +1224,7 @@ test.describe('Taille d’un dessin changée sur l’œuvre', () => {
   test('A4 et A2 : la taille exacte est gardée et la puce s’allume (pas d’arrondi au demi-centimètre)', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
-    await page.evaluate(() => document.querySelector('#drawings .thumb').click());
+    await page.evaluate(() => document.querySelector('#drawings .thumb[data-i="0"]').click());
     for (const [name, cm] of [['A4', 29.7], ['A2', 59.4], ['A5', 21]]) {
       await page.evaluate((name) => [...document.querySelectorAll('#detail [data-cm]')].find((b) => b.textContent.trim() === name).click(), name);
       expect(await page.evaluate(() => AtelierGribouille.state.current.sizeCm)).toBe(cm);
@@ -1254,7 +1254,7 @@ test.describe('Taille d’un dessin changée sur l’œuvre', () => {
       return { style: c.style, all: c.bg.concat(c.items).map((L) => ({ d: nameOf(L), x: L.x, y: L.y, rot: L.rot, w: L.w })) };
     });
     const before = await layers();
-    await page.evaluate(() => document.querySelector('#drawings .thumb').click());
+    await page.evaluate(() => document.querySelector('#drawings .thumb[data-i="0"]').click());
     const d0 = await page.evaluate(() => ({ name: AtelierGribouille.state.current.name, cm: AtelierGribouille.state.current.sizeCm }));
     await page.evaluate((big) => [...document.querySelectorAll('#detail [data-cm]')].find((b) => b.textContent.trim() === (big ? 'A4' : 'A3')).click(), d0.cm > 35);
     const d1 = await page.evaluate(() => AtelierGribouille.state.current.sizeCm);
