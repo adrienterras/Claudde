@@ -180,7 +180,7 @@
     'sur toile': 'on canvas',
     'Tableau imprimé {0} {1}': 'Printed artwork, {0}, {1}',
     'Fichier HD': 'HD file',
-    'Guide DIY + fichier HD': 'DIY guide + HD file',
+    'Guide DIY': 'DIY guide',
     'Kit DIY 50 × 70': 'DIY kit 50 × 70',
     'Kit DIY {0} × {1}': 'DIY kit {0} × {1}',
     'Kit DIY, toile {0} cm': 'DIY kit, {0} cm canvas',

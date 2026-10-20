@@ -5876,7 +5876,7 @@ Réponds uniquement avec ce JSON :
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
     if (it.product === 'kit') return tr`Kit DIY, toile ${toile} cm`;
-    return { hd: tr('Fichier HD'), guide: tr('Guide DIY + fichier HD') }[it.product];
+    return { hd: tr('Fichier HD'), guide: tr('Guide DIY') }[it.product];
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
   // d'après le catalogue — jamais celui qui a été stocké)
