@@ -14,7 +14,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#mode-pick')).toBeHidden();
     await expect(page.locator('#empty-sample')).toBeHidden();
     await expect(page.locator('#empty-import')).toBeVisible();
-    await expect(page.locator('#empty-import-title')).toHaveText('Tableau imprimé à partir de vos photos');
+    await expect(page.locator('#empty-import-title')).toHaveText('Création imprimée à partir de vos dessins');
     await expect(page.locator('#empty-drop')).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('atelier.mode'))).toBe('impression');
     // « changer de type » ramène les cartes, aucune présélectionnée

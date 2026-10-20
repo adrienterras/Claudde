@@ -1575,7 +1575,7 @@
     if (!done) document.querySelectorAll('#mode-pick button').forEach((b) => { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); });
     $('empty-sample').hidden = done || !state.sampleManifest;
     $('empty-import').hidden = !done;
-    if (done) $('empty-import-title').textContent = modeOf() === 'impression' ? tr('Tableau imprimé à partir de vos photos') : tr('Collage avec les dessins originaux');
+    if (done) $('empty-import-title').textContent = modeOf() === 'impression' ? tr('Création imprimée à partir de vos dessins') : tr('Collage avec les dessins originaux');
   }
 
   function formatCm() {

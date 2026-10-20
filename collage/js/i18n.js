@@ -408,7 +408,7 @@
     'Toile Cultura conseillée pour vos dessins (changez-la dans la liste). ': 'Cultura canvas recommended for your drawings (change it in the list). ',
     'Toile de {0} × {1} cm : il manque du papier, le fond ne couvre que {2} % de la toile. Choisissez une toile plus petite, ou passez d’autres dessins en fond.': 'Canvas of {0} × {1} cm: not enough paper, the background covers only {2}% of the canvas. Choose a smaller canvas, or set more drawings as background.',
     'dessins réduits à {0} % pour le cadre': 'drawings scaled to {0}% for the frame',
-    'Tableau imprimé à partir de vos photos': 'Printed artwork from your photos',
+    'Création imprimée à partir de vos dessins': 'Printed creation from your drawings',
     'Collage avec les dessins originaux': 'Collage with the original drawings',
     'Cadres standard · papier d’art, encadré ou toile imprimée': 'Standard frames · art paper, framed or printed canvas',
     'Type d’œuvre': 'Type of artwork',

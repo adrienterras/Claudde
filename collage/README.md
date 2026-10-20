@@ -21,7 +21,7 @@ cd collage && python3 -m http.server 8000
    photographier sur téléphone ; « Changer de type d'œuvre » ramène les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
    le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).
-   - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
+   - **Création imprimée à partir de vos dessins** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
      **cinq cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70, 70 × 100 ; seule liste
      proposée, 30 × 40 par défaut, un ancien réglage ramené au cadre le plus proche). Un choix « Sans /
      Avec passe-partout » à côté du cadre (mémorisé, repris par la mise en scène) fixe la taille

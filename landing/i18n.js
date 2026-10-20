@@ -50,7 +50,7 @@
     "des œuvres d’art.": "works of art.",
     "Scannez ou prenez en photo les dessins qui s’accumulent. L’atelier les découpe comme avec des ciseaux et compose une œuvre unique : à imprimer, ou à réaliser à la main avec les dessins originaux, pour l’accrocher chez vous.": "Scan or photograph the drawings piling up. The studio cuts them out as if with scissors and composes a unique artwork: to print, or to make by hand with the original drawings, and hang at home.",
     "Créer mon œuvre": "Create my artwork",
-    "Tableau imprimé à partir de vos photos": "Printed artwork from your photos",
+    "Création imprimée à partir de vos dessins": "Printed creation from your drawings",
     "Collage avec les dessins originaux": "Collage with the original drawings",
     "Voir un exemple": "See an example",
     "Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.": "Free to compose. The drawings remain yours: everything happens in your browser, and in your account if you create one.",
