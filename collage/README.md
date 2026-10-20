@@ -212,7 +212,8 @@ cd collage && python3 -m http.server 8000
      téléphone, petit, avec l'icône d'un sac, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » à côté
      (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
-     présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette) ou
+     présente, avec le compteur en pastille) ; chaque proposition (bouton sur sa vignette, sur ordinateur
+     seulement : pas d'icône panier sur les propositions au téléphone) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,
      30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY 50 × 70 89 €),

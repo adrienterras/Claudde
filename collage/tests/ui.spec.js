@@ -1308,6 +1308,10 @@ test.describe('Panier sur téléphone', () => {
     const b = await cta.boundingBox();
     expect(b.height).toBeLessThan(32); // bouton discret
     expect(b.x).toBeLessThan(20); // en bas à gauche de l'œuvre, à l'opposé des outils
+    // pas d'icône panier sur les cartes de propositions (sur ordinateur seulement)
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    expect(await page.locator('.proposal-cart').count()).toBeGreaterThan(0);
+    await expect(page.locator('.proposal-cart').first()).toBeHidden();
     const zoom = await page.locator('.zoom').boundingBox();
     expect(b.x + b.width).toBeLessThan(zoom.x); // il ne croise pas la colonne d'outils
     await expect(cta.locator('.ico')).toBeVisible(); // l'icône du sac, sur téléphone

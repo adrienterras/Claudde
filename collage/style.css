@@ -931,6 +931,7 @@ body.stage-full .scene-open { display: none; }
 
 /* Téléphone : Annuler · Valider en haut, le dessin au milieu, les outils en bas, à portée du pouce */
 @media (max-width: 860px) {
+  .proposal-cart { display: none; } /* téléphone : pas d'icône panier sur les propositions (le bouton « Commander » suffit) */
   .ed-foot { grid-row: 1; padding: 8px 12px; border-top: 0; border-bottom: 1px solid var(--line); gap: 8px; }
   .ed-stage { grid-row: 2; }
   .ed-bar { grid-row: 3; border-bottom: 0; border-top: 1px solid var(--line); padding: 10px 12px 12px; gap: 10px 8px; }
