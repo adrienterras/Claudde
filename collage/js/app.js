@@ -1859,10 +1859,18 @@
   // retenus (les plus forts d'abord, autant que le curseur en demande, comme à la pose) doivent couvrir
   // la part de l'affiche que le curseur fixe ; plus on demande de dessins, plus ils sont réduits, et le
   // nombre posé grandit pas à pas. Jamais agrandis (netteté du tirage).
-  // Affiche : nombre de sujets posés pour une position du curseur (part des sujets, de 12 % en bas à
-  // tous en haut, lentement d'abord : peu de dessins, mais grands) et surface qu'ils demandent
-  // ensemble (de 90 % de l'affiche à 140 % : ils se chevauchent et la remplissent)
-  const printCount = (n, t) => Math.max(1, Math.round(n * (0.12 + 0.88 * Math.pow(t, 1.6))));
+  // Affiche : nombre de découpes posées pour une position du curseur. Le curseur est linéaire et
+  // compte tous les dessins, pages de fond comprises (toujours posées) : à mi-course, la moitié des
+  // dessins est sur l'œuvre, comme l'indique « N sur M » ; en bas, les pages et une découpe ; en
+  // haut, tout. (Une découpe par dessin le plus souvent.) Et la surface qu'elles demandent ensemble
+  // (de 90 % de l'affiche à 140 % : elles se chevauchent et la remplissent).
+  const printPages = () => state.drawings.filter((d) => roleOf(d) === 'texture').length;
+  const printCount = (n, t, pages = printPages()) => {
+    const total = pages + n;
+    if (n <= 0 || total <= 0) return 0;
+    const lo = Math.min(1, (pages + 1) / total);
+    return clamp(Math.round(total * (lo + (1 - lo) * clamp(t, 0, 1))) - pages, 1, n);
+  };
   const printCover = (t) => 1.15 + 0.3 * t;
   const densityT = () => (allIn() ? 1 : clamp((Number($('density').value) - 0.5) / 1.3, 0, 1));
   // Toile : part des découpes posées pour une position du curseur (régulière, un peu plus de la moitié au départ),
@@ -6159,7 +6167,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, printCount, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

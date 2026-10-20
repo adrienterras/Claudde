@@ -94,6 +94,26 @@ test.describe('Atelier Impression et atelier Toile', () => {
     sizes.forEach(([W, H]) => expect([W, H]).toEqual([70, 50]));
   });
 
+  test('Impression : le curseur de densité est linéaire, pages de fond comprises (à mi-course, la moitié des dessins)', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    const c = (n, t, pages) => page.evaluate(([n, t, pages]) => AtelierGribouille.printCount(n, t, pages), [n, t, pages]);
+    // 28 dessins : 5 pages de fond et 23 découpes
+    expect(await c(23, 0, 5)).toBe(1);        // en bas : les pages et une découpe (6 sur 28)
+    expect(await c(23, 1, 5)).toBe(23);       // en haut : tout
+    expect(5 + await c(23, 0.5, 5)).toBe(17); // à mi-course : 17 sur 28 (la moitié entre 6 et 28)
+    expect(5 + await c(23, 0.25, 5)).toBe(12);
+    // sans page de fond : 1 en bas, la moitié au milieu, tout en haut ; jamais moins d'une découpe
+    expect(await c(10, 0, 0)).toBe(1);
+    expect(await c(10, 0.5, 0)).toBe(6);
+    expect(await c(10, 1, 0)).toBe(10);
+    expect(await c(1, 0, 4)).toBe(1);
+    // monotone
+    let prev = 0;
+    for (let t = 0; t <= 1.0001; t += 0.05) { const v = await c(23, t, 5); expect(v).toBeGreaterThanOrEqual(prev); prev = v; }
+  });
+
   test('Impression : cadres standard seulement, œuvre à la taille du cadre, dessins réduits, produits impression', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
