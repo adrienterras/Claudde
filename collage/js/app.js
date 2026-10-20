@@ -1531,7 +1531,7 @@
     $('sizes-hint').hidden = m === 'impression';
     $('print-mat-field').hidden = m !== 'impression';
     syncMatButtons();
-    $('sizes-hint').textContent = tr('La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
+    $('sizes-hint').textContent = tr('Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
     $('drawings-hint').textContent = m === 'impression' ? tr('Touchez un dessin pour régler son rôle ou le retoucher.') : tr('Touchez un dessin pour régler son rôle et sa taille réelle.');
     syncGroundMode();

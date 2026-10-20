@@ -160,7 +160,7 @@
     'Vérifier': 'Check',
     'Tout inclure': 'Include all',
     'Tailles': 'Sizes',
-    'La toile s’adapte aux dessins, collés à leur taille réelle. Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.': 'The canvas adapts to the drawings, glued at their real size. Check here the sheets whose size could not be read from the scan.',
+    'Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.': 'Check here the sheets whose size could not be read from the scan.',
     'Connexion terminée : votre œuvre est rouverte…': 'Signed in: reopening your artwork…',
     'Votre œuvre est de retour.': 'Your artwork is back.',
     'Votre œuvre est de retour : touchez le bouton pour {0}.': 'Your artwork is back: tap the button to {0}.',
