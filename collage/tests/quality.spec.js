@@ -76,7 +76,9 @@ test.describe('Qualité pour l’impression', () => {
     // en A6, la même image suffit : plus d'alerte
     await page.evaluate((i) => { const d = AtelierGribouille.state.drawings[i]; d.sizeCm = 14.8; }, small);
     await page.evaluate(() => AtelierGribouille.regenerate());
-    await page.locator('#drawings .thumb[data-i="0"]').click();
+    // on referme la fiche (ouverte en fenêtre par « Voir lesquels ») : les alertes ont disparu
+    await page.locator('#detail .detail-close').click();
+    await expect(page.locator('#detail-modal')).toBeHidden();
     await expect(page.locator('#quality-alert')).toBeHidden();
     await expect(page.locator('#export-quality')).toBeHidden();
     expect(app.errors).toEqual([]);

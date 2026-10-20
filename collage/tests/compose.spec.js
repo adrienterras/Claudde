@@ -203,7 +203,9 @@ test.describe('Compositions', () => {
     });
     await page.mouse.click(pt.x, pt.y);
     await page.waitForTimeout(300);
-    await expect(page.locator('#drawings-section')).not.toHaveClass(/collapsed/);
+    // ordinateur : la fiche s'ouvre en fenêtre, la section Dessins reste repliée
+    await expect(page.locator('#detail-modal')).toBeVisible();
     await expect(page.locator('#detail')).toBeVisible();
+    await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
   });
 });
