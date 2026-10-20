@@ -953,10 +953,12 @@
     if (q.level === 'ok') return '';
     return `<i class="q ${q.level}" title="${esc(q.issues.map((x) => x.title).join(' · '))}" aria-label="${esc(q.level === 'bad' ? tr('Qualité insuffisante pour l’impression') : tr('Qualité à vérifier'))}">!</i>`;
   }
+  // dans la fiche : les titres seulement (« Définition trop faible pour l'impression »…) ; le détail
+  // et le conseil restent lisibles en infobulle
   function qualityBlock(d) {
     const q = qualityOf(d);
     if (q.level === 'ok') return '';
-    return `<div class="quality ${q.level}">${q.issues.map((x) => `<p><b>${esc(x.title)}</b> ${esc(x.text)}<br><span>${esc(x.tip)}</span></p>`).join('')}</div>`;
+    return `<div class="quality ${q.level}">${q.issues.map((x) => `<p title="${esc(`${x.text} ${x.tip}`)}"><b>${esc(x.title)}</b></p>`).join('')}</div>`;
   }
   // bandeau dans Propositions et rappel au moment d'exporter
   function renderQuality() {

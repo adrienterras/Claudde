@@ -60,8 +60,10 @@ test.describe('Qualité pour l’impression', () => {
     await expect(page.locator('#quality-alert')).toContainText('flou');
     await page.locator('#quality-alert-go').click();
     await expect(page.locator('#detail .quality.bad')).toBeVisible();
-    await expect(page.locator('#detail .quality')).toContainText('dpi');
-    await expect(page.locator('#detail .quality')).toContainText('300 dpi');
+    // la fiche ne montre que les titres ; le détail (dpi, conseil) est en infobulle
+    await expect(page.locator('#detail .quality')).toContainText('Définition trop faible pour l’impression');
+    await expect(page.locator('#detail .quality')).not.toContainText('dpi');
+    expect(await page.locator('#detail .quality p').first().getAttribute('title')).toContain('300 dpi');
     // rappel au moment d'exporter (l'étape Exporter, repliée après l'import, s'ouvre par son titre)
     await page.evaluate(() => { const s = document.getElementById('export-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await expect(page.locator('#export-quality')).toBeVisible();

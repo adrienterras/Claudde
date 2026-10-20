@@ -554,8 +554,8 @@ n'est mémorisé).
 
 Seuils réglés sur de vrais scans de dessins (aucune alerte de netteté ni d’éclairage) et sur
 leurs versions floues ou assombries. La définition suit la taille réelle choisie : la même image
-peut suffire en A6 et pas en A3. Affichage : pastille sur la vignette, raison et conseil dans la
-fiche du dessin, bandeau « N dessins risquent d’être flous » dans Propositions, rappel dans
+peut suffire en A6 et pas en A3. Affichage : pastille sur la vignette, les titres seuls dans la
+fiche du dessin (raison et conseil en infobulle, `qualityBlock`), bandeau « N dessins risquent d’être flous » dans Propositions, rappel dans
 Exporter. Rien n’est jamais bloqué.
 
 ## Fonctionnement
