@@ -4150,12 +4150,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     e.target.value = '';
     importUserFiles(files);
   });
-  // prise de photo dans l'atelier (appareil photo du téléphone, webcam) : les photos gardées sont
-  // importées comme des fichiers
-  if (window.Camera && Camera.supported()) {
-    $('camera-open').hidden = false;
-    $('camera-open').addEventListener('click', requireAccount(tr('photographier vos dessins'), () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) })));
-  }
+  // Photographier un dessin : l'appareil photo du téléphone lui-même (champ `capture="environment"`),
+  // les photos prises entrent dans l'atelier comme des fichiers importés ; connecté seulement
+  $('camera-open').hidden = false;
+  $('camera-open').addEventListener('click', requireAccount(tr('photographier vos dessins'), () => $('camera-native').click()));
+  $('camera-native').addEventListener('change', () => { const inp = $('camera-native'); const files = [...inp.files]; inp.value = ''; if (files.length) importUserFiles(files); });
   ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => {

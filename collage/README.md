@@ -69,23 +69,14 @@ cd collage && python3 -m http.server 8000
    de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
    fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
-   dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
-   zone de dépôt, sur téléphone seulement — largeur ≤ 860 px — et quand le navigateur donne accès à
-   l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée et l'écran
-   dit si la photo sera bonne — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
-   sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
-   droits), netteté et lumière égale (`Quality.sharpness`, `Quality.lighting`, mêmes seuils qu'à
-   l'import), exposition (papier assez clair, sans reflets) ; le quadrilatère de la feuille est
-   tracé sur la vidéo, vert, orange ou rouge. La photo prise (pleine définition : `ImageCapture`
-   quand il existe, sinon l'image de la vidéo) est jugée de la même façon, avec en plus sa
-   définition (grand côté de la feuille en pixels : 140 dpi pour un A4), puis gardée ou reprise ;
-   les photos gardées entrent dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
-   Si l'autorisation n'arrive pas (20 s), si elle est refusée, ou si la vidéo ne s'affiche pas (6 s
-   sans image : iPhone en économie d'énergie, caméra prise par une autre application), un message le
-   dit avec « Relancer la vidéo » (une lecture dans un geste) et, toujours, « Prendre la photo avec
-   l'appareil du téléphone » : un champ de fichier `capture="environment"` qui ouvre l'appareil photo
-   natif ; ses photos sont gardées et importées comme les autres. Sur téléphone et tablette, la
-   visée demande 2560 × 1920 (assez pour un A4 à 150 dpi, sans peser sur la mémoire) ; 4K sur ordinateur.
+   dessins depuis l'atelier** : sur téléphone seulement (largeur ≤ 860 px), le bouton « Photographier
+   un dessin », au-dessus de la zone de dépôt, ouvre l'appareil photo du téléphone lui-même (champ de
+   fichier `#camera-native`, `capture="environment"`, plusieurs photos possibles) ; les photos prises
+   entrent dans l'atelier comme des fichiers importés, avec les mêmes contrôles de qualité (flou,
+   définition) qu'à l'import. Rien de plus : ni visée, ni jugement en direct (l'ancienne visée
+   maison, `js/camera.js`, a été retirée : trop compliquée). Les conseils de prise de vue sont dans
+   les questions fréquentes de l'accueil. Photographier demande d'être connecté (`requireAccount`) ;
+   importer des fichiers est libre.
 2. **Dessins** : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
