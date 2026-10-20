@@ -1486,6 +1486,36 @@ test.describe('Couleur du fond', () => {
     await expect(page.locator('#ground button[data-hex="auto"]')).toHaveClass(/on/);
   });
 
+  test('sur téléphone, à l’arrivée et après « nouvelle œuvre », le tiroir est baissé ; une carte, un onglet ou les dessins le remontent', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html');
+    await p.waitForFunction(() => window.AtelierGribouille);
+    await expect(p.locator('body')).toHaveClass(/stage-full/);
+    await expect(p.locator('#mode-pick')).toBeVisible();
+    // une carte : le tiroir remonte sur Importer
+    await p.locator('#mode-pick [data-mode="toile"]').click();
+    await expect(p.locator('body')).not.toHaveClass(/stage-full/);
+    await expect(p.locator('#sheet-tabs [data-tab="import-section"]')).toHaveClass(/on/);
+    await expect(p.locator('#drop')).toBeVisible();
+    // les premiers dessins : le tiroir reste levé, sur Propositions
+    await p.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(p.locator('body')).not.toHaveClass(/stage-full/);
+    // « nouvelle œuvre » : le tiroir redescend
+    await p.evaluate(() => { window.confirm = () => true; });
+    await p.locator('#sheet-tabs [data-tab="import-section"]').click();
+    await p.locator('#new-work').click();
+    await expect(p.locator('body')).toHaveClass(/stage-full/);
+    await expect(p.locator('#empty')).toBeVisible();
+    // un onglet le remonte
+    await p.locator('#sheet-tabs [data-tab="import-section"]').click();
+    await expect(p.locator('body')).not.toHaveClass(/stage-full/);
+    await ctx.close();
+  });
+
   test('sur téléphone sans œuvre : ni barre d’outils ni zoom, l’accueil vide est centré ; les barres viennent avec l’œuvre', async ({ app }) => {
     const { page } = app;
     await page.setViewportSize({ width: 390, height: 844 });

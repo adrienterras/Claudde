@@ -392,7 +392,10 @@ cd collage && python3 -m http.server 8000
    - **tous les dessins par défaut** : le curseur de nombre de dessins part au maximum (nouvelle
      visite, « nouvelle œuvre ») ; l'exemple garde ce réglage, une œuvre rouverte reprend le sien ;
    - **sans œuvre, rien autour de l'accueil vide** : ni barre d'outils ni barre de zoom (`#zoom-bar`)
-     tant qu'aucune composition n'est affichée ; l'étape Importer ne propose plus l'exemple ni
+     tant qu'aucune composition n'est affichée ; sur téléphone, le tiroir est baissé (`stage-full`,
+     seule sa barre d'onglets reste) à l'arrivée et après « nouvelle œuvre », pour que l'accueil et le
+     choix du type d'œuvre prennent tout l'écran ; il remonte sur Importer avec le choix d'une carte
+     (ou d'un onglet), et avec les premiers dessins (`setStageFull`) ; l'étape Importer ne propose plus l'exemple ni
      « commencer une nouvelle œuvre » en phrases (le bouton « Voir un exemple » de l'accueil vide et le
      bouton « Commencer une nouvelle œuvre », sous le consentement de détourage dans Importer, suffisent) ;
    - **fond de toile** : au choix, la toile nue (lin ; en Impression, « sans couleur » : blanc pur) ou un aplat d'acrylique dans les teintes

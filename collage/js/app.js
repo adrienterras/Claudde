@@ -386,6 +386,7 @@
       ['drawings-section', 'sizes-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
       $('new-work').hidden = false;
+      if (mobileQuery.matches) setStageFull(false); // le tiroir remonte avec les premiers dessins
       if (!state.restoring) selectTab('compose-section');
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
       // pas pour l'exemple, qui invite justement à importer ses propres dessins
@@ -2916,13 +2917,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('zoom-in').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };
   $('zoom-out').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1 / 1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };
   $('zoom-fit').onclick = resetZoom;
-  $('zoom-full').onclick = () => {
-    const on = document.body.classList.toggle('stage-full');
+  // plein écran : sur téléphone, le tiroir baissé (seule sa barre d'onglets reste) ; aussi l'état de
+  // l'atelier vide à l'arrivée et après « nouvelle œuvre » (l'accueil et le choix du type d'œuvre
+  // prennent tout l'écran) ; le tiroir remonte avec le choix d'une carte, un onglet ou les premiers dessins
+  function setStageFull(on) {
+    if (document.body.classList.contains('stage-full') === on) return;
+    document.body.classList.toggle('stage-full', on);
     $('zoom-full').setAttribute('aria-pressed', on ? 'true' : 'false');
     $('zoom-full').title = on ? tr('Quitter le plein écran') : tr('Plein écran');
     state.bgCache = null;
     render();
-  };
+  }
+  $('zoom-full').onclick = () => setStageFull(!document.body.classList.contains('stage-full'));
 
   // ---------- Retouche d'une découpe ----------
 
@@ -4177,7 +4183,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
   document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
-  document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); state.formatManual = false; }));
+  document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {
+    setMode(b.dataset.mode); state.formatManual = false;
+    // téléphone : le type choisi, le tiroir remonte sur Importer (déposer, photographier)
+    if (mobileQuery.matches) { setStageFull(false); selectTab('import-section'); }
+  }));
   initMode();
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
@@ -4421,6 +4431,7 @@ Réponds uniquement avec ce JSON :
     updateLabel();
     render();
     selectTab('import-section');
+    if (mobileQuery.matches) setStageFull(true); // téléphone : l'accueil vide prend tout l'écran
     clearHistory();
     clearTimeout(draftTimer);
     draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire le brouillon effacé
@@ -4592,6 +4603,7 @@ Réponds uniquement avec ce JSON :
         ? tr`Une œuvre en cours (${rec.drawings.length} dessins) est gardée dans ce navigateur.`
         : tr`La dernière réouverture de votre œuvre (${rec.drawings.length} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.`;
       box.hidden = false;
+      if (mobileQuery.matches) { setStageFull(false); selectTab('import-section'); } // la proposition est dans le tiroir : il remonte
       $('draft-resume').hidden = false;
       $('draft-forget').hidden = false;
       $('draft-resume').onclick = () => { $('draft-resume').hidden = true; $('draft-forget').hidden = true; resumeDraft(true); };
@@ -5347,6 +5359,7 @@ Réponds uniquement avec ce JSON :
   $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
   $('save-cancel').onclick = () => { $('save-form').hidden = true; };
   renderSaved();
+  if (mobileQuery.matches && !state.drawings.length) setStageFull(true); // téléphone : à l'arrivée, l'accueil vide prend tout l'écran
   resumeDraft();
 
   // ---------- Compte utilisateur (voir js/account.js) ----------
