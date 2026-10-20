@@ -123,6 +123,25 @@ test.describe('Compositions', () => {
     expect(after.w).toBeCloseTo(before.w, 3);
   });
 
+  test('Galerie sur un cadre imposé : 28 feuilles A4 en 15 cases sur un 30 × 40 gardent des dessins bien visibles', async ({ app }) => {
+    const { page } = app;
+    // (le cas d'un vrai tableau : la grille « même bord des quatre côtés » donnait des cases de 3,8 cm
+    // dans un bord de 8 cm, et une marge de 1,6 cm réduisait chaque dessin à un point)
+    const r = await page.evaluate(() => {
+      const pieces = Array.from({ length: 28 }, (_, i) => ({ id: 'p' + i, drawing: { id: 'd' + i }, wcm: 21, hcm: 29.7, importance: 1, main: true, enabled: true }));
+      const comp = Compose.generate({ style: 'galerie', format: { w: 30, h: 40 }, seed: 7, pieces, textures: [], densityT: 0.43 });
+      const side = comp.frames[0].w;
+      const minW = Math.min(...comp.items.map((L) => Math.max(L.w, L.h)));
+      const left = Math.min(...comp.frames.map((f) => f.x)), right = comp.W - Math.max(...comp.frames.map((f) => f.x + f.w));
+      return { n: comp.frames.length, side, minW, left, right, fill: minW / side };
+    });
+    expect(r.n).toBeGreaterThanOrEqual(12);
+    expect(r.side).toBeGreaterThan(5);           // des cases d'au moins 5 cm (et non 3,8)
+    expect(r.fill).toBeGreaterThan(0.7);         // le dessin occupe l'essentiel de sa case
+    expect(r.left).toBeCloseTo(r.right, 3);      // grille centrée
+    expect(r.left).toBeLessThan(6);              // sans bord énorme
+  });
+
   test('« Nouvelles propositions » change la mise en place, la densité aussi', async ({ app }) => {
     const { page } = app;
     const sig = () => page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.map((L) => [L.x.toFixed(1), L.y.toFixed(1)].join(',')).join(';'));

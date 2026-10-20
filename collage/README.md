@@ -312,9 +312,13 @@ cd collage && python3 -m http.server 8000
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Galerie »** : grille de cases carrées toujours complète (jamais une dernière rangée
      moins remplie : le nombre de cases est ramené à la grille complète la plus proche des proportions
-     de la toile), un dessin par case réduit s'il le faut, jamais agrandi ; en « taille adaptée aux
-     dessins », la toile est dimensionnée pour la grille elle-même (cases au 75e centile des tailles,
-     grand côté plafonné à 130 cm) et non pour les pages de fond ;
+     de la toile), un dessin par case réduit s'il le faut, jamais agrandi ; la grille « même bord des
+     quatre côtés » (`squareGrid`) n'est retenue que si ses cases ne sont pas nettement plus petites
+     que celles de la grille centrée ordinaire (sur un cadre imposé, elle pouvait donner des cases de
+     3,8 cm dans un bord de 8 cm) ; la marge entre un dessin et sa case suit la taille des cases
+     (12 %, entre 0,25 et 1,6 cm), pour qu'un dessin ne se réduise jamais à un point ; en « taille
+     adaptée aux dessins », la toile est dimensionnée pour la grille elle-même (cases au 75e centile
+     des tailles, grand côté plafonné à 130 cm) et non pour les pages de fond ;
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
      leur couleur (claires et froides en haut, sombres et chaudes en bas), posées en tuiles presque
      droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les éventuels lambeaux

@@ -999,7 +999,7 @@
   }
 
   function gallery(W, H, pieces, o, R, texs) {
-    const M = 3, pad = 1.6;
+    const M = 3;
     const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0)
       + (p.hcm / p.wcm >= 0.8 && p.hcm / p.wcm <= 2.4 ? 0.6 : 0) + Math.min(1, (p.wcm * p.hcm) / 600) * 0.5;
     // un sujet par dessin : le meilleur de chaque ; les pages de fond entrent aussi, entières, dans leur case
@@ -1016,21 +1016,31 @@
     // donnée (voir squareGrid) ; on prend la plus fournie qui ne dépasse pas le nombre visé. Sinon
     // (toile presque carrée, très peu de cases), la grille la plus proche des proportions, centrée.
     let grid = squareGrid(W, H, target), gap = grid ? grid.gap : 1.6;
+    // la grille centrée aux cases les plus grandes (bord ordinaire de 3 cm, marges égales deux à deux) :
+    // sur un cadre imposé (tableau imprimé), la grille « même bord des quatre côtés » peut n'exister
+    // qu'avec un bord énorme et de toutes petites cases (30 × 40 en 3 × 5 : 3,8 cm de côté, bord de
+    // 8 cm) ; on lui préfère alors les grandes cases
+    let alt = null;
+    for (let want = target; want >= 1 && !alt; want--) {
+      const g = galleryShape(want, W / H);
+      const sd = Math.min((W - 2 * M - (g.cols - 1) * 1.6) / g.cols, (H - 2 * M - (g.rows - 1) * 1.6) / g.rows);
+      if (sd < 2.5) { want = g.N; continue; }
+      alt = { cols: g.cols, rows: g.rows, side: sd, gap: 1.6 };
+    }
+    if (grid && alt && alt.side > grid.side * 1.25) grid = null;
     let cols, rows, side, x0g, y0g;
     if (grid) {
       ({ cols, rows, side } = grid);
       x0g = grid.m; y0g = grid.m;
     } else {
-      for (let want = target; want >= 1 && !side; want--) {
-        const g = galleryShape(want, W / H);
-        const sd = Math.min((W - 2 * M - (g.cols - 1) * gap) / g.cols, (H - 2 * M - (g.rows - 1) * gap) / g.rows);
-        if (sd < 2.5) { want = g.N; continue; }
-        cols = g.cols; rows = g.rows; side = sd;
-      }
-      if (!side) return { items: [], frames: [], kept: 0 };
+      if (!alt) return { items: [], frames: [], kept: 0 };
+      ({ cols, rows, side, gap } = alt);
       x0g = (W - (cols * side + (cols - 1) * gap)) / 2; y0g = (H - (rows * side + (rows - 1) * gap)) / 2;
     }
     const N = cols * rows;
+    // la marge entre le dessin et sa case suit la taille des cases (1,6 cm pour de grandes cases, bien
+    // moins pour de petites : un dessin ne doit pas se réduire à un point)
+    const pad = Math.min(1.6, Math.max(0.25, side * 0.12));
     // on préfère les sujets qui tiennent à taille réelle dans leur case
     const fillOf = (p) => Math.max(p.wcm, p.hcm) / (side - 2 * pad);
     const cellScore = (p) => { const f = fillOf(p); return beauty(p) + 3 * clamp((f - 0.4) / 0.4, 0, 1) - (f < 0.4 ? 4 : 0) + (f <= 1 ? 1 : 0); };
