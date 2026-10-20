@@ -70,7 +70,7 @@
     "Tableau de dessins d’enfants au cadre noir, sur le mur vert sauge d’une entrée, au-dessus d’une console": "Artwork made of children’s drawings in a black frame, on the sage green wall of a hallway, above a console table",
     "Trois gestes, et c’est fait.": "Three steps, and it’s done.",
     "Aucune compétence en retouche. L’atelier fait le travail de patience, vous gardez les choix qui comptent.": "No editing skills needed. The studio does the patient work, you keep the choices that matter.",
-    "Scannez les dessins": "Scan the drawings",
+    "Importez les dessins": "Import the drawings",
     "Un PDF du scanner, des photos de téléphone, même posées sur la table ou le parquet : l’atelier retire la surface et ne garde que le dessin.": "A PDF from the scanner, phone photos, even taken on the table or the floor: the studio removes the surface and keeps only the drawing.",
     "L’atelier compose": "The studio composes",
     "Les sujets sont découpés au millimètre et posés sur les pages peintes. Sept styles sont proposés ; vous déplacez, tournez, ajustez.": "The subjects are cut out to the millimetre and laid on the painted pages. Seven styles are proposed; you move, rotate, adjust.",
