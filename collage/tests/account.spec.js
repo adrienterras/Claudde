@@ -197,6 +197,7 @@ test.describe('Comptes utilisateurs', () => {
   });
 
   test('l’œuvre en cours suit le compte : envoyée d’elle-même, retrouvée sur un autre appareil, absente de la liste', async ({ acc }) => {
+    test.setTimeout(240000); // deux imports et deux réouvertures depuis le compte : long sur une machine d'intégration lente
     const { page } = acc;
     await signUpAndIn(page, 'nour@example.org', 'Rouge-Soleil-42', 'Nour');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
