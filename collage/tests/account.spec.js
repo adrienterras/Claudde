@@ -283,7 +283,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#cloud-pull').click();
     await expect(page.locator('#cloud-sync-status')).toContainText('déjà celle de votre compte');
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(other.style);
-    // un vrai changement d'ici repart dans le compte, tout de suite avec « Envoyer dans mon compte »
+    // un vrai changement d'ici repart dans le compte, tout de suite avec « Sauvegarder dans mon compte »
     await page.evaluate(() => AtelierGribouille.selectProposal(2));
     await page.waitForTimeout(500);
     await page.locator('#cloud-push').click();

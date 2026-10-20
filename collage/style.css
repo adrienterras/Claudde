@@ -1094,6 +1094,9 @@ body.stage-full .scene-open { display: none; }
   /* le choix du type d'œuvre aussi : seulement dans l'onglet Importer */
 }
 .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 520px; margin-top: 6px; pointer-events: auto; }
+.empty-import { display: grid; gap: 10px; width: 100%; max-width: 420px; margin-top: 6px; pointer-events: auto; justify-items: stretch; }
+.empty-import .hint { margin: 0; }
+.empty-import .link { justify-self: center; font-size: 0.82rem; color: var(--ink-2); }
 .mode-pick-title { grid-column: 1 / -1; margin: 0; font-weight: 600; color: var(--ink); }
 .mode-pick button { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; font: inherit; margin: 0; }
 .mode-pick button b { font-size: 0.95rem; }

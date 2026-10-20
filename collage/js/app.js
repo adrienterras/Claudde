@@ -1508,10 +1508,18 @@
     if (m) setMode(m);
     else if (MODES.includes(stored)) setMode(stored);
     else fillFormats();
-    // les cartes restent au milieu de l'atelier tant qu'aucune œuvre n'est commencée (l'accueil vide
-    // disparaît avec les premiers dessins) ; le choix mémorisé y est présélectionné
-    const pick = $('mode-pick');
-    if (pick) pick.hidden = false;
+    // les cartes sont au milieu de l'atelier tant qu'aucune œuvre n'est commencée (l'accueil vide
+    // disparaît avec les premiers dessins), le choix mémorisé présélectionné ; venu de l'accueil avec
+    // ?mode=, le choix est fait : directement les boutons d'import
+    emptyChoice(!!m);
+  }
+  // l'accueil vide : les deux cartes (et l'exemple), ou, le type choisi, les boutons d'import au milieu
+  // (déposer ; photographier sur téléphone) — l'étape Importer du menu reste pour en ajouter ensuite
+  function emptyChoice(done) {
+    $('mode-pick').hidden = done;
+    $('empty-sample').hidden = done || !state.sampleManifest;
+    $('empty-import').hidden = !done;
+    if (done) $('empty-import-title').textContent = modeOf() === 'impression' ? tr('Tableau imprimé à partir de vos photos') : tr('Collage avec les dessins originaux');
   }
 
   function formatCm() {
@@ -4191,7 +4199,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // importées comme des fichiers
   if (window.Camera && Camera.supported()) {
     $('camera-open').hidden = false;
-    $('camera-open').addEventListener('click', requireAccount(tr('photographier vos dessins'), () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) })));
+    $('empty-camera').hidden = false;
+    const openCamera = requireAccount(tr('photographier vos dessins'), () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) }));
+    $('camera-open').addEventListener('click', openCamera);
+    $('empty-camera').addEventListener('click', openCamera);
   }
   ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
@@ -4219,9 +4230,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
   document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {
     setMode(b.dataset.mode); state.formatManual = false;
-    // téléphone : le type choisi, le tiroir remonte sur Importer (déposer, photographier)
-    if (mobileQuery.matches) { setStageFull(false); selectTab('import-section'); }
+    emptyChoice(true);
   }));
+  $('empty-change').addEventListener('click', () => emptyChoice(false));
+  $('empty-drop').addEventListener('click', () => $('file').click());
   initMode();
   $('dpi').addEventListener('change', updateExportInfo);
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
@@ -4459,7 +4471,7 @@ Réponds uniquement avec ce JSON :
     state.bgCache = null;
     ['drawings-section', 'sizes-section', 'compose-section', 'export-section', 'sample-note', 'label', 'new-work'].forEach((id) => ($(id).hidden = true));
     $('empty').hidden = false;
-    $('empty-sample').hidden = !state.sampleManifest;
+    emptyChoice(false); // le type d'œuvre se choisit de nouveau
     $('density').value = $('density').max; // une nouvelle œuvre part avec tous les dessins
     refreshLists();
     updateLabel();
@@ -4683,7 +4695,7 @@ Réponds uniquement avec ce JSON :
    * sont dans le compte quand on passe à l'ordinateur. Rien n'est tiré du compte sans qu'on le
    * demande : « Recharger depuis mon compte » (bloc #cloud-sync de l'étape Importer) relit la ligne
    * du compte et rouvre son œuvre ici, à la place de celle affichée (en deux appuis si des changements
-   * d'ici n'étaient pas encore partis) ; « Envoyer dans mon compte » envoie sans attendre le délai.
+   * d'ici n'étaient pas encore partis) ; « Sauvegarder dans mon compte » envoie sans attendre le délai.
    * Seule exception : à l'arrivée et à la connexion, si rien n'est en cours ici (nouvel appareil,
    * navigateur vidé), l'œuvre du compte se rouvre d'elle-même ; sinon la ligne d'état dit seulement
    * ce que le compte contient. Après une réception, la copie d'ici n'est pas renvoyée (sinon chaque
@@ -4696,7 +4708,7 @@ Réponds uniquement avec ce JSON :
   let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, skipPushOnce = false;
   let cloudRemote = null; // la dernière version du compte lue (date, nombre de dessins), pour la ligne d'état
   // le compte porte une version venue d'un autre appareil et une œuvre est en cours ici : rien ne part
-  // ni ne vient tant qu'on n'a pas choisi (« Recharger » ou « Envoyer »), pour n'écraser ni l'une ni l'autre
+  // ni ne vient tant qu'on n'a pas choisi (« Recharger » ou « Sauvegarder »), pour n'écraser ni l'une ni l'autre
   let cloudHold = false;
   const cloudSyncable = () => { const A = window.Account; return !!(A && A.enabled && A.user()) && !state.restoring; };
   const CLOUD_DELAY = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 6000 : 15000;
@@ -4724,7 +4736,7 @@ Réponds uniquement avec ce JSON :
     const sent = lsGet(CLOUD_DRAFT_KEY);
     const here = state.drawings.length > 0 && !onlySamples();
     if (cloudBusy) el.textContent = tr('Envoi de votre œuvre dans votre compte…');
-    else if (cloudHold && cloudRemote) el.textContent = tr`Dans votre compte : une œuvre de ${cloudRemote.nDrawings} dessins (${clockText(cloudRemote.date)}), venue d’un autre appareil. Celle d’ici n’y est pas envoyée tant que vous n’avez pas choisi : « Recharger » la remplace par celle du compte, « Envoyer » remplace celle du compte par celle-ci.`;
+    else if (cloudHold && cloudRemote) el.textContent = tr`Dans votre compte : une œuvre de ${cloudRemote.nDrawings} dessins (${clockText(cloudRemote.date)}), venue d’un autre appareil. Celle d’ici n’y est pas envoyée tant que vous n’avez pas choisi : « Recharger » la remplace par celle du compte, « Sauvegarder » remplace celle du compte par celle-ci.`;
     else if (pendingCloud) el.textContent = tr('Des changements d’ici ne sont pas encore dans votre compte : ils partent dans quelques secondes.');
     else if (cloudRemote && cloudRemote.date !== lsGet(CLOUD_SEEN_KEY)) el.textContent = tr`Dans votre compte : une œuvre de ${cloudRemote.nDrawings} dessins (${clockText(cloudRemote.date)}), venue d’un autre appareil.`;
     else if (here && sent) el.textContent = tr`Votre œuvre est dans votre compte (envoyée à ${clockText(sent)}).`;
@@ -4808,7 +4820,7 @@ Réponds uniquement avec ce JSON :
       await resumeCloudDraft(remote, here, tr('Votre œuvre a été rechargée depuis votre compte.'));
     } finally { cloudChecking = false; btn.disabled = false; }
   }
-  // « Envoyer dans mon compte » : l'instantané d'ici part tout de suite
+  // « Sauvegarder dans mon compte » : l'instantané d'ici part tout de suite
   async function pushCloudDraft() {
     if (!cloudSyncable()) return;
     if (!state.comp || !state.drawings.length || onlySamples()) { cloudStatus(tr('Rien à envoyer : aucune œuvre en cours ici.')); return; }
@@ -6112,7 +6124,7 @@ Réponds uniquement avec ce JSON :
     }
     if (!m || !m.pages || !m.pages.length) return;
     state.sampleManifest = m;
-    if (!state.resuming) $('empty-sample').hidden = false; // pas pendant la réouverture de l'œuvre en cours
+    if (!state.resuming && !$('mode-pick').hidden) $('empty-sample').hidden = false; // pas pendant la réouverture, ni une fois le type choisi
     let busy = false;
     const go = async () => { if (busy) return; busy = true; try { await loadSamples(m); } finally { busy = false; } };
     $('empty-sample').onclick = go;

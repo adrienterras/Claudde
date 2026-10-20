@@ -1535,12 +1535,13 @@ test.describe('Couleur du fond', () => {
     await p.waitForFunction(() => window.AtelierGribouille);
     await expect(p.locator('body')).toHaveClass(/stage-full/);
     await expect(p.locator('#mode-pick')).toBeVisible();
-    // une carte : le tiroir remonte sur Importer
+    // une carte : les boutons d'import prennent sa place au milieu (déposer, photographier), le tiroir reste baissé
     await p.locator('#mode-pick [data-mode="toile"]').click();
-    await expect(p.locator('body')).not.toHaveClass(/stage-full/);
-    await expect(p.locator('#sheet-tabs [data-tab="import-section"]')).toHaveClass(/on/);
-    await expect(p.locator('#drop')).toBeVisible();
-    // les premiers dessins : le tiroir reste levé, sur Propositions
+    await expect(p.locator('body')).toHaveClass(/stage-full/);
+    await expect(p.locator('#empty-import')).toBeVisible();
+    await expect(p.locator('#empty-drop')).toBeVisible();
+    await expect(p.locator('#empty-camera')).toBeVisible();
+    // les premiers dessins : le tiroir remonte, sur Propositions
     await p.setInputFiles('#file', [fixture('page-cutout.png')]);
     await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(p.locator('body')).not.toHaveClass(/stage-full/);

@@ -10,18 +10,28 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#mode-pick')).toBeVisible();
     expect(await page.evaluate(() => document.querySelectorAll('#mode-pick button.on').length)).toBe(0);
     await page.locator('#mode-pick [data-mode="impression"]').click();
-    // les cartes restent tant qu'aucune œuvre n'est commencée, le choix présélectionné
+    // le type choisi : les cartes (et l'exemple) laissent la place aux boutons d'import, au milieu
+    await expect(page.locator('#mode-pick')).toBeHidden();
+    await expect(page.locator('#empty-sample')).toBeHidden();
+    await expect(page.locator('#empty-import')).toBeVisible();
+    await expect(page.locator('#empty-import-title')).toHaveText('Tableau imprimé à partir de vos photos');
+    await expect(page.locator('#empty-drop')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.mode'))).toBe('impression');
+    // « changer de type » ramène les cartes, le choix présélectionné
+    await page.locator('#empty-change').click();
     await expect(page.locator('#mode-pick')).toBeVisible();
     await expect(page.locator('#mode-pick [data-mode="impression"]')).toHaveClass(/on/);
-    expect(await page.evaluate(() => localStorage.getItem('atelier.mode'))).toBe('impression');
-    // rechargée sans paramètre : le choix revient ; ?mode=toile le remplace
+    await expect(page.locator('#empty-import')).toBeHidden();
+    // rechargée sans paramètre : les cartes, le choix présélectionné ; ?mode=toile choisit d'office
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#mode-pick')).toBeVisible();
     await expect(page.locator('#mode-pick [data-mode="impression"]')).toHaveClass(/on/);
     await expect(page.locator('#format-label')).toHaveText('Cadre');
     await page.goto('index.html?mode=toile');
     await page.waitForFunction(() => window.AtelierGribouille);
-    await expect(page.locator('#mode-pick [data-mode="toile"]')).toHaveClass(/on/);
+    await expect(page.locator('#mode-pick')).toBeHidden();
+    await expect(page.locator('#empty-import-title')).toHaveText('Collage avec les dessins originaux');
     await expect(page.locator('#format-label')).toHaveText('Toile');
     // le type d'œuvre ne se change plus dans la colonne une fois l'œuvre commencée
     expect(await page.evaluate(() => !document.getElementById('mode-switch'))).toBe(true);

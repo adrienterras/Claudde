@@ -15,8 +15,11 @@ cd collage && python3 -m http.server 8000
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, sinon les deux cartes au
    milieu de l'atelier vide — à la première visite et après « Commencer une nouvelle œuvre », le
-   dernier choix présélectionné ; une fois l'œuvre commencée, le type d'œuvre ne change plus ; mode
-   gardé avec chaque sauvegarde et chaque brouillon).
+   dernier choix présélectionné ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
+   « Voir un exemple » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer ;
+   photographier sur téléphone ; « Changer de type d'œuvre » ramène les cartes — `emptyChoice`),
+   l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
+   le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).
    - **Tableau imprimé à partir de vos photos** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
      **cinq cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70, 70 × 100 ; seule liste
      proposée, 30 × 40 par défaut, un ancien réglage ramené au cadre le plus proche). Un choix « Sans /
@@ -372,7 +375,7 @@ cd collage && python3 -m http.server 8000
      une œuvre de N dessins venue d'un autre appareil »…) et deux boutons : « Recharger depuis mon
      compte » (`pullCloudDraft` : relit la ligne du compte et rouvre son œuvre à la place de celle
      affichée ; un deuxième appui confirme si des changements d'ici n'étaient pas encore partis ; « déjà
-     celle de votre compte » si rien de neuf) et « Envoyer dans mon compte » (`pushCloudDraft` : envoi
+     celle de votre compte » si rien de neuf) et « Sauvegarder dans mon compte » (`pushCloudDraft` : envoi
      sans attendre le délai). Seule exception : à l'arrivée et à la connexion (`checkCloudDraft`), si
      rien n'est en cours ici (nouvel appareil, navigateur vidé), l'œuvre du compte se rouvre d'elle-même.
      Après une réception, la copie locale n'est pas renvoyée (`atelier.brouillon-compte-vu` : date de la

@@ -118,12 +118,12 @@
       <button type="button" id="acc-open" class="acc-chip"><svg class="ico"><use href="#i-user"/></svg><span>Se connecter ou créer un compte</span></button>
       <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
-    <!-- l'œuvre en cours et le compte : état, « Recharger depuis mon compte », « Envoyer dans mon compte » -->
+    <!-- l'œuvre en cours et le compte : état, « Recharger depuis mon compte », « Sauvegarder dans mon compte » -->
     <div id="cloud-sync" class="cloud-sync" hidden>
       <p id="cloud-sync-status" class="hint"></p>
       <div class="cloud-sync-btns">
         <button type="button" id="cloud-pull" class="btn"><svg class="ico"><use href="#i-cloud"/></svg><span>Recharger depuis mon compte</span></button>
-        <button type="button" id="cloud-push" class="btn"><svg class="ico"><use href="#i-upload"/></svg><span>Envoyer dans mon compte</span></button>
+        <button type="button" id="cloud-push" class="btn"><svg class="ico"><use href="#i-upload"/></svg><span>Sauvegarder dans mon compte</span></button>
       </div>
     </div>
 
@@ -461,6 +461,14 @@
           <button type="button" data-mode="toile"><b>Collage avec les dessins originaux</b><small>Les dessins originaux, découpés et collés par vous : guide pas à pas ou kit DIY.</small></button>
         </div>
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Voir un exemple</span></button>
+        <!-- le type choisi : les cartes laissent la place aux boutons d'import (l'étape Importer du menu reste, pour en ajouter ensuite) -->
+        <div id="empty-import" class="empty-import" hidden>
+          <p class="mode-pick-title" id="empty-import-title"></p>
+          <button type="button" id="empty-drop" class="btn btn-primary"><svg class="ico"><use href="#i-upload"/></svg><span>Déposer les photos ou les scans des dessins</span></button>
+          <button type="button" id="empty-camera" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
+          <p class="hint">PDF de plusieurs pages, JPG ou PNG</p>
+          <button type="button" id="empty-change" class="link">Changer de type d’œuvre</button>
+        </div>
       </div>
     </div>
     <div id="busy" class="busy" hidden role="status" aria-live="polite">
