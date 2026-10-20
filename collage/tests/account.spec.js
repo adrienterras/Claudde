@@ -419,7 +419,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
     await openStep(page, 'export-section');
     await page.locator('#add-cart').click();
-    await page.locator('#cart-add [data-finish="toile"]').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     // pas connecté : la connexion passe devant, puis la commande reprend d'elle-même

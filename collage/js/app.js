@@ -461,24 +461,30 @@
 
   // Bandeau « tailles à vérifier » : les feuilles dont la taille n'a pas pu être reconnue. Sans objet
   // en tableau imprimé (les dessins y sont réduits au cadre : seule leur taille relative compte).
+  // Collage : la taille de chaque feuille, à vérifier dans la section Tailles (elle fixe la taille du
+  // dessin sur la toile). Tous les dessins y sont, ceux dont la taille n'a pas pu être lue d'abord ;
+  // le bandeau de Propositions ne compte que ces derniers. Tableau imprimé : rien (dessins réduits au cadre).
   function renderUncertain() {
     const box = $('sizes-check');
-    const list = printMode() ? [] : state.drawings.filter((d) => d.uncertain && d.sizeMode === 'auto');
-    box.hidden = !list.length;
+    const unsure = (d) => d.uncertain && d.sizeMode === 'auto';
+    const toCheck = printMode() ? [] : state.drawings.filter(unsure);
+    const all = printMode() ? [] : toCheck.concat(state.drawings.filter((d) => !unsure(d)));
+    box.hidden = !all.length;
     const alert = $('sizes-alert');
+    const list = toCheck;
     if (alert) {
       alert.hidden = !list.length;
       alert.querySelector('span').textContent = list.length === 1 ? tr('1 dessin a une taille estimée : vérifiez-la pour un guide de découpe exact.') : tr`${list.length} dessins ont une taille estimée : vérifiez-les pour un guide de découpe exact.`;
     }
-    if (!list.length) return;
-    box.innerHTML = `<p class="sizes-title">Tailles à vérifier <small>(${list.length})</small></p>
-      <p class="hint">${tr('Ces feuilles n’ont pas un format standard : indiquez leur plus grand côté, en cm. C’est ce qui fixe leur taille dans l’œuvre.')}</p>
+    if (!all.length) return;
+    box.innerHTML = `<p class="sizes-title">${list.length ? tr`Tailles à vérifier <small>(${list.length})</small>` : tr`Taille des dessins <small>(${all.length})</small>`}</p>
+      <p class="hint">${tr('Indiquez le plus grand côté de chaque feuille, en cm : c’est ce qui fixe sa taille dans l’œuvre.')}</p>
       <div class="sizes-list"></div>`;
     const wrap = box.querySelector('.sizes-list');
-    list.forEach((d) => {
+    all.forEach((d) => {
       const row = document.createElement('label');
-      row.className = 'sizes-row';
-      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
+      row.className = `sizes-row${unsure(d) ? ' unsure' : ''}`;
+      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${unsure(d) ? (d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`) : d.sizeMode === 'manual' ? tr`saisi : ${fmt(d.sizeCm)} cm` : d.physCm ? tr`lu dans le scan : ${fmt(d.sizeCm)} cm` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
         <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.1" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
       const apply = (cm) => {
         if (!(cm > 0)) return;
@@ -1506,7 +1512,7 @@
 
   /*
    * Deux ateliers. « Impression » : l'œuvre est composée à la taille d'un cadre standard du marché,
-   * les dessins réduits pour y tenir, puis imprimée (papier d'art, encadrée, toile imprimée) ou
+   * les dessins réduits pour y tenir, puis imprimée (papier d'art ou encadrée) ou
    * livrée en fichier HD. « Toile » : les dessins à leur taille réelle sur une toile du commerce ou
    * adaptée à eux, à réaliser soi-même avec les originaux (guide, kit).
    * Choix au départ : depuis l'accueil (?mode=), ou par les cartes au milieu de l'atelier vide (première
@@ -5864,10 +5870,10 @@ Réponds uniquement avec ce JSON :
     print: {
       papier: { '21x30': 29, '30x40': 39, '40x50': 49, '50x70': 59, '70x100': 89 },
       cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129, '70x100': 199 },
-      toile: { '21x30': 49, '30x40': 69, '40x50': 89, '50x70': 109, '70x100': 169 },
+      // (pas d'impression sur toile pour l'instant : un ancien article « toile » du panier n'est plus valable)
     },
   };
-  const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée'), toile: tr('sur toile') };
+  const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée') };
   const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : PRICES[it.product]);
   // produits de chaque atelier : impression (tirages, fichier) ou toile (guide et kit, à réaliser soi-même)
   const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit'] };

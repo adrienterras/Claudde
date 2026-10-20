@@ -37,7 +37,12 @@ test.describe('Import des scans', () => {
     expect(ds[1].phys).toBe('150 dpi');
     expect(ds[1].sizeCm).toBeCloseTo(29.7, 0);
     expect(ds.every((d) => !d.uncertain)).toBe(true);
-    await expect(app.page.locator('#sizes-check')).toBeHidden();
+    // collage : la taille de chaque feuille reste vérifiable dans la section Tailles, sans rien à corriger
+    await expect(app.page.locator('#sizes-check .sizes-title')).toContainText('Taille des dessins');
+    await expect(app.page.locator('#sizes-check .sizes-row')).toHaveCount(2);
+    await expect(app.page.locator('#sizes-check .sizes-row.unsure')).toHaveCount(0);
+    await expect(app.page.locator('#sizes-check .sizes-row').first()).toContainText('lu dans le scan');
+    await expect(app.page.locator('#sizes-alert')).toBeHidden();
   });
 
   test('deux tailles corrigées qui concordent étalonnent les scans sans résolution connue, une seule non', async ({ app }) => {

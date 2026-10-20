@@ -272,6 +272,9 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/); // même choix dans la mise en scène
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add [data-size="21x30"]')).toHaveClass(/on/);
+    // papier d'art ou encadré : pas d'impression sur toile
+    await expect(page.locator('#cart-add [data-finish="toile"]')).toHaveCount(0);
+    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-finish]')].map((b) => b.dataset.finish))).toEqual(['papier', 'cadre']);
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await expect(page.locator('.cart-fit')).toHaveText('L’œuvre (13 × 18 cm) est présentée avec un passe-partout dans le cadre de 21 × 30 cm.');
     await page.locator('#cart-add [data-close]').first().click();

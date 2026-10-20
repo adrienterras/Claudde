@@ -46,7 +46,7 @@ cd collage && python3 -m http.server 8000
      de sol, les sujets se répartissent sur toute l'affiche, bien espacés. Les pages de fond ont
      leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se
      chevauchant, la plus grande entière, sans dépasser deux fois l'échelle des découpes.
-     Produits : impression livrée (papier d'art, encadrée, toile imprimée) et fichier HD ; pas de
+     Produits : impression livrée (papier d'art ou encadrée ; pas d'impression sur toile pour l'instant) et fichier HD ; pas de
      guide de création ; finition toile cachée. Le **fond est toujours un aplat de couleur,
      parfaitement uni** (`o.flat` : ni coups de brosse ni grain de toile, `comp.paint = false`), pas de
      toile nue (la teinte conseillée s'applique d'office) mais un choix « sans couleur » (fond blanc
@@ -164,9 +164,11 @@ cd collage && python3 -m http.server 8000
    (A5, A4, A3, A2 ou autre) — c'est cette taille qui compte, puisque les dessins sont collés à
    taille réelle. Sans information dans le fichier, la taille est estimée à partir du scan
    (le scan médian est supposé A4) ; elle n'est arrondie à un format standard que si la feuille en a
-   les proportions. Un bandeau **« Tailles à vérifier »** liste les feuilles douteuses (bandes, rouleaux,
-   très grands ou très petits formats) avec un champ pour saisir leur plus grand côté : c'est cette
-   taille qui fixe celle du dessin dans l'œuvre. Ce bandeau (et l'alerte de la section Propositions)
+   les proportions. Dans la section Tailles, un bloc liste **la taille de chaque feuille** (lue dans
+   le scan, saisie ou estimée), avec un champ pour saisir son plus grand côté : c'est cette taille qui
+   fixe celle du dessin dans l'œuvre. Les feuilles douteuses (bandes, rouleaux, très grands ou très
+   petits formats, photos) viennent en tête, marquées, sous le titre **« Tailles à vérifier »** ; sans
+   feuille douteuse, le titre est « Taille des dessins ». Ce bloc (et l'alerte de la section Propositions)
    n'existe qu'en collage avec les originaux : en tableau imprimé, les dessins sont réduits au cadre
    et seule leur taille relative compte (`renderUncertain`, relancé au changement de mode).
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
@@ -508,7 +510,7 @@ cd collage && python3 -m http.server 8000
      l'app vérifie ensuite que les pieds restent sur le sol et que seul ce qui vole est au ciel ; cette
      mise en place est gardée jusqu'au prochain import ou aux « nouvelles propositions ») ;
      un clic ouvre la proposition pour la retoucher, « Trois nouvelles propositions » en tire d'autres.
-4. **Exporter** en JPEG ou PNG, à 300 dpi par défaut pour l'impression sur toile.
+4. **Exporter** en JPEG ou PNG, à 300 dpi par défaut pour l'impression.
 
 Des dessins d'exemple peuvent être proposés sans être chargés d'office : s'ils sont fournis avec la
 page ou présents dans `samples/manifest.json` (`{ "base": "samples/", "pages": [{ "file", "name",
