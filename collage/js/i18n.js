@@ -244,7 +244,6 @@
     'Collées en fond': 'Glued as background',
     'Couleur de fond de la toile': 'Canvas background colour',
     'Dessins': 'Drawings',
-    'Fiche du dessin': 'Drawing details',
     'Pièces découpées': 'Cut-out pieces',
     'Touchez une pièce pour la retirer ou l’ajouter.': 'Tap a piece to remove or add it.',
     'Exporter': 'Export',

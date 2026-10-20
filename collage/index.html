@@ -485,13 +485,6 @@
     </div>
   </section>
 
-  <!-- ordinateur : la fiche d'un dessin (#detail) s'ouvre ici, en fenêtre, comme la mise en scène ; sa croix la ferme -->
-  <section id="detail-modal" class="account-modal detail-modal" hidden role="dialog" aria-modal="true" aria-label="Fiche du dessin">
-    <div class="acc-card detail-card">
-      <div id="detail-modal-body"></div>
-    </div>
-  </section>
-
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">
     <div class="acc-card cart-card">
       <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
@@ -579,6 +572,10 @@
     </div>
   </div>
   <div id="editor" class="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title" hidden>
+   <!-- ordinateur : la découpe s'ouvre dans une fenêtre (.ed-card), comme la mise en scène, fermée par sa croix ;
+        téléphone : plein écran (la carte ne forme pas de boîte) -->
+   <div class="ed-card">
+    <button type="button" id="ed-close" class="acc-close ed-close" aria-label="Fermer" title="Fermer sans enregistrer">×</button>
     <div class="ed-bar">
       <div class="ed-head">
         <p class="ed-kicker">Retoucher le dessin</p>
@@ -633,6 +630,7 @@
       <button id="ed-cancel" class="btn"><span class="long">Fermer sans enregistrer</span><span class="short">Annuler</span></button>
       <button id="ed-apply" class="btn btn-primary"><svg class="ico"><use href="#i-scissors"/></svg><span class="long">Valider les retouches</span><span class="short">Valider</span></button>
     </div>
+   </div>
   </div>
 
   <script src="vendor/supabase.js"></script>

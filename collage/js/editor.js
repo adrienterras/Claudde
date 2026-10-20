@@ -623,6 +623,7 @@
     $('ed-redo').onclick = redo;
     $('ed-reset').onclick = reset;
     $('ed-cancel').onclick = close;
+    $('ed-close').onclick = close; // la croix de la fenêtre (ordinateur) : fermer sans enregistrer
     $('ed-tone-toggle').onclick = () => showTone($('ed-tone').hidden);
     document.querySelectorAll('#ed-tone [data-ed-tone]').forEach((r) => {
       r.addEventListener('input', () => { if (S) setTone(Object.assign({}, S.tone, { [r.dataset.edTone]: Number(r.value) })); });
