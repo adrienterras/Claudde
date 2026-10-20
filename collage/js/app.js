@@ -1037,6 +1037,9 @@
     const deg = d.orient === 'auto' ? (d.orientDeg || 0) : Number(d.orient);
     const orientName = (ORIENTS.find(([k]) => k === (d.orient === 'auto' ? 'auto' : String(deg))) || ORIENTS[0])[1];
     const main = mainPiece(d);
+    // tableau imprimé : les dessins sont réduits pour tenir dans le cadre, leur taille réelle ne sert
+    // à rien ; la fiche n'en propose pas le choix (ni la phrase sur la taille lue ou estimée)
+    const print = printMode();
     box.innerHTML = `
       <button type="button" class="detail-close" aria-label="${tr('Fermer')}" title="${tr('Fermer')}">×</button>
       <img src="${d.thumb}" alt=""${toneStyle(d)}>
@@ -1050,7 +1053,7 @@
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
         <!-- en tête de fiche : visible sans faire défiler, même dans le tiroir à mi-hauteur du téléphone -->
         ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
-        <div class="row stack">${tr('Taille réelle')}
+        ${print ? '' : `<div class="row stack">${tr('Taille réelle')}
           <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
             ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}
             <button type="button" data-cm="custom" class="${std ? '' : 'on'}">${tr('Autre…')}</button>
@@ -1058,7 +1061,7 @@
         </div>
         <label class="row" data-custom ${std ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
           <input type="number" min="3" max="${MAX_CM}" step="0.1" value="${fmt(d.sizeCm).replace(',', '.')}">
-        </label>
+        </label>`}
         <div class="row">${tr('Orientation')}
           <span class="orient">
             <button type="button" data-rot="-90" aria-label="${tr('Tourner à gauche')}" title="${tr('Tourner à gauche')}"><svg class="ico"><use href="#i-rot-left"/></svg></button>
@@ -1083,8 +1086,8 @@
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
         ${qualityBlock(d)}
-        <p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
-          ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>
+        ${print ? '' : `<p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
+          ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>`}
       </div>`;
     box.querySelector('.detail-close').onclick = () => {
       state.current = null;
@@ -1168,7 +1171,7 @@
       }
       setSize(Number(b.dataset.cm));
     }));
-    custom.querySelector('input').onchange = (e) => setSize(Number(e.target.value));
+    if (custom) custom.querySelector('input').onchange = (e) => setSize(Number(e.target.value));
   }
 
   // les pixels réellement collés : pièces découpées gardées, sinon la page de fond

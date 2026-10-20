@@ -396,6 +396,10 @@ cd collage && python3 -m http.server 8000
      plusieurs teintes, se ferme d'un appui ailleurs ou avec Échap) ; une teinte s'applique tout de
      suite à l'œuvre affichée (`applyGround`, mise en place gardée), les deux nuanciers restent
      d'accord ; sans objet en Galerie (fond blanc fixe) ;
+   - **tableau imprimé : pas de taille réelle dans la fiche** : les dessins y sont réduits pour tenir
+     dans le cadre, la fiche d'un dessin ne propose donc ni les feuilles A5…A2 / Autre, ni la phrase sur
+     la taille lue ou estimée (`renderDetail`, `printMode()`) ; l'orientation, le rôle et la retouche
+     restent ;
    - **tableau imprimé : la taille ne refait pas l'œuvre** : changer de cadre ou de passe-partout met
      l'œuvre affichée à la nouvelle taille telle quelle (`keepPrintComp` → `fitCompTo` : places en
      proportion, dessins et pages à la même échelle, cadre noté sur la composition) et changer

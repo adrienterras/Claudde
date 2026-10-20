@@ -1283,6 +1283,30 @@ test.describe('Plein écran sur téléphone', () => {
   });
 });
 
+test.describe('Fiche d’un dessin en tableau imprimé', () => {
+  test('pas de choix de taille réelle (les dessins sont réduits au cadre) ; il revient en collage', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(() => document.querySelector('#mode-pick [data-mode="impression"]').click());
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
+    await page.locator('#drawings .thumb[data-i="0"]').click();
+    await expect(page.locator('#detail')).toBeVisible();
+    await expect(page.locator('#detail [data-cm]')).toHaveCount(0);
+    await expect(page.locator('#detail [data-custom]')).toHaveCount(0);
+    await expect(page.locator('#detail')).not.toContainText('Taille réelle');
+    await expect(page.locator('#detail')).not.toContainText('taille réelle');
+    // le reste de la fiche est là : rôle, retouche, orientation
+    await expect(page.locator('#detail [data-role="cutout"]')).toHaveCount(1);
+    await expect(page.locator('#detail [data-edit]')).toBeVisible();
+    await expect(page.locator('#detail [data-rot="auto"]')).toBeVisible();
+    // en collage, le choix revient
+    await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    await expect(page.locator('#detail [data-cm="custom"]')).toBeVisible();
+    await expect(page.locator('#detail')).toContainText('Taille réelle');
+    expect(app.errors).toEqual([]);
+  });
+});
+
 test.describe('Taille d’un dessin changée sur l’œuvre', () => {
   test('A4 et A2 : la taille exacte est gardée et la puce s’allume (pas d’arrondi au demi-centimètre)', async ({ app }) => {
     const { page } = app;
