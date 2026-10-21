@@ -4686,6 +4686,7 @@ Réponds uniquement avec ce JSON :
     pruneFiles();
     $('draft-offer').hidden = true;
     if ($('empty-resume')) $('empty-resume').hidden = true;
+    savedStatus(''); // (un message de réouverture d'avant ne vaut plus)
     workStatus();
     renderSaved();
   }

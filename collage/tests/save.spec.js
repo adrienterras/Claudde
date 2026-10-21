@@ -97,8 +97,10 @@ test.describe('Mes œuvres', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
     await expect(page.locator('#empty')).toBeVisible();
     // la copie se rouvre telle quelle
+    await expect(page.locator('#saved-status')).toBeHidden(); // (le message de la réouverture d'avant est parti)
     await page.locator('#saved-list .saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.comp && AtelierGribouille.state.drawings.length === 4 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].x)).toBeCloseTo(before.first[0], 3);
     await page.locator('#saved-list .saved .saved-del').click();
     await page.locator('#saved-list .saved .saved-del').click();
