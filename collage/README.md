@@ -471,7 +471,8 @@ cd collage && python3 -m http.server 8000
      la couleur à peindre ; **toute nouvelle création part en couleur automatique** (conseillée
      selon la composition), une œuvre rouverte (brouillon, composition sauvegardée) reprend la sienne ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
-     les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; le choix est mémorisé ;
+     les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; toute nouvelle création part en
+     portrait, une œuvre rouverte garde la sienne ;
    - **six propositions en collage, sept en tableau imprimé** (Paysage sélectionné par défaut), à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),

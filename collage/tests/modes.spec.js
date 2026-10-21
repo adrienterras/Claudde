@@ -46,6 +46,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
+    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const snap = () => page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, style: c.style, key: c.frameKey, items: c.items.map((L) => [L.x / c.W, L.y / c.H, L.w, L.h, L.rot, (L.piece.canvas.width * L.piece.drawing.sizeCm / L.piece.drawing.srcLong) / L.w]), bg: c.bg.filter((L) => !L.paper).length }; });
@@ -127,6 +129,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
+    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
@@ -303,6 +307,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
+    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'photo-wood.png', 'noscale-small.jpg', 'noscale-medium.jpg'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:21x30'; f.dispatchEvent(new Event('change')); });
@@ -343,6 +349,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
+    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
     // un scan A4 à 300 dpi, seul, dans le cadre 70 × 50 : il garderait de la place, mais reste à sa taille
     await page.setInputFiles('#file', [fixture('scan-300dpi.jpg')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
@@ -381,6 +389,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=toile');
     await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
+    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // seulement les toiles Cultura, et une toile conseillée d'office pour ces dessins

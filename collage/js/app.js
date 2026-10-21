@@ -1500,12 +1500,12 @@
   }
 
   // Orientation de la toile choisie par l'utilisateur : 'land' (paysage) ou 'port' (portrait).
+  // Toute nouvelle création part en portrait ; une œuvre rouverte reprend la sienne (réglages sauvegardés avec elle).
   function canvasOrient() {
-    return state.canvasOrient || 'land';
+    return state.canvasOrient || 'port';
   }
   function setCanvasOrient(o) {
     state.canvasOrient = o;
-    try { localStorage.setItem('atelier.canvasOrient', o); } catch (e) { /* ignoré */ }
     document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => {
       const on = b.dataset.orient === o;
       b.classList.toggle('on', on); b.classList.toggle('ink', on);
@@ -2043,6 +2043,7 @@
     const textures = state.drawings
       .filter((d) => roleOf(d) === 'texture')
       .map((d) => {
+        ensureMaterial(d); // (un rôle changé sans passer par la fiche : la page de fond est préparée ici)
         const t = d.analysis.texture;
         const c = cmPerPx(d) * kb;
         return Object.assign({}, t, { drawing: d, wcm: t.canvas.width * c, hcm: t.canvas.height * c });
@@ -4318,7 +4319,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('fmt').addEventListener('change', updateExportInfo);
   // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
   document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
-  try { const o = localStorage.getItem('atelier.canvasOrient'); if (o === 'port' || o === 'land') setCanvasOrient(o); } catch (e) { /* ignoré */ }
+  try { localStorage.removeItem('atelier.canvasOrient'); } catch (e) { /* ignoré */ } // l'orientation n'est plus mémorisée d'une œuvre à l'autre
+  setCanvasOrient('port');
   document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {
     setMode(b.dataset.mode); state.formatManual = false;
     emptyChoice(true);
@@ -4566,6 +4568,7 @@ Réponds uniquement avec ce JSON :
     $('empty').hidden = false;
     emptyChoice(false); // le type d'œuvre se choisit de nouveau
     $('density').value = $('density').max; // une nouvelle œuvre part avec tous les dessins
+    setCanvasOrient('port'); // et en portrait
     refreshLists();
     updateLabel();
     render();
@@ -5414,7 +5417,7 @@ Réponds uniquement avec ce JSON :
     if (sv.format && sv.format.startsWith('cadre:')) sv.format = normalizeFrame(sv.format); // un ancien cadre : le plus proche des quatre
     if (sv.format && [...$('format').options].some((o) => o.value === sv.format)) { $('format').value = sv.format; state.formatManual = printMode() || !!sv.formatManual; }
     if (sv.mat !== undefined && printMode()) { try { localStorage.setItem('atelier.passe-partout', sv.mat ? '1' : '0'); } catch (e) { /* ignoré */ } syncMatButtons(); }
-    if (sv.orient) setCanvasOrient(sv.orient);
+    setCanvasOrient(sv.orient || 'land'); // une sauvegarde sans orientation date d'avant le portrait par défaut
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
     if (sv.density !== undefined) { $('density').value = sv.density; state.densityBeforeSample = null; }
     if (sv.pale && $('pale')) $('pale').value = sv.pale;
