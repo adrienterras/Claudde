@@ -427,7 +427,7 @@ cd collage && python3 -m http.server 8000
    - **collage et mise en scène** : pas de scène « entrée » (la chambre d'enfant la remplace si elle
      était mémorisée, `sceneRoom`) ; sur ordinateur, la fenêtre de mise en scène n'a ni taille ni
      orientation (elles se règlent dans la section Tailles) ;
-   - **téléphone, après un import** : l'onglet Tailles s'ouvre (et non Propositions) ;
+   - **téléphone, après un import** : l'onglet Tailles s'ouvre (et non Propositions), tiroir déplié en grand ;
    - **fiche d'un dessin dans le flux** : entre la phrase de la section Dessins et les dessins, elle
      ne flotte plus au-dessus de la liste (plus de `position: sticky`) ;
    - **tableau imprimé : pas de taille réelle dans la fiche** : les dessins y sont réduits pour tenir

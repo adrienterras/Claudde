@@ -131,10 +131,10 @@ test.describe('Interface', () => {
     const { fixture } = require('./helpers');
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // juste après l'import : l'onglet Tailles, tiroir à hauteur normale (l'œuvre reste visible)
+    // juste après l'import : l'onglet Tailles, tiroir déplié en grand
     await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'sizes-section');
     await expect(page.locator('#sizes-section')).toBeVisible();
-    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    await expect(page.locator('body')).toHaveClass(/sheet-tall/);
     await expect(page.locator('#import-section')).toBeHidden();
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await expect(page.locator('#compose-section')).toBeVisible();
@@ -1260,6 +1260,9 @@ test.describe('Tiroir au doigt sur téléphone', () => {
   test('la poignée suit le doigt, puis le tiroir se cale : agrandi, normal, barre seule', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click(); // Tailles s'ouvre en grand après l'import : Propositions ramène le tiroir à sa hauteur normale
+    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    await page.waitForTimeout(450); // fin du glissement
     const cdp = await page.context().newCDPSession(page);
     const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
     const panelH = async () => (await page.locator('.panel').boundingBox()).height;
@@ -1314,6 +1317,7 @@ test.describe('Panier sur téléphone', () => {
     await expect(head.locator('span')).toHaveCount(0); // l'icône seule, sans texte
     await expect(page.locator('.cart-btn-desk')).toBeHidden();
     await app.import(['page-cutout.png', 'page-two.png']);
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click(); // Tailles s'ouvre en grand après l'import : Propositions ramène le tiroir à sa hauteur normale
     const cta = page.locator('.order-cta-desk');
     await expect(cta).toBeVisible();
     const b = await cta.boundingBox();
@@ -1344,6 +1348,7 @@ test.describe('Plein écran sur téléphone', () => {
   test('le tiroir descend jusqu’à la barre des sections ; une section touchée le fait remonter', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click(); // Tailles s'ouvre en grand après l'import : Propositions ramène le tiroir à sa hauteur normale
     await page.locator('#zoom-full').click();
     await expect(page.locator('body')).toHaveClass(/stage-full/);
     await page.waitForTimeout(450); // fin du glissement
@@ -1688,6 +1693,7 @@ test.describe('Couleur du fond', () => {
     const { page } = app;
     await page.setViewportSize({ width: 390, height: 844 });
     await app.import(['page-cutout.png', 'page-two.png']);
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click(); // Tailles s'ouvre en grand après l'import : Propositions ramène le tiroir à sa hauteur normale
     await page.locator('#ground-open').click();
     await expect(page.locator('#ground-pop')).toBeVisible();
     const r = await page.evaluate(() => { const b = document.getElementById('ground-pop').getBoundingClientRect(); return { l: b.left, r: b.right, w: innerWidth }; });

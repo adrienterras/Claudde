@@ -402,7 +402,7 @@
       $('empty').hidden = true;
       $('new-work').hidden = false;
       if (mobileQuery.matches) setStageFull(false); // le tiroir remonte avec les premiers dessins
-      if (!state.restoring) selectTab('sizes-section', { normal: true }); // téléphone : après un import, l'onglet Tailles, tiroir à hauteur normale
+      if (!state.restoring) selectTab('sizes-section'); // téléphone : après un import, l'onglet Tailles, tiroir déplié en grand
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
       // pas pour l'exemple, qui invite justement à importer ses propres dessins
       if (!mobileQuery.matches && $('import-section')._collapse && !(opts && opts.sample) && !state.drawings.some((d) => d.sample)) $('import-section')._collapse();
@@ -5716,7 +5716,7 @@ Réponds uniquement avec ce JSON :
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
   const TAB_OF = { more: ['saved-section'] };
   let autoTall = false; // le tiroir a été agrandi par l'onglet Tailles (et non par un geste)
-  function selectTab(id, opts) {
+  function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
     if (!panel || !tabs) return;
@@ -5726,8 +5726,7 @@ Réponds uniquement avec ce JSON :
     btn.disabled = false;
     // Tailles (choix du cadre, orientation, mise en scène) : le tiroir s'ouvre en grand ; un autre
     // onglet le ramène à sa hauteur normale, sauf si c'est un geste qui l'avait agrandi
-    // (opts.normal : Tailles sans agrandir le tiroir — juste après un import, l'œuvre reste visible)
-    if (id === 'sizes-section' && !(opts && opts.normal)) { document.body.classList.add('sheet-tall'); autoTall = true; }
+    if (id === 'sizes-section') { document.body.classList.add('sheet-tall'); autoTall = true; }
     else if (autoTall) { document.body.classList.remove('sheet-tall'); autoTall = false; }
     // la fiche d'un dessin (tiroir à mi-hauteur) ne reste ouverte que dans l'onglet Dessins
     document.body.classList.toggle('sheet-detail', id === 'drawings-section' && !!state.current);
