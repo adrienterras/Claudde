@@ -3464,6 +3464,24 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // agrandir / réduire : en Galerie et dans l'atelier Impression
       if (b.classList.contains('gallery-only')) b.hidden = !sizable;
     });
+    editHint();
+  }
+  // « Touchez un dessin de l'œuvre pour le modifier » : sur l'œuvre affichée, tant que rien n'est
+  // sélectionné ; le premier dessin touché suffit, l'astuce ne revient plus (mémorisé)
+  const HINT_KEY = 'atelier.astuce-edition';
+  let hintSeen = null;
+  function editHint() {
+    const el = $('edit-hint');
+    if (!el) return;
+    if (hintSeen === null) { try { hintSeen = localStorage.getItem(HINT_KEY) === '1'; } catch (e) { hintSeen = false; } }
+    if (state.selected && !hintSeen) { hintSeen = true; try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* ignoré */ } }
+    const seen = hintSeen;
+    const newer = $('work-newer');
+    const show = !!state.comp && !state.selected && !seen && !(newer && !newer.hidden) && !document.body.classList.contains('stage-full');
+    if (show) el.textContent = mobileQuery.matches
+      ? tr('Touchez un dessin de l’œuvre pour le déplacer, l’agrandir ou le retoucher')
+      : tr('Cliquez sur un dessin de l’œuvre pour le déplacer, l’agrandir, le tourner ou le retoucher');
+    el.hidden = !show;
   }
 
   document.querySelectorAll('#toolbar button').forEach((b) => (b.onclick = () => act(b.dataset.act)));

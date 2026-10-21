@@ -841,6 +841,8 @@
     'Garder quand même': 'Keep anyway',
     'Création imprimée': 'Printed artwork',
     'Collage des originaux': 'Collage of the originals',
+    'Touchez un dessin de l’œuvre pour le déplacer, l’agrandir ou le retoucher': 'Tap a drawing on the artwork to move it, enlarge it or retouch it',
+    'Cliquez sur un dessin de l’œuvre pour le déplacer, l’agrandir, le tourner ou le retoucher': 'Click a drawing on the artwork to move, enlarge, rotate or retouch it',
   };
 
   const KEY = 'atelier-gribouille:lang';

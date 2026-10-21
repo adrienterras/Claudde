@@ -1111,6 +1111,9 @@ body.stage-full .scene-open { display: none; }
 .saved .saved-tag { flex: none; display: inline-block; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 0.64rem; font-weight: 600; letter-spacing: .02em; vertical-align: middle; }
 .saved .saved-tag.on { border-color: var(--accent); color: var(--accent); }
 /* l'œuvre affichée a changé sur un autre appareil : bandeau en haut de la scène */
+.edit-hint { position: absolute; top: 128px; left: 50%; transform: translateX(-50%); z-index: 4; margin: 0; width: max-content; max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 999px; background: rgba(20, 18, 12, 0.72); color: #fff; font-size: 0.8rem; font-weight: 600; text-align: center; pointer-events: none; box-shadow: 0 8px 20px -12px rgba(0, 0, 0, .6); animation: fade .4s ease-out; }
+.edit-hint[hidden] { display: none; }
+@media (max-width: 860px) { .edit-hint { top: 112px; left: 10px; right: 62px; transform: none; width: auto; max-width: none; border-radius: 14px; font-size: 0.76rem; } body.sheet-tall .edit-hint { display: none; } }
 .work-newer { position: absolute; top: 128px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; justify-content: center; gap: 8px 12px; flex-wrap: wrap; width: max-content; max-width: calc(100% - 32px); padding: 10px 14px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .5); font-size: 0.84rem; }
 .work-newer[hidden] { display: none; }
 @media (max-width: 860px) { .work-newer { top: 112px; left: 10px; right: 62px; transform: none; width: auto; max-width: none; } } /* (à gauche de la barre de zoom) */

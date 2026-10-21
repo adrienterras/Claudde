@@ -434,6 +434,8 @@
       <input id="density" type="range" min="0.5" max="1.8" step="0.05" value="1.8" aria-describedby="density-note">
       <small id="density-note">16 dessins</small>
     </div>
+    <!-- l'astuce de la zone d'édition : on édite l'œuvre en touchant un dessin (jusqu'au premier dessin touché) -->
+    <p id="edit-hint" class="edit-hint" hidden></p>
     <button type="button" id="scene-open" class="scene-open" hidden><svg class="ico"><use href="#i-frame"/></svg><span>Mettre en scène</span></button>
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <!-- l'œuvre affichée a changé sur un autre appareil : choisir la version à garder -->

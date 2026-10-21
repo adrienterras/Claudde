@@ -210,6 +210,10 @@ cd collage && python3 -m http.server 8000
      ordinateur ; au-dessus du tiroir sur téléphone, avec le titre seulement), le type de proposition
      et la taille de l'impression (« Frise · impression 29,7 × 21 cm ») ou de la toile, avec le titre
      de l'œuvre s'il y en a un ;
+   - **astuce de la zone d'édition** (`#edit-hint`, `editHint`) : sur l'œuvre affichée, tant que rien
+     n'est sélectionné, « Cliquez sur un dessin de l'œuvre pour le déplacer, l'agrandir, le tourner ou
+     le retoucher » (téléphone : « Touchez… ») ; elle disparaît au premier dessin touché et ne revient
+     plus (`atelier.astuce-edition`) ;
    - **œuvre affichée** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
      **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
      œuvre » la range dans Mes œuvres (rien n'est effacé, pas de confirmation). Chaque dessin est relu à la résolution de travail qu'il avait (elle dépend du
