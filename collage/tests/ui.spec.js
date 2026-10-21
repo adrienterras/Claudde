@@ -813,14 +813,14 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart-add')).toBeVisible();
     await page.locator('#cart-add [data-close]').first().click();
     await expect(page.locator('#cart-add')).toBeHidden();
-    // collage : pas d'icône panier sur les propositions
-    expect(await page.evaluate(() => AtelierGribouille.state.mode === 'impression')).toBe(false);
-    await expect(page.locator('.proposal-cart').first()).toBeHidden();
-    // atelier Impression : tirages et fichier HD ; une proposition (pas celle affichée), en tableau encadré
+    // pas d'icône panier sur les propositions, ni en collage ni en tableau imprimé
+    await expect(page.locator('.proposal-cart')).toHaveCount(0);
+    // atelier Impression : tirages et fichier HD ; une autre proposition, affichée puis commandée, en tableau encadré
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
-    await expect(page.locator('.proposal-cart').first()).toBeVisible();
+    await expect(page.locator('.proposal-cart')).toHaveCount(0);
     const style1 = await page.evaluate(() => AtelierGribouille.state.proposals[1].style.id);
-    await page.locator('.proposal-cart').nth(1).click();
+    await page.evaluate(() => AtelierGribouille.selectProposal(1));
+    await page.locator('.order-cta-desk').click();
     await expect(page.locator('#cart-add')).toBeVisible();
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await page.locator('#cart-add [data-size="50x70"]').click();
@@ -1319,10 +1319,9 @@ test.describe('Panier sur téléphone', () => {
     const b = await cta.boundingBox();
     expect(b.height).toBeLessThan(32); // bouton discret
     expect(b.x).toBeLessThan(20); // en bas à gauche de l'œuvre, à l'opposé des outils
-    // pas d'icône panier sur les cartes de propositions (sur ordinateur seulement)
+    // pas d'icône panier sur les cartes de propositions
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
-    expect(await page.locator('.proposal-cart').count()).toBeGreaterThan(0);
-    await expect(page.locator('.proposal-cart').first()).toBeHidden();
+    await expect(page.locator('.proposal-cart')).toHaveCount(0);
     const zoom = await page.locator('.zoom').boundingBox();
     expect(b.x + b.width).toBeLessThan(zoom.x); // il ne croise pas la colonne d'outils
     await expect(cta.locator('.ico')).toBeVisible(); // l'icône du sac, sur téléphone

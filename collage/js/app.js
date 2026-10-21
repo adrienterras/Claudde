@@ -2365,18 +2365,10 @@
       const sub = t ? `« ${esc(t)} »` : (pr.comp.total ? tr`${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
       b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${sub}</small>`;
       b.onclick = () => selectProposal(i);
-      // (à côté de la carte, pas dedans : un bouton ne contient pas de bouton)
+      // (pas d'icône panier sur les propositions : on commande l'œuvre affichée, par « Commander » ou l'étape Exporter)
       const wrap = document.createElement('div');
       wrap.className = 'proposal-wrap';
-      const add = document.createElement('button');
-      add.type = 'button';
-      add.className = 'proposal-cart';
-      add.title = tr('Ajouter au panier');
-      add.setAttribute('aria-label', tr`Ajouter « ${pr.style.name} » au panier`);
-      add.innerHTML = '<svg class="ico"><use href="#i-cart"/></svg>';
-      // la proposition affichée est prise telle que retouchée ; une autre, telle que proposée
-      add.onclick = () => openCartAdd(i === state.active ? state.comp : pr.comp, t || pr.style.name, pr.style.name);
-      wrap.append(b, add);
+      wrap.append(b);
       box.appendChild(wrap);
     });
   }

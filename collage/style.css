@@ -385,10 +385,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .proposal.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 /* chaque proposition peut aller au panier (bouton posé sur le coin de la vignette) */
 .proposal-wrap { position: relative; display: grid; }
-.proposal-cart { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: 0 4px 10px -6px rgba(0, 0, 0, .45); }
-.proposal-cart:hover { background: var(--accent-soft); }
-.proposal-cart .ico { width: 17px; height: 17px; }
-body:not(.mode-impression) .proposal-cart { display: none; } /* collage : pas d'icône panier sur les propositions (« Commander » et l'étape Exporter suffisent) */
+
 
 /* ---------- Panier ---------- */
 .cart-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; box-shadow: 0 8px 18px -12px rgba(0, 0, 0, .45); }
@@ -954,7 +951,6 @@ body.stage-full .scene-open { display: none; }
 
 /* Téléphone : Annuler · Valider en haut, le dessin au milieu, les outils en bas, à portée du pouce */
 @media (max-width: 860px) {
-  .proposal-cart { display: none; } /* téléphone : pas d'icône panier sur les propositions (le bouton « Commander » suffit) */
   .ed-foot { grid-row: 1; padding: 8px 12px; border-top: 0; border-bottom: 1px solid var(--line); gap: 8px; }
   .ed-stage { grid-row: 2; }
   .ed-bar { grid-row: 3; border-bottom: 0; border-top: 1px solid var(--line); padding: 10px 12px 12px; gap: 10px 8px; }
