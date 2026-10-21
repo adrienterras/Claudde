@@ -72,7 +72,7 @@ cd collage && python3 -m http.server 8000
 1. **Compte requis pour photographier, pas pour importer** (quand les comptes sont actifs,
    `config.js`) : sans être connecté, on peut voir et manipuler l'exemple (« Voir un exemple »,
    `?exemple`) et importer ses propres dessins (zone d'import, glisser-déposer, sélecteur de
-   fichiers) ; photographier depuis l'atelier, exporter, sauvegarder ou commander ouvre la fenêtre
+   fichiers) ; photographier depuis l'atelier, exporter ou commander ouvre la fenêtre
    de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
    fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
@@ -94,7 +94,7 @@ cd collage && python3 -m http.server 8000
    natif ; ses photos sont gardées et importées comme les autres. Sur téléphone et tablette, la
    visée demande 2560 × 1920 (assez pour un A4 à 150 dpi, sans peser sur la mémoire) ; 4K sur ordinateur.
 2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, Tailles — le choix de la toile ou du
-   cadre se fait avant les propositions —, Propositions, Dessins, Exporter, Mes compositions ; mêmes onglets
+   cadre se fait avant les propositions —, Propositions, Dessins, Exporter, Mes œuvres ; mêmes onglets
    sur téléphone ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés — sans badge de rôle ; la fiche d'un dessin
    change son rôle) : chaque page est classée automatiquement
@@ -205,9 +205,9 @@ cd collage && python3 -m http.server 8000
      ordinateur ; au-dessus du tiroir sur téléphone, avec le titre seulement), le type de proposition
      et la taille de l'impression (« Frise · impression 29,7 × 21 cm ») ou de la toile, avec le titre
      de l'œuvre s'il y en a un ;
-   - **œuvre en cours** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
+   - **œuvre affichée** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
      **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
-     œuvre » l'efface. Chaque dessin est relu à la résolution de travail qu'il avait (elle dépend du
+     œuvre » la range dans Mes œuvres (rien n'est effacé, pas de confirmation). Chaque dessin est relu à la résolution de travail qu'il avait (elle dépend du
      nombre de dessins importés d'un coup), pour retrouver exactement la même page — jamais plus que
      ce que l'appareil porte : une œuvre faite sur ordinateur et rouverte sur un téléphone voit ses
      pages réduites (`restoreAnalysis(sv, maxLong)` : page, masques, pièces et repères au même
@@ -239,21 +239,34 @@ cd collage && python3 -m http.server 8000
      dans le compte sous la référence de la commande (AG-AAMMJJ-XXXX), garde la commande dans
      l'historique local et ouvre le message de commande (bonjour@atelier-gribouille.com) avec le
      récapitulatif. Le paiement en ligne n'est pas encore branché ;
-   - **compositions sauvegardées** (section « Mes compositions ») : « Sauvegarder cette composition »
-     enregistre dans le navigateur (IndexedDB) les dessins (images d'origine), leurs réglages (rôle,
-     taille, orientation, luminosité, contraste et saturation, photo sur un sol, sujets gardés), la
-     **découpe telle quelle** de chaque dessin (sa page de travail en JPEG et le masque de chaque pièce,
-     retouches comprises, rangés dans une planche PNG : `savedOf`) et la mise en place exacte (chaque
-     pièce et page, position, rotation, échelle, cadres, fond) ; la liste permet de rouvrir une
-     composition telle quelle, sans nouvelle analyse, ou de la supprimer ; une composition rouverte
-     reste épinglée jusqu'à « nouvelles propositions » ou un changement de réglage. Les pièces
+   - **Mes œuvres** : chaque œuvre s'enregistre d'elle-même pendant qu'on travaille (2,5 s après le
+     dernier changement), il n'y a rien à sauvegarder. L'œuvre affichée est le brouillon (`DRAFT_ID`,
+     rouvert au rechargement) ; les autres sont rangées dans IndexedDB sous leur identifiant
+     (`rec.work`, `state.workId`), leurs images dans le magasin commun (`FILES_STORE`, chaque image et
+     chaque découpe écrites une fois, sous une clé stable). « Nouvelle œuvre » ou l'ouverture d'une autre
+     œuvre range celle affichée (`shelveCurrent`) ; une œuvre ne s'efface que par la corbeille de la
+     liste (en deux temps), dans ce navigateur et dans le compte. Chaque œuvre garde les dessins
+     (images d'origine), leurs réglages (rôle, taille, orientation, luminosité, contraste et
+     saturation, photo sur un sol, sujets gardés), la **découpe telle quelle** de chaque dessin (sa page
+     de travail en JPEG et le masque de chaque pièce, retouches comprises, rangés dans une planche PNG :
+     `savedOf`, identifiée par `pack`, gardée d'une réouverture à l'autre) et la mise en place exacte
+     (chaque pièce et page, position, rotation, échelle, cadres, fond). La liste (section « Mes
+     œuvres », onglet Compte sur téléphone) montre l'œuvre affichée en tête (« en cours »), puis les
+     autres de la plus récente à la plus ancienne (« commandée », « sur cet appareil » : pas encore
+     dans le compte) ; un toucher rouvre une œuvre telle quelle, sans nouvelle analyse, la version la
+     plus récente l'emportant (celle du navigateur si elle est à jour : rien à télécharger). « Dupliquer
+     cette œuvre » (étape Exporter) en ajoute une copie à la liste, sans compte. Une œuvre commandée,
+     ou un article du panier « revu », se rouvre en copie (`beginCopy`) : elle ne devient une nouvelle
+     œuvre qu'au premier changement, la commande reste telle quelle. Une œuvre rouverte reste épinglée
+     jusqu'à « nouvelles propositions » ou un changement de réglage. Les pièces
      rouvertes sont rebâties depuis la page et les masques sauvegardés (`restoreAnalysis`), jamais
      redécoupées : une découpe automatique améliorée entre-temps ne change pas une œuvre déjà faite
      (seule la haute définition à l'export réanalyse le fichier d'origine, et garde la version de
      travail si la page retrouvée diffère). Les sauvegardes d'avant (sans page ni masques, `v` absent)
      sont relues avec la découpe automatique de l'époque, `js/extract-legacy.js`, chargé à la demande,
-     et leurs retouches rejouées par rang de pièce ; une fois sauvegardées de nouveau, elles passent
-     au format autonome ;
+     et leurs retouches rejouées par rang de pièce ; une fois enregistrées de nouveau, elles passent
+     au format autonome. Les anciennes compositions sauvegardées et l'ancienne œuvre en cours
+     (d'avant « Mes œuvres ») apparaissent dans la liste comme des œuvres (`migrateDraft`) ;
    - **feuille photographiée** (table, mur, nappe, bois) : la feuille est cherchée avant tout le
      reste (`Extract.findSheet`). Le papier est une plage claire et peu saturée bornée de tous côtés
      par un contour franc (le bord de la feuille et son ombre), même quand la surface a presque sa
@@ -387,28 +400,28 @@ cd collage && python3 -m http.server 8000
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;
-   - **l'œuvre en cours suit le compte, à la demande** : connecté, le brouillon part de lui-même dans le
-     compte (`Account.cloud.draftPut`, 15 s après le dernier changement sur ordinateur, 6 s sur
-     téléphone, ou dès que la page passe en arrière-plan) : une ligne `compositions` marquée `draft`
-     (une seule par compte, remplacée à chaque envoi, absente de la liste des compositions) et un
-     dossier fixe `<utilisateur>/brouillon/` où chaque image (et chaque planche de découpes) n'est
-     envoyée qu'une fois, nommée d'après sa clé de brouillon ; les fichiers qui ne servent plus sont
-     effacés. Les photos prises au téléphone sont ainsi dans le compte quand on passe à l'ordinateur.
-     Rien n'est tiré du compte sans qu'on le demande : le bloc `#cloud-sync` sous la puce du compte
-     (ordinateur : toujours visible ; téléphone : onglets Importer et Compte) porte une ligne d'état
-     (`cloudStatus` : « envoyée à 14:32 », « des changements pas encore envoyés », « dans votre compte :
-     une œuvre de N dessins venue d'un autre appareil »…) et deux boutons : « Recharger depuis mon
-     compte » (`pullCloudDraft` : relit la ligne du compte et rouvre son œuvre à la place de celle
-     affichée ; un deuxième appui confirme si des changements d'ici n'étaient pas encore partis ; « déjà
-     celle de votre compte » si rien de neuf) et « Sauvegarder dans mon compte » (`pushCloudDraft` : envoi
-     sans attendre le délai). Seule exception : à l'arrivée et à la connexion (`checkCloudDraft`), si
-     rien n'est en cours ici (nouvel appareil, navigateur vidé), l'œuvre du compte se rouvre d'elle-même.
-     Après une réception, la copie locale n'est pas renvoyée (`atelier.brouillon-compte-vu` : date de la
-     version du compte connue ici ; sinon les deux appareils se renverraient la même œuvre sans fin).
-     Le compte n'est donc lu qu'à l'arrivée, à la connexion et sur demande, et les lectures ne
-     demandent que ce qu'il faut (lignes du brouillon ou du panier filtrées côté serveur, sans vignette
-     pour le brouillon) : le relire au retour au premier plan et toutes les minutes pesait sur la bande
-     passante sortante du compte Supabase. « Oublier cette œuvre » l'efface des deux côtés ;
+   - **Mes œuvres suivent le compte** : connecté, chaque œuvre part d'elle-même dans le compte
+     (`Account.cloud.workPut`, 15 s après le dernier changement sur ordinateur, 6 s sur téléphone, ou
+     dès que la page passe en arrière-plan) : une ligne `compositions` au même identifiant que l'œuvre
+     (`meta.work`) et un dossier `<utilisateur>/<œuvre>/` où chaque image (et chaque planche de
+     découpes) n'est envoyée qu'une fois, nommée d'après sa clé ; les fichiers qui ne servent plus
+     sont effacés (y compris ceux d'une ancienne sauvegarde ou de l'ancien brouillon unique). Les
+     photos prises au téléphone sont ainsi dans le compte quand on passe à l'ordinateur. Un
+     enregistrement identique (`printOf`) n'est ni réécrit ni renvoyé, et une œuvre rouverte sert de
+     référence (`state.workBaseline`) : la relire ne la renvoie pas. Une ligne d'état discrète sous la
+     puce du compte (`#cloud-sync`, `workStatus` ; téléphone : onglets Importer et Compte) dit où
+     l'œuvre est enregistrée (« ✓ Enregistrée dans votre compte (14:32) », « sur cet appareil »…).
+     Le compte n'est lu qu'à l'arrivée et à la connexion (`checkWorks` : la liste, sans les fiches
+     complètes) et au retour sur la page après plus de 2 minutes d'absence (`checkCurrentWork` : la
+     seule date de l'œuvre affichée) ; à l'arrivée sur un appareil où rien n'est affiché (nouvel
+     appareil, navigateur vidé), la plus récente se rouvre d'elle-même, sauf après « nouvelle œuvre »
+     (`atelier.nouvelle`) ou une arrivée `?nouveau` / `?exemple`. Les œuvres faites ici avant de se
+     connecter, jamais envoyées nulle part, partent dans le compte à la connexion. Si l'œuvre affichée
+     a été changée sur un autre appareil (date du compte différente de celle connue ici,
+     `atelier.oeuvres-vues`), un bandeau en haut de la scène le dit (`#work-newer`, avec l'appareil et
+     l'heure) : « Ouvrir cette version » la rouvre, « Garder celle-ci » renvoie celle d'ici ; rien ne
+     part ni ne vient pour elle tant qu'on n'a pas choisi. Après une réception, la copie d'ici n'est
+     pas renvoyée (pas de ping-pong entre appareils) ;
    - **couleur du fond** : le nuancier (`#ground`) est le dernier bloc de la section Propositions
      (hors des réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
      près de l'œuvre, ouvre la même palette juste à côté (`#ground-pop`, reste ouverte pour essayer
@@ -469,7 +482,7 @@ cd collage && python3 -m http.server 8000
      effet peinture ni finition toile (son nuancier règle la couleur du trait des cases) ; l'aplat est rendu avec un vrai effet de peinture (coups de brosse en deux couches,
      traces des poils, couche inégale), à l'écran, dans les exports et dans le PDF ; le guide indique
      la couleur à peindre ; **toute nouvelle création part en couleur automatique** (conseillée
-     selon la composition), une œuvre rouverte (brouillon, composition sauvegardée) reprend la sienne ;
+     selon la composition), une œuvre rouverte (brouillon, Mes œuvres) reprend la sienne ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; toute nouvelle création part en
      portrait, une œuvre rouverte garde la sienne ;
@@ -523,10 +536,10 @@ générés par `samples/make_samples.py` : aucun auteur, aucune donnée personne
 **Comptes utilisateurs** (optionnels) : inscription et connexion par Google ou e-mail (mot de
 passe, ou lien de connexion sans mot de passe), gestion du compte (nom affiché, e-mail, mot de passe,
 déconnexion, suppression définitive en deux clics, lien « mot de passe oublié »). Quand les comptes
-sont actifs, télécharger une œuvre, créer le guide et sauvegarder une composition demandent d'être
+sont actifs, télécharger une œuvre et créer le guide demandent d'être
 connecté (la fenêtre de connexion s'ouvre et l'action reprend d'elle-même après la connexion) ; les
-compositions sont sauvegardées dans le compte, avec les images des dessins en haute définition et
-les retouches, et chaque export (JPEG, PNG, PDF, guide) y est gardé aussi, listé sous « Mes exports »
+œuvres s'enregistrent d'elles-mêmes dans le compte (Mes œuvres), avec les images des dessins en haute
+définition et les retouches, et chaque export (JPEG, PNG, PDF, guide) y est gardé aussi, listé sous « Mes exports »
 avec retéléchargement et suppression. Tout se retrouve depuis n'importe quel appareil. Le service est Supabase (Auth + Storage,
 hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)
 limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à

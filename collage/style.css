@@ -260,8 +260,6 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 .saved .saved-actions { display: flex; align-items: center; gap: 2px; }
 #exports-box { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
 #exports-box h3 { margin: 0; }
-.saved .saved-where { display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; color: var(--accent); margin-left: 6px; vertical-align: middle; }
-.saved .saved-where .ico { width: 13px; height: 13px; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (max-width: 600px) {
@@ -1093,7 +1091,7 @@ body.stage-full .scene-open { display: none; }
 
 }
 
-/* ---------- Compositions sauvegardées ---------- */
+/* ---------- Mes œuvres ---------- */
 .saved-list { display: flex; flex-direction: column; gap: 8px; }
 .saved { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); cursor: pointer; text-align: left; }
 .saved:hover { border-color: var(--accent); }
@@ -1103,9 +1101,17 @@ body.stage-full .scene-open { display: none; }
 .saved .saved-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 999px; }
 .saved .saved-del:hover { color: var(--danger); background: var(--danger-soft); }
 
-.save-form { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
-.save-form .row-btns { display: flex; gap: 8px; }
-.save-form .row-btns .btn { flex: 1; }
+/* l'œuvre affichée, en tête ; « en cours », « commandée », « sur cet appareil » (pas encore dans le compte) */
+.saved.current { border-color: var(--accent); background: var(--accent-soft); }
+.saved .saved-name:has(.saved-tag) { display: flex; align-items: center; gap: 6px; }
+.saved .saved-name > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.saved .saved-tag { flex: none; display: inline-block; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 0.64rem; font-weight: 600; letter-spacing: .02em; vertical-align: middle; }
+.saved .saved-tag.on { border-color: var(--accent); color: var(--accent); }
+/* l'œuvre affichée a changé sur un autre appareil : bandeau en haut de la scène */
+.work-newer { position: absolute; top: 128px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; justify-content: center; gap: 8px 12px; flex-wrap: wrap; width: max-content; max-width: calc(100% - 32px); padding: 10px 14px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .5); font-size: 0.84rem; }
+.work-newer[hidden] { display: none; }
+@media (max-width: 860px) { .work-newer { top: 112px; left: 10px; right: 62px; transform: none; width: auto; max-width: none; } } /* (à gauche de la barre de zoom) */
+.work-newer .btn { width: auto; padding: 7px 14px; font-size: 0.8rem; }
 .saved .saved-del.confirm { color: var(--on-ink); background: var(--danger); font-size: 0.7rem; font-weight: 600; padding: 4px 8px; }
 
 /* iOS zoome automatiquement sur un champ dont la police fait moins de 16 px : on l'évite sans bloquer le zoom à deux doigts */
@@ -1139,10 +1145,9 @@ body.stage-full .scene-open { display: none; }
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin: 14px 0 10px; } /* téléphone : un peu d'air sous la barre d'onglets */
 @media (min-width: 861px) { .camera-open { display: none !important; } } /* ordinateur : pas de bouton photo (on photographie au téléphone) */
-.cloud-sync { margin: 10px 0 14px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 8px; }
-.cloud-sync-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.cloud-sync { margin: 4px 0 12px; display: grid; } /* une ligne discrète : l'œuvre s'enregistre d'elle-même */
+.cloud-sync .hint { margin: 0; font-size: 0.76rem; }
 .cloud-sync[hidden] { display: none !important; }
-.cloud-sync-btns .btn { width: auto; flex: 1 1 180px; padding: 9px 12px; font-size: 0.82rem; gap: 8px; }
 .import-account { margin-top: 8px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
 .camera-stage { position: relative; min-height: 0; background: #15140f; overflow: hidden; }
 .camera-stage video, .camera-review { position: absolute; inset: 0; width: 100%; height: 100%; }

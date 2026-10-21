@@ -379,6 +379,11 @@
         };
         // page sauvegardée déjà tournée : la page droite (sans découpe) reste la base, comme à l'import
         if (sv && sv.deg) { d.orientDeg = sv.deg; d.base = unrotatedBase(analysis, sv.deg); }
+        // découpe relue à sa taille : elle reste celle de la sauvegarde (même clé, mêmes octets), pour ne
+        // pas la réécrire ni la renvoyer dans le compte tant qu'elle ne change pas
+        if (sv && sv.pack && sv.page.data && analysis.page.width === sv.page.w && analysis.page.height === sv.page.h && (analysis.pieces || []).length === (sv.pieces || []).length && (sv.atlases || []).every((x) => x.data)) {
+          d.savedPack = { sig: [analysis.page].concat((analysis.pieces || []).map((q) => q.canvas)), id: sv.pack, page: { w: sv.page.w, h: sv.page.h, data: sv.page.data }, atlases: sv.atlases.map((x) => ({ w: x.w, h: x.h, data: x.data })), at: sv.pieces.map((q) => q.at) };
+        }
         if (!d.original) Extract.release(src.canvas);
         preparePieces(analysis.pieces, d);
         loadSize(d);
@@ -4554,8 +4559,12 @@ Réponds uniquement avec ce JSON :
     }
   }
 
-  // Tout effacer pour repartir de ses propres scans
-  function startOver() {
+  // Repartir de zéro : l'œuvre affichée est rangée dans Mes œuvres (opts.discard : elle vient d'être
+  // supprimée, rien à ranger)
+  async function startOver(opts) {
+    const discard = !!(opts && opts.discard);
+    if (!discard) await shelveCurrent();
+    hideNewer();
     state.drawings = [];
     // ordinateur : toutes les étapes repliées, comme à l'arrivée (Tailles et Propositions se rouvriront à l'import)
     document.querySelectorAll('aside section.step').forEach((sec) => { if (sec._collapse) sec._collapse(); });
@@ -4582,22 +4591,24 @@ Réponds uniquement avec ce JSON :
     if (mobileQuery.matches) setStageFull(true); // téléphone : l'accueil vide prend tout l'écran
     clearHistory();
     clearTimeout(draftTimer);
-    draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire le brouillon effacé
-    dbDel(DRAFT_ID).catch(() => {});
+    draftEpoch++; draftAgain = false; // un instantané en cours ne doit pas réécrire l'œuvre rangée
+    setWork(null, '');
+    lsSet(NEW_KEY, '1');
+    if (discard) await dbDel(DRAFT_ID).catch(() => {});
     pruneFiles();
     $('draft-offer').hidden = true;
     if ($('empty-resume')) $('empty-resume').hidden = true;
+    workStatus();
+    renderSaved();
   }
   function restoreDensityAfterSample() {
     if (state.densityBeforeSample == null) return;
     $('density').value = state.densityBeforeSample;
     state.densityBeforeSample = null;
   }
-  $('clear').onclick = startOver;
-  // Bouton en tête du panneau : on demande confirmation, sauf si l'œuvre n'est faite que de l'exemple.
+  $('clear').onclick = () => startOver();
+  // Bouton en tête du panneau : rien ne se perd, l'œuvre affichée reste dans Mes œuvres
   $('new-work').onclick = () => {
-    const mine = state.drawings.some((d) => !d.sample);
-    if (mine && !window.confirm(tr('Commencer une nouvelle œuvre ? L’œuvre en cours sera effacée de cet appareil.'))) return;
     window.Atelier.track('Nouvelle œuvre');
     startOver();
   };
@@ -4662,95 +4673,179 @@ Réponds uniquement avec ce JSON :
   const filesPut = (key, v) => fileReq('readwrite', (st) => { st.put(v, key); });
   const filesKeys = () => fileReq('readonly', (st) => st.getAllKeys());
   const filesDel = (keys) => fileReq('readwrite', (st) => { keys.forEach((k) => st.delete(k)); });
-  // efface les images qui ne servent plus qu'au brouillon abandonné (celles du panier restent)
+  function dbDel(id) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).delete(id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
+  const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
+
+  /*
+   * Mes œuvres. Chaque œuvre s'enregistre d'elle-même pendant qu'on travaille : il n'y a rien à
+   * sauvegarder. L'œuvre affichée est le brouillon (DRAFT_ID, rouvert au rechargement) ; les autres
+   * sont rangées sous leur identifiant (rec.work), leurs images dans le magasin commun (FILES_STORE).
+   * « Nouvelle œuvre » ou l'ouverture d'une autre œuvre range celle affichée : rien ne s'efface, sauf
+   * par la corbeille de la liste. Connecté, chaque œuvre a aussi sa ligne dans le compte (même
+   * identifiant), envoyée d'elle-même : on la retrouve sur tous ses appareils.
+   */
+  const DRAFT_ID = 'brouillon';
+  const NEW_KEY = 'atelier.nouvelle'; // « nouvelle œuvre » demandée : à l'arrivée, rien ne se rouvre du compte
+  const SEEN_KEY = 'atelier.oeuvres-vues'; // par œuvre : date de la version du compte connue ici (envoyée ou reçue)
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const newWorkId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === 'x' ? r : ((r & 3) | 8)).toString(16); }));
+  const seenAll = () => { try { return JSON.parse(lsGet(SEEN_KEY) || '{}') || {}; } catch (e) { return {}; } };
+  const seenOf = (id) => seenAll()[id] || null;
+  const setSeen = (id, date) => { const m = seenAll(); if (date) m[id] = date; else delete m[id]; lsSet(SEEN_KEY, JSON.stringify(m)); };
+  const accountOn = () => { const A = window.Account; return !!(A && A.enabled); };
+  const signedIn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
+  const deviceName = (code) => (code === 'phone' ? tr('téléphone') : code === 'computer' ? tr('ordinateur') : '');
+  // le nom de l'œuvre : son titre s'il y en a un, sinon « Œuvre du 21 octobre »
+  const defaultWorkName = () => tr`Œuvre du ${new Date().toLocaleDateString(I18n.locale, { day: 'numeric', month: 'long' })}`;
+  const workTitle = () => (state.comp && state.titles && state.titles[state.comp.style]) || state.title || state.workName || defaultWorkName();
+  // empreinte d'un instantané (sans date ni vignette) : un enregistrement identique n'est ni réécrit ni renvoyé
+  function printOf(rec) {
+    const s = JSON.stringify([rec.name, rec.settings, rec.comp, rec.drawings.map((x) => [x.ref, savedRef(x), x.name, x.role, x.sizeCm, x.orient, x.photoMode, x.tone, x.enabled, x.ai, x.pieceAi, x.cut])]);
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return `${s.length}:${h >>> 0}`;
+  }
+  // l'identité de l'œuvre affichée ; une œuvre rouverte (date connue) est la référence : son premier
+  // instantané, quel qu'il soit (relu sur un autre navigateur, il peut différer d'un pixel), ne repart pas
+  function setWork(id, name, date) {
+    state.workId = id || null; state.workName = name || ''; state.workPrint = null; state.workDate = date || null;
+    state.workBaseline = !!(id && date);
+    state.copyOf = false; state.copyPrint = null;
+  }
+  // les images encore utiles : celles de toutes les œuvres de ce navigateur et du panier
+  async function usedRefs() {
+    const used = cartRefs();
+    (await dbAll().catch(() => [])).forEach((r) => (r.drawings || []).forEach((x) => { if (x.ref) used.add(x.ref); const k = savedRef(x); if (k) used.add(k); }));
+    return used;
+  }
   async function pruneFiles() {
-    const keep = cartRefs();
+    const keep = await usedRefs();
     const all = await filesKeys().catch(() => []);
     const drop = all.filter((k) => !keep.has(k));
     if (drop.length) await filesDel(drop).catch(() => {});
     storedKeys = new Set(all.filter((k) => keep.has(k)));
   }
-  function dbDel(id) { return openDb().then((db) => new Promise((res, rej) => { const t = db.transaction(DB_STORE, 'readwrite'); t.objectStore(DB_STORE).delete(id); t.oncomplete = () => res(); t.onerror = () => rej(t.error); })); }
-  const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
 
-  // Brouillon : l'œuvre en cours est gardée d'elle-même dans ce navigateur (dessins compris), pour
-  // survivre à un rechargement ou à un onglet fermé par le téléphone. Rouverte à la prochaine visite.
-  const DRAFT_ID = 'brouillon';
   let draftTimer = 0, draftBusy = false, draftAgain = false, draftEpoch = 0;
   function scheduleDraft() {
-    if (!state.comp || !state.drawings.length || state.restoring) return;
+    if (!state.comp || !state.drawings.length || state.restoring || state.resuming) return;
     clearTimeout(draftTimer);
     draftTimer = setTimeout(saveDraft, 2500);
   }
   const onlySamples = () => state.drawings.length > 0 && state.drawings.every((d) => d.sample);
   async function saveDraft() {
-    if (!state.comp || !state.drawings.length || state.restoring) return;
-    if (onlySamples()) return; // l'exemple n'est jamais l'œuvre en cours : elle reste gardée telle quelle
+    // (pendant une réouverture, l'œuvre n'a pas encore son identité : rien ne s'enregistre)
+    if (!state.comp || !state.drawings.length || state.restoring || state.resuming) return;
+    if (onlySamples()) return; // l'exemple n'est jamais une œuvre
     if (draftBusy) { draftAgain = true; return; }
     draftBusy = true;
     try {
       const epoch = draftEpoch;
-      const rec = await snapshotComposition(tr('Œuvre en cours'), { refs: true });
+      const rec = await snapshotComposition(workTitle(), { refs: true });
       if (epoch !== draftEpoch) return; // « nouvelle œuvre » demandée pendant l'instantané : on n'écrit pas
-      rec.id = DRAFT_ID;
-      await dbPut(rec);
-      if (skipPushOnce) {
-        // la copie d'ici de l'œuvre reçue du compte : rien à renvoyer (sinon chaque appareil renverrait
-        // la même œuvre à l'autre sans fin)
-        skipPushOnce = false;
-        try { localStorage.setItem(CLOUD_DRAFT_KEY, rec.date); } catch (e) { /* ignoré */ }
-        cloudStatus();
-      } else { pendingCloud = rec; scheduleCloudDraft(); }
-      // images de dessins retirés depuis : effacées (d'après le magasin lui-même)
-      const used = new Set([...rec.drawings.flatMap((x) => [x.ref, savedRef(x)]), ...cartRefs()]);
-      const stale = (await filesKeys().catch(() => [])).filter((k) => !used.has(k));
-      if (stale.length) { await filesDel(stale).catch(() => {}); stale.forEach((k) => storedKeys.delete(k)); }
-    } catch (e) { console.warn('brouillon non enregistré', e); }
+      const print = printOf(rec);
+      // une copie rouverte (article du panier, œuvre commandée) ne devient une œuvre qu'au premier changement
+      if (state.copyOf) {
+        if (state.copyPrint === null) { state.copyPrint = print; return; }
+        if (print === state.copyPrint) return;
+        setWork(null, state.workName);
+      }
+      if (!state.workId) { state.workId = newWorkId(); state.workName = state.workName || defaultWorkName(); lsSet(NEW_KEY, null); }
+      Object.assign(rec, { id: DRAFT_ID, workId: state.workId, workName: state.workName, print, device: phone() ? 'phone' : 'computer' });
+      if (state.workBaseline) { state.workBaseline = false; state.workPrint = print; }
+      const changed = print !== state.workPrint;
+      if (changed) { state.workPrint = print; state.workDate = rec.date; } else rec.date = state.workDate || rec.date;
+      // la place du brouillon est prise par une autre œuvre : celle d'avant est rangée, pas effacée
+      const prev = await dbGet(DRAFT_ID).catch(() => null);
+      const moved = !!(prev && prev.workId !== rec.workId);
+      if (moved && prev.drawings && prev.drawings.length) await dbPut(Object.assign({}, prev, { id: prev.workId || newWorkId(), work: true }));
+      if (changed || !prev || moved) await dbPut(rec);
+      // la copie rangée de cette même œuvre ne sert plus : elle est le brouillon
+      if (!prev || moved) dbDel(state.workId).catch(() => {});
+      if (changed) {
+        pendingCloud = rec; scheduleCloudSync();
+        // images de dessins retirés depuis : effacées (d'après le magasin lui-même)
+        const used = await usedRefs();
+        const stale = (await filesKeys().catch(() => [])).filter((k) => !used.has(k));
+        if (stale.length) { await filesDel(stale).catch(() => {}); stale.forEach((k) => storedKeys.delete(k)); }
+        renderSaved();
+      }
+      workStatus();
+    } catch (e) { console.warn('œuvre non enregistrée', e); }
     finally { draftBusy = false; if (draftAgain) { draftAgain = false; scheduleDraft(); } }
   }
+  // l'œuvre affichée est rangée parmi les autres (avant « nouvelle œuvre » ou l'ouverture d'une autre)
+  async function shelveCurrent() {
+    clearTimeout(draftTimer);
+    while (draftBusy) await wait(100);
+    if (state.comp && state.drawings.length && !onlySamples() && !state.copyOf) await saveDraft();
+    const rec = await dbGet(DRAFT_ID).catch(() => null);
+    if (rec && rec.drawings && rec.drawings.length) {
+      await dbPut(Object.assign({}, rec, { id: rec.workId || newWorkId(), work: true }));
+      await dbDel(DRAFT_ID);
+    }
+    if (pendingCloud) syncCloud(); // (l'œuvre rangée part dans le compte sans attendre)
+  }
+  // une ancienne œuvre en cours (d'avant « Mes œuvres ») reçoit son identifiant
+  async function migrateDraft() {
+    const rec = await dbGet(DRAFT_ID).catch(() => null);
+    if (!rec || rec.workId || !(rec.drawings && rec.drawings.length)) return rec;
+    rec.workId = newWorkId();
+    rec.workName = tr`Œuvre du ${new Date(rec.date).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'long' })}`;
+    rec.name = rec.workName;
+    rec.legacy = true; // (son ancien double du compte, s'il est celui connu ici, sera remplacé : voir syncCloud)
+    await dbPut(rec).catch(() => {});
+    return rec;
+  }
+
   const AFTER_AUTH_KEY = 'atelier-gribouille:after-auth';
-  // Au chargement de la page, l'œuvre en cours (brouillon) est rouverte d'elle-même : actualiser la
-  // page ne fait rien perdre. « Commencez une nouvelle œuvre » l'efface pour repartir de zéro.
-  // Une réouverture en cours est notée : si la page a planté pendant (mémoire du téléphone), la
-  // visite suivante ne la relance pas d'elle-même — elle la propose, pour ne pas planter en boucle.
-  // Une sortie normale de la page (actualiser, changer de page) lève la marque, sauf pendant la
-  // réouverture elle-même : iPhone peut signaler une sortie juste avant de tuer la page faute de
-  // mémoire (Safari affichait alors « un problème récurrent est survenu » à chaque retour) ; quitter
-  // la page pendant la réouverture vaut donc une proposition à la visite suivante, un simple appui.
+  // Au chargement de la page, l'œuvre affichée la dernière fois (brouillon) est rouverte d'elle-même :
+  // actualiser la page ne fait rien perdre. Une réouverture en cours est notée : si la page a planté
+  // pendant (mémoire du téléphone), la visite suivante ne la relance pas d'elle-même — elle la propose,
+  // pour ne pas planter en boucle. Une sortie normale de la page (actualiser, changer de page) lève la
+  // marque, sauf pendant la réouverture elle-même : iPhone peut signaler une sortie juste avant de tuer
+  // la page faute de mémoire ; quitter la page pendant la réouverture vaut donc une proposition à la
+  // visite suivante, un simple appui.
   const RESUME_KEY = 'atelier-gribouille:reouverture';
   window.addEventListener('pagehide', () => { if (state.resuming) return; try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ } });
-  function forgetDraft() {
+  // « Ne pas la rouvrir » : l'œuvre proposée est rangée dans Mes œuvres (rien n'est effacé)
+  async function setDraftAside() {
     $('draft-offer').hidden = true;
-    dbDel(DRAFT_ID).catch(() => {});
-    const A = window.Account;
-    if (A && A.enabled && A.user()) A.cloud.draftDel().catch((e) => console.warn('œuvre en cours du compte non effacée', e));
-    try { localStorage.removeItem(CLOUD_DRAFT_KEY); } catch (e) { /* ignoré */ }
-    cloudRemote = null; cloudHold = false; cloudStatus();
-    pruneFiles();
+    const rec = await dbGet(DRAFT_ID).catch(() => null);
+    if (rec && rec.drawings && rec.drawings.length) { await dbPut(Object.assign({}, rec, { id: rec.workId || newWorkId(), work: true })).catch(() => {}); await dbDel(DRAFT_ID).catch(() => {}); }
     try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ }
+    renderSaved();
   }
+  const clearStage = () => {
+    clearTimeout(draftTimer); draftEpoch++;
+    setWork(null, '');
+    state.drawings = []; state.proposals = null; state.comp = null; state.current = null; state.selected = null; state.bgCache = null; state.pinned = null;
+    $('proposals').innerHTML = '';
+    ['sample-note', 'label'].forEach((id) => { if ($(id)) $(id).hidden = true; });
+  };
   async function resumeDraft(manual) {
     const box = $('draft-offer');
     if (!box) return;
-    let rec = null;
-    try { rec = await dbGet(DRAFT_ID); } catch (e) { rec = null; }
+    const rec = await migrateDraft();
     if (!rec || !rec.drawings || !rec.drawings.length) return;
     if (state.drawings.length) {
-      // « Reprendre » alors que l'exemple est affiché : il laisse la place à l'œuvre en cours
+      // « Reprendre » alors que l'exemple est affiché : il laisse la place à l'œuvre
       if (!(manual && onlySamples())) return;
-      state.drawings = []; state.proposals = null; state.comp = null; state.current = null; state.selected = null; state.bgCache = null; state.pinned = null;
-      $('proposals').innerHTML = '';
-      ['sample-note', 'label'].forEach((id) => ($(id).hidden = true));
+      clearStage();
     }
     let crashed = false;
     try { crashed = Date.now() - Number(localStorage.getItem(RESUME_KEY) || 0) < 15 * 60e3; } catch (e) { crashed = false; }
     // « Créer mon œuvre » (atelier/?nouveau) ou « Voir un exemple » (atelier/?exemple) depuis
-    // l'accueil : l'atelier s'ouvre vide (puis avec les seuls dessins d'exemple), l'œuvre en cours
-    // gardée dans ce navigateur est seulement proposée, jamais mélangée à l'exemple
+    // l'accueil : l'atelier s'ouvre vide (puis avec les seuls dessins d'exemple), l'œuvre affichée la
+    // dernière fois est seulement proposée, jamais mélangée à l'exemple
     const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
     if ((crashed || fresh) && !manual) {
       box.querySelector('span').textContent = fresh
-        ? tr`Une œuvre en cours (${rec.drawings.length} dessins) est gardée dans ce navigateur.`
+        ? tr`Votre dernière œuvre (${rec.drawings.length} dessins) est gardée dans Mes œuvres.`
         : tr`La dernière réouverture de votre œuvre (${rec.drawings.length} dessins) n’a pas abouti : la page s’est peut-être fermée faute de mémoire.`;
       box.hidden = false;
       if (mobileQuery.matches) { setStageFull(false); selectTab('import-section'); } // la proposition est dans le tiroir : il remonte
@@ -4758,7 +4853,7 @@ Réponds uniquement avec ce JSON :
       $('draft-resume').hidden = false;
       $('draft-forget').hidden = false;
       $('draft-resume').onclick = () => { $('draft-resume').hidden = true; $('draft-forget').hidden = true; resumeDraft(true); };
-      $('draft-forget').onclick = forgetDraft;
+      $('draft-forget').onclick = setDraftAside;
       return;
     }
     try { localStorage.setItem(RESUME_KEY, String(Date.now())); } catch (e) { /* ignoré */ }
@@ -4766,24 +4861,29 @@ Réponds uniquement avec ce JSON :
     let after = null;
     try { after = sessionStorage.getItem(AFTER_AUTH_KEY); sessionStorage.removeItem(AFTER_AUTH_KEY); } catch (e) { after = null; }
     const big = $('empty-resume');
-    box.querySelector('span').textContent = after ? tr('Connexion terminée : votre œuvre est rouverte…') : tr('Réouverture de votre œuvre en cours…');
+    box.querySelector('span').textContent = after ? tr('Connexion terminée : votre œuvre est rouverte…') : tr('Réouverture de votre œuvre…');
     box.hidden = false;
     $('draft-forget').hidden = true;
     if (big) big.hidden = false; // aussi sur la scène vide, visible sans ouvrir le tiroir sur téléphone
     $('empty-sample').hidden = true;
     state.resuming = true;
-    try { await restoreComposition(DRAFT_ID); } finally { state.resuming = false; }
+    let back = null;
+    try { back = await restoreComposition(DRAFT_ID); } finally { state.resuming = false; }
     // (la marque reste quelques secondes : un plantage juste après la réouverture compte aussi)
     setTimeout(() => { try { localStorage.removeItem(RESUME_KEY); } catch (e) { /* ignoré */ } }, 8000);
     if (big) big.hidden = true;
-    if (!state.comp || !state.drawings.length) {
-      // relecture impossible : on le dit, et on laisse effacer ce brouillon pour ne pas buter dessus à chaque visite
-      box.querySelector('span').textContent = tr('L’œuvre en cours n’a pas pu être rouverte.');
+    if (!back || !state.comp || !state.drawings.length) {
+      // relecture impossible : on le dit, et on laisse la ranger pour ne pas buter dessus à chaque visite
+      box.querySelector('span').textContent = tr('Votre œuvre n’a pas pu être rouverte.');
       $('draft-forget').hidden = false;
-      $('draft-forget').onclick = forgetDraft;
+      $('draft-forget').onclick = setDraftAside;
       return;
     }
+    setWork(rec.workId, rec.workName || rec.name, rec.date);
+    state.workLegacy = !!rec.legacy;
     box.hidden = true;
+    saveDraft();
+    renderSaved();
     if (after) {
       selectTab('export-section');
       const sec = $('export-section');
@@ -4793,33 +4893,72 @@ Réponds uniquement avec ce JSON :
     } else selectTab('compose-section');
   }
 
+  // Ouvre une œuvre de la liste (ou une copie, pour une œuvre commandée ou un article du panier, qui
+  // restent tels quels) ; celle affichée est d'abord rangée. La version la plus récente l'emporte :
+  // celle de ce navigateur si elle est à jour (rien à télécharger), sinon celle du compte.
+  async function openWork(entry, anchor) {
+    if (entry.current) { selectTab('compose-section'); return; }
+    await shelveCurrent();
+    const local = entry.local, cloud = entry.cloud;
+    const fromCloud = !!(cloud && (!local || new Date(cloud.date) > new Date(local.date)));
+    const localId = local && (local.id === DRAFT_ID ? local.workId : local.id); // (le brouillon vient d'être rangé)
+    clearStage();
+    state.resuming = true;
+    let rec = null;
+    try { rec = await restoreComposition(fromCloud ? cloud.id : localId, anchor); } finally { state.resuming = false; }
+    if (!rec || !state.comp) { renderSaved(); return; }
+    if (entry.ordered) { beginCopy(rec); return; }
+    const id = UUID.test(entry.workId) ? entry.workId : newWorkId();
+    setWork(id, rec.workName || rec.name, rec.date);
+    if (fromCloud) setSeen(id, cloud.date);
+    state.workLegacy = false;
+    await saveDraft();
+    if (localId && localId !== id) dbDel(localId).catch(() => {}); // ancienne sauvegarde : c'est désormais l'œuvre
+    renderSaved();
+    selectTab('compose-section');
+  }
+  // une copie : elle ne devient une œuvre (nouvelle, dans Mes œuvres) qu'au premier changement
+  function beginCopy(rec) {
+    setWork(null, tr`${(rec.name || '').replace(/^AG-\d{6}-[A-Z0-9]{4} · /, '')} (copie)`);
+    state.copyOf = true;
+    saveDraft(); // (l'état de départ, pour reconnaître le premier changement)
+    renderSaved();
+    workStatus();
+    selectTab('compose-section');
+  }
+  // « Dupliquer » : une copie de l'œuvre affichée rejoint Mes œuvres ; on reste sur l'œuvre
+  async function duplicateWork() {
+    if (!state.comp || !state.drawings.length || onlySamples()) { saveStatus(tr('Importez des dessins et choisissez une proposition avant de dupliquer l’œuvre.')); return; }
+    window.Atelier.track('Dupliquer');
+    saveStatus(tr('Copie de l’œuvre…'));
+    try {
+      const rec = await snapshotComposition(tr`${workTitle()} (copie)`, { refs: true });
+      const id = newWorkId();
+      Object.assign(rec, { id, workId: id, work: true, workName: rec.name, device: phone() ? 'phone' : 'computer' });
+      rec.print = printOf(rec);
+      await dbPut(rec);
+      cloudQueue.push(rec); syncCloud();
+      saveStatus(tr`Copie « ${rec.name} » ajoutée à Mes œuvres.`);
+      renderSaved();
+    } catch (e) {
+      console.error(e);
+      saveStatus(tr`La copie a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
+    }
+  }
+
   /*
-   * L'œuvre en cours suit le compte, à la demande. Connecté, le brouillon part de lui-même dans le
-   * compte (15 s après le dernier changement sur ordinateur, 6 s sur téléphone, ou dès que la page
-   * passe en arrière-plan ; chaque image n'est envoyée qu'une fois) : les photos prises au téléphone
-   * sont dans le compte quand on passe à l'ordinateur. Rien n'est tiré du compte sans qu'on le
-   * demande : « Recharger depuis mon compte » (bloc #cloud-sync de l'étape Importer) relit la ligne
-   * du compte et rouvre son œuvre ici, à la place de celle affichée (en deux appuis si des changements
-   * d'ici n'étaient pas encore partis) ; « Sauvegarder dans mon compte » envoie sans attendre le délai.
-   * Seule exception : à l'arrivée et à la connexion, si rien n'est en cours ici (nouvel appareil,
-   * navigateur vidé), l'œuvre du compte se rouvre d'elle-même ; sinon la ligne d'état dit seulement
-   * ce que le compte contient. Après une réception, la copie d'ici n'est pas renvoyée (sinon chaque
-   * appareil renverrait la même œuvre à l'autre). Le compte n'est donc lu qu'à l'arrivée, à la
-   * connexion et sur demande, et sans vignettes ni images tant qu'on ne recharge pas (le relire au
-   * retour au premier plan et toutes les minutes pesait sur la bande passante du compte).
+   * Connecté, chaque œuvre part d'elle-même dans le compte (15 s après le dernier changement sur
+   * ordinateur, 6 s sur téléphone, ou dès que la page passe en arrière-plan ; chaque image n'est
+   * envoyée qu'une fois). Le compte n'est lu qu'à l'arrivée, à la connexion (la liste) et au retour sur
+   * la page après une absence (la date de l'œuvre affichée, rien d'autre). Si l'œuvre affichée a été
+   * changée sur un autre appareil, un bandeau le dit : « Ouvrir cette version » ou « Garder celle-ci » ;
+   * rien ne part ni ne vient pour elle tant qu'on n'a pas choisi, pour n'écraser ni l'une ni l'autre.
    */
-  const CLOUD_DRAFT_KEY = 'atelier.brouillon-compte'; // date du dernier brouillon d'ici envoyé (ou reçu puis copié ici)
-  const CLOUD_SEEN_KEY = 'atelier.brouillon-compte-vu'; // date de la version du compte connue ici (envoyée ou reçue)
-  let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, skipPushOnce = false;
-  let cloudRemote = null; // la dernière version du compte lue (date, nombre de dessins), pour la ligne d'état
-  // le compte porte une version venue d'un autre appareil et une œuvre est en cours ici : rien ne part
-  // ni ne vient tant qu'on n'a pas choisi (« Recharger » ou « Sauvegarder »), pour n'écraser ni l'une ni l'autre
-  let cloudHold = false;
-  const cloudSyncable = () => { const A = window.Account; return !!(A && A.enabled && A.user()) && !state.restoring; };
+  let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, cloudFailed = false, cloudSent = null;
+  const cloudQueue = []; // autres œuvres à envoyer (copies, œuvres faites avant la connexion)
+  let cloudHold = null; // { workId, date, device } : une version plus récente dans le compte, pas encore tranchée
+  let cloudWorks = null; // la dernière liste lue du compte
   const CLOUD_DELAY = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 6000 : 15000;
-  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // « 14:32 » le jour même, « 12 oct., 14:32 » sinon
   function clockText(iso) {
     const d = new Date(iso);
@@ -4828,142 +4967,172 @@ Réponds uniquement avec ce JSON :
     const sameDay = d.toDateString() === new Date().toDateString();
     return sameDay ? d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }) : d.toLocaleString(lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   }
-  // la ligne d'état du bloc « compte » de l'étape Importer (visible connecté) ; sans texte : d'après l'état
-  function cloudStatus(text) {
+  // la ligne d'état de l'œuvre affichée (sous la puce du compte) : où elle est enregistrée
+  function workStatus() {
     const box = $('cloud-sync');
     if (!box) return;
-    const A = window.Account;
-    const on = !!(A && A.enabled && A.user());
-    box.hidden = !on;
-    if (!on) return;
+    const here = state.drawings.length > 0 && !onlySamples() && !!state.comp;
+    box.hidden = !here;
+    if (!here) return;
     const el = $('cloud-sync-status');
-    if (text !== undefined) { el.textContent = text; return; }
-    const sent = lsGet(CLOUD_DRAFT_KEY);
-    const here = state.drawings.length > 0 && !onlySamples();
-    if (cloudBusy) el.textContent = tr('Envoi de votre œuvre dans votre compte…');
-    else if (cloudHold && cloudRemote) el.textContent = tr`Dans votre compte : une œuvre de ${cloudRemote.nDrawings} dessins (${clockText(cloudRemote.date)}), venue d’un autre appareil. Celle d’ici n’y est pas envoyée tant que vous n’avez pas choisi : « Recharger » la remplace par celle du compte, « Sauvegarder » remplace celle du compte par celle-ci.`;
-    else if (pendingCloud) el.textContent = tr('Des changements d’ici ne sont pas encore dans votre compte : ils partent dans quelques secondes.');
-    else if (cloudRemote && cloudRemote.date !== lsGet(CLOUD_SEEN_KEY)) el.textContent = tr`Dans votre compte : une œuvre de ${cloudRemote.nDrawings} dessins (${clockText(cloudRemote.date)}), venue d’un autre appareil.`;
-    else if (here && sent) el.textContent = tr`Votre œuvre est dans votre compte (envoyée à ${clockText(sent)}).`;
-    else el.textContent = tr('Connecté : l’œuvre en cours part d’elle-même dans votre compte ; sur un autre appareil, « Recharger depuis mon compte » la retrouve.');
+    let t;
+    if (state.copyOf) t = tr('Copie : elle rejoindra Mes œuvres dès votre premier changement.');
+    else if (!accountOn()) t = tr('✓ Enregistrée dans ce navigateur, avec Mes œuvres.');
+    else if (!signedIn()) t = tr('✓ Enregistrée sur cet appareil. Connectez-vous pour la retrouver sur tous vos appareils.');
+    else if (cloudHold && cloudHold.workId === state.workId) t = tr('Une version plus récente de cette œuvre est dans votre compte.');
+    else if (cloudBusy || (pendingCloud && pendingCloud.workId === state.workId)) t = tr('Enregistrement dans votre compte…');
+    else if (cloudFailed) t = tr('✓ Enregistrée sur cet appareil ; elle partira dans votre compte dès que la connexion le permettra.');
+    else if (state.workId && seenOf(state.workId)) t = tr`✓ Enregistrée dans votre compte (${clockText(seenOf(state.workId))}).`;
+    else t = tr('✓ Enregistrée sur cet appareil.');
+    el.textContent = t;
   }
-  function scheduleCloudDraft(delay) {
-    cloudStatus();
-    if (!cloudSyncable() || !pendingCloud || cloudHold) return;
+  function scheduleCloudSync(delay) {
+    workStatus();
+    if (!signedIn() || !(pendingCloud || cloudQueue.length)) return;
     clearTimeout(cloudTimer);
-    cloudTimer = setTimeout(syncCloudDraft, delay === undefined ? CLOUD_DELAY : delay);
+    cloudTimer = setTimeout(syncCloud, delay === undefined ? CLOUD_DELAY : delay);
   }
-  async function syncCloudDraft() {
+  const held = (rec) => !!(cloudHold && rec && cloudHold.workId === rec.workId);
+  async function syncCloud() {
     clearTimeout(cloudTimer);
-    const rec = pendingCloud;
-    if (!rec || !cloudSyncable() || cloudHold) return;
+    if (!signedIn() || state.restoring) return;
     if (cloudBusy) { cloudAgain = true; return; }
     cloudBusy = true;
-    cloudStatus();
+    workStatus();
     try {
       const getBytes = (ref) => filesGet(ref).catch(() => null);
-      await window.Account.cloud.draftPut(rec, getBytes);
-      if (pendingCloud === rec) pendingCloud = null;
-      lsSet(CLOUD_DRAFT_KEY, rec.date); lsSet(CLOUD_SEEN_KEY, rec.date);
-      cloudRemote = { id: null, date: rec.date, nDrawings: rec.drawings.length };
+      while (true) {
+        const rec = pendingCloud && !held(pendingCloud) ? pendingCloud : cloudQueue.find((r) => !held(r));
+        if (!rec) break;
+        await window.Account.cloud.workPut(rec, getBytes);
+        if (pendingCloud === rec) pendingCloud = null;
+        const i = cloudQueue.indexOf(rec);
+        if (i >= 0) cloudQueue.splice(i, 1);
+        setSeen(rec.workId, rec.date);
+        cloudFailed = false;
+        cloudSent = rec;
+        if (cloudWorks) {
+          const c = cloudWorks.find((x) => x.workId === rec.workId);
+          const info = { id: `cloud:${rec.workId}`, workId: rec.workId, name: rec.name, date: rec.date, thumb: rec.thumb, cloud: true, comp: { style: rec.comp.style, W: rec.comp.W, H: rec.comp.H }, nDrawings: rec.drawings.length };
+          if (c) Object.assign(c, info); else cloudWorks.unshift(info);
+        }
+        // l'ancienne œuvre en cours du compte (d'avant « Mes œuvres »), si c'est celle qu'on connaissait ici : remplacée
+        if (rec.legacy || (state.workLegacy && rec.workId === state.workId)) await dropLegacyDraft();
+      }
     } catch (e) {
-      console.warn('œuvre en cours non envoyée dans le compte', e);
+      cloudFailed = true;
+      console.warn('œuvre non envoyée dans le compte', e);
     } finally {
       cloudBusy = false;
-      cloudStatus();
-      if (cloudAgain) { cloudAgain = false; scheduleCloudDraft(); }
+      workStatus();
+      renderSaved();
+      if (cloudAgain) { cloudAgain = false; scheduleCloudSync(); }
     }
   }
-  // la page se ferme ou passe en arrière-plan : on n'attend pas le délai
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && pendingCloud) syncCloudDraft(); });
-  let cloudChecking = false;
-  // à l'arrivée et à la connexion : une lecture de la ligne « œuvre en cours » du compte (sans images) ;
-  // rien en cours ici → elle se rouvre d'elle-même ; sinon la ligne d'état dit ce que le compte contient
-  async function checkCloudDraft() {
-    const A = window.Account;
-    if (!(A && A.enabled && A.user()) || cloudChecking || state.restoring || state.resuming) return;
-    cloudChecking = true;
-    try {
-      let remote = null;
-      try { remote = await A.cloud.draft(); } catch (e) { console.warn('œuvre en cours du compte illisible', e); return; }
-      cloudRemote = remote && remote.nDrawings ? remote : null;
-      if (!cloudRemote) { cloudStatus(); return; }
-      await restoreChain; // la réouverture de l'œuvre d'ici, si elle est en cours
-      if (pendingCloud || cloudBusy) { cloudStatus(); return; } // des changements d'ici partent : ils font foi
-      let local = null;
-      try { local = await dbGet(DRAFT_ID); } catch (e) { local = null; }
-      const here = !!(local && local.drawings && local.drawings.length) || (state.drawings.length > 0 && !onlySamples());
-      if (!here) { await resumeCloudDraft(remote, false); return; }
-      if (remote.date !== lsGet(CLOUD_SEEN_KEY)) { cloudHold = true; pendingCloud = null; clearTimeout(cloudTimer); }
-      cloudStatus();
-    } finally { cloudChecking = false; }
+  async function dropLegacyDraft() {
+    state.workLegacy = false;
+    const old = lsGet('atelier.brouillon-compte-vu');
+    lsSet('atelier.brouillon-compte-vu', null); lsSet('atelier.brouillon-compte', null);
+    if (!old || !cloudWorks) return;
+    for (const c of cloudWorks.filter((x) => x.legacyDraft && x.date === old)) {
+      try { await window.Account.cloud.del(c.id); cloudWorks = cloudWorks.filter((x) => x !== c); } catch (e) { console.warn('ancienne œuvre en cours du compte non effacée', e); }
+    }
   }
-  // « Recharger depuis mon compte » : l'œuvre du compte remplace celle d'ici
-  let pullArmed = 0;
-  async function pullCloudDraft() {
-    const A = window.Account, btn = $('cloud-pull');
-    if (!(A && A.enabled && A.user()) || cloudChecking || state.restoring || state.resuming) return;
-    cloudChecking = true;
-    btn.disabled = true;
-    try {
-      while (cloudBusy) await wait(250); // un envoi d'ici en cours finit d'abord (il fait foi)
-      cloudStatus(tr('Lecture de votre compte…'));
-      let remote = null;
-      try { remote = await A.cloud.draft(); } catch (e) { console.warn('œuvre en cours du compte illisible', e); cloudStatus(tr('Votre compte n’a pas pu être lu. Vérifiez la connexion, puis réessayez.')); return; }
-      cloudRemote = remote && remote.nDrawings ? remote : null;
-      if (!cloudRemote) { cloudStatus(tr('Aucune œuvre en cours dans votre compte : importez ou photographiez des dessins, ici ou sur un autre appareil connecté.')); return; }
-      const here = state.drawings.length > 0 && !onlySamples();
-      // des changements d'ici pas encore partis : un deuxième appui confirme qu'on les remplace
-      if (here && pendingCloud && pullArmed < Date.now()) {
-        pullArmed = Date.now() + 10000;
-        cloudStatus(tr('Des changements d’ici ne sont pas encore dans votre compte. Appuyez de nouveau sur « Recharger » pour les remplacer par l’œuvre du compte, ou envoyez-les d’abord.'));
-        return;
-      }
-      if (here && !pendingCloud && remote.date === lsGet(CLOUD_SEEN_KEY)) { cloudStatus(tr`Votre œuvre est déjà celle de votre compte (${remote.nDrawings} dessins, ${clockText(remote.date)}).`); return; }
-      pullArmed = 0; cloudHold = false;
-      pendingCloud = null; clearTimeout(cloudTimer); clearTimeout(draftTimer);
-      await resumeCloudDraft(remote, here, tr('Votre œuvre a été rechargée depuis votre compte.'));
-    } finally { cloudChecking = false; btn.disabled = false; }
+  // la page se ferme ou passe en arrière-plan : on n'attend pas le délai ; elle revient après une
+  // absence : la date de l'œuvre affichée est relue (un autre appareil l'a peut-être changée)
+  let hiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); if (pendingCloud || cloudQueue.length) syncCloud(); return; }
+    if (hiddenAt && Date.now() - hiddenAt > 120e3) checkCurrentWork();
+  });
+  // l'œuvre affichée a-t-elle changé dans le compte depuis la dernière version connue ici ?
+  async function checkCurrentWork(remote) {
+    const id = state.workId;
+    if (!signedIn() || !id || state.copyOf || state.restoring || state.resuming) return;
+    if (remote === undefined) { try { remote = await window.Account.cloud.workInfo(id); } catch (e) { return; } }
+    if (!remote || !remote.date || state.workId !== id) return;
+    const seen = seenOf(id);
+    if (remote.date === seen) return;
+    if (!seen && remote.date === state.workDate) { setSeen(id, remote.date); workStatus(); return; } // la même version (ici avant la connexion)
+    if (cloudSent && cloudSent.workId === id && cloudSent.date === remote.date) return;
+    showNewer({ workId: id, date: remote.date, device: remote.device || null });
   }
-  // « Sauvegarder dans mon compte » : l'instantané d'ici part tout de suite
-  async function pushCloudDraft() {
-    if (!cloudSyncable()) return;
-    if (!state.comp || !state.drawings.length || onlySamples()) { cloudStatus(tr('Rien à envoyer : aucune œuvre en cours ici.')); return; }
-    const btn = $('cloud-push');
-    btn.disabled = true;
-    cloudHold = false;
-    try {
-      clearTimeout(draftTimer);
-      while (draftBusy) await wait(200);
-      await saveDraft();
-      while (cloudBusy) await wait(250);
-      await syncCloudDraft();
-      if (pendingCloud) cloudStatus(tr('L’envoi n’a pas abouti. Vérifiez la connexion, puis réessayez.'));
-    } finally { btn.disabled = false; }
-  }
-  if ($('cloud-pull')) $('cloud-pull').addEventListener('click', pullCloudDraft);
-  if ($('cloud-push')) $('cloud-push').addEventListener('click', pushCloudDraft);
-  async function resumeCloudDraft(remote, replaced, message) {
-    const box = $('draft-offer');
-    box.querySelector('span').textContent = tr`Réouverture de votre œuvre en cours depuis votre compte (${remote.nDrawings} dessins)…`;
+  function showNewer(h) {
+    cloudHold = h;
+    const box = $('work-newer');
+    const where = deviceName(h.device);
+    box.querySelector('span').textContent = where
+      ? tr`Cette œuvre a été modifiée sur un autre appareil (${where}, ${clockText(h.date)}).`
+      : tr`Cette œuvre a été modifiée sur un autre appareil (${clockText(h.date)}).`;
     box.hidden = false;
-    $('draft-resume').hidden = true; $('draft-forget').hidden = true;
-    state.drawings = []; state.proposals = null; state.comp = null; state.current = null; state.selected = null; state.bgCache = null; state.pinned = null;
-    $('proposals').innerHTML = '';
-    ['sample-note', 'label'].forEach((id) => { if ($(id)) $(id).hidden = true; });
+    workStatus();
+  }
+  function hideNewer() { cloudHold = null; if ($('work-newer')) $('work-newer').hidden = true; }
+  // « Ouvrir cette version » : celle du compte remplace celle d'ici
+  async function openNewer() {
+    const h = cloudHold;
+    if (!h) return;
+    hideNewer();
+    if (pendingCloud && pendingCloud.workId === h.workId) pendingCloud = null;
+    clearTimeout(draftTimer); draftEpoch++;
+    clearStage();
     state.resuming = true;
-    try { await restoreComposition(remote.id); } finally { state.resuming = false; }
-    if (!state.comp || !state.drawings.length) { box.querySelector('span').textContent = tr('L’œuvre en cours de votre compte n’a pas pu être rouverte.'); cloudStatus(); return; }
-    box.hidden = true;
-    lsSet(CLOUD_SEEN_KEY, remote.date);
-    cloudRemote = remote;
-    cloudHold = false;
-    skipPushOnce = true;
-    clearTimeout(draftTimer);
-    saveDraft(); // la copie d'ici, à jour (sans la renvoyer au compte)
-    if (replaced || message) saveStatus(message || tr('Votre œuvre a été rechargée depuis votre compte.'));
-    cloudStatus(tr`Œuvre rechargée depuis votre compte (${remote.nDrawings} dessins, ${clockText(remote.date)}).`);
+    let rec = null;
+    try { rec = await restoreComposition(`cloud:${h.workId}`); } finally { state.resuming = false; }
+    if (!rec || !state.comp) return;
+    setWork(h.workId, rec.workName || rec.name, rec.date);
+    setSeen(h.workId, rec.date);
+    await saveDraft();
+    saveStatus(tr('La version la plus récente de votre œuvre est ouverte.'));
+    renderSaved();
     selectTab('compose-section');
+  }
+  // « Garder celle-ci » : celle d'ici remplace celle du compte
+  function keepMine() {
+    const h = cloudHold;
+    if (!h) return;
+    hideNewer();
+    setSeen(h.workId, h.date);
+    state.workPrint = null; state.workBaseline = false; // (envoyée telle quelle, à une nouvelle date)
+    saveDraft();
+  }
+  if ($('work-newer-open')) $('work-newer-open').addEventListener('click', openNewer);
+  if ($('work-newer-keep')) $('work-newer-keep').addEventListener('click', keepMine);
+
+  // à l'arrivée et à la connexion : la liste du compte ; rien d'affiché ici (nouvel appareil) → la plus
+  // récente se rouvre d'elle-même ; l'œuvre affichée a changé ailleurs → le bandeau ; les œuvres de ce
+  // navigateur qui ne sont pas encore dans le compte y partent
+  let checking = false;
+  async function checkWorks() {
+    if (!signedIn() || checking) return;
+    checking = true;
+    try {
+      await renderSaved({ refresh: true });
+      if (!cloudWorks) return;
+      await restoreChain; // la réouverture de l'œuvre d'ici, si elle est en cours
+      const draft = await dbGet(DRAFT_ID).catch(() => null);
+      const here = !!(draft && draft.drawings && draft.drawings.length) || (state.drawings.length > 0 && !onlySamples());
+      const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
+      if (!here && !fresh && lsGet(NEW_KEY) !== '1' && !state.drawings.length) {
+        const latest = cloudWorks.filter((c) => !c.ordered).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        if (latest) { await openWork({ workId: latest.workId, cloud: latest }); return; }
+      }
+      // l'ancienne œuvre en cours d'ici et celle du compte (d'avant « Mes œuvres ») ne font qu'une
+      if (state.workLegacy && state.workId) {
+        const old = cloudWorks.find((c) => c.legacyDraft);
+        if (old && old.date !== lsGet('atelier.brouillon-compte-vu')) { state.workLegacy = false; } // (une autre version : les deux restent)
+      }
+      const cur = state.workId && cloudWorks.find((c) => c.workId === state.workId);
+      if (cur) await checkCurrentWork({ date: cur.date, device: cur.device });
+      // les œuvres d'ici pas encore dans le compte (faites hors connexion, ou avant de se connecter)
+      const locals = (await dbAll().catch(() => [])).filter((r) => r.work && r.workId && UUID.test(r.workId));
+      locals.forEach((r) => {
+        const c = cloudWorks.find((x) => x.workId === r.workId), seen = seenOf(r.workId);
+        if ((!c && !seen) || (c && c.date === seen && r.date !== seen)) { if (!cloudQueue.some((q) => q.workId === r.workId)) cloudQueue.push(r); }
+      });
+      if (state.workId && !state.copyOf && !cur && !seenOf(state.workId) && !pendingCloud) { state.workPrint = null; state.workBaseline = false; scheduleDraft(); }
+      if (cloudQueue.length || pendingCloud) scheduleCloudSync(1000);
+    } finally { checking = false; workStatus(); }
   }
 
   // La composition courante, sérialisée : dessins (images d'origine et réglages) et mise en place.
@@ -5098,11 +5267,11 @@ Réponds uniquement avec ce JSON :
       const packed = packMasks(pieces);
       const atlases = [];
       for (const pc of packed.atlases) { const b = await toBlob(pc, 'image/png'); atlases.push({ w: pc.width, h: pc.height, data: await b.arrayBuffer() }); Extract.release(pc); }
-      d.savedPack = { sig, rev: (c ? c.rev : 0) + 1, page: { w: a.page.width, h: a.page.height, data: await page.arrayBuffer() }, atlases, at: packed.at };
+      d.savedPack = { sig, id: packId(), page: { w: a.page.width, h: a.page.height, data: await page.arrayBuffer() }, atlases, at: packed.at };
     }
     const pk = d.savedPack;
     const meta = {
-      v: 1, deg: d.orientDeg || 0, kind: a.kind, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac,
+      v: 1, pack: pk.id, deg: d.orientDeg || 0, kind: a.kind, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac,
       photo: d.photo ? { kind: d.photo.kind || null, sheet: !!d.photo.sheet } : null,
       pieces: pieces.map((p, k) => ({
         at: pk.at[k], w: p.canvas.width, h: p.canvas.height,
@@ -5112,14 +5281,16 @@ Réponds uniquement avec ce JSON :
       })),
     };
     if (refs) {
-      // brouillon : les octets vont dans le magasin des images, une fois par état (clé changée à chaque retouche)
-      const key = `${draftKey(d)}#decoupe-${pk.rev}`;
+      // brouillon : les octets vont dans le magasin des images, une fois par état (clé propre à chaque
+      // découpe, gardée d'une réouverture à l'autre : rien n'est réécrit ni renvoyé pour rien)
+      const key = `${draftKey(d)}#decoupe-${pk.id}`;
       if (!storedKeys.has(key)) { await filesPut(key, { page: pk.page.data, atlases: pk.atlases.map((x) => x.data) }); storedKeys.add(key); }
       return Object.assign(meta, { ref: key, page: { w: pk.page.w, h: pk.page.h }, atlases: pk.atlases.map((x) => ({ w: x.w, h: x.h })) });
     }
     return Object.assign(meta, { page: pk.page, atlases: pk.atlases });
   }
   const savedRef = (sd) => (sd && sd.saved && sd.saved.ref) || null;
+  const packId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   // brouillon ou panier : les octets de la page et des planches, rangés à part, sont remis dans l'enregistrement
   async function loadSavedRef(sd) {
     if (sd.saved && sd.saved.ref && !sd.saved.page.data) {
@@ -5239,79 +5410,82 @@ Réponds uniquement avec ce JSON :
     };
   }
 
-  // (les boîtes de dialogue du navigateur sont bloquées dans certains cadres : le nom se saisit sur place)
-  function askSaveName() {
-    if (!state.comp || !state.drawings.length) { saveStatus(tr('Importez des dessins et choisissez une proposition avant de sauvegarder.')); return; }
-    const st = STYLES.find((x) => x.id === state.comp.style);
-    const dflt = (state.titles && state.titles[state.comp.style]) || tr`${st ? st.name : 'Composition'} du ${new Date().toLocaleDateString(I18n.locale)}`;
-    const form = $('save-form');
-    form.hidden = false;
-    $('save-name').value = dflt;
-    $('save-name').focus();
-    $('save-name').select();
-  }
-  async function saveComposition(name) {
-    if (!state.comp || !state.drawings.length) return;
-    window.Atelier.track('Sauvegarde');
-    $('save-form').hidden = true;
-    saveStatus(tr('Sauvegarde de la composition…'));
-    try {
-      const rec = await snapshotComposition((name || 'Composition').trim().slice(0, 80));
-      const A = window.Account;
-      if (A && A.enabled) {
-        if (!A.user()) throw new Error(tr('Connectez-vous pour sauvegarder.'));
-        saveStatus(tr('Envoi dans votre compte…'));
-        await A.cloud.put(rec, (n, t) => saveStatus(tr`Envoi dans votre compte : ${n} / ${t} fichiers…`));
-        saveStatus(tr`Composition « ${rec.name} » sauvegardée dans votre compte.`);
-      } else {
-        await dbPut(rec);
-        saveStatus(tr`Composition « ${rec.name} » sauvegardée dans ce navigateur.`);
-      }
-      renderSaved();
-    } catch (e) {
-      console.error(e);
-      saveStatus(tr`La sauvegarde a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
-    }
-  }
-
-  async function renderSaved() {
+  // Mes œuvres : celles de ce navigateur et, connecté, celles du compte (une seule entrée par œuvre,
+  // la version la plus récente fait foi) ; l'œuvre affichée en tête
+  let renderSeq = 0;
+  async function renderSaved(opts) {
     const box = $('saved-list');
     if (!box) return;
-    let list = [];
-    const A = window.Account;
-    const accounts = !!(A && A.enabled);
-    const signed = accounts && !!A.user();
-    if (!accounts) { try { list = (await dbAll()).filter((r) => r.id !== DRAFT_ID && !r.cart).map((r) => Object.assign(r, { local: true })); } catch (e) { list = []; } }
-    if (signed) {
-      try { list = await A.cloud.list(); } catch (e) { console.error(e); savedStatus(`Compositions du compte indisponibles : ${e.message}`); }
+    const seq = ++renderSeq;
+    const A = window.Account, signed = signedIn();
+    let locals = [];
+    try { locals = (await dbAll()).filter((r) => !r.cart && r.drawings && r.drawings.length); } catch (e) { locals = []; }
+    if (!signed) cloudWorks = null;
+    else if ((opts && opts.refresh) || !cloudWorks) {
+      try { cloudWorks = await A.cloud.list(); } catch (e) { console.error(e); savedStatus(tr`Œuvres du compte indisponibles : ${e.message}`); }
     }
-    list.sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (seq !== renderSeq) return; // une liste plus récente est en route
+    const byId = new Map();
+    const entry = (id) => { if (!byId.has(id)) byId.set(id, { workId: id }); return byId.get(id); };
+    locals.forEach((r) => { const e = entry(r.workId || String(r.id)); if (r.id === DRAFT_ID || !e.local) e.local = r; });
+    (cloudWorks || []).forEach((c) => { entry(c.workId).cloud = c; });
+    const shown = state.drawings.length > 0 && !onlySamples() && !state.copyOf;
+    const list = [...byId.values()].map((e) => {
+      const info = e.cloud && (!e.local || new Date(e.cloud.date) > new Date(e.local.date)) ? e.cloud : e.local;
+      return Object.assign(e, {
+        info, current: shown && e.workId === state.workId, ordered: !!(e.cloud && e.cloud.ordered),
+        nDrawings: info.nDrawings !== undefined ? info.nDrawings : info.drawings.length,
+      });
+    });
+    list.sort((a, b) => (b.current - a.current) || new Date(b.info.date) - new Date(a.info.date));
     $('saved-count').textContent = list.length ? `(${list.length})` : '';
     if ($('saved-empty')) $('saved-empty').hidden = !!list.length;
     box.innerHTML = '';
-    list.forEach((rec) => {
+    list.forEach((e) => {
+      const rec = e.info, comp = rec.comp || {};
       const el = document.createElement('div');
-      el.className = 'saved';
+      el.className = `saved${e.current ? ' current' : ''}`;
       el.setAttribute('role', 'button');
       el.tabIndex = 0;
-      const when = new Date(rec.date);
-      const st = STYLES.find((x) => x.id === rec.comp.style);
-      const nD = rec.nDrawings !== undefined ? rec.nDrawings : rec.drawings.length;
-      const where = rec.cloud ? tr('<span class="saved-where"><svg class="ico"><use href="#i-cloud"/></svg>mon compte</span>') : '';
-      el.innerHTML = tr`<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name">${esc(rec.name)}${where}</p><p class="saved-meta">${st ? st.name : esc(rec.comp.style)} · ${nD} dessins · ${fmt(rec.comp.W)} × ${fmt(rec.comp.H)} cm · ${when.toLocaleDateString(I18n.locale)}</p></div><button class="saved-del" title="Supprimer" aria-label="Supprimer"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+      const st = STYLES.find((x) => x.id === comp.style);
+      const tags = [
+        e.current ? `<span class="saved-tag on">${tr('en cours')}</span>` : '',
+        e.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '',
+        signed && !e.cloud && !e.current ? `<span class="saved-tag">${tr('sur cet appareil')}</span>` : '',
+      ].join('');
+      const meta = [st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
+      el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button>`;
       // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
       const del = el.querySelector('.saved-del');
-      del.onclick = async (e) => {
-        e.stopPropagation();
+      del.onclick = async (ev) => {
+        ev.stopPropagation();
         if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = tr('Supprimer ?'); setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
-        try { if (rec.cloud) await A.cloud.del(rec.id); else await dbDel(rec.id); } catch (e2) { console.error(e2); savedStatus(`Suppression impossible : ${e2.message}`); }
-        renderSaved();
+        await deleteWork(e);
       };
-      const open = () => restoreComposition(rec.id, el);
+      const open = () => openWork(e, el);
       el.onclick = open;
-      el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
+      el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } };
       box.appendChild(el);
     });
+  }
+  // supprimée partout : dans ce navigateur et dans le compte ; l'œuvre affichée laisse la place à une nouvelle
+  async function deleteWork(e) {
+    try {
+      if (e.current) {
+        await startOver({ discard: true });
+        if (!mobileQuery.matches && $('saved-section')._expand) $('saved-section')._expand(); // (la liste reste ouverte)
+      }
+      const draft = await dbGet(DRAFT_ID).catch(() => null);
+      if (draft && draft.workId === e.workId) await dbDel(DRAFT_ID);
+      if (e.local && e.local.id !== DRAFT_ID) await dbDel(e.local.id);
+      await dbDel(e.workId).catch(() => {});
+      if (e.cloud && signedIn()) { await window.Account.cloud.del(e.cloud.id); cloudWorks = (cloudWorks || []).filter((c) => c.workId !== e.workId); }
+      if (pendingCloud && pendingCloud.workId === e.workId) pendingCloud = null;
+      for (let i = cloudQueue.length - 1; i >= 0; i--) if (cloudQueue[i].workId === e.workId) cloudQueue.splice(i, 1);
+      setSeen(e.workId, null);
+      await pruneFiles();
+    } catch (err) { console.error(err); savedStatus(tr`Suppression impossible : ${err.message}`); }
+    renderSaved();
   }
 
   // Liste des exports gardés dans le compte, avec retéléchargement et suppression.
@@ -5382,20 +5556,20 @@ Réponds uniquement avec ce JSON :
   }
   async function restoreOne(id, anchor) {
     const release = keepAnchored(anchor);
-    busyOn(id === DRAFT_ID ? tr('Réouverture de votre œuvre…') : tr('Réouverture de la composition…'));
-    try { await restoreCompositionInner(id); }
-    catch (e) { state.restoring = false; console.error(e); savedStatus(`La réouverture a échoué : ${(e && e.message) || e}`); notice(`La composition n’a pas pu être rouverte : ${(e && e.message) || e}`); }
+    busyOn(tr('Réouverture de votre œuvre…'));
+    try { return await restoreCompositionInner(id); }
+    catch (e) { state.restoring = false; console.error(e); savedStatus(tr`La réouverture a échoué : ${(e && e.message) || e}`); notice(tr`L’œuvre n’a pas pu être rouverte : ${(e && e.message) || e}`); return null; }
     finally { busyOff(); await tick(); release(); }
   }
   async function restoreCompositionInner(id) {
-    savedStatus(tr('Lecture de la composition sauvegardée…'));
+    savedStatus(tr('Lecture de l’œuvre…'));
     const fromCloud = typeof id === 'string' && id.startsWith('cloud:');
     const rec = fromCloud
       ? await window.Account.cloud.get(id, (n, t) => { savedStatus(tr`Téléchargement depuis votre compte : ${n} / ${t} dessins…`); busyStep(tr`Téléchargement des dessins : ${n} / ${t}`, n, t); })
       : await dbGet(id);
     if (rec && rec.name && id !== DRAFT_ID) $('busy-title').textContent = tr`Réouverture de « ${rec.name} »`;
-    if (!rec) { savedStatus(fromCloud ? tr('Composition introuvable dans votre compte.') : tr('Composition introuvable dans ce navigateur.')); return; }
-    if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette sauvegarde ne contient aucun dessin.')); return; }
+    if (!rec) { savedStatus(fromCloud ? tr('Œuvre introuvable dans votre compte.') : tr('Œuvre introuvable dans ce navigateur.')); return null; }
+    if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette œuvre ne contient aucun dessin.')); return null; }
     for (const sd of rec.drawings) {
       if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
       await loadSavedRef(sd); // découpes sauvegardées du brouillon : leurs octets, dans le magasin des images
@@ -5403,14 +5577,14 @@ Réponds uniquement avec ce JSON :
     const bytesOf = (d) => d.data || d.blob || null;
     const sizeOf = (d) => { const b = bytesOf(d); return b ? (b.byteLength !== undefined ? b.byteLength : b.size) : 0; };
     const empty = rec.drawings.filter((d) => !sizeOf(d)).length;
-    if (empty) { savedStatus(tr`Sauvegarde incomplète : ${empty} image(s) manquante(s).`); return; }
+    if (empty) { savedStatus(tr`Œuvre incomplète : ${empty} image(s) manquante(s).`); return null; }
     // les images doivent se relire : un essai sur la première avant de tout vider
     try {
       const probe = await createImageBitmap(new Blob([bytesOf(rec.drawings[0])], { type: rec.drawings[0].type || 'image/jpeg' }));
       if (probe.close) probe.close();
     } catch (e) {
-      savedStatus(tr('Les images de cette sauvegarde ne peuvent pas être relues par ce navigateur. Sauvegardez de nouveau la composition.'));
-      return;
+      savedStatus(tr('Les images de cette œuvre ne peuvent pas être relues par ce navigateur.'));
+      return null;
     }
     savedStatus(tr`Réouverture de « ${rec.name} » : ${rec.drawings.length} dessins à réimporter…`);
     state.restoring = true;
@@ -5436,9 +5610,9 @@ Réponds uniquement avec ce JSON :
     // dessins : page et découpes sauvegardées telles quelles ; sinon réanalysés, avec la découpe
     // automatique de l'époque pour une sauvegarde d'avant les découpes autonomes (v < 2)
     const legacy = rec.drawings.map((sd) => !sd.saved && !(rec.v >= 2));
-    if (legacy.some(Boolean)) savedStatus(tr('Ancienne sauvegarde : les dessins sont redécoupés comme à l’époque…'));
+    if (legacy.some(Boolean)) savedStatus(tr('Ancienne œuvre : les dessins sont redécoupés comme à l’époque…'));
     try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0), saved: rec.drawings.map((sd) => sd.saved || null), legacy }); } finally { state.restoring = false; }
-    if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu depuis la sauvegarde.')); return; }
+    if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu.')); return null; }
     // réglages par dessin
     for (let i = 0; i < rec.drawings.length; i++) {
       const sd = rec.drawings[i];
@@ -5516,13 +5690,12 @@ Réponds uniquement avec ce JSON :
     const i = state.proposals.findIndex((pr) => pr.style.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
     clearHistory();
-    savedStatus(tr`Composition « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);
+    savedStatus(tr`Œuvre « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);
     if (nSkipped) notice(tr`${nSkipped} retouche(s) de découpe n’ont pas pu être replacées sur le dessin relu : la découpe automatique est gardée pour ce(s) dessin(s).`);
+    return rec;
   }
 
-  $('save-comp').onclick = requireAccount(tr('sauvegarder votre composition'), askSaveName);
-  $('save-form').onsubmit = (e) => { e.preventDefault(); saveComposition($('save-name').value); };
-  $('save-cancel').onclick = () => { $('save-form').hidden = true; };
+  $('save-comp').onclick = duplicateWork;
   renderSaved();
   if (mobileQuery.matches && !state.drawings.length) setStageFull(true); // téléphone : à l'arrivée, l'accueil vide prend tout l'écran
   resumeDraft();
@@ -5542,7 +5715,7 @@ Réponds uniquement avec ce JSON :
       $('auth-name-field').hidden = m !== 'signup';
       $('auth-submit').textContent = m === 'signup' ? tr('Créer mon compte') : 'Se connecter';
       $('acc-title').textContent = m === 'signup' ? tr('Bienvenue à l’atelier') : tr('Content de vous revoir');
-      $('acc-sub').textContent = m === 'signup' ? tr('Gardez vos compositions et retrouvez-les sur tous vos appareils.') : tr('Connectez-vous pour retrouver vos compositions.');
+      $('acc-sub').textContent = m === 'signup' ? tr('Gardez vos œuvres et retrouvez-les sur tous vos appareils.') : tr('Connectez-vous pour retrouver vos œuvres.');
       $('auth-password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
       $('auth-password').placeholder = m === 'signup' ? tr('10 caractères au moins') : tr('Votre mot de passe');
       if ($('auth-meter')._update) $('auth-meter')._update();
@@ -5643,7 +5816,7 @@ Réponds uniquement avec ce JSON :
         setTimeout(() => { del.classList.remove('confirm'); del.textContent = tr('Supprimer mon compte'); }, 6000);
         return;
       }
-      busy(() => A.deleteAccount(), tr('Compte supprimé. Vos sauvegardes locales sont conservées.'));
+      busy(() => A.deleteAccount(), tr('Compte supprimé. Les œuvres de cet appareil sont conservées.'));
     };
     const PROVIDERS = { google: 'Google', email: tr('votre e-mail') };
     let wasSigned = null;
@@ -5674,14 +5847,13 @@ Réponds uniquement avec ce JSON :
         if (next) setTimeout(next, 150); // l'action demandée avant la connexion reprend
       }
       else if (wasSigned === true && !signed) { openPanel(false); setMode('signin'); }
-      if (signed) { checkCloudDraft(); if (pendingCloud) scheduleCloudDraft(); }
-      cloudStatus();
       wasSigned = signed;
       $('import-account').hidden = signed;
       $('saved-hint').textContent = signed
-        ? tr('Vos compositions et vos exports sont enregistrés dans votre compte : retrouvez-les sur tous vos appareils.')
-        : tr('Connectez-vous pour sauvegarder vos compositions, télécharger vos œuvres et les retrouver sur tous vos appareils.');
-      renderSaved();
+        ? tr('Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils.')
+        : tr('Vos œuvres s’enregistrent d’elles-mêmes sur cet appareil. Connectez-vous pour les retrouver sur tous vos appareils.');
+      if (signed) checkWorks(); else { hideNewer(); renderSaved(); }
+      workStatus();
       renderExports();
     });
   })();
@@ -6101,8 +6273,14 @@ Réponds uniquement avec ce JSON :
       };
       li.querySelector('[data-review]').onclick = async () => {
         closeModal(box);
-        // la composition revient dans l'atelier, telle qu'elle a été ajoutée
-        await restoreComposition(it.recId);
+        // la composition revient dans l'atelier, telle qu'elle a été ajoutée : une copie, qui ne
+        // rejoint Mes œuvres qu'au premier changement (l'œuvre affichée est d'abord rangée)
+        await shelveCurrent();
+        clearStage();
+        state.resuming = true;
+        let rec = null;
+        try { rec = await restoreComposition(it.recId); } finally { state.resuming = false; }
+        if (rec && state.comp) beginCopy(rec);
         selectTab('compose-section');
       };
       list.appendChild(li);
@@ -6219,7 +6397,7 @@ Réponds uniquement avec ce JSON :
             saved = it.recId;
           } else {
             const rec = await cartRecForCloud(it);
-            if (rec) { rec.name = name; delete rec.cart; saved = await A.cloud.put(rec); }
+            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; saved = await A.cloud.put(rec); }
           }
         }
         lines.push(`${i + 1}. ${it.title} (${it.styleName}, ${fmt(it.W)} × ${fmt(it.H)} cm) — ${productLabel(it)} × ${it.qty} = ${euros(it.unit * it.qty)}${saved ? ` [${saved}]` : ''}`);
@@ -6234,10 +6412,10 @@ Réponds uniquement avec ce JSON :
       orders.push({ ref, date: now.toISOString(), total, items: items.map((it) => ({ title: it.title, product: productLabel(it), qty: it.qty, unit: it.unit })) });
       try { localStorage.setItem(ORDERS_KEY, JSON.stringify(orders.slice(-30))); } catch (e) { /* ignoré */ }
       window.Atelier.track('Commande', { articles: items.length, total: Math.round(total) });
-      // panier vidé (les compositions commandées sont dans le compte, et dans « Mes compositions »)
+      // panier vidé (les compositions commandées sont dans le compte, et dans « Mes œuvres »)
       items.forEach((it) => { if (!isCloudItem(it)) dbDel(it.recId).catch(() => {}); });
       saveCart([]);
-      if (cloud) renderSaved();
+      if (cloud) renderSaved({ refresh: true });
       renderCart();
       $('cart').querySelector('.cart-empty').hidden = true;
       cartStatus(tr`Commande ${ref} prête : votre messagerie s’ouvre avec le récapitulatif. Ajoutez l’adresse de livraison et envoyez le message pour la confirmer.`);
@@ -6264,7 +6442,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, syncCloudDraft, checkCloudDraft, pullCloudDraft, pushCloudDraft, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

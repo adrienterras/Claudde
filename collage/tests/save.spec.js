@@ -32,8 +32,8 @@ test.describe('Réouverture sur un appareil plus petit', () => {
   });
 });
 
-test.describe('Compositions sauvegardées', () => {
-  test('sauvegarder, recharger, rouvrir : la mise en place est identique', async ({ app }) => {
+test.describe('Mes œuvres', () => {
+  test('rangée par « nouvelle œuvre », rouverte après rechargement : la mise en place est identique ; dupliquer, supprimer', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png']);
     await app.select('tournesol');
@@ -42,13 +42,13 @@ test.describe('Compositions sauvegardées', () => {
       c.items[0].x += 3.5; c.items[0].rot = 0.3; // une retouche manuelle doit être conservée
       return { style: c.style, n: c.items.length, bg: c.bg.length, first: [c.items[0].x, c.items[0].y, c.items[0].rot], W: c.W, H: c.H };
     });
-    await openStep(page, 'export-section');
-    await page.locator('#save-comp').click();
-    await expect(page.locator('#save-form')).toBeVisible();
-    await page.fill('#save-name', 'Essai automatique');
-    await page.locator('#save-form button[type=submit]').click();
-    await expect(page.locator('#save-status')).toContainText('sauvegardée');
-    await expect(page.locator('.saved')).toHaveCount(1);
+    // l'œuvre s'enregistre d'elle-même (rien à sauvegarder) : en tête de Mes œuvres, « en cours »
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1, { timeout: 30000 });
+    // « nouvelle œuvre » la range dans Mes œuvres (la retouche manuelle comprise)
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
     await expect(page.locator('.saved .saved-meta')).toContainText('4 dessins');
 
     await page.reload();
@@ -61,11 +61,10 @@ test.describe('Compositions sauvegardées', () => {
     });
     await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
-    // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
-    await expect(page.locator('#saved-status')).toContainText('« Essai automatique » rouverte', { timeout: 120000 });
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     await expect(page.locator('#busy')).toBeHidden();
     const seen = await page.evaluate(() => window.__busy);
-    expect(seen.some((t) => t.startsWith('Réouverture de « Essai automatique »') && /Lecture du dessin/.test(t))).toBe(true);
+    expect(seen.some((t) => /^Réouverture de « .+ »/.test(t) && /Lecture du dessin/.test(t))).toBe(true);
     const after = await page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
       return { style: c.style, n: c.items.length, bg: c.bg.length, first: [c.items[0].x, c.items[0].y, c.items[0].rot], W: c.W, H: c.H, drawings: AtelierGribouille.state.drawings.length };
@@ -78,15 +77,38 @@ test.describe('Compositions sauvegardées', () => {
     expect(after.first[1]).toBeCloseTo(before.first[1], 3);
     expect(after.first[2]).toBeCloseTo(before.first[2], 3);
     expect(after.drawings).toBe(4);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
 
-    // suppression en deux temps
-    await page.locator('.saved-del').click();
-    await expect(page.locator('.saved-del')).toContainText('Supprimer ?');
-    await page.locator('.saved-del').click();
-    await expect(page.locator('.saved')).toHaveCount(0);
+    // « Dupliquer » : une copie rejoint Mes œuvres, on reste sur l'œuvre
+    await openStep(page, 'export-section');
+    await page.locator('#save-comp').click();
+    await expect(page.locator('#save-status')).toContainText('ajoutée à Mes œuvres');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    await expect(page.locator('#saved-list .saved:not(.current) .saved-name')).toContainText('(copie)');
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+
+    // suppression en deux temps : l'œuvre affichée supprimée laisse la place à une nouvelle, la copie reste
+    const del = page.locator('#saved-list .saved.current .saved-del');
+    await del.click();
+    await expect(del).toContainText('Supprimer ?');
+    await del.click();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await expect(page.locator('#empty')).toBeVisible();
+    // la copie se rouvre telle quelle
+    await page.locator('#saved-list .saved').first().click();
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].x)).toBeCloseTo(before.first[0], 3);
+    await page.locator('#saved-list .saved .saved-del').click();
+    await page.locator('#saved-list .saved .saved-del').click();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
+    // plus rien dans le magasin des images (ni œuvre, ni panier)
+    const keys = await page.evaluate(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const k = q.result.transaction('brouillon-images').objectStore('brouillon-images').getAllKeys(); k.onsuccess = () => res(k.result.length); }; }));
+    expect(keys).toBe(0);
   });
 
-  test('sans dessin, la sauvegarde explique quoi faire', async ({ app }) => {
+  test('sans dessin, « Dupliquer » explique quoi faire', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#export-section')).toBeHidden();
     await page.evaluate(() => document.getElementById('save-comp').click());
@@ -123,15 +145,15 @@ test.describe('Retouches de découpe sauvegardées', () => {
     expect(edited.opaque).toBeLessThan(before.opaque * 0.9);
 
     await openStep(page, 'export-section');
-    await page.locator('#save-comp').click();
-    await page.fill('#save-name', 'Avec retouche');
-    await page.locator('#save-form button[type=submit]').click();
-    await expect(page.locator('#save-status')).toContainText('sauvegardée');
+    // l'œuvre s'enregistre d'elle-même : « nouvelle œuvre » la range dans Mes œuvres
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('« Avec retouche » rouverte', { timeout: 120000 });
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     const after = await coverage();
     expect(after.edited).toBe(true);
     expect(after.w).toBe(edited.w);
@@ -190,16 +212,15 @@ test.describe('Dessin dupliqué', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].analysis.pieces[0].edited)).toBeFalsy();
 
     await openStep(page, 'export-section');
-    await page.locator('#save-comp').click();
-    await page.fill('#save-name', 'Avec copie');
-    await page.locator('#save-form button[type=submit]').click();
-    await expect(page.locator('#save-status')).toContainText('sauvegardée');
+    // l'œuvre s'enregistre d'elle-même : « nouvelle œuvre » la range dans Mes œuvres
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
-    // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
-    await expect(page.locator('#saved-status')).toContainText('« Avec copie » rouverte', { timeout: 120000 });
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     const s2 = await state();
     expect(s2.map((x) => x.copy)).toEqual([false, true]);
     expect(Math.abs(s2[0].opaque - s0[0].opaque) / s0[0].opaque).toBeLessThan(0.02);
@@ -223,10 +244,10 @@ test.describe('Découpes autonomes', () => {
     const before = await digest();
     expect(before.items.length).toBeGreaterThan(1);
     await openStep(page, 'export-section');
-    await page.locator('#save-comp').click();
-    await page.fill('#save-name', 'Autonome');
-    await page.locator('#save-form button[type=submit]').click();
-    await expect(page.locator('#save-status')).toContainText('sauvegardée');
+    // l'œuvre s'enregistre d'elle-même : « nouvelle œuvre » la range dans Mes œuvres
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     // la découpe automatique est devenue toute autre (une seule pièce par dessin) : sans effet sur la réouverture
@@ -237,16 +258,25 @@ test.describe('Découpes autonomes', () => {
     });
     await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('« Autonome » rouverte', { timeout: 120000 });
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     const after = await digest();
     expect(await page.evaluate(() => window.__analyses)).toBe(0);
     same(before.items, after.items);
     same(before.pieces, after.pieces);
     expect(after.bg).toBe(before.bg);
-    // et la sauvegarde contient bien la page et les masques de chaque dessin
+    // et l'œuvre enregistrée contient bien la page et les masques de chaque dessin (rouverte : c'est le brouillon)
     const rec = await page.evaluate(() => new Promise((res) => {
       const q = indexedDB.open('atelier-gribouille');
-      q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').getAll(); g.onsuccess = () => res(g.result.filter((r) => r.name === 'Autonome').map((r) => ({ v: r.v, drawings: r.drawings.map((d) => ({ page: d.saved.page.data.byteLength > 1000, atlases: d.saved.atlases.length, pieces: d.saved.pieces.length })) }))[0]); };
+      q.onsuccess = () => {
+        const db = q.result, g = db.transaction('compositions').objectStore('compositions').get('brouillon');
+        // (la page et les planches sont rangées à part, sous la clé de la découpe)
+        g.onsuccess = () => {
+          const r = g.result, f = db.transaction('brouillon-images').objectStore('brouillon-images');
+          Promise.all(r.drawings.map((d) => new Promise((ok) => { const x = f.get(d.saved.ref); x.onsuccess = () => ok(x.result); }))).then((packs) => res({
+            v: r.v, drawings: r.drawings.map((d, i) => ({ page: !!(packs[i] && packs[i].page.byteLength > 1000), atlases: d.saved.atlases.length, pieces: d.saved.pieces.length })),
+          }));
+        };
+      };
     }));
     expect(rec.v).toBe(2);
     expect(rec.drawings.every((d) => d.page)).toBe(true);

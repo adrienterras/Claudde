@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cloud.umami.is 'sha256-DSe/QiviSnVbHRyM95jAj7Oc8VxKg39+ExdBfZJbtDM='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://cloud.umami.is https://gateway.umami.is https://api-gateway.umami.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cloud.umami.is 'sha256-s7sQ4glAhASRiM3ye82L0mJ/7eKZYxAbdp5jABndMYY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://cloud.umami.is https://gateway.umami.is https://api-gateway.umami.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Confidentialité — Atelier Gribouille</title>
   <meta name="description" content="Comment Atelier Gribouille traite les dessins et les données : ce qui reste dans votre navigateur, ce qui est gardé dans votre compte, hébergé en Europe, et comment tout supprimer.">
   <link rel="canonical" href="https://ateliergribouille.art/confidentialite.html">
@@ -35,9 +35,9 @@
 
     <h2>En bref</h2>
     <ul>
-      <li>Sans compte, tout se passe dans votre navigateur : les dessins importés et les compositions ne quittent pas votre appareil.</li>
-      <li>Avec un compte, les compositions que vous choisissez de sauvegarder, et les dessins qu'elles contiennent, sont conservés dans un espace personnel hébergé en Europe, accessible par vous seul.</li>
-      <li>Vous pouvez supprimer une composition, ou tout votre compte, à tout moment depuis l'application.</li>
+      <li>Sans compte, tout se passe dans votre navigateur : les dessins importés et les œuvres ne quittent pas votre appareil.</li>
+      <li>Avec un compte, vos œuvres, et les dessins qu'elles contiennent, sont enregistrées d'elles-mêmes dans un espace personnel hébergé en Europe, accessible par vous seul.</li>
+      <li>Vous pouvez supprimer une œuvre, ou tout votre compte, à tout moment depuis l'application.</li>
     </ul>
 
     <h2>Qui est responsable</h2>
@@ -45,8 +45,8 @@
 
     <h2>Quelles données, pour quoi faire</h2>
     <ul>
-      <li><strong>Compte</strong> : adresse e-mail, nom affiché, et, si vous vous connectez avec Google, l'identifiant et la photo de profil que ce service transmet. Finalité : vous reconnaître et retrouver vos compositions. Base légale : exécution du service que vous demandez.</li>
-      <li><strong>Compositions sauvegardées</strong> : les images des dessins importés, les réglages et la mise en place. Finalité : les rouvrir plus tard, sur tous vos appareils. Elles ne sont ni analysées à d'autres fins, ni partagées, ni utilisées pour entraîner un quelconque modèle.</li>
+      <li><strong>Compte</strong> : adresse e-mail, nom affiché, et, si vous vous connectez avec Google, l'identifiant et la photo de profil que ce service transmet. Finalité : vous reconnaître et retrouver vos œuvres. Base légale : exécution du service que vous demandez.</li>
+      <li><strong>Œuvres (« Mes œuvres »)</strong> : les images des dessins importés, les réglages et la mise en place, enregistrés d'eux-mêmes dans votre compte quand vous êtes connecté. Finalité : les rouvrir plus tard, sur tous vos appareils. Elles ne sont ni analysées à d'autres fins, ni partagées, ni utilisées pour entraîner un quelconque modèle.</li>
       <li id="retouches"><strong>Retouches de découpe partagées</strong> (option « Aider à améliorer le détourage », cochée par défaut dans l'atelier, à décocher pour refuser) : quand vous corrigez une découpe à la main, le morceau de dessin concerné, la découpe automatique et votre découpe corrigée sont envoyés, sans nom de fichier, sans e-mail ni identifiant de compte. Finalité : constituer les exemples qui serviront à entraîner un détourage automatique plus juste. Base légale : votre consentement, que vous retirez à tout moment en décochant la case ; les envois déjà faits peuvent être effacés sur demande (indiquez la date et l'heure approximatives). Conservation : trois ans au plus.</li>
       <li><strong>Journaux techniques</strong> : l'hébergeur conserve des journaux de connexion (adresse IP, horodatage) pour la sécurité du service, pendant une durée limitée.</li>
     </ul>
@@ -56,12 +56,12 @@
     <p>Les données de compte et les fichiers sont hébergés par Supabase (sous-traitant) dans un centre de données situé dans l'Union européenne. Ils sont conservés tant que votre compte existe, puis effacés lors de sa suppression. Les sauvegardes techniques de l'hébergeur sont purgées sous 30 jours.</p>
 
     <h2>Qui y accède</h2>
-    <p>Vous seul. Les règles d'accès de la base de données n'autorisent chaque compte qu'à ses propres lignes et fichiers. L'éditeur n'accède pas au contenu des compositions, hors demande de votre part ou obligation légale.</p>
+    <p>Vous seul. Les règles d'accès de la base de données n'autorisent chaque compte qu'à ses propres lignes et fichiers. L'éditeur n'accède pas au contenu des œuvres, hors demande de votre part ou obligation légale.</p>
 
     <h2 id="suppression">Supprimer vos données</h2>
     <ul>
-      <li><strong>Une composition</strong> : dans l'application, section « Mes compositions », icône corbeille, puis confirmer.</li>
-      <li><strong>Tout le compte</strong> : dans l'application, cliquez sur votre nom en haut du panneau, puis « Supprimer mon compte » et confirmez. Les fichiers, les compositions et le compte sont effacés immédiatement.</li>
+      <li><strong>Une œuvre</strong> : dans l'application, section « Mes œuvres », icône corbeille, puis confirmer.</li>
+      <li><strong>Tout le compte</strong> : dans l'application, cliquez sur votre nom en haut du panneau, puis « Supprimer mon compte » et confirmez. Les fichiers, les œuvres et le compte sont effacés immédiatement.</li>
       <li><strong>Sans accès à l'application</strong> (par exemple après une connexion Google que vous souhaitez révoquer) : écrivez à <a href="mailto:bonjour@atelier-gribouille.com">bonjour@atelier-gribouille.com</a> depuis l'adresse du compte ; la suppression est faite sous 30 jours et confirmée par retour.</li>
     </ul>
 
@@ -85,16 +85,16 @@
     "Confidentialité": "Privacy",
     "Dernière mise à jour : octobre 2026. Ce document est un projet à relire et à compléter (identité de l'éditeur) avant publication définitive.": "Last updated: October 2026. This document is a draft to be reviewed and completed (publisher identity) before final publication.",
     "En bref": "In short",
-    "Sans compte, tout se passe dans votre navigateur : les dessins importés et les compositions ne quittent pas votre appareil.": "Without an account, everything happens in your browser: imported drawings and compositions never leave your device.",
-    "Avec un compte, les compositions que vous choisissez de sauvegarder, et les dessins qu'elles contiennent, sont conservés dans un espace personnel hébergé en Europe, accessible par vous seul.": "With an account, the compositions you choose to save, and the drawings they contain, are kept in a personal space hosted in Europe, accessible by you alone.",
-    "Vous pouvez supprimer une composition, ou tout votre compte, à tout moment depuis l'application.": "You can delete a composition, or your whole account, at any time from the app.",
+    "Sans compte, tout se passe dans votre navigateur : les dessins importés et les œuvres ne quittent pas votre appareil.": "Without an account, everything happens in your browser: imported drawings and artworks never leave your device.",
+    "Avec un compte, vos œuvres, et les dessins qu'elles contiennent, sont enregistrées d'elles-mêmes dans un espace personnel hébergé en Europe, accessible par vous seul.": "With an account, your artworks, and the drawings they contain, are saved automatically in a personal space hosted in Europe, accessible by you alone.",
+    "Vous pouvez supprimer une œuvre, ou tout votre compte, à tout moment depuis l'application.": "You can delete an artwork, or your whole account, at any time from the app.",
     "Qui est responsable": "Who is responsible",
     "L'éditeur d'Atelier Gribouille (coordonnées à compléter), joignable à": "The publisher of Atelier Gribouille (contact details to be completed), reachable at",
     "Quelles données, pour quoi faire": "Which data, for what purpose",
     "Compte": "Account",
-    ": adresse e-mail, nom affiché, et, si vous vous connectez avec Google, l'identifiant et la photo de profil que ce service transmet. Finalité : vous reconnaître et retrouver vos compositions. Base légale : exécution du service que vous demandez.": ": email address, display name and, if you sign in with Google, the identifier and profile picture that service passes on. Purpose: recognising you and finding your compositions. Legal basis: performance of the service you request.",
-    "Compositions sauvegardées": "Saved compositions",
-    ": les images des dessins importés, les réglages et la mise en place. Finalité : les rouvrir plus tard, sur tous vos appareils. Elles ne sont ni analysées à d'autres fins, ni partagées, ni utilisées pour entraîner un quelconque modèle.": ": the images of the imported drawings, the settings and the layout. Purpose: reopening them later, on all your devices. They are neither analysed for other purposes, nor shared, nor used to train any model.",
+    ": adresse e-mail, nom affiché, et, si vous vous connectez avec Google, l'identifiant et la photo de profil que ce service transmet. Finalité : vous reconnaître et retrouver vos œuvres. Base légale : exécution du service que vous demandez.": ": email address, display name and, if you sign in with Google, the identifier and profile picture that service passes on. Purpose: recognising you and finding your artworks. Legal basis: performance of the service you request.",
+    "Œuvres (« Mes œuvres »)": "Artworks (“My artworks”)",
+    ": les images des dessins importés, les réglages et la mise en place, enregistrés d'eux-mêmes dans votre compte quand vous êtes connecté. Finalité : les rouvrir plus tard, sur tous vos appareils. Elles ne sont ni analysées à d'autres fins, ni partagées, ni utilisées pour entraîner un quelconque modèle.": ": the images of the imported drawings, the settings and the layout, saved automatically to your account when you are signed in. Purpose: reopening them later, on all your devices. They are neither analysed for other purposes, nor shared, nor used to train any model.",
     "Retouches de découpe partagées": "Shared cut-out edits",
     " (option « Aider à améliorer le détourage », cochée par défaut dans l'atelier, à décocher pour refuser) : quand vous corrigez une découpe à la main, le morceau de dessin concerné, la découpe automatique et votre découpe corrigée sont envoyés, sans nom de fichier, sans e-mail ni identifiant de compte. Finalité : constituer les exemples qui serviront à entraîner un détourage automatique plus juste. Base légale : votre consentement, que vous retirez à tout moment en décochant la case ; les envois déjà faits peuvent être effacés sur demande (indiquez la date et l'heure approximatives). Conservation : trois ans au plus.": " (option “Help improve the cut-out”, ticked by default in the studio, untick it to refuse): when you correct a cut-out by hand, the piece of drawing concerned, the automatic cut-out and your corrected cut-out are sent, with no file name, email or account identifier. Purpose: to build the examples that will train a more accurate automatic cut-out. Legal basis: your consent, which you withdraw at any time by unticking the box; data already sent can be erased on request (give the approximate date and time). Retention: three years at most.",
     "Journaux techniques": "Technical logs",
@@ -103,12 +103,12 @@
     "Où et combien de temps": "Where and for how long",
     "Les données de compte et les fichiers sont hébergés par Supabase (sous-traitant) dans un centre de données situé dans l'Union européenne. Ils sont conservés tant que votre compte existe, puis effacés lors de sa suppression. Les sauvegardes techniques de l'hébergeur sont purgées sous 30 jours.": "Account data and files are hosted by Supabase (processor) in a data centre located in the European Union. They are kept as long as your account exists, then erased when it is deleted. The host’s technical backups are purged within 30 days.",
     "Qui y accède": "Who has access",
-    "Vous seul. Les règles d'accès de la base de données n'autorisent chaque compte qu'à ses propres lignes et fichiers. L'éditeur n'accède pas au contenu des compositions, hors demande de votre part ou obligation légale.": "You alone. The database access rules only allow each account to reach its own rows and files. The publisher does not access the content of compositions, except at your request or under a legal obligation.",
+    "Vous seul. Les règles d'accès de la base de données n'autorisent chaque compte qu'à ses propres lignes et fichiers. L'éditeur n'accède pas au contenu des œuvres, hors demande de votre part ou obligation légale.": "You alone. The database access rules only allow each account to reach its own rows and files. The publisher does not access the content of artworks, except at your request or under a legal obligation.",
     "Supprimer vos données": "Deleting your data",
-    "Une composition": "A composition",
-    ": dans l'application, section « Mes compositions », icône corbeille, puis confirmer.": ": in the app, “My compositions” section, bin icon, then confirm.",
+    "Une œuvre": "An artwork",
+    ": dans l'application, section « Mes œuvres », icône corbeille, puis confirmer.": ": in the app, “My artworks” section, bin icon, then confirm.",
     "Tout le compte": "The whole account",
-    ": dans l'application, cliquez sur votre nom en haut du panneau, puis « Supprimer mon compte » et confirmez. Les fichiers, les compositions et le compte sont effacés immédiatement.": ": in the app, click your name at the top of the panel, then “Delete my account” and confirm. Files, compositions and the account are erased immediately.",
+    ": dans l'application, cliquez sur votre nom en haut du panneau, puis « Supprimer mon compte » et confirmez. Les fichiers, les œuvres et le compte sont effacés immédiatement.": ": in the app, click your name at the top of the panel, then “Delete my account” and confirm. Files, artworks and the account are erased immediately.",
     "Sans accès à l'application": "Without access to the app",
     "(par exemple après une connexion Google que vous souhaitez révoquer) : écrivez à": "(for example after a Google sign-in you wish to revoke): write to",
     "depuis l'adresse du compte ; la suppression est faite sous 30 jours et confirmée par retour.": "from the account’s address; deletion is carried out within 30 days and confirmed by reply.",

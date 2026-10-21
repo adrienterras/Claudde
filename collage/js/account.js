@@ -126,7 +126,7 @@
     err(error);
   }
   async function signOut() {
-    draftFiles = null;
+    workFiles.clear();
     const { error } = await client.auth.signOut();
     err(error);
   }
@@ -164,15 +164,24 @@
   const BUCKET = 'drawings';
   const extOf = (type) => (type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg');
 
-  // (les lignes du brouillon et du panier sont écartées côté serveur : leurs vignettes et leurs
-  // fiches ne transitent pas pour rien)
+  // Mes œuvres : toutes les compositions du compte sauf les articles du panier (écartés côté serveur).
+  // Seulement ce qu'il faut pour la liste (date, style, taille, nombre de dessins) : la fiche complète
+  // de chaque œuvre ne transite qu'à sa réouverture.
+  const ORDER_NAME = /^AG-\d{6}-[A-Z0-9]{4} · /;
   async function cloudList() {
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').is('meta->>draft', null).is('meta->>cart', null).order('created_at', { ascending: false });
+    const { data, error } = await client.from('compositions')
+      .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, draft:meta->>draft, device:meta->>device')
+      .is('meta->>cart', null).order('created_at', { ascending: false });
     err(error);
-    return (data || []).map((row) => ({
-      id: `cloud:${row.id}`, name: row.name, date: row.created_at, thumb: row.thumb, cloud: true,
-      comp: (row.meta && row.meta.comp) || {}, nDrawings: row.meta && row.meta.drawings ? row.meta.drawings.length : 0,
-    }));
+    return (data || []).map((row) => {
+      const m = row.meta || {}, c = m.comp || {}; // (sans sélection de colonnes : la fiche entière)
+      const n = row.n != null ? Number(row.n) : m.drawings ? m.drawings.length : m.n != null ? m.n : null;
+      return {
+        id: `cloud:${row.id}`, workId: row.id, name: row.name, date: row.date || m.date || row.created_at, thumb: row.thumb, cloud: true,
+        comp: { style: row.style || c.style, W: Number(row.W || c.W) || 0, H: Number(row.H || c.H) || 0 }, nDrawings: n,
+        ordered: !!(row.ordered || m.ordered) || ORDER_NAME.test(row.name || ''), legacyDraft: !!(row.draft || m.draft), device: row.device || m.device || null,
+      };
+    });
   }
 
   async function cloudPut(rec, onProgress) {
@@ -212,8 +221,9 @@
       }
       drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved }));
     }
-    const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings };
-    if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes compositions » tant qu'il n'est pas commandé
+    const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length };
+    if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes œuvres » tant qu'il n'est pas commandé
+    if (rec.ordered) meta.ordered = true; // composition commandée : figée, rouverte en copie
     const { error } = await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
     err(error);
     return `cloud:${id}`;
@@ -250,93 +260,97 @@
       drawings.push(Object.assign({}, d, { data: bytes, pieceEdits: edits, saved }));
       onProgress && onProgress(i + 1, total);
     }
-    return { id: cloudId, v: meta.v || undefined, name: data.name, date: data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true };
+    return { id: cloudId, v: meta.v || undefined, name: data.name, date: meta.date || data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true, workName: meta.workName || null, print: meta.print || null };
   }
 
-  // ---------- L'œuvre en cours dans le compte ----------
+  // ---------- Mes œuvres dans le compte ----------
   /*
-   * Le brouillon (l'œuvre en cours, gardée dans le navigateur) est aussi tenu à jour dans le compte,
-   * pour la retrouver sur un autre appareil : une ligne « compositions » marquée draft (une seule par
-   * compte, remplacée à chaque envoi) et un dossier fixe de fichiers, où chaque image n'est envoyée
-   * qu'une fois (nommée d'après sa clé de brouillon) ; les fichiers qui ne servent plus sont effacés.
+   * Chaque œuvre est tenue à jour d'elle-même dans le compte : une ligne « compositions » (même
+   * identifiant que l'œuvre, meta.work) et un dossier <utilisateur>/<œuvre>/ où chaque image (et chaque
+   * planche de découpes) n'est envoyée qu'une fois, nommée d'après sa clé ; les fichiers qui ne
+   * servent plus sont effacés (y compris ceux d'une ancienne sauvegarde ou de l'ancien brouillon unique).
    */
-  const DRAFT_DIR = 'brouillon';
-  let draftFiles = null; // noms des fichiers déjà dans le dossier (relus une fois)
+  const workFiles = new Map(); // œuvre → noms des fichiers déjà dans son dossier (relus une fois)
   const safeName = (key) => String(key).replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 80);
-  // la ou les lignes du brouillon seulement, sans vignette : relues à chaque arrivée et à chaque envoi
-  async function cloudDraftRows() {
-    const { data, error } = await client.from('compositions').select('id, name, created_at, meta').not('meta->>draft', 'is', null).order('created_at', { ascending: false });
-    err(error);
-    return data || [];
-  }
-  async function cloudDraft() {
+  // les fichiers d'une fiche (image, page de travail et planches, anciennes retouches)
+  const pathsOf = (meta) => {
+    const out = [];
+    ((meta && meta.drawings) || []).forEach((d) => {
+      if (typeof d.file === 'string') out.push(d.file);
+      (d.pieceEdits || []).forEach((e) => { if (e && typeof e.mask === 'string') out.push(e.mask); });
+      const s = d.saved;
+      if (s && s.page && typeof s.page.data === 'string') { out.push(s.page.data); (s.atlases || []).forEach((a) => { if (typeof a.data === 'string') out.push(a.data); }); }
+    });
+    return out;
+  };
+  // la date de la version d'une œuvre dans le compte, sans rien d'autre (null : pas dans le compte)
+  async function workInfo(workId) {
     if (!user) return null;
-    const row = (await cloudDraftRows())[0];
-    if (!row) return null;
-    return { id: `cloud:${row.id}`, date: (row.meta && row.meta.date) || row.created_at, nDrawings: row.meta && row.meta.drawings ? row.meta.drawings.length : 0 };
+    const { data, error } = await client.from('compositions').select('id, date:meta->>date, device:meta->>device').eq('id', workId);
+    err(error);
+    const row = (data || [])[0], m = (row && row.meta) || {};
+    return row ? { date: row.date || m.date || null, device: row.device || m.device || null } : null;
   }
-  // rec : instantané du brouillon (images par clés, voir snapshotComposition avec refs) ;
+  // rec : instantané d'une œuvre (images par clés, voir snapshotComposition avec refs) ;
   // getBytes(ref) rend { data, type } pour une image, { page, atlases } pour une découpe
-  async function cloudDraftPut(rec, getBytes, onProgress) {
+  async function workPut(rec, getBytes) {
     if (!user) throw new Error(tr('Connectez-vous pour garder votre œuvre dans votre compte.'));
-    const base = `${user.id}/${DRAFT_DIR}`;
+    const id = rec.workId, base = `${user.id}/${id}`;
     const store = client.storage.from(BUCKET);
-    if (!draftFiles) {
+    let names = workFiles.get(id);
+    if (!names) {
       const { data } = await store.list(base, { limit: 1000 });
-      draftFiles = new Set((data || []).map((f) => f.name));
+      names = new Set((data || []).map((f) => f.name));
+      workFiles.set(id, names);
     }
     const used = new Set();
-    let n = 0;
     const put = async (name, bytes, type) => {
-      used.add(name);
-      if (draftFiles.has(name)) return `${base}/${name}`;
-      const up = await store.upload(`${base}/${name}`, new Blob([bytes], { type }), { contentType: type, upsert: true });
+      const path = `${base}/${name}`;
+      used.add(path);
+      if (names.has(name)) return path;
+      const up = await store.upload(path, new Blob([bytes], { type }), { contentType: type, upsert: true });
       err(up.error);
-      draftFiles.add(name);
-      onProgress && onProgress(++n);
-      return `${base}/${name}`;
+      names.add(name);
+      return path;
     };
+    const have = (name) => { if (!names.has(name)) return false; used.add(`${base}/${name}`); return true; };
     const drawings = [];
     for (const d of rec.drawings) {
       if (!d.ref) continue;
       const key = safeName(d.ref);
       let file = `${base}/${key}.jpg`;
-      if (draftFiles.has(`${key}.jpg`)) used.add(`${key}.jpg`);
-      else { const b = await getBytes(d.ref); if (!b || !b.data) continue; file = await put(`${key}.jpg`, b.data, b.type || 'image/jpeg'); }
+      if (!have(`${key}.jpg`)) { const b = await getBytes(d.ref); if (!b || !b.data) continue; file = await put(`${key}.jpg`, b.data, b.type || 'image/jpeg'); }
       let saved = null;
       if (d.saved && d.saved.ref) {
         const k2 = safeName(d.saved.ref);
-        const names = [`${k2}-page.jpg`, ...(d.saved.atlases || []).map((a, j) => `${k2}-a${j}.png`)];
-        let pk = null;
-        if (!names.every((x) => draftFiles.has(x))) pk = await getBytes(d.saved.ref);
-        if (pk || names.every((x) => draftFiles.has(x))) {
-          const page = pk ? await put(names[0], pk.page, 'image/jpeg') : (used.add(names[0]), `${base}/${names[0]}`);
+        const files = [`${k2}-page.jpg`, ...(d.saved.atlases || []).map((a, j) => `${k2}-a${j}.png`)];
+        const all = files.every((x) => names.has(x));
+        const pk = all ? null : await getBytes(d.saved.ref);
+        if (pk || all) {
+          const page = pk ? await put(files[0], pk.page, 'image/jpeg') : (have(files[0]), `${base}/${files[0]}`);
           const atlases = [];
-          for (let j = 0; j < (d.saved.atlases || []).length; j++) atlases.push(Object.assign({}, d.saved.atlases[j], { data: pk ? await put(names[j + 1], pk.atlases[j], 'image/png') : (used.add(names[j + 1]), `${base}/${names[j + 1]}`) }));
+          for (let j = 0; j < (d.saved.atlases || []).length; j++) atlases.push(Object.assign({}, d.saved.atlases[j], { data: pk ? await put(files[j + 1], pk.atlases[j], 'image/png') : (have(files[j + 1]), `${base}/${files[j + 1]}`) }));
           saved = Object.assign({}, d.saved, { ref: undefined, page: Object.assign({}, d.saved.page, { data: page }), atlases });
         }
       }
       drawings.push(Object.assign({}, d, { data: undefined, ref: undefined, file, saved }));
     }
-    const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, draft: true };
-    const id = crypto.randomUUID();
-    const { error } = await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
+    const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length, work: true, print: rec.print || null, workName: rec.workName || null, device: rec.device || null };
+    const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);
+    err(e0);
+    const old = (rows || [])[0];
+    const { error } = old
+      ? await client.from('compositions').update({ name: rec.name, thumb: rec.thumb, meta }).eq('id', id)
+      : await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
     err(error);
-    // l'ancienne ligne, puis les fichiers qui ne servent plus
-    const old = (await cloudDraftRows()).filter((r) => r.id !== id);
-    for (const r of old) { const { error: e2 } = await client.from('compositions').delete().eq('id', r.id); err(e2); }
-    const stale = [...draftFiles].filter((f) => !used.has(f));
-    if (stale.length) { const { error: e3 } = await store.remove(stale.map((f) => `${base}/${f}`)); if (!e3) stale.forEach((f) => draftFiles.delete(f)); }
+    // les fichiers qui ne servent plus : ceux du dossier, et ceux de la version d'avant rangés ailleurs
+    const stale = new Set([...names].map((x) => `${base}/${x}`).filter((p) => !used.has(p)));
+    if (old) pathsOf(old.meta).forEach((p) => { if (!used.has(p)) stale.add(p); });
+    if (stale.size) {
+      const { error: e3 } = await store.remove([...stale]);
+      if (!e3) stale.forEach((p) => { if (p.startsWith(`${base}/`)) names.delete(p.slice(base.length + 1)); });
+    }
     return `cloud:${id}`;
-  }
-  async function cloudDraftDel() {
-    if (!user) return;
-    const base = `${user.id}/${DRAFT_DIR}`;
-    const store = client.storage.from(BUCKET);
-    const { data: files } = await store.list(base, { limit: 1000 });
-    if (files && files.length) await store.remove(files.map((f) => `${base}/${f.name}`));
-    draftFiles = new Set();
-    for (const r of await cloudDraftRows()) { const { error } = await client.from('compositions').delete().eq('id', r.id); err(error); }
   }
 
   // ---------- Exports (fichiers téléchargés) dans le compte ----------
@@ -389,7 +403,8 @@
     const { data, error } = await client.from('compositions').select('meta').eq('id', id).single();
     err(error);
     const meta = Object.assign({}, data.meta);
-    if (cart) meta.cart = cart; else delete meta.cart;
+    if (cart) meta.cart = cart;
+    else { delete meta.cart; if (name) meta.ordered = true; } // commandée : figée, rouverte en copie
     const { error: e2 } = await client.from('compositions').update(name ? { meta, name } : { meta }).eq('id', id);
     err(e2);
   }
@@ -398,8 +413,12 @@
     const id = cloudId.replace(/^cloud:/, '');
     const store = client.storage.from(BUCKET);
     const base = `${user.id}/${id}`;
+    const { data: rows } = await client.from('compositions').select('id, meta').eq('id', id);
     const { data: files } = await store.list(base, { limit: 1000 });
-    if (files && files.length) await store.remove(files.map((f) => `${base}/${f.name}`));
+    const paths = new Set((files || []).map((f) => `${base}/${f.name}`));
+    pathsOf(((rows || [])[0] || {}).meta).forEach((p) => paths.add(p)); // (ancien brouillon : un autre dossier)
+    if (paths.size) await store.remove([...paths]);
+    workFiles.delete(id);
     const { error } = await client.from('compositions').delete().eq('id', id);
     err(error);
   }
@@ -410,7 +429,7 @@
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
-    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, draft: cloudDraft, draftPut: cloudDraftPut, draftDel: cloudDraftDel, cart: cloudCart, cartSet: cloudCartSet },
+    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',
   };

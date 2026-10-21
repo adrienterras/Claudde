@@ -283,15 +283,15 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('.cart-fit')).toHaveText('L’œuvre (13 × 18 cm) est présentée avec un passe-partout dans le cadre de 21 × 30 cm.');
     await page.locator('#cart-add [data-close]').first().click();
     // sauvegardée puis rouverte : le mode et le cadre reviennent
-    await page.locator('#save-comp').click();
-    await page.fill('#save-name', 'Cadre 18x24');
-    await page.locator('#save-form button[type=submit]').click();
-    await expect(page.locator('#save-status')).toContainText('sauvegardée');
+    // l'œuvre s'enregistre d'elle-même : « nouvelle œuvre » la range dans Mes œuvres
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await page.goto('index.html?mode=toile&nouveau');
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await openStep(page, 'saved-section');
     await page.locator('.saved').first().click();
-    await expect(page.locator('#saved-status')).toContainText('« Cadre 18x24 » rouverte', { timeout: 120000 });
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.mode)).toBe('impression');
     // (cadre, orientation et passe-partout reviennent)
     expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:21x30', 13, 18]);

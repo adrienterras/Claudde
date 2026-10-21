@@ -26,7 +26,7 @@ test.describe('Interface', () => {
     for (const id of ['import-section', 'drawings-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
   });
 
-  test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, sous le consentement sur téléphone, confirmation avant d’effacer', async ({ app }) => {
+  test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, sous le consentement sur téléphone ; l’œuvre est rangée dans Mes œuvres, sans confirmation', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#new-work')).toBeHidden();
     await app.import(['page-cutout.png']);
@@ -42,16 +42,15 @@ test.describe('Interface', () => {
     expect(await page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('share-cuts'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
     expect(await page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
-    // refus : rien ne change
-    page.once('dialog', (d) => { expect(d.message()).toContain('effacée'); d.dismiss(); });
-    await btn.click();
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(1);
-    // accord : l'atelier repart de zéro et le bouton disparaît
-    page.once('dialog', (d) => d.accept());
+    // rien ne se perd : pas de confirmation, l'atelier repart de zéro et l'œuvre reste dans Mes œuvres
+    page.once('dialog', (d) => { d.dismiss(); throw new Error(`boîte de dialogue inattendue : ${d.message()}`); });
     await btn.click();
     await expect.poll(() => page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
     await expect(btn).toBeHidden();
     await expect(page.locator('#empty')).toBeVisible();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved .saved-meta')).toContainText('1 dessins');
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
     // pour la nouvelle œuvre, tout est replié comme à l'arrivée (le dépôt se fait au centre)
     await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
     await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
@@ -432,8 +431,9 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toBeHidden();
     await expect(page.locator('#empty-resume')).toBeHidden();
     await expect(page.locator('#compose-section')).toBeVisible();
-    // le brouillon n'est pas listé parmi les compositions sauvegardées
-    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
+    // l'œuvre affichée est en tête de Mes œuvres, marquée « en cours »
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved.current')).toContainText('en cours');
     // retour d'une connexion externe (Google) : l'œuvre reprend d'elle-même, sur l'étape Exporter
     await waitDraft(page);
     await page.evaluate(() => sessionStorage.setItem('atelier-gribouille:after-auth', 'télécharger votre œuvre'));
@@ -477,16 +477,22 @@ test.describe('Brouillon', () => {
     await page.locator('#draft-resume').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#draft-offer')).toBeHidden();
-    // repartir de zéro efface le brouillon (l'étape Importer, repliée après la réouverture, se rouvre d'un clic)
-    await page.evaluate(() => { window.confirm = () => true; });
+    // repartir de zéro range l'œuvre dans Mes œuvres : elle n'est plus rouverte d'elle-même, mais reste dans la liste
     await page.locator('#new-work').click();
-    for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // l'effacement est asynchrone
+    for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // le rangement est asynchrone
     expect(await hasDraft(page)).toBe(false);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.waitForTimeout(500);
     await expect(page.locator('#draft-offer')).toBeHidden();
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
+    // et se rouvre d'un toucher, avec ses deux dessins
+    await page.evaluate(() => { const sec = document.getElementById('saved-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
+    await page.locator('#saved-list .saved').first().click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
   });
 });
 
@@ -862,9 +868,7 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart')).toBeVisible();
     await page.locator('#cart [data-close]').first().click();
     await expect(page.locator('#cart')).toBeHidden();
-    // une nouvelle œuvre efface le brouillon, pas ce qui est au panier ; le panier survit au rechargement
-    // (l'étape Importer, repliée après l'import, se rouvre d'un clic sur son titre)
-    await page.evaluate(() => { window.confirm = () => true; });
+    // une nouvelle œuvre range l'œuvre affichée, le panier reste ; le panier survit au rechargement
     await page.locator('#new-work').click();
     await page.waitForTimeout(800);
     await page.reload();
@@ -877,6 +881,10 @@ test.describe('Panier', () => {
     await page.locator('#cart [data-review]').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style1);
+    // (une copie : elle ne rejoint Mes œuvres qu'au premier changement ; l'œuvre rangée y est seule)
+    await expect(page.locator('#cloud-sync-status')).toContainText('Copie');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
     // commander (sans comptes ici) : récapitulatif prêt, panier vidé, commande gardée
     await page.locator('.cart-btn-desk').click();
     await page.locator('#cart-order').click();

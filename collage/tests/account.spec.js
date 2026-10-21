@@ -145,7 +145,7 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#import-account')).toBeHidden();
   });
 
-  test('exporter ou sauvegarder demande d’être connecté, puis l’action reprend', async ({ acc }) => {
+  test('exporter demande d’être connecté, puis l’action reprend ; dupliquer, non', async ({ acc }) => {
     const { page } = acc;
     // des dessins importés avec un compte, puis déconnecté (l'œuvre reste dans le navigateur)
     await signUpAndIn(page, 'avant@example.org', 'Rouge-Soleil-42', 'Avant');
@@ -170,149 +170,140 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#exports-box')).toBeVisible();
     await expect(page.locator('#exports-list .saved')).toHaveCount(1);
     await expect(page.locator('#exports-list .saved-meta')).toContainText('JPEG');
-    // sauvegarder sans être connecté : même mécanisme
+    // déconnecté, l'œuvre s'enregistre toujours sur l'appareil, et « Dupliquer » ne demande pas de compte
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
     await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#acc-status')).toContainText('sauvegarder votre composition');
-    await page.locator('#acc-close').click();
+    await expect(page.locator('#save-status')).toContainText('ajoutée à Mes œuvres');
+    await expect(page.locator('#account-section')).toBeHidden();
   });
 
-  test('compositions dans le compte : sauvegarde, liste, réouverture, suppression', async ({ acc }) => {
+  test('Mes œuvres dans le compte : chaque œuvre part d’elle-même (une ligne, un dossier, chaque image une fois), revient sur un autre appareil, se supprime partout', async ({ acc }) => {
+    test.setTimeout(240000); // deux imports et deux réouvertures depuis le compte : long sur une machine d'intégration lente
     const { page } = acc;
     await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await openStep(page, 'export-section');
-    await page.locator('#save-comp').click();
-    await page.fill('#save-name', 'Dans le cloud');
-    await page.locator('#save-form button[type=submit]').click();
-    await expect(page.locator('#save-status')).toContainText('dans votre compte', { timeout: 60000 });
-    // une seule entrée, celle du compte (plus de copie locale quand les comptes sont actifs)
-    await openStep(page, 'saved-section');
-    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
-    await expect(page.locator('#saved-list .saved-where')).toContainText('mon compte');
-    // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques
-    // (hors envoi de l'œuvre en cours dans le compte, qui a son propre dossier)
-    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && !c[1].includes('/brouillon/')).length);
-    expect(uploads).toBe(8);
-    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
-    // sur un autre appareil (page rechargée, rien en local), la composition du compte se rouvre
-    await page.reload();
-    await page.waitForFunction(() => window.Account && window.Account.user() && document.querySelectorAll('#saved-list .saved').length === 1);
-    await openStep(page, 'saved-section');
-    await page.locator('#saved-list .saved').first().click();
-    // (l'œuvre en cours se rouvre d'abord d'elle-même : on attend la composition demandée, par son nom)
-    await expect(page.locator('#saved-status')).toContainText('« Dans le cloud » rouverte', { timeout: 120000 });
-    const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { n: c.items.length, x: c.items[0].x }; });
-    expect(after.n).toBe(before.n);
-    expect(after.x).toBeCloseTo(before.x, 3);
-    // suppression en deux temps : ligne et fichiers effacés
-    await page.locator('#saved-list .saved-del').first().click();
-    await page.locator('#saved-list .saved-del').first().click();
-    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
-    const left = await page.evaluate(() => ({ rows: window.__fake.db.rows.filter((r) => !(r.meta && r.meta.draft)).length, files: Object.keys(window.__fake.db.files).filter((p) => !p.includes('/brouillon/')).length }));
-    expect(left).toEqual({ rows: 0, files: 0 });
-  });
-
-  test('l’œuvre en cours suit le compte : envoyée d’elle-même, retrouvée sur un autre appareil, absente de la liste', async ({ acc }) => {
-    test.setTimeout(240000); // deux imports et deux réouvertures depuis le compte : long sur une machine d'intégration lente
-    const { page } = acc;
-    await signUpAndIn(page, 'nour@example.org', 'Rouge-Soleil-42', 'Nour');
-    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // le brouillon d'ici, puis son envoi dans le compte (sans attendre le délai)
-    await waitDraft(page, 2);
-    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
-    await page.waitForFunction(() => window.__fake.db.rows.some((r) => r.meta && r.meta.draft && r.meta.drawings.length === 2));
-    const first = await page.evaluate(() => ({ uploads: window.__fake.calls.filter((c) => c[0] === 'upload').length, rows: window.__fake.db.rows.length }));
-    expect(first.rows).toBe(1);
-    expect(first.uploads).toBeGreaterThanOrEqual(2);
-    // un deuxième envoi ne renvoie pas les images, et remplace la ligne
+    await waitDraft(page, 3);
+    const w1 = await page.evaluate(() => AtelierGribouille.state.workId);
+    // envoi sans attendre le délai : une ligne marquée « œuvre », à l'identifiant de l'œuvre
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work && r.meta.drawings.length === 3), w1);
+    // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques, dans le dossier de l'œuvre
+    const up1 = await page.evaluate((id) => window.__fake.calls.filter((c) => c[0] === 'upload').map((c) => c[1].split('/')[1] === id), w1);
+    expect(up1.length).toBe(8);
+    expect(up1.every(Boolean)).toBe(true);
+    await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
+    // un changement repart, sans renvoyer les images, dans la même ligne
+    const style1 = await page.evaluate(() => AtelierGribouille.state.comp.style);
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
-    await page.waitForTimeout(3000);
-    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
-    await page.waitForFunction((n) => window.__fake.db.rows.length === 1 && window.__fake.db.rows[0].meta.comp.style !== 'paysage' || window.__fake.calls.filter((c) => c[0] === 'upload').length > n, first.uploads);
-    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(first.uploads);
+    const style2 = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    expect(style2).not.toBe(style1);
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction((a) => window.__fake.db.rows.find((r) => r.id === a.id).meta.comp.style === a.st, { id: w1, st: style2 });
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(8);
     expect(await page.evaluate(() => window.__fake.db.rows.length)).toBe(1);
-    // le brouillon du compte n'apparaît pas parmi les compositions sauvegardées
-    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
-    const before = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, n: AtelierGribouille.state.comp.items.length }));
-    // un autre appareil : rien en local (base effacée, marque d'envoi effacée), même compte
-    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.brouillon-compte'); localStorage.removeItem('atelier.brouillon-compte-vu'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    // une deuxième œuvre : la première est rangée, rien n'est effacé
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await page.setInputFiles('#file', ['page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 1 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    const w2 = await page.evaluate(() => AtelierGribouille.state.workId);
+    expect(w2).not.toBe(w1);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction(() => window.__fake.db.rows.filter((r) => r.meta.work).length === 2);
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    await expect(page.locator('#saved-list .saved.current .saved-meta')).toContainText('1 dessins');
+    await expect(page.locator('#saved-list .saved-tag')).not.toContainText(['sur cet appareil']);
+    // un autre appareil (rien en local) : la plus récente se rouvre d'elle-même, les deux sont dans la liste
+    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    const after = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, n: AtelierGribouille.state.comp.items.length }));
-    expect(after).toEqual(before);
-    await expect(page.locator('#draft-offer')).toBeHidden();
-    // « Oublier cette œuvre » efface aussi celle du compte
-    await page.evaluate(() => new Promise((res) => { const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
-    await page.goto('index.html?nouveau');
-    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await page.waitForTimeout(1500);
-    // (sans œuvre locale et arrivée « nouvelle œuvre » : celle du compte se rouvre d'elle-même aussi)
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 1 && document.getElementById('progress').hidden, w2, { timeout: 120000 });
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    // l'autre se rouvre depuis le compte, telle qu'elle était
+    await page.locator('#saved-list .saved:not(.current)').click();
+    await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, w1, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style2);
+    // rouverte telle quelle : rien ne repart dans le compte (ni fichier, ni nouvelle version)
+    const t1 = await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, w1);
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(0);
+    expect(await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, w1)).toBe(t1);
+    // supprimée : sa ligne et ses fichiers partent du compte, l'autre reste
+    await page.locator('#saved-list .saved.current .saved-del').click();
+    await page.locator('#saved-list .saved.current .saved-del').click();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.map((r) => r.id))).toEqual([w2]);
+    const files = await page.evaluate(() => Object.keys(window.__fake.db.files).map((p) => p.split('/')[1]));
+    expect(files.length).toBeGreaterThan(0);
+    expect(files.every((id) => id === w2)).toBe(true);
   });
 
-  test('synchronisation entre appareils : la version du compte ne revient que sur « Recharger depuis mon compte », sans être renvoyée ; « Envoyer » part tout de suite', async ({ acc }) => {
+  test('une version plus récente venue d’un autre appareil : un bandeau, « Ouvrir cette version » ou « Garder celle-ci », sans ping-pong', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await waitDraft(page, 2);
-    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
-    await page.waitForFunction(() => window.__fake.db.rows.some((r) => r.meta && r.meta.draft && r.meta.drawings.length === 2));
-    const t1 = await page.evaluate(() => window.__fake.db.rows.find((r) => r.meta && r.meta.draft).meta.date);
-    expect(await page.evaluate(() => localStorage.getItem('atelier.brouillon-compte-vu'))).toBe(t1);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    const id = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), id);
+    const t1 = await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, id);
+    expect(await page.evaluate((id) => JSON.parse(localStorage.getItem('atelier.oeuvres-vues'))[id], id)).toBe(t1);
     const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
-    // l'autre appareil a envoyé une version plus récente (ici : la même œuvre, dans un autre style, à une autre date)
-    const other = await page.evaluate(() => { const r = window.__fake.db.rows.find((x) => x.meta && x.meta.draft); const t2 = new Date(Date.now() + 60000).toISOString(); r.meta.date = t2; r.meta.comp = Object.assign({}, r.meta.comp, { style: r.meta.comp.style === 'frise' ? 'nuage' : 'frise' }); return { t2, style: r.meta.comp.style }; });
+    // l'autre appareil (un téléphone) a envoyé une version plus récente : la même œuvre, dans un autre style
+    const bump = (n) => page.evaluate(({ id, n }) => { const r = window.__fake.db.rows.find((x) => x.id === id); const t = new Date(Date.now() + n * 60000).toISOString(); r.meta = Object.assign({}, r.meta, { date: t, device: 'phone', comp: Object.assign({}, r.meta.comp, { style: r.meta.comp.style === 'frise' ? 'nuage' : 'frise' }) }); return { t, style: r.meta.comp.style }; }, { id, n });
+    const other = await bump(1);
     expect(other.style).not.toBe(style0);
-    // la page revient au premier plan : rien ne bouge (le compte n'est plus relu de lui-même)
-    await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus')); });
-    await page.waitForTimeout(1500);
+    // revenue au premier plan juste après : rien ne bouge (le compte n'est relu qu'après une absence)
+    await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    await page.waitForTimeout(800);
+    await expect(page.locator('#work-newer')).toBeHidden();
+    // relu (arrivée, connexion, retour après une absence) : le bandeau le dit, rien n'est tiré ni envoyé
+    await page.evaluate(() => AtelierGribouille.checkCurrentWork());
+    await expect(page.locator('#work-newer')).toBeVisible();
+    await expect(page.locator('#work-newer')).toContainText('téléphone');
+    await expect(page.locator('#cloud-sync-status')).toContainText('plus récente');
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
-    await expect(page.locator('#cloud-sync')).toBeVisible();
-    await expect(page.locator('#cloud-sync-status')).toContainText('dans votre compte');
-    // une relecture (arrivée, connexion) voit la version de l'autre appareil : elle le dit, sans rien
-    // tirer ni envoyer tant qu'on n'a pas choisi — même un changement d'ici reste ici
-    await page.evaluate(() => AtelierGribouille.checkCloudDraft());
-    await expect(page.locator('#cloud-sync-status')).toContainText('venue d’un autre appareil');
-    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
+    // même un changement d'ici reste ici tant qu'on n'a pas choisi
     await page.evaluate(() => AtelierGribouille.selectProposal(3));
-    await page.waitForTimeout(3000);
-    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForTimeout(500);
-    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.draft).map((r) => r.meta.date))).toEqual([other.t2]);
-    // « Recharger depuis mon compte » : des changements d'ici non envoyés, un deuxième appui confirme,
-    // et la version du compte remplace celle d'ici
-    await page.locator('#cloud-pull').click();
-    await expect(page.locator('#cloud-sync-status')).toContainText('Appuyez de nouveau');
-    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).not.toBe(other.style);
-    await page.locator('#cloud-pull').click();
+    expect(await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, id)).toBe(other.t);
+    // « Ouvrir cette version » : celle du compte remplace celle d'ici
+    await page.locator('#work-newer-open').click();
     await page.waitForFunction((st) => AtelierGribouille.state.comp && AtelierGribouille.state.comp.style === st && document.getElementById('progress').hidden, other.style, { timeout: 120000 });
-    await expect(page.locator('#save-status')).toContainText('rechargée depuis votre compte');
-    await expect(page.locator('#cloud-sync-status')).toContainText('rechargée depuis votre compte');
-    expect(await page.evaluate(() => localStorage.getItem('atelier.brouillon-compte-vu'))).toBe(other.t2);
+    await expect(page.locator('#work-newer')).toBeHidden();
+    await expect(page.locator('#save-status')).toContainText('plus récente');
+    expect(await page.evaluate((id) => JSON.parse(localStorage.getItem('atelier.oeuvres-vues'))[id], id)).toBe(other.t);
     // la copie d'ici n'est pas renvoyée au compte (pas de ping-pong entre appareils)
-    await page.waitForTimeout(4000);
-    await page.evaluate(() => AtelierGribouille.syncCloudDraft());
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForTimeout(500);
-    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.draft).map((r) => r.meta.date))).toEqual([other.t2]);
-    // « Recharger » de nouveau, rien de neuf : l'œuvre reste, un mot le dit
-    await page.locator('#cloud-pull').click();
-    await expect(page.locator('#cloud-sync-status')).toContainText('déjà celle de votre compte');
-    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(other.style);
-    // un vrai changement d'ici repart dans le compte, tout de suite avec « Sauvegarder dans mon compte »
-    await page.evaluate(() => AtelierGribouille.selectProposal(2));
-    await page.waitForTimeout(500);
-    await page.locator('#cloud-push').click();
-    await page.waitForFunction((t2) => window.__fake.db.rows.find((r) => r.meta && r.meta.draft).meta.date !== t2, other.t2, { timeout: 30000 });
-    await expect(page.locator('#cloud-sync-status')).toContainText('envoyée à');
-    // hors connexion, le bloc disparaît
+    expect(await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, id)).toBe(other.t);
+    // encore une autre version ; « Garder celle-ci » : celle d'ici repart et remplace celle du compte
+    const mine = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    const third = await bump(2);
+    await page.evaluate(() => AtelierGribouille.checkCurrentWork());
+    await expect(page.locator('#work-newer')).toBeVisible();
+    await page.locator('#work-newer-keep').click();
+    await expect(page.locator('#work-newer')).toBeHidden();
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction(({ id, t }) => window.__fake.db.rows.find((r) => r.id === id).meta.date !== t, { id, t: third.t });
+    expect(await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.comp.style, id)).toBe(mine);
+    await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
+    // déconnecté : l'œuvre reste enregistrée ici, la ligne le dit
     await page.locator('#acc-menu').click();
     await page.locator('#acc-signout').click();
-    await expect(page.locator('#cloud-sync')).toBeHidden();
+    await expect(page.locator('#cloud-sync-status')).toContainText('Connectez-vous pour la retrouver');
   });
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {
@@ -379,16 +370,19 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier')).every((it) => it.recId.startsWith('cloud:')), null, { timeout: 60000 });
     const rows = () => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).map((r) => ({ name: r.name, qty: r.meta.cart.qty, finish: r.meta.cart.finish, size: r.meta.cart.size })));
     expect(await rows()).toEqual([{ name: await page.locator('#cart .cart-item b').first().textContent(), qty: 1, finish: 'cadre', size: '30x40' }]);
-    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(6);
+    // (hors l'œuvre elle-même, qui a son propre dossier)
+    const cartUploads = () => page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] !== AtelierGribouille.state.workId).length);
+    expect(await cartUploads()).toBe(6);
     // la quantité change : le compte suit
     await page.locator('#cart .cart-item [data-qty="1"]').click();
     await expect.poll(async () => (await rows())[0].qty).toBe(2);
-    // pas dans « Mes compositions » (tant qu'il n'est pas commandé)
+    // pas dans « Mes œuvres » (tant qu'il n'est pas commandé) : seule l'œuvre affichée y est
     await page.locator('#cart [data-close]').first().click();
     await page.evaluate(() => document.querySelector('#saved-section').classList.contains('collapsed') && document.querySelector('#saved-section > h2').click());
-    await page.evaluate(() => AtelierGribouille.renderSaved && AtelierGribouille.renderSaved());
+    await page.evaluate(() => AtelierGribouille.renderSaved && AtelierGribouille.renderSaved({ refresh: true }));
     await page.waitForTimeout(500);
-    await expect(page.locator('#saved-list .saved')).toHaveCount(0);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
     // un autre appareil (même compte, panier local vide) : l'article revient, avec sa quantité
     await page.evaluate(() => localStorage.removeItem('atelier-gribouille:panier'));
     await page.reload();
@@ -432,17 +426,22 @@ test.describe('Comptes utilisateurs', () => {
     await page.fill('#auth-password', 'Bleu-Nuage-77');
     await page.locator('#auth-submit').click();
     await expect(page.locator('#cart .cart-status')).toContainText('prête', { timeout: 60000 });
-    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length);
-    expect(uploads).toBe(6); // les deux dessins de la composition commandée (image, page, masques), envoyés une seule fois
+    const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] !== AtelierGribouille.state.workId).length);
+    expect(uploads).toBe(6); // les deux dessins de la composition commandée (image, page, masques), envoyés une seule fois (hors l'œuvre elle-même)
     // l'article du panier, parti dans le compte à la connexion, est devenu la composition commandée (plus de « panier »)
     expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length)).toBe(0);
     const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
     expect(orders).toHaveLength(1);
     await page.locator('#cart [data-close]').first().click();
-    // la composition commandée est dans le compte, sous la référence de la commande
+    // la composition commandée est dans Mes œuvres, sous la référence de la commande, marquée « commandée »
     await page.evaluate(() => document.querySelector('#saved-section > h2') && document.querySelector('#saved-section').classList.contains('collapsed') && document.querySelector('#saved-section > h2').click());
-    await expect(page.locator('#saved-list .saved')).toHaveCount(1, { timeout: 30000 });
-    await expect(page.locator('#saved-list .saved').first()).toContainText(orders[0].ref);
+    const ordered = page.locator('#saved-list .saved', { hasText: orders[0].ref });
+    await expect(ordered).toHaveCount(1, { timeout: 30000 });
+    await expect(ordered.locator('.saved-tag')).toContainText('commandée');
+    // rouverte, c'est une copie : la composition commandée reste telle quelle
+    await ordered.click();
+    await page.waitForFunction(() => AtelierGribouille.state.copyOf && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#cloud-sync-status')).toContainText('Copie');
     // supprimer le compte efface aussi ses fichiers (dessins de la composition commandée)
     const uid = await page.evaluate(() => window.Account.user().id);
     expect(await page.evaluate((uid) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(uid + '/')).length, uid)).toBeGreaterThan(0);

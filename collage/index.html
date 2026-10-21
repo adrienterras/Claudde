@@ -118,19 +118,15 @@
       <button type="button" id="acc-open" class="acc-chip"><svg class="ico"><use href="#i-user"/></svg><span>Se connecter ou créer un compte</span></button>
       <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
-    <!-- l'œuvre en cours et le compte : état, « Recharger depuis mon compte », « Sauvegarder dans mon compte » -->
+    <!-- l'œuvre affichée : où elle est enregistrée (d'elle-même, rien à sauvegarder) -->
     <div id="cloud-sync" class="cloud-sync" hidden>
       <p id="cloud-sync-status" class="hint"></p>
-      <div class="cloud-sync-btns">
-        <button type="button" id="cloud-pull" class="btn"><svg class="ico"><use href="#i-cloud"/></svg><span>Recharger depuis mon compte</span></button>
-        <button type="button" id="cloud-push" class="btn"><svg class="ico"><use href="#i-upload"/></svg><span>Sauvegarder dans mon compte</span></button>
-      </div>
     </div>
 
 
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
-      <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link" hidden>Reprendre</button> <button type="button" id="draft-forget" class="link" hidden>Oublier cette œuvre</button></p>
+      <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link" hidden>Reprendre</button> <button type="button" id="draft-forget" class="link" hidden>Ne pas la rouvrir</button></p>
       <!-- sur téléphone seulement (style.css) : photographier un dessin, avant le dépôt de fichiers -->
       <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
       <label id="drop" class="drop">
@@ -139,7 +135,7 @@
         <strong>Déposez les photos ou les scans des dessins</strong>
         <span>PDF de plusieurs pages, JPG ou PNG</span>
       </label>
-      <p id="import-account" class="hint import-account" hidden>Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier, exporter ou sauvegarder.</p>
+      <p id="import-account" class="hint import-account" hidden>Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier ou exporter, et il garde vos œuvres sur tous vos appareils.</p>
       <label id="share-cuts" class="hint consent" hidden><input type="checkbox" id="share-cuts-box"> <span>Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier. <a href="confidentialite.html#retouches" target="_blank" rel="noopener">En savoir plus</a></span></label>
       <!-- sous le consentement de détourage : repartir de zéro -->
       <button type="button" id="new-work" class="btn new-work" hidden><svg class="ico"><use href="#i-plus"/></svg><span>Commencer une nouvelle œuvre</span></button>
@@ -283,28 +279,19 @@
       </div>
       <p id="export-info" class="hint mono-note"></p>
       <p id="export-quality" class="hint quality-note" hidden></p>
-      <p id="export-account" class="hint account-note" hidden><svg class="ico"><use href="#i-user"/></svg><span>Le téléchargement en haute définition et la sauvegarde demandent un compte gratuit : il garde vos œuvres sur tous vos appareils. L’aperçu ci-dessous est libre.</span></p>
+      <p id="export-account" class="hint account-note" hidden><svg class="ico"><use href="#i-user"/></svg><span>Le téléchargement en haute définition demande un compte gratuit : il garde aussi vos œuvres sur tous vos appareils. L’aperçu ci-dessous est libre.</span></p>
       <button id="add-cart" class="btn btn-primary"><svg class="ico"><use href="#i-cart"/></svg><span>Ajouter au panier</span></button>
       <button id="export" class="btn"><svg class="ico"><use href="#i-download"/></svg><span>Télécharger l’œuvre</span></button>
       <button id="export-free" class="btn" hidden><svg class="ico"><use href="#i-eye"/></svg><span>Aperçu sans compte <small>basse définition, filigrane</small></span></button>
-      <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Sauvegarder cette composition</span></button>
-      <form id="save-form" class="save-form" hidden>
-        <label class="field">Nom de la composition
-          <input id="save-name" type="text" maxlength="80" autocomplete="off">
-        </label>
-        <div class="row-btns">
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
-          <button type="button" id="save-cancel" class="btn">Annuler</button>
-        </div>
-      </form>
+      <button id="save-comp" class="btn"><svg class="ico"><use href="#i-bookmark"/></svg><span>Dupliquer cette œuvre</span></button>
       <p id="save-status" class="save-status" role="status" hidden></p>
     </section>
 
     <section id="saved-section" class="step">
-      <h2><span class="num">06</span> Mes compositions <small id="saved-count"></small></h2>
-      <p class="hint" id="saved-hint">Les compositions sauvegardées restent dans ce navigateur, avec leurs dessins : rouvrez-les plus tard, telles quelles.</p>
+      <h2><span class="num">06</span> Mes œuvres <small id="saved-count"></small></h2>
+      <p class="hint" id="saved-hint">Vos œuvres s’enregistrent d’elles-mêmes dans ce navigateur : rouvrez-les plus tard, telles quelles.</p>
       <div id="saved-list" class="saved-list"></div>
-      <p id="saved-empty" class="hint">Aucune composition sauvegardée pour l’instant.</p>
+      <p id="saved-empty" class="hint">Aucune œuvre pour l’instant : importez des dessins, l’œuvre s’enregistre d’elle-même.</p>
       <p id="saved-status" class="save-status" role="status" hidden></p>
       <div id="exports-box" hidden>
         <h3>Mes exports <small id="exports-count"></small></h3>
@@ -336,7 +323,7 @@
       <!-- Connexion / inscription -->
       <div id="auth-box">
         <h2 id="acc-title" class="acc-title">Bienvenue à l’atelier</h2>
-        <p class="acc-sub" id="acc-sub">Retrouvez vos compositions sur tous vos appareils.</p>
+        <p class="acc-sub" id="acc-sub">Retrouvez vos œuvres sur tous vos appareils.</p>
         <div class="social">
           <button type="button" class="btn social-btn" data-provider="google"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4" stroke="none"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853" stroke="none"/><path d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6z" fill="#FBBC05" stroke="none"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335" stroke="none"/></svg><span>Continuer avec Google</span></button>
         </div>
@@ -399,7 +386,7 @@
           </div>
         </form>
         <div class="danger-zone">
-          <p class="hint">Supprimer le compte efface définitivement vos compositions et dessins enregistrés dans le cloud. Les sauvegardes de cet appareil ne sont pas touchées.</p>
+          <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte. Les œuvres de cet appareil ne sont pas touchées.</p>
           <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
         </div>
       </div>
@@ -445,6 +432,8 @@
     </div>
     <button type="button" id="scene-open" class="scene-open" hidden><svg class="ico"><use href="#i-frame"/></svg><span>Mettre en scène</span></button>
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
+    <!-- l'œuvre affichée a changé sur un autre appareil : choisir la version à garder -->
+    <div id="work-newer" class="work-newer" role="status" hidden><span></span><button type="button" id="work-newer-open" class="btn btn-primary">Ouvrir cette version</button><button type="button" id="work-newer-keep" class="link">Garder celle-ci</button></div>
     <div id="empty" class="empty">
       <div>
         <div class="empty-pictos" aria-hidden="true">
@@ -453,7 +442,7 @@
         <p class="empty-title">Les grands souvenirs commencent par un gribouillage.</p>
         <span class="empty-rule"></span>
         <p class="hint">Importez les dessins, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à sept propositions, à imprimer ou à réaliser avec les originaux.</p>
-        <p id="empty-resume" class="empty-loading" hidden>Réouverture de votre œuvre en cours…</p>
+        <p id="empty-resume" class="empty-loading" hidden>Réouverture de votre œuvre…</p>
         <div id="mode-pick" class="mode-pick">
           <p class="mode-pick-title">Que voulez-vous créer ?</p>
           <button type="button" data-mode="impression"><b>Création imprimée à partir de vos dessins</b><small>Papier d’art ou encadré, aux tailles de cadres standard. Dès 14,90 € en fichier HD.</small></button>
