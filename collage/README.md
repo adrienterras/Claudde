@@ -226,10 +226,10 @@ cd collage && python3 -m http.server 8000
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
    - **panier** : un CTA « Commander » bien en vue (sur ordinateur, en bas à droite de l'œuvre, juste
-     au-dessus de la barre de zoom, avec le bouton « Panier » quand il y a des articles ; sur
+     au-dessus de la barre de zoom ; sur
      téléphone, petit, avec l'icône d'un sac, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
-     un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » à côté
-     (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
+     un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » en haut à
+     droite de la zone d'édition, en face de « Mettre en scène » (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
      présente, avec le compteur en pastille) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,

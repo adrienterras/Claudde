@@ -868,6 +868,11 @@ test.describe('Panier', () => {
     await page.locator('#cart .cart-item').nth(1).locator('[data-qty="-1"]').click();
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 14.9, 2);
     await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('3');
+    // sur ordinateur : « Panier » en haut à droite de la zone d'édition, « Commander » reste en bas
+    const [cb, st, oc] = await Promise.all([page.locator('.cart-btn-desk').boundingBox(), page.locator('.stage').boundingBox(), page.locator('.order-cta-desk').boundingBox()]);
+    expect(cb.y - st.y).toBeLessThan(120);
+    expect(st.x + st.width - (cb.x + cb.width)).toBeLessThan(30);
+    expect(oc.y).toBeGreaterThan(st.y + st.height / 2);
     // quantité −, puis retirer le fichier HD
     await page.locator('#cart .cart-item').first().locator('[data-qty="-1"]').click();
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(129 + 14.9, 2);

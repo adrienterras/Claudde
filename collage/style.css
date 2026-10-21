@@ -391,10 +391,12 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .cart-btn:hover { background: var(--accent-soft); }
 .cart-btn .ico { width: 18px; height: 18px; }
 .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--ink); color: var(--on-ink); font-size: 0.7rem; }
-/* en bas à droite de l'œuvre, juste au-dessus de la barre de zoom : « Panier » (s'il y a des articles)
-   puis le CTA « Commander » */
+/* en bas à droite de l'œuvre, juste au-dessus de la barre de zoom : le CTA « Commander » ; « Panier »
+   (s'il y a des articles) en haut à droite de la zone d'édition, en face de « Mettre en scène » */
 .stage-cta { position: absolute; bottom: 64px; right: 16px; z-index: 5; display: flex; align-items: center; gap: 8px; }
 .cart-btn-desk { padding: 8px 10px 8px 14px; }
+.cart-btn-desk:not([hidden]) { position: absolute; top: 72px; right: 16px; z-index: 5; }
+body.stage-full .cart-btn-desk { display: none; }
 .order-cta { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: 0; border-radius: 999px; background: var(--primary); color: var(--on-primary); font: inherit; font-size: 0.9rem; font-weight: 700; letter-spacing: .02em; cursor: pointer; box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .55); }
 .order-cta:hover { background: var(--ink); transform: translateY(-1px); }
 .order-cta .ico { width: 18px; height: 18px; }
