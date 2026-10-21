@@ -5102,7 +5102,7 @@ Réponds uniquement avec ce JSON :
         cloudSent = rec;
         if (cloudWorks) {
           const c = cloudWorks.find((x) => x.workId === rec.workId);
-          const info = { id: `cloud:${rec.workId}`, workId: rec.workId, name: rec.name, date: rec.date, thumb: rec.thumb, cloud: true, comp: { style: rec.comp.style, W: rec.comp.W, H: rec.comp.H }, nDrawings: rec.drawings.length };
+          const info = { id: `cloud:${rec.workId}`, workId: rec.workId, name: rec.name, date: rec.date, thumb: rec.thumb, cloud: true, comp: { style: rec.comp.style, W: rec.comp.W, H: rec.comp.H }, nDrawings: rec.drawings.length, settings: { mode: rec.settings.mode, format: rec.settings.format } };
           if (c) Object.assign(c, info); else cloudWorks.unshift(info);
         }
         // l'ancienne œuvre en cours du compte (d'avant « Mes œuvres »), si c'est celle qu'on connaissait ici : remplacée
@@ -5542,7 +5542,11 @@ Réponds uniquement avec ce JSON :
         e.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '',
         signed && !e.cloud && !e.current ? `<span class="saved-tag">${tr('sur cet appareil')}</span>` : '',
       ].join('');
-      const meta = [st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
+      // le type d'œuvre (une œuvre d'avant les deux ateliers : imprimée si elle est sur un cadre)
+      const sv = rec.settings || {};
+      const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
+      const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
+      const meta = [kind, st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
       el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button>`;
       // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
       const del = el.querySelector('.saved-del');

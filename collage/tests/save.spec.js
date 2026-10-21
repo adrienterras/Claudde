@@ -50,6 +50,7 @@ test.describe('Mes œuvres', () => {
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
     await expect(page.locator('.saved .saved-meta')).toContainText('4 dessins');
+    await expect(page.locator('.saved .saved-meta')).toContainText('Collage des originaux'); // le type d'œuvre
 
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);

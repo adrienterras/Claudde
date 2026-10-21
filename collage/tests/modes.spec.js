@@ -290,6 +290,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.goto('index.html?mode=toile&nouveau');
     await page.waitForFunction(() => window.AtelierGribouille && document.querySelectorAll('.saved').length === 1);
     await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved .saved-meta').first()).toContainText('Création imprimée'); // le type d'œuvre
     await page.locator('.saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.mode)).toBe('impression');

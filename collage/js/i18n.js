@@ -839,6 +839,8 @@
     '✓ Photo gardée — {0}': '✓ Photo kept — {0}',
     '✓ Photo gardée': '✓ Photo kept',
     'Garder quand même': 'Keep anyway',
+    'Création imprimée': 'Printed artwork',
+    'Collage des originaux': 'Collage of the originals',
   };
 
   const KEY = 'atelier-gribouille:lang';

@@ -1100,6 +1100,7 @@ body.stage-full .scene-open { display: none; }
 .saved img { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; background: var(--wall); }
 .saved .saved-name { margin: 0; font-weight: 600; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saved .saved-meta { margin: 2px 0 0; color: var(--muted); font-size: 0.72rem; }
+.saved .saved-meta .saved-mode { color: var(--ink-2); font-weight: 600; }
 .saved .saved-del { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 999px; }
 .saved .saved-del:hover { color: var(--danger); background: var(--danger-soft); }
 

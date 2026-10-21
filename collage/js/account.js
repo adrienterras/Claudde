@@ -170,7 +170,7 @@
   const ORDER_NAME = /^AG-\d{6}-[A-Z0-9]{4} · /;
   async function cloudList() {
     const { data, error } = await client.from('compositions')
-      .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, draft:meta->>draft, device:meta->>device')
+      .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format')
       .is('meta->>cart', null).order('created_at', { ascending: false });
     err(error);
     return (data || []).map((row) => {
@@ -180,6 +180,7 @@
         id: `cloud:${row.id}`, workId: row.id, name: row.name, date: row.date || m.date || row.created_at, thumb: row.thumb, cloud: true,
         comp: { style: row.style || c.style, W: Number(row.W || c.W) || 0, H: Number(row.H || c.H) || 0 }, nDrawings: n,
         ordered: !!(row.ordered || m.ordered) || ORDER_NAME.test(row.name || ''), legacyDraft: !!(row.draft || m.draft), device: row.device || m.device || null,
+        settings: { mode: row.mode || (m.settings && m.settings.mode) || null, format: row.format || (m.settings && m.settings.format) || null },
       };
     });
   }
