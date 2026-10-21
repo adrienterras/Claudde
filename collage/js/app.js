@@ -2272,6 +2272,12 @@
     const top = canvas.offsetTop + artBottomPx / dpr + 8;
     const max = canvas.offsetTop + canvas.clientHeight - 30; // l'œuvre zoomée déborde : le cartel reste visible en bas
     label.style.top = `${Math.round(Math.min(top, max))}px`;
+    // écran étroit (œuvre en portrait, cartel bas) : le cartel, centré, s'arrête avant « Commander » et passe sur deux lignes
+    label.style.maxWidth = '';
+    const cta = document.querySelector('.order-cta-desk');
+    if (!cta || cta.hidden) return;
+    const c = cta.getBoundingClientRect(), l = label.getBoundingClientRect(), mid = (l.left + l.right) / 2;
+    if (l.top < c.bottom && c.top < l.bottom && c.left - 8 < l.right) label.style.maxWidth = `${Math.max(120, Math.floor(2 * (c.left - 8 - mid)))}px`;
   }
   window.addEventListener('resize', () => layoutLabel());
   if (window.ResizeObserver) {

@@ -726,7 +726,7 @@ body.stage-full .density-bar { display: none; }
   .label b { font-size: 0.86rem; }
   .label span { font-size: 0.56rem; letter-spacing: .16em; }
 }
-.label span { font-family: var(--f-body); font-size: 0.6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
+.label span { text-wrap: balance; font-family: var(--f-body); font-size: 0.6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; pointer-events: none; }
 .empty > div { max-width: 46ch; display: flex; flex-direction: column; align-items: center; gap: 14px; }
