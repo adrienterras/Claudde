@@ -37,12 +37,20 @@ test.describe('Import des scans', () => {
     expect(ds[1].phys).toBe('150 dpi');
     expect(ds[1].sizeCm).toBeCloseTo(29.7, 0);
     expect(ds.every((d) => !d.uncertain)).toBe(true);
-    // collage : la taille de chaque feuille reste vérifiable dans la section Tailles, sans rien à corriger
+    // collage : la taille de chaque feuille est à vérifier dans la section Tailles, sans rien à corriger
     await expect(app.page.locator('#sizes-check .sizes-title')).toContainText('Taille des dessins');
     await expect(app.page.locator('#sizes-check .sizes-row')).toHaveCount(2);
     await expect(app.page.locator('#sizes-check .sizes-row.unsure')).toHaveCount(0);
     await expect(app.page.locator('#sizes-check .sizes-row').first()).toContainText('lu dans le scan');
     await expect(app.page.locator('#sizes-alert')).toBeHidden();
+    // la taille actuelle est surlignée ; la toucher la confirme et la feuille quitte la liste, qui disparaît à la fin
+    await expect(app.page.locator('#sizes-check .sizes-row').first().locator('[data-cm="29.7"]')).toHaveClass(/on/);
+    await app.page.locator('#sizes-check .sizes-row').first().locator('[data-cm="29.7"]').click();
+    await expect(app.page.locator('#sizes-check .sizes-row')).toHaveCount(1);
+    // (la dernière par Entrée dans le champ, sans changer la valeur)
+    await app.page.locator('#sizes-check .sizes-row').first().locator('input').press('Enter');
+    await expect(app.page.locator('#sizes-check')).toBeHidden();
+    expect(await app.page.evaluate(() => AtelierGribouille.state.drawings.map((d) => [d.sizeMode, d.sizeCm]))).toEqual([['manual', 29.7], ['manual', 29.7]]);
   });
 
   test('deux tailles corrigées qui concordent étalonnent les scans sans résolution connue, une seule non', async ({ app }) => {

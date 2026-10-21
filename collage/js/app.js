@@ -462,13 +462,15 @@
   // Bandeau « tailles à vérifier » : les feuilles dont la taille n'a pas pu être reconnue. Sans objet
   // en tableau imprimé (les dessins y sont réduits au cadre : seule leur taille relative compte).
   // Collage : la taille de chaque feuille, à vérifier dans la section Tailles (elle fixe la taille du
-  // dessin sur la toile). Tous les dessins y sont, ceux dont la taille n'a pas pu être lue d'abord ;
-  // le bandeau de Propositions ne compte que ces derniers. Tableau imprimé : rien (dessins réduits au cadre).
+  // dessin sur la toile). Chaque feuille dont la taille n'a pas encore été confirmée y est, celles dont
+  // la taille n'a pas pu être lue d'abord ; une taille touchée (A5, A4, A3) ou saisie la confirme et la
+  // feuille quitte la liste, qui disparaît quand tout est vérifié. Le bandeau de Propositions ne compte
+  // que les tailles douteuses. Tableau imprimé : rien (dessins réduits au cadre).
   function renderUncertain() {
     const box = $('sizes-check');
     const unsure = (d) => d.uncertain && d.sizeMode === 'auto';
     const toCheck = printMode() ? [] : state.drawings.filter(unsure);
-    const all = printMode() ? [] : toCheck.concat(state.drawings.filter((d) => !unsure(d)));
+    const all = printMode() ? [] : toCheck.concat(state.drawings.filter((d) => !unsure(d) && d.sizeMode === 'auto'));
     box.hidden = !all.length;
     const alert = $('sizes-alert');
     const list = toCheck;
@@ -478,14 +480,14 @@
     }
     if (!all.length) return;
     box.innerHTML = `<p class="sizes-title">${list.length ? tr`Tailles à vérifier <small>(${list.length})</small>` : tr`Taille des dessins <small>(${all.length})</small>`}</p>
-      <p class="hint">${tr('Indiquez le plus grand côté de chaque feuille, en cm : c’est ce qui fixe sa taille dans l’œuvre.')}</p>
+      <p class="hint">${tr('Touchez la bonne taille, ou saisissez le plus grand côté en cm : c’est ce qui fixe la taille du dessin dans l’œuvre. Une feuille vérifiée quitte la liste.')}</p>
       <div class="sizes-list"></div>`;
     const wrap = box.querySelector('.sizes-list');
     all.forEach((d) => {
       const row = document.createElement('label');
       row.className = `sizes-row${unsure(d) ? ' unsure' : ''}`;
-      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${unsure(d) ? (d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`) : d.sizeMode === 'manual' ? tr`saisi : ${fmt(d.sizeCm)} cm` : d.physCm ? tr`lu dans le scan : ${fmt(d.sizeCm)} cm` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
-        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.1" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
+      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${unsure(d) ? (d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`) : d.physCm ? tr`lu dans le scan : ${fmt(d.sizeCm)} cm` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
+        <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" class="${Math.abs(cm - d.sizeCm) < 0.05 ? 'on' : ''}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.1" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
       const apply = (cm) => {
         if (!(cm > 0)) return;
         cm = clampCm(cm);
@@ -499,6 +501,8 @@
       };
       const input = row.querySelector('input');
       input.onchange = () => apply(Number(input.value));
+      // Entrée confirme aussi une taille juste qu'on n'a pas eu à changer (24,5 cm déjà exact, par exemple)
+      input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(Number(input.value) || d.sizeCm); } }; // (champ vide : la taille affichée en gris)
       row.querySelectorAll('[data-cm]').forEach((b) => { b.onclick = (e) => { e.preventDefault(); apply(Number(b.dataset.cm)); }; });
       wrap.appendChild(row);
     });

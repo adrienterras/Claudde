@@ -517,6 +517,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .sizes-chips { display: inline-flex; gap: 3px; margin-right: 4px; }
 .sizes-chips button { padding: 5px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); font-size: 0.72rem; font-weight: 600; cursor: pointer; color: var(--ink-2); }
 .sizes-chips button:hover { border-color: var(--accent); color: var(--ink); }
+.sizes-chips button.on { border-color: var(--ink); color: var(--ink); box-shadow: 0 0 0 2px var(--accent-soft); } /* la taille actuelle : un toucher la confirme */
 .sizes-input input { width: 74px; padding: 7px 8px; text-align: right; font-variant-numeric: tabular-nums; }
 .sizes-input em { font-style: normal; font-size: 0.8rem; color: var(--muted); }
 .thumb .size.unsure { background: var(--accent); color: var(--on-ink); }

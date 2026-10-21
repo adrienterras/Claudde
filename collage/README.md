@@ -164,9 +164,10 @@ cd collage && python3 -m http.server 8000
    (A5, A4, A3, A2 ou autre) — c'est cette taille qui compte, puisque les dessins sont collés à
    taille réelle. Sans information dans le fichier, la taille est estimée à partir du scan
    (le scan médian est supposé A4) ; elle n'est arrondie à un format standard que si la feuille en a
-   les proportions. Dans la section Tailles, un bloc liste **la taille de chaque feuille** (lue dans
-   le scan, saisie ou estimée), avec un champ pour saisir son plus grand côté : c'est cette taille qui
-   fixe celle du dessin dans l'œuvre. Les feuilles douteuses (bandes, rouleaux, très grands ou très
+   les proportions. Dans la section Tailles, un bloc liste **la taille de chaque feuille à vérifier**
+   (lue dans le scan ou estimée), avec A5 / A4 / A3 (la taille actuelle surlignée) et un champ pour
+   saisir son plus grand côté : c'est cette taille qui fixe celle du dessin dans l'œuvre ; une taille
+   touchée ou saisie est confirmée, la feuille quitte la liste, qui disparaît quand tout est vérifié. Les feuilles douteuses (bandes, rouleaux, très grands ou très
    petits formats, photos) viennent en tête, marquées, sous le titre **« Tailles à vérifier »** ; sans
    feuille douteuse, le titre est « Taille des dessins ». Ce bloc (et l'alerte de la section Propositions)
    n'existe qu'en collage avec les originaux : en tableau imprimé, les dessins sont réduits au cadre
