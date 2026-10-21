@@ -597,7 +597,11 @@ Seuils réglés sur de vrais scans de dessins (aucune alerte de netteté ni d’
 leurs versions floues ou assombries. La définition suit la taille réelle choisie : la même image
 peut suffire en A6 et pas en A3. Affichage : pastille sur la vignette, les titres seuls dans la
 fiche du dessin (raison et conseil en infobulle, `qualityBlock`), bandeau « N dessins risquent d’être flous » dans Propositions, rappel dans
-Exporter. Rien n’est jamais bloqué.
+Exporter. Rien n’est jamais bloqué. Sous l’alerte de la fiche, « Importer une meilleure version »
+(`replaceDrawing`) : le nouveau fichier prend la place du dessin dans la liste et sur l’œuvre — chaque
+découpe posée est remplacée par celle du nouveau dessin au même endroit de la feuille, au même centre,
+avec la même inclinaison et la même taille ; une page de fond garde son cadrage ; le dessin garde sa
+taille réelle, son rôle et son orientation, et les autres dessins ne bougent pas.
 
 ## Fonctionnement
 

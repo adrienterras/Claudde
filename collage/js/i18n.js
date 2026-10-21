@@ -821,6 +821,10 @@
     'Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte. Les œuvres de cet appareil ne sont pas touchées.': 'Deleting the account permanently erases your artworks and drawings stored in the account. The artworks on this device are not affected.',
     'Ouvrir cette version': 'Open this version',
     'Garder celle-ci': 'Keep this one',
+    // ---------- Meilleure version d'un dessin ----------
+    'Le nouveau fichier remplace ce dessin, à la même place sur l’œuvre': 'The new file replaces this drawing, in the same place on the artwork',
+    'Importer une meilleure version': 'Import a better version',
+    '« {0} » remplace « {1} », à la même place sur l’œuvre.': '“{0}” replaces “{1}”, in the same place on the artwork.',
   };
 
   const KEY = 'atelier-gribouille:lang';

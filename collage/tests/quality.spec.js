@@ -85,6 +85,47 @@ test.describe('Qualité pour l’impression', () => {
     expect(app.errors).toEqual([]);
   });
 
+  test('« Importer une meilleure version » : le nouveau fichier remplace le dessin, à la même place sur l’œuvre', async ({ app }) => {
+    const { page } = app;
+    const { fixture } = require('./helpers');
+    await page.evaluate(() => document.querySelector('#mode-pick [data-mode="impression"]').click());
+    await app.import(['noscale-small.jpg', 'scan-300dpi.jpg']);
+    const i = await page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /noscale-small/.test(d.name)));
+    await page.evaluate((i) => { const d = AtelierGribouille.state.drawings[i]; d.sizeCm = 29.7; d.sizeMode = 'manual'; AtelierGribouille.state.current = null; }, i);
+    await page.evaluate(() => AtelierGribouille.regenerate());
+    // une découpe déplacée et tournée à la main : la remplaçante prend sa place exacte
+    const placed = () => page.evaluate((i) => {
+      const A = AtelierGribouille, d = A.state.drawings[i];
+      return { name: d.name, cm: d.sizeCm, items: A.state.comp.items.filter((L) => L.piece.drawing === d).map((L) => ({ x: L.x, y: L.y, rot: L.rot, w: L.w, h: L.h })), n: A.state.drawings.length };
+    }, i);
+    await page.evaluate((i) => { const A = AtelierGribouille, L = A.state.comp.items.find((x) => x.piece.drawing === A.state.drawings[i]); L.x += 2; L.rot = 0.4; A.state.pinned = A.state.comp; }, i);
+    const before = await placed();
+    expect(before.items.length).toBeGreaterThan(0);
+    // la fiche du dessin trop petit : le bouton est sous l'alerte
+    await page.locator('#quality-alert-go').click();
+    await expect(page.locator('#detail .quality.bad')).toBeVisible();
+    const btn = page.locator('#detail .quality [data-replace]');
+    await expect(btn).toHaveText('Importer une meilleure version');
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), btn.click()]);
+    await chooser.setFiles(fixture('noscale-large.jpg'));
+    await page.waitForFunction((i) => /noscale-large/.test(AtelierGribouille.state.drawings[i].name) && document.getElementById('progress').hidden, i, { timeout: 120000 });
+    const after = await placed();
+    expect(after.n).toBe(2);
+    expect(after.cm).toBe(29.7); // même taille réelle
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.some((d) => /noscale-small/.test(d.name)))).toBe(false);
+    // mêmes places, mêmes inclinaisons, même taille sur l'œuvre (à la découpe près)
+    expect(after.items.length).toBe(before.items.length);
+    after.items.forEach((L, k) => {
+      const b = before.items[k];
+      expect(L.x).toBeCloseTo(b.x, 6); expect(L.y).toBeCloseTo(b.y, 6); expect(L.rot).toBeCloseTo(b.rot, 6);
+      expect(Math.abs(L.w / b.w - 1)).toBeLessThan(0.06); expect(Math.abs(L.h / b.h - 1)).toBeLessThan(0.06);
+    });
+    await expect(page.locator('#save-status')).toContainText('remplace');
+    // la fiche montre le nouveau dessin, sans l'alerte rouge
+    await expect(page.locator('#detail .quality.bad')).toHaveCount(0);
+    expect(app.errors).toEqual([]);
+  });
+
   test('les dessins d’exemple ne déclenchent aucune alerte', async ({ app }) => {
     const { page } = app;
     await page.locator('#empty-sample').click();

@@ -548,6 +548,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .quality.warn { background: rgba(201, 138, 27, 0.12); border: 1px solid rgba(201, 138, 27, 0.45); }
 .quality.bad { background: var(--danger-soft); border: 1px solid var(--danger); }
 .quality.bad b { color: var(--danger); }
+.quality .quality-replace { align-self: flex-start; width: auto; margin-top: 2px; background: var(--surface); }
+.quality .quality-replace span { color: inherit; }
 .alert.quality-alert { border-color: #c98a1b; background: rgba(201, 138, 27, 0.12); }
 .alert.quality-alert.bad { border-color: var(--danger); background: var(--danger-soft); }
 .quality-note { color: var(--danger); }

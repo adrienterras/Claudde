@@ -311,9 +311,9 @@
   }
   async function importFilesInner(files, sizes, opts) {
     let pages = [];
-    if (!state.restoring && !(opts && opts.sample)) window.Atelier.track('Import', { fichiers: Math.min(files.length, 50) });
-    state.sceneLayout = null;
-    state.pinned = null;
+    const replacing = !!(opts && opts.replace); // (« importer une meilleure version » : voir replaceDrawing)
+    if (!state.restoring && !(opts && opts.sample)) window.Atelier.track(replacing ? 'Remplacement' : 'Import', { fichiers: Math.min(files.length, 50) });
+    if (!replacing) { state.sceneLayout = null; state.pinned = null; }
     if (!state.drawings.length && !state.restoring) state.formatManual = false; // nouvelle œuvre : la toile est de nouveau conseillée (une œuvre rouverte garde la sienne si elle avait été choisie)
     if (!state.drawings.length && !state.restoring) setGround(undefined); // et la couleur du fond, automatique
     notice('');
@@ -398,6 +398,7 @@
     }
     releases.forEach((release) => { try { release(); } catch (e) { /* déjà libéré */ } });
     setProgress(1, 1);
+    if (replacing) return; // (la suite — place dans la liste et sur l'œuvre — est dans replaceDrawing)
     estimateSizes();
     state.drawings.forEach(ensureMaterial);
     curate();
@@ -994,8 +995,93 @@
   function qualityBlock(d) {
     const q = qualityOf(d);
     if (q.level === 'ok') return '';
-    return `<div class="quality ${q.level}">${q.issues.map((x) => `<p title="${esc(`${x.text} ${x.tip}`)}"><b>${esc(x.title)}</b></p>`).join('')}</div>`;
+    return `<div class="quality ${q.level}">${q.issues.map((x) => `<p title="${esc(`${x.text} ${x.tip}`)}"><b>${esc(x.title)}</b></p>`).join('')}
+      <button type="button" class="btn btn-sm quality-replace" data-replace title="${tr('Le nouveau fichier remplace ce dessin, à la même place sur l’œuvre')}"><svg class="ico"><use href="#i-upload"/></svg><span>${tr('Importer une meilleure version')}</span></button></div>`;
   }
+
+  /*
+   * « Importer une meilleure version » (fiche d'un dessin à la qualité insuffisante) : le nouveau
+   * fichier prend la place du dessin, dans la liste et sur l'œuvre. Chaque découpe posée est remplacée
+   * par celle du nouveau dessin au même endroit de la feuille, au même centre, avec la même
+   * inclinaison et la même taille ; une page de fond garde son cadrage. Le dessin garde sa taille
+   * réelle, son rôle et son orientation ; les autres dessins ne bougent pas.
+   */
+  async function replaceDrawing(d, file) {
+    const i = state.drawings.indexOf(d);
+    if (i < 0 || !file) return;
+    const before = new Set(state.drawings);
+    const sizes0 = new Map(state.drawings.map((x) => [x, [x.sizeCm, x.sizeMode]]));
+    const comp = state.comp;
+    await importFiles([file], null, { replace: true, quiet: true });
+    const added = state.drawings.filter((x) => !before.has(x));
+    if (!added.length) { refreshLists(); return; } // (fichier illisible ou déjà dans l'atelier : la note le dit)
+    const nd = added[0]; // (un PDF de plusieurs pages : la première)
+    state.drawings = state.drawings.filter((x) => before.has(x) && x !== d);
+    state.drawings.splice(i, 0, nd);
+    sizes0.forEach(([cm, mode], x) => { x.sizeCm = cm; x.sizeMode = mode; });
+    Object.assign(nd, { sizeCm: d.sizeCm, sizeMode: 'manual', role: d.role === 'auto' ? roleOf(d) : d.role, orient: d.orient, ai: d.ai || null });
+    saveSize(nd);
+    curateDrawing(nd);
+    applyOrientations();
+    ensureMaterial(nd);
+    if (comp) {
+      const cOld = cmPerPx(d), cNew = cmPerPx(nd);
+      const centre = (p, page) => [(p.src.x + p.src.w / 2) / page.width, (p.src.y + p.src.h / 2) / page.height];
+      const fresh = nd.analysis.pieces || [];
+      const match = new Map();
+      // la découpe du nouveau dessin au même endroit de la feuille (et de taille voisine)
+      const pick = (op) => {
+        if (match.has(op)) return match.get(op);
+        const taken = new Set(match.values());
+        const pool = fresh.filter((np) => !taken.has(np));
+        const [ox, oy] = centre(op, d.analysis.page);
+        let best = null, bd = Infinity;
+        (pool.length ? pool : fresh).forEach((np) => {
+          const [nx, ny] = centre(np, nd.analysis.page);
+          const dd = Math.hypot(nx - ox, ny - oy) + 0.05 * Math.abs(Math.log(Math.max(np.frac, 1e-4) / Math.max(op.frac, 1e-4)));
+          if (dd < bd) { bd = dd; best = np; }
+        });
+        match.set(op, best);
+        return best;
+      };
+      comp.items = comp.items.filter((L) => {
+        const p = L.piece;
+        if (!p || p.drawing !== d) return true;
+        let np = pick(p.copyOf || p);
+        if (!np) return false;
+        const f = L.w / (p.canvas.width * cOld); // (sa réduction ou son agrandissement sur l'œuvre)
+        if (p.copyOf) np = copyPiece(np);
+        np.enabled = true; np.placed = true;
+        L.piece = np;
+        L.w = np.canvas.width * cNew * f; L.h = np.canvas.height * cNew * f;
+        return true;
+      });
+      comp.bg = comp.bg.filter((L) => {
+        if (L.paper || pageDrawing(L) !== d) return true;
+        const t = nd.analysis.texture;
+        if (!t) return false;
+        const kx = t.canvas.width / L.src.width, ky = t.canvas.height / L.src.height;
+        Object.assign(L, { drawing: nd, src: t.canvas, sx: (L.sx || 0) * kx, sy: (L.sy || 0) * ky, sw: (L.sw || L.src.width) * kx, sh: (L.sh || L.src.height) * ky });
+        return true;
+      });
+      state.pinned = comp;
+      state.bgCache = null;
+    }
+    if (state.current === d) state.current = nd;
+    state.selected = null;
+    clearHistory(); // (les instantanés pointent vers l'ancien dessin)
+    refreshLists();
+    regenerate({ noCommit: true });
+    saveStatus(tr`« ${nd.name} » remplace « ${d.name} », à la même place sur l’œuvre.`);
+  }
+  let replaceTarget = null;
+  function askReplace(d) {
+    replaceTarget = d;
+    const input = $('replace-file');
+    input.value = '';
+    input.click();
+  }
+  $('replace-file').onchange = (e) => { const f = e.target.files && e.target.files[0]; if (f && replaceTarget) replaceDrawing(replaceTarget, f); replaceTarget = null; };
   // bandeau dans Propositions et rappel au moment d'exporter
   function renderQuality() {
     const list = state.drawings.filter((d) => roleOf(d) !== 'off').map((d) => ({ d, q: qualityOf(d) })).filter((x) => x.q.level !== 'ok');
@@ -1126,6 +1212,8 @@
       if (mobileQuery.matches) { document.body.classList.remove('sheet-tall', 'sheet-detail'); const panel = document.querySelector('.panel'); if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
+    const repl = box.querySelector('[data-replace]');
+    if (repl) repl.onclick = () => askReplace(d);
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
       d.role = b.dataset.role;
       ensureMaterial(d);
@@ -6442,7 +6530,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {
