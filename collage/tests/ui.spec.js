@@ -1503,6 +1503,9 @@ test.describe('Gestes au doigt sur iPhone', () => {
   test('ni sélection de texte ni loupe du système ; la gomme agit, le double-toucher zoome toujours', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click(); // Tailles s'ouvre en grand après l'import : Propositions ramène le tiroir à sa hauteur normale
+    await expect(page.locator('body')).not.toHaveClass(/sheet-tall/);
+    await page.waitForTimeout(450); // fin du glissement
     // l'œuvre : un double-toucher dans le vide zoome
     const pt = await page.evaluate(() => {
       const A = AtelierGribouille, c = A.state.comp, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
