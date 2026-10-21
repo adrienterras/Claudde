@@ -56,21 +56,22 @@ test.describe('Interface', () => {
     await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
   });
 
-  test('zone d’édition : une astuce dit qu’on édite l’œuvre en touchant un dessin, jusqu’au premier dessin touché', async ({ app }) => {
+  test('zone d’édition : une astuce dit qu’on édite l’œuvre en touchant un dessin, à chaque ouverture d’œuvre jusqu’au premier dessin touché', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#edit-hint')).toBeHidden(); // (sans œuvre : rien)
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#edit-hint')).toBeVisible();
     await expect(page.locator('#edit-hint')).toContainText('Cliquez sur un dessin de l’œuvre');
-    // un dessin sélectionné : l'astuce s'efface, et ne revient pas (ni désélectionné, ni après un rechargement)
+    // un dessin sélectionné : l'astuce s'efface, et ne revient pas pour cette œuvre (même désélectionné)
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     await expect(page.locator('#edit-hint')).toBeHidden();
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = null; A.render(); });
     await expect(page.locator('#edit-hint')).toBeHidden();
+    // l'œuvre rouverte (rechargement) : elle revient
     await waitDraft(page);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await expect(page.locator('#edit-hint')).toBeHidden();
+    await expect(page.locator('#edit-hint')).toBeVisible();
   });
 
   test('sur ordinateur, Dessins est repliée à chaque visite et à chaque nouvelle œuvre ; un dessin cliqué sur l’œuvre l’ouvre', async ({ app }) => {

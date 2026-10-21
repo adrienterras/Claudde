@@ -415,6 +415,7 @@
       // et Tailles et Propositions, repliées à l'arrivée, s'ouvrent avec les dessins
       if (!mobileQuery.matches) ['sizes-section', 'compose-section'].forEach((id) => { if ($(id)._expand) $(id)._expand(); });
     }
+    if (!state.restoring) resetEditHint(); // (une réouverture le fait à la fin : voir restoreCompositionInner)
     refreshLists();
     regenerate();
     clearHistory(); // les dessins ont changé : les anciens instantanés ne valent plus
@@ -3466,15 +3467,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     });
     editHint();
   }
-  // « Touchez un dessin de l'œuvre pour le modifier » : sur l'œuvre affichée, tant que rien n'est
-  // sélectionné ; le premier dessin touché suffit, l'astuce ne revient plus (mémorisé)
-  const HINT_KEY = 'atelier.astuce-edition';
-  let hintSeen = null;
+  // « Touchez un dessin de l'œuvre pour le modifier » : à chaque ouverture d'une œuvre (import, réouverture,
+  // rechargement), jusqu'au premier dessin touché
+  try { localStorage.removeItem('atelier.astuce-edition'); } catch (e) { /* (n'est plus mémorisée) */ }
+  let hintSeen = false;
+  const resetEditHint = () => { hintSeen = false; };
   function editHint() {
     const el = $('edit-hint');
     if (!el) return;
-    if (hintSeen === null) { try { hintSeen = localStorage.getItem(HINT_KEY) === '1'; } catch (e) { hintSeen = false; } }
-    if (state.selected && !hintSeen) { hintSeen = true; try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* ignoré */ } }
+    if (state.selected) hintSeen = true;
     const seen = hintSeen;
     const newer = $('work-newer');
     const show = !!state.comp && !state.selected && !seen && !(newer && !newer.hidden) && !document.body.classList.contains('stage-full');
@@ -5801,6 +5802,8 @@ Réponds uniquement avec ce JSON :
     const i = state.proposals.findIndex((pr) => pr.style.id === comp.style);
     selectProposal(i >= 0 ? i : 0);
     clearHistory();
+    state.selected = null;
+    resetEditHint(); // l'astuce revient à chaque ouverture d'œuvre
     savedStatus(tr`Œuvre « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);
     if (nSkipped) notice(tr`${nSkipped} retouche(s) de découpe n’ont pas pu être replacées sur le dessin relu : la découpe automatique est gardée pour ce(s) dessin(s).`);
     return rec;
