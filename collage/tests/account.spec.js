@@ -306,6 +306,31 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cloud-sync-status')).toContainText('Connectez-vous pour la retrouver');
   });
 
+  test('Mes œuvres : une lecture du compte bloquée ou en échec ne laisse jamais la liste vide ; « Réessayer »', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'lent@example.org', 'Rouge-Soleil-42', 'Lent');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 2);
+    await openStep(page, 'saved-section');
+    // le compte ne répond pas (réseau mobile) : l'œuvre de ce navigateur est là, avec un mot
+    await page.evaluate(() => { window.__list = window.Account.cloud.list; window.Account.cloud.list = () => new Promise(() => {}); });
+    page.evaluate(() => AtelierGribouille.renderSaved({ refresh: true }));
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved-cloud')).toContainText('Lecture des œuvres de votre compte');
+    await expect(page.locator('#saved-empty')).toBeHidden();
+    // le compte répond par une erreur : la liste reste, « Réessayer » relit le compte
+    await page.evaluate(() => { window.Account.cloud.list = () => Promise.reject(new Error('Failed to fetch')); });
+    await page.evaluate(() => AtelierGribouille.renderSaved({ refresh: true }).catch(() => {}));
+    // (la lecture bloquée d'avant tient la place jusqu'à 20 s : on attend son abandon)
+    await expect(page.locator('#saved-list .saved-cloud')).toContainText('n’ont pas pu être lues', { timeout: 30000 });
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+    await page.evaluate(() => { window.Account.cloud.list = window.__list; });
+    await page.locator('#saved-list .saved-cloud button').click();
+    await expect(page.locator('#saved-list .saved-cloud')).toHaveCount(0);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+  });
+
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'sam@example.org', 'Rouge-Soleil-42', 'Sam');

@@ -778,7 +778,6 @@
     'Cette œuvre a été modifiée sur un autre appareil ({0}, {1}).': 'This artwork was changed on another device ({0}, {1}).',
     'Cette œuvre a été modifiée sur un autre appareil ({0}).': 'This artwork was changed on another device ({0}).',
     'La version la plus récente de votre œuvre est ouverte.': 'The latest version of your artwork is open.',
-    'Œuvres du compte indisponibles : {0}': 'Account artworks unavailable: {0}',
     'en cours': 'open',
     'commandée': 'ordered',
     'sur cet appareil': 'on this device',
@@ -795,7 +794,7 @@
     'Les images de cette œuvre ne peuvent pas être relues par ce navigateur.': 'This browser cannot read the images of this artwork.',
     'Ancienne œuvre : les dessins sont redécoupés comme à l’époque…': 'Older artwork: the drawings are cut out as they were back then…',
     'Aucun dessin n’a pu être relu.': 'No drawing could be read.',
-    'Œuvre « {0} » rouverte : {1} découpes et {2} pages reposées{3}{4}. L’œuvre est affichée sur la toile.': 'Artwork “{0}” reopened: {1} cut-outs and {2} pages put back{3}{4}. The artwork is shown on the canvas.',
+    '« {0} » rouverte : {1} découpes et {2} pages reposées{3}{4}. L’œuvre est affichée sur la toile.': '“{0}” reopened: {1} cut-outs and {2} pages put back{3}{4}. The artwork is shown on the canvas.',
     'Gardez vos œuvres et retrouvez-les sur tous vos appareils.': 'Keep your artworks and find them on all your devices.',
     'Connectez-vous pour retrouver vos œuvres.': 'Sign in to find your artworks.',
     'Compte supprimé. Les œuvres de cet appareil sont conservées.': 'Account deleted. The artworks on this device are kept.',
@@ -854,6 +853,10 @@
     'Bois noir': 'Black wood',
     'Bois blanc': 'White wood',
     'Métal': 'Metal',
+    'pas de réponse': 'no response',
+    'Lecture des œuvres de votre compte…': 'Reading the artworks in your account…',
+    'Les œuvres de votre compte n’ont pas pu être lues ({0}).': 'The artworks in your account could not be read ({0}).',
+    'Réessayer': 'Try again',
   };
 
   const KEY = 'atelier-gribouille:lang';

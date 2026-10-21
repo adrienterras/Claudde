@@ -5520,19 +5520,36 @@ Réponds uniquement avec ce JSON :
 
   // Mes œuvres : celles de ce navigateur et, connecté, celles du compte (une seule entrée par œuvre,
   // la version la plus récente fait foi) ; l'œuvre affichée en tête
-  let renderSeq = 0;
+  // La liste s'affiche tout de suite avec ce qu'on a (ce navigateur, la dernière liste du compte), puis
+  // de nouveau quand le compte a répondu ; une lecture du compte à la fois, 20 s au plus (réseau mobile
+  // faible : une lecture restée sans réponse ne doit jamais laisser la liste vide) ; en échec, un mot
+  // le dit, avec « Réessayer »
+  let renderSeq = 0, cloudLoading = null, cloudError = '';
+  function loadCloudWorks() {
+    if (cloudLoading) return cloudLoading;
+    cloudLoading = Promise.race([window.Account.cloud.list(), wait(20000).then(() => { throw new Error(tr('pas de réponse')); })])
+      .then((l) => { cloudWorks = l; cloudError = ''; })
+      .catch((e) => { console.error(e); cloudError = (e && e.message) || String(e); })
+      .finally(() => { cloudLoading = null; });
+    return cloudLoading;
+  }
+  const readLocals = async () => { try { return (await dbAll()).filter((r) => !r.cart && r.drawings && r.drawings.length); } catch (e) { console.error(e); return []; } };
   async function renderSaved(opts) {
-    const box = $('saved-list');
-    if (!box) return;
+    if (!$('saved-list')) return;
     const seq = ++renderSeq;
-    const A = window.Account, signed = signedIn();
-    let locals = [];
-    try { locals = (await dbAll()).filter((r) => !r.cart && r.drawings && r.drawings.length); } catch (e) { locals = []; }
-    if (!signed) cloudWorks = null;
-    else if ((opts && opts.refresh) || !cloudWorks) {
-      try { cloudWorks = await A.cloud.list(); } catch (e) { console.error(e); savedStatus(tr`Œuvres du compte indisponibles : ${e.message}`); }
+    const signed = signedIn();
+    if (!signed) { cloudWorks = null; cloudError = ''; }
+    const loading = signed && ((opts && opts.refresh) || (!cloudWorks && !cloudError)) ? loadCloudWorks() : null;
+    const locals = await readLocals();
+    if (seq === renderSeq) drawSaved(locals);
+    if (loading) {
+      await loading;
+      drawSaved(await readLocals()); // (toujours : une liste dessinée entre-temps n'avait pas la réponse du compte)
     }
-    if (seq !== renderSeq) return; // une liste plus récente est en route
+  }
+  function drawSaved(locals) {
+    const box = $('saved-list');
+    const signed = signedIn();
     const byId = new Map();
     const entry = (id) => { if (!byId.has(id)) byId.set(id, { workId: id }); return byId.get(id); };
     locals.forEach((r) => { const e = entry(r.workId || String(r.id)); if (r.id === DRAFT_ID || !e.local) e.local = r; });
@@ -5547,38 +5564,52 @@ Réponds uniquement avec ce JSON :
     });
     list.sort((a, b) => (b.current - a.current) || new Date(b.info.date) - new Date(a.info.date));
     $('saved-count').textContent = list.length ? `(${list.length})` : '';
-    if ($('saved-empty')) $('saved-empty').hidden = !!list.length;
+    if ($('saved-empty')) $('saved-empty').hidden = !!list.length || !!cloudLoading;
     box.innerHTML = '';
-    list.forEach((e) => {
-      const rec = e.info, comp = rec.comp || {};
-      const el = document.createElement('div');
-      el.className = `saved${e.current ? ' current' : ''}`;
-      el.setAttribute('role', 'button');
-      el.tabIndex = 0;
-      const st = STYLES.find((x) => x.id === comp.style);
-      const tags = [
-        e.current ? `<span class="saved-tag on">${tr('en cours')}</span>` : '',
-        e.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '',
-        signed && !e.cloud && !e.current ? `<span class="saved-tag">${tr('sur cet appareil')}</span>` : '',
-      ].join('');
-      // le type d'œuvre (une œuvre d'avant les deux ateliers : imprimée si elle est sur un cadre)
-      const sv = rec.settings || {};
-      const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
-      const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
-      const meta = [kind, st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
-      el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button>`;
-      // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
-      const del = el.querySelector('.saved-del');
-      del.onclick = async (ev) => {
-        ev.stopPropagation();
-        if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = tr('Supprimer ?'); setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
-        await deleteWork(e);
-      };
-      const open = () => openWork(e, el);
-      el.onclick = open;
-      el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } };
-      box.appendChild(el);
-    });
+    // le compte en cours de lecture, ou illisible (avec « Réessayer »)
+    if (signed && (cloudLoading || cloudError)) {
+      const note = document.createElement('p');
+      note.className = 'hint saved-cloud';
+      note.textContent = cloudLoading ? tr('Lecture des œuvres de votre compte…') : tr`Les œuvres de votre compte n’ont pas pu être lues (${cloudError}).`;
+      if (!cloudLoading) {
+        const again = document.createElement('button');
+        again.type = 'button'; again.className = 'link'; again.textContent = tr('Réessayer');
+        again.onclick = () => renderSaved({ refresh: true });
+        note.append(' ', again);
+      }
+      box.appendChild(note);
+    }
+    list.forEach((e) => { try { drawEntry(box, e, signed); } catch (err) { console.error('œuvre non affichée', err); } });
+  }
+  function drawEntry(box, e, signed) {
+    const rec = e.info, comp = rec.comp || {};
+    const el = document.createElement('div');
+    el.className = `saved${e.current ? ' current' : ''}`;
+    el.setAttribute('role', 'button');
+    el.tabIndex = 0;
+    const st = STYLES.find((x) => x.id === comp.style);
+    const tags = [
+      e.current ? `<span class="saved-tag on">${tr('en cours')}</span>` : '',
+      e.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '',
+      signed && !e.cloud && !e.current ? `<span class="saved-tag">${tr('sur cet appareil')}</span>` : '',
+    ].join('');
+    // le type d'œuvre (une œuvre d'avant les deux ateliers : imprimée si elle est sur un cadre)
+    const sv = rec.settings || {};
+    const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
+    const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
+    const meta = [kind, st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
+    el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+    // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
+    const del = el.querySelector('.saved-del');
+    del.onclick = async (ev) => {
+      ev.stopPropagation();
+      if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = tr('Supprimer ?'); setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
+      await deleteWork(e);
+    };
+    const open = () => openWork(e, el);
+    el.onclick = open;
+    el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } };
+    box.appendChild(el);
   }
   // supprimée partout : dans ce navigateur et dans le compte ; l'œuvre affichée laisse la place à une nouvelle
   async function deleteWork(e) {
@@ -5804,7 +5835,7 @@ Réponds uniquement avec ce JSON :
     clearHistory();
     state.selected = null;
     resetEditHint(); // l'astuce revient à chaque ouverture d'œuvre
-    savedStatus(tr`Œuvre « ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);
+    savedStatus(tr`« ${rec.name} » rouverte : ${comp.items.length} découpes et ${comp.bg.length} pages reposées${nEdits ? tr`, ${nEdits} retouche(s) rejouée(s)` : ''}${nSkipped ? tr`, ${nSkipped} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée` : ''}. L’œuvre est affichée sur la toile.`);
     if (nSkipped) notice(tr`${nSkipped} retouche(s) de découpe n’ont pas pu être replacées sur le dessin relu : la découpe automatique est gardée pour ce(s) dessin(s).`);
     return rec;
   }
