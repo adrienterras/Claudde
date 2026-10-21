@@ -3480,8 +3480,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const newer = $('work-newer');
     const show = !!state.comp && !state.selected && !seen && !(newer && !newer.hidden) && !document.body.classList.contains('stage-full');
     if (show) el.textContent = mobileQuery.matches
-      ? tr('Touchez un dessin de l’œuvre pour le déplacer, l’agrandir ou le retoucher')
-      : tr('Cliquez sur un dessin de l’œuvre pour le déplacer, l’agrandir, le tourner ou le retoucher');
+      ? tr('Touchez un des dessins pour le modifier')
+      : tr('Cliquez sur un des dessins pour le modifier');
     el.hidden = !show;
   }
 

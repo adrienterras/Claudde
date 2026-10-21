@@ -61,7 +61,7 @@ test.describe('Interface', () => {
     await expect(page.locator('#edit-hint')).toBeHidden(); // (sans œuvre : rien)
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#edit-hint')).toBeVisible();
-    await expect(page.locator('#edit-hint')).toContainText('Cliquez sur un dessin de l’œuvre');
+    await expect(page.locator('#edit-hint')).toHaveText('Cliquez sur un des dessins pour le modifier');
     // un dessin sélectionné : l'astuce s'efface, et ne revient pas pour cette œuvre (même désélectionné)
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     await expect(page.locator('#edit-hint')).toBeHidden();
