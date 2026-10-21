@@ -122,10 +122,10 @@ test.describe('Interface', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
-    // sans dessin : onglet Importer, les autres étapes grisées, numérotation continue (01, 02)
+    // sans dessin : onglet Importer, les autres étapes grisées, numérotation continue ; Mes œuvres sans numéro
     await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'import-section');
     await expect(page.locator('#sheet-tabs [data-tab="compose-section"]')).toBeDisabled();
-    expect(await page.evaluate(() => [...document.querySelectorAll('aside section.step')].filter((s) => !s.hidden).map((s) => s.querySelector('.num').textContent))).toEqual(['01', '02']);
+    expect(await page.evaluate(() => [...document.querySelectorAll('aside section.step')].filter((s) => !s.hidden).map((s) => (s.querySelector('.num') || {}).textContent || s.id))).toEqual(['saved-section', '01']);
     await expect(page.locator('#toolbar')).toBeHidden();
     const { fixture } = require('./helpers');
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);

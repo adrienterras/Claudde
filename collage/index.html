@@ -124,6 +124,21 @@
     </div>
 
 
+    <!-- Mes œuvres : en tête, sans numéro (ce n'est pas une étape) -->
+    <section id="saved-section" class="step">
+      <h2>Mes œuvres <small id="saved-count"></small></h2>
+      <p class="hint" id="saved-hint">Vos œuvres s’enregistrent d’elles-mêmes dans ce navigateur : rouvrez-les plus tard, telles quelles.</p>
+      <div id="saved-list" class="saved-list"></div>
+      <p id="saved-empty" class="hint">Aucune œuvre pour l’instant : importez des dessins, l’œuvre s’enregistre d’elle-même.</p>
+      <p id="saved-status" class="save-status" role="status" hidden></p>
+      <div id="exports-box" hidden>
+        <h3>Mes exports <small id="exports-count"></small></h3>
+        <p class="hint">Chaque fichier téléchargé est aussi gardé dans votre compte : retéléchargez-le d’ici, depuis n’importe quel appareil.</p>
+        <div id="exports-list" class="saved-list"></div>
+        <p id="exports-status" class="save-status" role="status" hidden></p>
+      </div>
+    </section>
+
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
       <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link" hidden>Reprendre</button> <button type="button" id="draft-forget" class="link" hidden>Ne pas la rouvrir</button></p>
@@ -289,19 +304,6 @@
       <p id="save-status" class="save-status" role="status" hidden></p>
     </section>
 
-    <section id="saved-section" class="step">
-      <h2><span class="num">06</span> Mes œuvres <small id="saved-count"></small></h2>
-      <p class="hint" id="saved-hint">Vos œuvres s’enregistrent d’elles-mêmes dans ce navigateur : rouvrez-les plus tard, telles quelles.</p>
-      <div id="saved-list" class="saved-list"></div>
-      <p id="saved-empty" class="hint">Aucune œuvre pour l’instant : importez des dessins, l’œuvre s’enregistre d’elle-même.</p>
-      <p id="saved-status" class="save-status" role="status" hidden></p>
-      <div id="exports-box" hidden>
-        <h3>Mes exports <small id="exports-count"></small></h3>
-        <p class="hint">Chaque fichier téléchargé est aussi gardé dans votre compte : retéléchargez-le d’ici, depuis n’importe quel appareil.</p>
-        <div id="exports-list" class="saved-list"></div>
-        <p id="exports-status" class="save-status" role="status" hidden></p>
-      </div>
-    </section>
 
 
     <footer class="brand-foot">
