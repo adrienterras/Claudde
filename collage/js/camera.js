@@ -2,10 +2,12 @@
  * Prise de photo des dessins depuis l'atelier.
  *
  * L'appareil photo du téléphone (ou la webcam) s'ouvre dans l'atelier ; pendant la visée, chaque
- * image est analysée et l'écran dit si la photo sera bonne : feuille trouvée et bien cadrée,
- * téléphone parallèle à la feuille, netteté, lumière égale et suffisante. La photo prise est
- * jugée de la même façon, en pleine définition ; on la garde ou on la reprend, puis les photos
- * gardées entrent dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
+ * image est analysée (feuille trouvée et bien cadrée, téléphone parallèle à la feuille, netteté,
+ * lumière égale et suffisante) et l'écran ne donne qu'une consigne à la fois, la plus importante,
+ * avec le contour de la feuille en vert, orange ou rouge. La photo prise est jugée de la même façon,
+ * en pleine définition : bonne ou correcte, elle est gardée d'office (« Annuler » la retire) ; à
+ * reprendre, elle s'affiche avec la raison, « Reprendre » ou « Garder quand même ». « Importer »
+ * fait entrer les photos gardées dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
  *
  * Les mesures sont celles de l'atelier : `Extract.findSheet` (la feuille et son quadrilatère),
  * `Quality.sharpness` et `Quality.lighting` (netteté et éclairage, mêmes seuils qu'à l'import).
@@ -17,8 +19,8 @@
   const tr = window.tr || ((s) => s);
   const LIVE_MAX = 960;   // définition de l'image analysée pendant la visée
   const CHECK_MAX = 2000; // définition de l'image analysée après la prise
-  const PX_WARN = 1640;   // grand côté de la feuille en pixels : 140 dpi pour une feuille A4
-  const PX_BAD = 1170;    // 100 dpi
+  // grand côté de la feuille en pixels : 140 dpi pour une feuille A4 (alerte), 100 dpi (à reprendre)
+  const PX = { warn: 1640, bad: 1170 };
 
   let S = null; // séance en cours : { stream, facing, shots, timer, busy, review, onDone, onError }
 
@@ -45,15 +47,16 @@
   function check(canvas, opts) {
     const o = opts || {};
     const points = [];
-    const add = (code, level, text, tip) => points.push({ code, level, text, tip: tip || '' });
+    // text : le constat ; tip : le conseil ; say : la consigne courte, affichée seule pendant la visée
+    const add = (code, level, text, tip, say) => points.push({ code, level, text, tip: tip || '', say: say || text });
     const W = canvas.width, H = canvas.height, n = W * H;
     let sheet = null;
     Extract.findSheet.debug = null;
     try { sheet = Extract.findSheet(canvas); } catch (e) { sheet = null; }
     const dbg = Extract.findSheet.debug || {};
     if (!sheet) {
-      if (dbg.area > 0.9 || dbg.nearCorner >= 3) add('cadre', 'bad', tr('Feuille coupée par le bord'), tr('Reculez un peu : laissez une marge de fond tout autour de la feuille.'));
-      else add('feuille', 'bad', tr('Feuille non trouvée'), tr('Posez le dessin à plat sur un fond uni (table, parquet, drap foncé) qui contraste avec le papier, et éclairez-le.'));
+      if (dbg.area > 0.9 || dbg.nearCorner >= 3) add('cadre', 'bad', tr('Feuille coupée par le bord'), tr('Reculez un peu : laissez une marge de fond tout autour de la feuille.'), tr('Reculez : toute la feuille doit être visible'));
+      else add('feuille', 'bad', tr('Feuille non trouvée'), tr('Posez le dessin à plat sur un fond uni (table, parquet, drap foncé) qui contraste avec le papier, et éclairez-le.'), tr('Visez le dessin, posé à plat sur un fond uni'));
       return verdict(points, null, false);
     }
     let quad = null, region = canvas;
@@ -65,9 +68,9 @@
       const area = polyArea(quad) / n;
       const m = 0.015 * Math.max(W, H);
       const edge = quad.some(([x, y]) => x < m || y < m || x > W - m || y > H - m);
-      if (edge) add('cadre', 'warn', tr('Feuille au bord de l’image'), tr('Laissez une marge de fond tout autour de la feuille.'));
-      else if (area < 0.12) add('cadre', 'bad', tr('Feuille trop petite dans l’image'), tr('Rapprochez-vous : la feuille doit remplir une bonne partie de l’écran.'));
-      else if (area < 0.22) add('cadre', 'warn', tr('Rapprochez-vous un peu'), tr('Plus la feuille remplit l’écran, plus le dessin sera net.'));
+      if (edge) add('cadre', 'warn', tr('Feuille au bord de l’image'), tr('Laissez une marge de fond tout autour de la feuille.'), tr('Reculez un peu : une marge autour de la feuille'));
+      else if (area < 0.12) add('cadre', 'bad', tr('Feuille trop petite dans l’image'), tr('Rapprochez-vous : la feuille doit remplir une bonne partie de l’écran.'), tr('Rapprochez-vous de la feuille'));
+      else if (area < 0.22) add('cadre', 'warn', tr('Rapprochez-vous un peu'), tr('Plus la feuille remplit l’écran, plus le dessin sera net.'), tr('Rapprochez-vous un peu'));
       else add('cadre', 'ok', tr('Bien cadrée'));
       // à plat : côtés opposés de même longueur, angles droits
       const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -80,8 +83,8 @@
         let d = Math.abs(a1 - a2) * 180 / Math.PI; if (d > 180) d = 360 - d;
         ang = Math.max(ang, Math.abs(d - 90));
       }
-      if (dev > 0.18 || ang > 12) add('plat', 'bad', tr('Téléphone incliné'), tr('Tenez le téléphone bien parallèle à la feuille, juste au-dessus du dessin.'));
-      else if (dev > 0.08 || ang > 6) add('plat', 'warn', tr('Un peu de perspective'), tr('Redressez le téléphone pour qu’il soit parallèle à la feuille.'));
+      if (dev > 0.18 || ang > 12) add('plat', 'bad', tr('Téléphone incliné'), tr('Tenez le téléphone bien parallèle à la feuille, juste au-dessus du dessin.'), tr('Tenez le téléphone à plat, au-dessus du dessin'));
+      else if (dev > 0.08 || ang > 6) add('plat', 'warn', tr('Un peu de perspective'), tr('Redressez le téléphone pour qu’il soit parallèle à la feuille.'), tr('Redressez un peu le téléphone'));
       else add('plat', 'ok', tr('À plat, bien parallèle'));
     } else {
       add('feuille', 'ok', tr('Dessin trouvé'));
@@ -93,12 +96,12 @@
       // netteté sur la feuille ; si elle offre trop peu de contours francs (petit dessin), sur l'image entière
       let s = Quality.sharpness(img);
       if (!(s === s) && region !== canvas) { try { s = Quality.sharpness(Quality.gray(canvas, 1000)); } catch (e) { s = NaN; } }
-      if (s < Quality.SHARP.bad) add('nettete', 'bad', tr('Photo floue'), tr('Touchez le dessin sur l’écran pour faire la mise au point, et tenez le téléphone immobile.'));
-      else if (s < Quality.SHARP.warn) add('nettete', 'warn', tr('Netteté moyenne'), tr('Touchez le dessin sur l’écran pour faire la mise au point, essuyez l’objectif.'));
+      if (s < Quality.SHARP.bad) add('nettete', 'bad', tr('Photo floue'), tr('Touchez le dessin sur l’écran pour faire la mise au point, et tenez le téléphone immobile.'), tr('Flou : touchez le dessin à l’écran pour la mise au point'));
+      else if (s < Quality.SHARP.warn) add('nettete', 'warn', tr('Netteté moyenne'), tr('Touchez le dessin sur l’écran pour faire la mise au point, essuyez l’objectif.'), tr('Touchez le dessin à l’écran pour la mise au point'));
       else if (s === s) add('nettete', 'ok', tr('Nette'));
       const l = Quality.lighting(img);
-      if (l > Quality.LIGHT.bad) add('lumiere', 'bad', tr('Ombre ou lampe sur la feuille'), tr('Lumière du jour, sans flash ; ne vous placez pas entre la lumière et le dessin.'));
-      else if (l > Quality.LIGHT.warn) add('lumiere', 'warn', tr('Lumière un peu inégale'), tr('Tournez le dessin vers la fenêtre, éloignez la lampe.'));
+      if (l > Quality.LIGHT.bad) add('lumiere', 'bad', tr('Ombre ou lampe sur la feuille'), tr('Lumière du jour, sans flash ; ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur la feuille : placez-vous face à la fenêtre'));
+      else if (l > Quality.LIGHT.warn) add('lumiere', 'warn', tr('Lumière un peu inégale'), tr('Tournez le dessin vers la fenêtre, éloignez la lampe.'), tr('Lumière inégale : tournez le dessin vers la fenêtre'));
       else if (l === l) add('lumiere', 'ok', tr('Lumière égale'));
       // exposition : clarté du papier, reflets
       const vals = [];
@@ -107,19 +110,19 @@
       if (vals.length > 50) {
         vals.sort((a, b) => a - b);
         const pL = vals[vals.length >> 1], clip = clipped / vals.length;
-        if (pL < 140) add('expo', 'bad', tr('Trop sombre'), tr('Plus de lumière : près d’une fenêtre, en journée.'));
-        else if (pL < 175) add('expo', 'warn', tr('Un peu sombre'), tr('Rapprochez le dessin d’une fenêtre.'));
-        else if (clip > 0.15) add('expo', 'warn', tr('Reflets ou surexposition'), tr('Éloignez la lampe, pas de flash ; évitez les feuilles brillantes face à la fenêtre.'));
+        if (pL < 140) add('expo', 'bad', tr('Trop sombre'), tr('Plus de lumière : près d’une fenêtre, en journée.'), tr('Trop sombre : plus de lumière, près d’une fenêtre'));
+        else if (pL < 175) add('expo', 'warn', tr('Un peu sombre'), tr('Rapprochez le dessin d’une fenêtre.'), tr('Un peu sombre : rapprochez-vous d’une fenêtre'));
+        else if (clip > 0.15) add('expo', 'warn', tr('Reflets ou surexposition'), tr('Éloignez la lampe, pas de flash ; évitez les feuilles brillantes face à la fenêtre.'), tr('Reflets : pas de flash, éloignez la lampe'));
         else add('expo', 'ok', tr('Bien exposée'));
       } else if (img.neutral.length) {
-        add('expo', 'bad', tr('Trop sombre'), tr('Plus de lumière : près d’une fenêtre, en journée.'));
+        add('expo', 'bad', tr('Trop sombre'), tr('Plus de lumière : près d’une fenêtre, en journée.'), tr('Trop sombre : plus de lumière, près d’une fenêtre'));
       }
     }
     // définition de la photo prise : pixels du grand côté de la feuille, rapportés à la photo réelle
     if (o.full && sheet.kind === 'sheet') {
       const px = Math.max(region.width, region.height) * (o.k || 1);
-      if (px < PX_BAD) add('definition', 'bad', tr('Définition trop faible'), tr('Rapprochez-vous, ou utilisez l’appareil photo arrière du téléphone.'));
-      else if (px < PX_WARN) add('definition', 'warn', tr('Définition juste'), tr('Rapprochez-vous un peu pour un tirage plus net.'));
+      if (px < PX.bad) add('definition', 'bad', tr('Définition trop faible'), tr('Rapprochez-vous, ou utilisez l’appareil photo arrière du téléphone.'), tr('Rapprochez-vous de la feuille'));
+      else if (px < PX.warn) add('definition', 'warn', tr('Définition juste'), tr('Rapprochez-vous un peu pour un tirage plus net.'), tr('Rapprochez-vous un peu'));
       else add('definition', 'ok', tr('Bonne définition'));
     }
     if (region !== canvas) release(region);
@@ -129,25 +132,25 @@
   function verdict(points, quad, found) {
     const level = points.some((p) => p.level === 'bad') ? 'bad' : points.some((p) => p.level === 'warn') ? 'warn' : 'ok';
     const title = level === 'ok' ? tr('Photo optimale') : level === 'warn' ? tr('Photo correcte, peut mieux faire') : tr('Photo à reprendre');
-    return { level, title, points, quad, found };
+    const worst = points.find((p) => p.level === 'bad') || points.find((p) => p.level === 'warn') || null;
+    return { level, title, points, quad, found, worst };
   }
 
   // ---------- Interface ----------
 
-  function showVerdict(v, live) {
-    const box = $('camera-verdict'), list = $('camera-points');
+  // une seule consigne à la fois pendant la visée : la plus importante, ou « Prêt »
+  function showLive(v) {
+    const box = $('camera-verdict');
     box.className = 'camera-verdict ' + v.level;
-    box.textContent = live && v.level === 'ok' ? tr('Tout est bon : prenez la photo') : v.title;
-    list.innerHTML = '';
-    v.points.forEach((p) => {
-      const li = document.createElement('li');
-      li.className = p.level;
-      li.textContent = p.text;
-      li.title = p.tip;
-      list.appendChild(li);
-    });
-    const worst = v.points.find((p) => p.level === 'bad') || v.points.find((p) => p.level === 'warn');
-    $('camera-tip').textContent = worst ? worst.tip : '';
+    box.textContent = v.worst ? v.worst.say : tr('Prêt : prenez la photo');
+    box.title = v.worst ? v.worst.tip : '';
+  }
+  // une photo à reprendre : la raison et le conseil
+  function showReview(v) {
+    const box = $('camera-verdict');
+    box.className = 'camera-verdict ' + v.level;
+    box.textContent = v.worst ? `${v.title} : ${v.worst.text.charAt(0).toLowerCase()}${v.worst.text.slice(1)}` : v.title;
+    $('camera-tip').textContent = v.worst ? v.worst.tip : '';
   }
 
   // le quadrilatère de la feuille, dessiné par-dessus la vidéo (object-fit: contain)
@@ -182,16 +185,33 @@
     $('camera-video').hidden = review;
     $('camera-guide').hidden = review;
     $('camera-review').hidden = !review;
-    $('camera-shoot').hidden = review;
-    $('camera-keep').hidden = !review;
-    $('camera-retake').hidden = !review;
+    $('camera').classList.toggle('reviewing', review);
+    $('camera-tip').textContent = '';
+    hideToast();
   }
+  // la dernière photo gardée, avec le nombre ; « Importer » quand il y en a
   function updateCount() {
     const n = S ? S.shots.length : 0;
-    $('camera-count').hidden = !n;
-    $('camera-count').textContent = n === 1 ? tr('1 photo gardée') : tr`${n} photos gardées`;
-    $('camera-done').textContent = n ? (n === 1 ? tr('Terminer et importer la photo') : tr`Terminer et importer les ${n} photos`) : tr('Fermer');
+    const last = $('camera-last');
+    last.hidden = !n;
+    $('camera-count').textContent = String(n);
+    const img = last.querySelector('img');
+    if (img.src) { URL.revokeObjectURL(img.src); img.removeAttribute('src'); }
+    if (n) img.src = URL.createObjectURL(S.shots[n - 1]);
+    $('camera-done').textContent = n ? tr`Importer (${n})` : tr('Fermer');
+    $('camera-done').title = n ? (n === 1 ? tr('Importer la photo dans l’atelier') : tr`Importer les ${n} photos dans l’atelier`) : '';
+    $('camera-done').classList.toggle('btn-primary', n > 0);
   }
+  // « ✓ Photo gardée », un instant, avec « Annuler » (la photo gardée d'office est retirée)
+  let toastTimer = 0;
+  function toast(text) {
+    const t = $('camera-toast');
+    t.querySelector('span').textContent = text;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 4000);
+  }
+  function hideToast() { clearTimeout(toastTimer); if ($('camera-toast')) $('camera-toast').hidden = true; }
 
   // l'autorisation qui n'arrive jamais (navigateur intégré à une application, demande restée sans
   // réponse) : on n'attend pas sans fin
@@ -232,7 +252,7 @@
       const work = canvasOf(video, LIVE_MAX);
       const v = check(work);
       S.last = v;
-      showVerdict(v, true);
+      showLive(v);
       drawGuide(v, work);
       release(work);
     }
@@ -271,13 +291,15 @@
       const small = canvasOf(full, CHECK_MAX);
       const v = check(small, { full: true, k: full.width / small.width });
       release(small); release(full);
+      // bonne ou correcte : gardée d'office, la visée continue ; à reprendre : on la montre, avec la raison
+      if (v.level !== 'bad') { addShot(blob, v); flash(); toast(v.worst ? tr`✓ Photo gardée — ${v.worst.text.toLowerCase()}` : tr('✓ Photo gardée')); return; }
       S.review = { blob, verdict: v };
       clearTimeout(S.timer);
       const img = $('camera-shot');
       if (img.src) URL.revokeObjectURL(img.src);
       img.src = URL.createObjectURL(blob);
       setMode(true);
-      showVerdict(v, false);
+      showReview(v);
     } catch (e) {
       console.error(e);
       if (S && S.onError) S.onError(tr('La photo n’a pas pu être prise. Réessayez, ou importez-la depuis la galerie.'));
@@ -285,13 +307,30 @@
       if (S) { S.busy = false; $('camera-shoot').disabled = false; }
     }
   }
+  function addShot(blob, v) {
+    const n = S.shots.length + 1;
+    S.shots.push(new File([blob], `photo-${n}.jpg`, { type: 'image/jpeg' }));
+    if (window.Atelier && window.Atelier.track) window.Atelier.track('Photo', { verdict: v.level });
+    updateCount();
+  }
+  // « Garder quand même » une photo à reprendre
   function keep() {
     if (!S || !S.review) return;
-    const n = S.shots.length + 1;
-    S.shots.push(new File([S.review.blob], `photo-${n}.jpg`, { type: 'image/jpeg' }));
-    if (window.Atelier && window.Atelier.track) window.Atelier.track('Photo', { verdict: S.review.verdict.level });
+    addShot(S.review.blob, S.review.verdict);
     retake();
+  }
+  function undoLast() {
+    if (!S || !S.shots.length) return;
+    S.shots.pop();
     updateCount();
+    hideToast();
+  }
+  // un éclair blanc : la photo est prise
+  function flash() {
+    const st = document.querySelector('.camera-stage');
+    st.classList.remove('flash');
+    void st.offsetWidth;
+    st.classList.add('flash');
   }
   function retake() {
     if (!S) return;
@@ -336,7 +375,6 @@
     root.hidden = false;
     $('camera-error').hidden = true;
     $('camera-tip').textContent = '';
-    $('camera-points').innerHTML = '';
     $('camera-verdict').className = 'camera-verdict';
     $('camera-verdict').textContent = tr('Ouverture de l’appareil photo…');
     setMode(false);
@@ -368,6 +406,9 @@
     video.srcObject = null;
     const img = $('camera-shot');
     if (img.src) { URL.revokeObjectURL(img.src); img.removeAttribute('src'); }
+    const th = $('camera-last').querySelector('img');
+    if (th.src) { URL.revokeObjectURL(th.src); th.removeAttribute('src'); }
+    hideToast();
     $('camera').hidden = true;
     if (s.onDone) s.onDone(s.shots);
   }
@@ -378,6 +419,7 @@
     $('camera-keep').addEventListener('click', keep);
     $('camera-retake').addEventListener('click', retake);
     $('camera-done').addEventListener('click', close);
+    $('camera-undo').addEventListener('click', undoLast);
     // l'appareil photo du téléphone (hors navigateur) : les photos prises sont gardées et importées
     $('camera-native').addEventListener('change', () => {
       const files = [...$('camera-native').files];
@@ -396,5 +438,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
-  window.Camera = { supported, open, close, check, shots: () => (S ? S.shots.length : 0) };
+  window.Camera = { supported, open, close, check, PX, shots: () => (S ? S.shots.length : 0) };
 })();

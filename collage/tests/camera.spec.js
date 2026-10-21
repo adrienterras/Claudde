@@ -106,31 +106,46 @@ test.describe('Photographier un dessin', () => {
     expect(lvl(full, 'cadre')).toBe('bad');
   });
 
-  test('visée en direct, photo prise et gardée, puis importée dans l’atelier', async ({ app }) => {
+  test('visée simple (une consigne), photo bonne gardée d’office (« Annuler »), photo à reprendre montrée avec sa raison, puis importée', async ({ app }) => {
     const page = app.page;
     await page.setViewportSize({ width: 390, height: 844 }); // le bouton n'est là que sur téléphone
     await expect(page.locator('#camera-open')).toBeVisible();
     await page.locator('#camera-open').click();
     await expect(page.locator('#camera')).toBeVisible();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
-    // la scène de synthèse est une bonne photo : la visée le dit, le cadre de la feuille est tracé
-    await expect(page.locator('#camera-verdict')).toHaveText('Tout est bon : prenez la photo', { timeout: 20000 });
-    await expect(page.locator('#camera-points li.ok')).toHaveCount(6);
+    // la scène de synthèse est une bonne photo : une seule consigne, « Prêt », et le cadre de la feuille tracé
+    await expect(page.locator('#camera-verdict')).toHaveText('Prêt : prenez la photo', { timeout: 20000 });
+    await expect(page.locator('#camera-verdict')).toHaveClass(/ok/);
+    await expect(page.locator('#camera-points')).toHaveCount(0); // (plus de liste de contrôles)
     expect(await page.evaluate(() => { const g = document.getElementById('camera-guide'); const d = g.getContext('2d').getImageData(0, 0, g.width, g.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; })).toBeGreaterThan(100);
+    await expect(page.locator('#camera-done')).toHaveText('Fermer');
+    await expect(page.locator('#camera-last')).toBeHidden();
+    // la photo prise est jugée en pleine définition (640 px : trop faible pour un tirage) : montrée, avec la raison
     await page.locator('#camera-shoot').click();
     await expect(page.locator('#camera-review')).toBeVisible();
-    await expect(page.locator('#camera-keep')).toBeVisible();
-    await expect(page.locator('#camera-verdict')).toContainText('Photo');
-    // la définition est jugée sur la photo prise (640 px : trop faible pour un tirage)
-    await expect(page.locator('#camera-points li')).toHaveCount(7);
-    await expect(page.locator('#camera-points li.bad')).toHaveCount(1);
+    await expect(page.locator('#camera-verdict')).toHaveText('Photo à reprendre : définition trop faible');
+    await expect(page.locator('#camera-tip')).toContainText('Rapprochez-vous');
+    await expect(page.locator('#camera-shoot')).toBeHidden();
     await page.locator('#camera-retake').click();
     await expect(page.locator('#camera-review')).toBeHidden();
+    await expect(page.locator('#camera-shoot')).toBeVisible();
+    // un bon appareil (seuils abaissés) : la photo est gardée d'office, la visée continue ; « Annuler » la retire
+    await page.evaluate(() => { Camera.PX.bad = 100; Camera.PX.warn = 200; });
     await page.locator('#camera-shoot').click();
-    await expect(page.locator('#camera-keep')).toBeVisible();
+    await expect(page.locator('#camera-toast')).toBeVisible();
+    await expect(page.locator('#camera-toast')).toContainText('Photo gardée');
+    await expect(page.locator('#camera-review')).toBeHidden();
+    await expect(page.locator('#camera-count')).toHaveText('1');
+    await expect(page.locator('#camera-done')).toHaveText('Importer (1)');
+    await page.locator('#camera-undo').click();
+    await expect(page.locator('#camera-last')).toBeHidden();
+    await expect(page.locator('#camera-done')).toHaveText('Fermer');
+    // une photo à reprendre peut être gardée quand même
+    await page.evaluate(() => { Camera.PX.bad = 1170; Camera.PX.warn = 1640; });
+    await page.locator('#camera-shoot').click();
     await page.locator('#camera-keep').click();
-    await expect(page.locator('#camera-count')).toHaveText('1 photo gardée');
-    await expect(page.locator('#camera-done')).toHaveText('Terminer et importer la photo');
+    await expect(page.locator('#camera-review')).toBeHidden();
+    await expect(page.locator('#camera-count')).toHaveText('1');
     await page.locator('#camera-done').click();
     await expect(page.locator('#camera')).toBeHidden();
     expect(await page.evaluate(() => document.getElementById('camera-video').srcObject)).toBeNull();

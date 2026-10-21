@@ -79,14 +79,19 @@ cd collage && python3 -m http.server 8000
    dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
    zone de dépôt, sur téléphone seulement — largeur ≤ 860 px — et quand le navigateur donne accès à
    l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée et l'écran
-   dit si la photo sera bonne — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
+   ne donne qu'**une consigne à la fois**, la plus importante (« Rapprochez-vous un peu », « Tenez le
+   téléphone à plat, au-dessus du dessin »… ou « Prêt : prenez la photo ») — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
    sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
    droits), netteté et lumière égale (`Quality.sharpness`, `Quality.lighting`, mêmes seuils qu'à
    l'import), exposition (papier assez clair, sans reflets) ; le quadrilatère de la feuille est
    tracé sur la vidéo, vert, orange ou rouge. La photo prise (pleine définition : `ImageCapture`
    quand il existe, sinon l'image de la vidéo) est jugée de la même façon, avec en plus sa
-   définition (grand côté de la feuille en pixels : 140 dpi pour un A4), puis gardée ou reprise ;
-   les photos gardées entrent dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
+   définition (grand côté de la feuille en pixels : 140 dpi pour un A4, `Camera.PX`) : bonne ou
+   correcte, elle est **gardée d'office** (un éclair, « ✓ Photo gardée » avec « Annuler ») et la visée
+   continue ; à reprendre, elle s'affiche avec sa raison et un conseil, « Reprendre » ou « Garder
+   quand même ». En bas, comme un appareil photo : « Fermer » / « Importer (N) » à gauche, le
+   déclencheur rond au centre, la dernière photo gardée avec le nombre à droite ; « Importer » fait
+   entrer les photos dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
    Si l'autorisation n'arrive pas (20 s), si elle est refusée, ou si la vidéo ne s'affiche pas (6 s
    sans image : iPhone en économie d'énergie, caméra prise par une autre application), un message le
    dit avec « Relancer la vidéo » (une lecture dans un geste) et, toujours, « Prendre la photo avec
