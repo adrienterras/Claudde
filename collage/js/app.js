@@ -6188,7 +6188,22 @@ Réponds uniquement avec ce JSON :
   const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit'] };
   const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
   const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
+  // encadré : la couleur du cadre et le passe-partout (sans : l'impression a la taille du cadre ; avec :
+  // la taille en dessous, le passe-partout faisant la différence) ; mêmes cadres que la mise en scène
+  const CART_FRAMES = ['bois-clair', 'bois-fonce', 'bois-noir', 'bois-blanc', 'metal'];
+  const frameKindName = (k) => { const n = (FRAME_KINDS[k] || FRAME_KINDS['bois-clair']).name; return n.charAt(0).toUpperCase() + n.slice(1); };
+  // la taille de l'impression (orientée comme l'œuvre)
+  function printSizeOf(it) {
+    const f = PRINT_FRAMES.find((x) => x.key === it.size) || PRINT_FRAMES[1];
+    const [a, b] = it.finish === 'cadre' && it.mat ? f.mat : f.print;
+    return it.W >= it.H ? `${fmt(Math.max(a, b))} × ${fmt(Math.min(a, b))} cm` : `${fmt(Math.min(a, b))} × ${fmt(Math.max(a, b))} cm`;
+  }
   function productLabel(it) {
+    if (it.product === 'print' && it.finish === 'cadre') {
+      return it.mat
+        ? tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, avec passe-partout, impression ${printSizeOf(it)}`
+        : tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, sans passe-partout, impression ${printSizeOf(it)}`;
+    }
     if (it.product === 'print') return tr`Tableau imprimé ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
@@ -6215,6 +6230,7 @@ Réponds uniquement avec ce JSON :
     return c.filter(validItem).map((it) => Object.assign(it, {
       qty: clamp(Math.round(Number(it.qty)) || 1, 1, maxQty(it)), W: Number(it.W), H: Number(it.H),
       title: String(it.title || ''), styleName: String(it.styleName || ''), refs: Array.isArray(it.refs) ? it.refs.map(String) : [],
+      frame: CART_FRAMES.includes(it.frame) ? it.frame : 'bois-clair', mat: it.mat === true,
       unit: unitPrice(it),
     }));
   }
@@ -6266,7 +6282,7 @@ Réponds uniquement avec ce JSON :
   }
 
   let pending = null; // composition à ajouter : { comp, title, styleName }
-  const choice = { product: 'print', finish: 'cadre', size: '50x70', qty: 1, kit: { toile: true, colle: true, pinceau: true } };
+  const choice = { product: 'print', finish: 'cadre', size: '50x70', qty: 1, kit: { toile: true, colle: true, pinceau: true }, frame: 'bois-clair', mat: false };
   function renderCartAdd() {
     const box = $('cart-add'), { comp } = pending;
     box.querySelector('.cart-what img').src = pending.thumb;
@@ -6295,20 +6311,38 @@ Réponds uniquement avec ce JSON :
       b.classList.toggle('on', b.dataset.size === choice.size);
       b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
     });
+    // encadré : couleur du cadre et passe-partout ; les tailles du cadre et de l'impression, en clair
+    const framed = choice.product === 'print' && choice.finish === 'cadre';
+    box.querySelector('.cart-frame').hidden = !framed;
+    box.querySelectorAll('[data-frame-kind]').forEach((b) => {
+      const on = b.dataset.frameKind === choice.frame;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.style.setProperty('--fc', `rgb(${FRAME_KINDS[b.dataset.frameKind].rgb.join(',')})`);
+    });
+    box.querySelector('.cart-frame-name').textContent = frameKindName(choice.frame);
+    box.querySelectorAll('[data-mat]').forEach((b) => b.classList.toggle('on', (b.dataset.mat === '1') === !!choice.mat));
+    const dims = box.querySelector('.cart-dims'), cur = Object.assign({ W: comp.W, H: comp.H }, choice);
+    dims.hidden = choice.product !== 'print';
+    dims.innerHTML = framed
+      ? (choice.mat
+        ? tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, entourée d’un passe-partout blanc`
+        : tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, à la taille du cadre`)
+      : tr`Impression <b>${printSizeOf(cur)}</b> sur papier d’art, sans cadre`;
     choice.qty = clamp(choice.qty, 1, maxQty(choice));
     box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
     // proportions : l'œuvre est imprimée entière, centrée ; composée pour un passe-partout, elle est
     // plus petite que son cadre (c'est voulu) ; sur une autre taille, une marge blanche la complète
+    // proportions : l'œuvre est imprimée entière ; si l'impression n'a pas exactement ses proportions,
+    // une marge blanche la complète (elle n'est jamais rognée)
     const fit = box.querySelector('.cart-fit');
     if (choice.product === 'print') {
-      const [a, b] = SIZES[choice.size], pw = comp.W >= comp.H ? b : a, ph = comp.W >= comp.H ? a : b;
-      const exact = Math.abs(pw - comp.W) < 0.6 && Math.abs(ph - comp.H) < 0.6;
-      const matted = !exact && choice.size === frameForComp(comp) && pw >= comp.W && ph >= comp.H;
-      fit.hidden = exact;
-      fit.textContent = matted && choice.finish === 'cadre'
-        ? tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) est présentée avec un passe-partout dans le cadre de ${sizeLabel(choice.size, comp.W, comp.H)}.`
-        : tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) sera imprimée entière sur ${sizeLabel(choice.size, comp.W, comp.H)}, avec une marge blanche pour garder ses proportions.`;
+      const f = PRINT_FRAMES.find((x) => x.key === choice.size), [a, b] = framed && choice.mat ? f.mat : f.print;
+      const pw = comp.W >= comp.H ? Math.max(a, b) : Math.min(a, b), ph = comp.W >= comp.H ? Math.min(a, b) : Math.max(a, b);
+      const sameShape = Math.abs(pw / ph - comp.W / comp.H) < 0.02;
+      fit.hidden = sameShape;
+      fit.textContent = tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) sera imprimée entière sur ${fmt(pw)} × ${fmt(ph)} cm, avec une fine marge blanche pour garder ses proportions.`;
     } else fit.hidden = true;
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
@@ -6321,6 +6355,11 @@ Réponds uniquement avec ce JSON :
     pending = { comp, title, styleName, thumb: thumbOfComp(comp) };
     choice.size = frameForComp(comp);
     choice.qty = 1;
+    // par défaut : le passe-partout de la composition, et le cadre de la mise en scène (« auto » :
+    // assorti aux couleurs de l'œuvre)
+    choice.mat = comp.frameKey ? !!comp.mat : printMat();
+    const kind = sceneFrameChoice();
+    try { choice.frame = kind !== 'auto' ? kind : pickFrameKind(artTone(comp), choice.mat); } catch (e) { choice.frame = 'bois-clair'; }
     renderCartAdd();
     openModal($('cart-add'));
   }
@@ -6329,6 +6368,8 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => (r.onchange = () => { choice.product = r.value; renderCartAdd(); }));
     box.querySelectorAll('[data-finish]').forEach((b) => (b.onclick = () => { choice.finish = b.dataset.finish; renderCartAdd(); }));
     box.querySelectorAll('[data-size]').forEach((b) => (b.onclick = () => { choice.size = b.dataset.size; renderCartAdd(); }));
+    box.querySelectorAll('[data-frame-kind]').forEach((b) => (b.onclick = () => { choice.frame = b.dataset.frameKind; renderCartAdd(); }));
+    box.querySelectorAll('[data-mat]').forEach((b) => (b.onclick = () => { choice.mat = b.dataset.mat === '1'; renderCartAdd(); }));
     box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, maxQty(choice)); renderCartAdd(); }));
     box.querySelectorAll('.cart-kit input[data-kit]').forEach((c) => (c.onchange = () => { choice.kit[c.dataset.kit] = c.checked; renderCartAdd(); }));
     $('cart-add-ok').onclick = addPendingToCart;
@@ -6347,6 +6388,7 @@ Réponds uniquement avec ce JSON :
       await dbPut(rec);
       const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
+      if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
       it.unit = unitPrice(it);
       const items = loadCart();
       items.push(it);
@@ -6426,7 +6468,7 @@ Réponds uniquement avec ce JSON :
    */
   const cloudCartOn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
   const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
-  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined });
+  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined });
   // la composition locale d'un article, images comprises, prête à partir dans le compte
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);

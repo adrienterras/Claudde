@@ -164,7 +164,6 @@
     'Kit DIY {0} × {1}': 'DIY kit {0} × {1}',
     'Panier : {0} article(s)': 'Cart: {0} item(s)',
     'dès {0}': 'from {0}',
-    'L’œuvre ({0} × {1} cm) sera imprimée entière sur {2}, avec une marge blanche pour garder ses proportions.': 'The artwork ({0} × {1} cm) will be printed whole on {2}, with a white margin to keep its proportions.',
     '« {0} » est dans votre panier.': '“{0}” is in your cart.',
     'Impossible d’ajouter au panier : {0}': 'Could not add to cart: {0}',
     'Revoir': 'Review',
@@ -270,7 +269,6 @@
     '{0} · toile {1} × {2} cm': '{0} · canvas {1} × {2} cm',
     'Panier mis à jour depuis votre compte…': 'Updating the cart from your account…',
     'Panier non envoyé dans votre compte : {0}': 'Cart not sent to your account: {0}',
-    'L’œuvre ({0} × {1} cm) est présentée avec un passe-partout dans le cadre de {2}.': 'The artwork ({0} × {1} cm) sits in a mount inside the {2} frame.',
     ' sur mesure': ', made to measure',
     'bois clair': 'light wood',
     'bois foncé': 'dark wood',
@@ -843,6 +841,19 @@
     'Collage des originaux': 'Collage of the originals',
     'Touchez un des dessins pour le modifier': 'Tap one of the drawings to edit it',
     'Cliquez sur un des dessins pour le modifier': 'Click one of the drawings to edit it',
+    // ---------- Commande encadrée : cadre et passe-partout ----------
+    'Tableau imprimé encadré : cadre {0} {1}, avec passe-partout, impression {2}': 'Framed print: {0} frame {1}, with mount, print {2}',
+    'Tableau imprimé encadré : cadre {0} {1}, sans passe-partout, impression {2}': 'Framed print: {0} frame {1}, without mount, print {2}',
+    '<b>Cadre {0}</b> · impression <b>{1}</b>, entourée d’un passe-partout blanc': '<b>Frame {0}</b> · print <b>{1}</b>, surrounded by a white mount',
+    '<b>Cadre {0}</b> · impression <b>{1}</b>, à la taille du cadre': '<b>Frame {0}</b> · print <b>{1}</b>, the size of the frame',
+    'Impression <b>{0}</b> sur papier d’art, sans cadre': 'Print <b>{0}</b> on fine-art paper, unframed',
+    'L’œuvre ({0} × {1} cm) sera imprimée entière sur {2} × {3} cm, avec une fine marge blanche pour garder ses proportions.': 'The artwork ({0} × {1} cm) will be printed in full on {2} × {3} cm, with a thin white margin to keep its proportions.',
+    'Couleur du cadre': 'Frame colour',
+    'Bois clair': 'Light wood',
+    'Bois foncé': 'Dark wood',
+    'Bois noir': 'Black wood',
+    'Bois blanc': 'White wood',
+    'Métal': 'Metal',
   };
 
   const KEY = 'atelier-gribouille:lang';

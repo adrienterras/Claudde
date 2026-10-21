@@ -279,9 +279,28 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // papier d'art ou encadré : pas d'impression sur toile
     await expect(page.locator('#cart-add [data-finish="toile"]')).toHaveCount(0);
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-finish]')].map((b) => b.dataset.finish))).toEqual(['papier', 'cadre']);
+    // papier : la taille d'impression, sans cadre ni passe-partout
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await expect(page.locator('#cart-add .cart-frame')).toBeHidden();
+    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Impression 21 × 29,7 cm sur papier d’art, sans cadre');
+    // encadré : la couleur du cadre et le passe-partout (celui de l'œuvre par défaut), les deux tailles en clair
     await page.locator('#cart-add [data-finish="cadre"]').click();
-    await expect(page.locator('.cart-fit')).toHaveText('L’œuvre (13 × 18 cm) est présentée avec un passe-partout dans le cadre de 21 × 30 cm.');
-    await page.locator('#cart-add [data-close]').first().click();
+    await expect(page.locator('#cart-add .cart-frame')).toBeVisible();
+    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-frame-kind]')].map((b) => b.dataset.frameKind))).toEqual(['bois-clair', 'bois-fonce', 'bois-noir', 'bois-blanc', 'metal']);
+    await expect(page.locator('#cart-add [data-frame-kind].on')).toHaveCount(1);
+    await expect(page.locator('#cart-add [data-mat="1"]')).toHaveClass(/on/);
+    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Cadre 21 × 30 cm · impression 13 × 18 cm, entourée d’un passe-partout blanc');
+    await expect(page.locator('.cart-fit')).toBeHidden(); // (mêmes proportions)
+    await page.locator('#cart-add [data-mat="0"]').click();
+    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Cadre 21 × 30 cm · impression 21 × 29,7 cm, à la taille du cadre');
+    await page.locator('#cart-add [data-frame-kind="bois-noir"]').click();
+    await expect(page.locator('#cart-add .cart-frame-name')).toHaveText('Bois noir');
+    await expect(page.locator('#cart-add [data-frame-kind="bois-noir"]')).toHaveClass(/on/);
+    // dans le panier, l'article dit le cadre, le passe-partout et les deux tailles
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart .cart-item small').first()).toHaveText('Tableau imprimé encadré : cadre bois noir 21 × 30 cm, sans passe-partout, impression 21 × 29,7 cm');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier')).map((it) => [it.frame, it.mat]))).toEqual([['bois-noir', false]]);
+    await page.locator('#cart [data-close]').first().click();
     // sauvegardée puis rouverte : le mode et le cadre reviennent
     // l'œuvre s'enregistre d'elle-même : « nouvelle œuvre » la range dans Mes œuvres
     await page.locator('#new-work').click();
