@@ -2990,6 +2990,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   canvas.addEventListener('pointerdown', (e) => {
     if (!state.comp) return;
     canvas.setPointerCapture(e.pointerId);
+    // un premier doigt posé commence toujours un nouveau geste (un doigt resté en mémoire, que
+    // l'iPhone n'a pas signalé levé, ferait prendre un glissé pour un pincement)
+    if (e.isPrimary) { touches.clear(); pinch = null; }
     touches.set(e.pointerId, devicePoint(e));
     if (touches.size === 1) selectionBefore = state.selected;
     if (touches.size === 2) {
@@ -3090,6 +3093,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('lostpointercapture', (e) => { if (touches.has(e.pointerId)) endDrag(e); });
 
   canvas.addEventListener('wheel', (e) => {
     if (!state.comp) return;

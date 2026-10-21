@@ -1563,6 +1563,9 @@ test.describe('Gestes au doigt sur iPhone', () => {
       return ev.defaultPrevented;
     });
     expect(prevented).toBe(true);
+    // un doigt « fantôme » : posé, jamais signalé levé (cela arrive sur iPhone) ; le trait suivant
+    // doit gommer, pas zoomer comme un pincement à deux doigts
+    await page.evaluate(() => { const c = document.getElementById('ed-canvas'), r = c.getBoundingClientRect(); c.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 99, pointerType: 'touch', isPrimary: true, clientX: r.left + 30, clientY: r.top + 30, bubbles: true })); });
     // un trait de gomme au doigt : la découpe change (défaire possible)
     const box = await page.locator('#ed-canvas').boundingBox();
     const cdp = await page.context().newCDPSession(page);

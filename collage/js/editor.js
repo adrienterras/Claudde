@@ -464,6 +464,9 @@
     const c = $('ed-canvas');
     try { c.setPointerCapture(e.pointerId); } catch (err) { /* pointeur déjà relâché */ }
     const p = toLocal(e);
+    // un premier doigt posé commence toujours un nouveau geste : un doigt resté en mémoire (iPhone ne
+    // signale pas toujours qu'il s'est levé) ne doit pas faire prendre le gommage pour un pincement
+    if (e.isPrimary) { S.pointers.clear(); S.pinch = null; S.drag = null; }
     S.pointers.set(e.pointerId, p);
     if (S.pointers.size === 2) {
       S.wandTap = null;
@@ -597,6 +600,7 @@
     c.addEventListener('pointermove', onMove);
     c.addEventListener('pointerup', onUp);
     c.addEventListener('pointercancel', onUp);
+    c.addEventListener('lostpointercapture', (e) => { if (S && S.pointers.has(e.pointerId)) onUp(e); });
     c.addEventListener('pointerleave', () => { if (S) { S.cursor = null; render(); } });
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     // iOS : un appui long sur la toile lancerait la sélection de texte et sa loupe ; les gestes de
