@@ -17,8 +17,8 @@
   const CROP_MAX = 1200; // grand côté de l'image envoyée
   let sent = 0;
 
-  // cochée par défaut : seul un refus explicite (« 0 ») est mémorisé comme tel
-  function consent() { try { return localStorage.getItem(KEY) !== '0'; } catch (e) { return false; } }
+  // décochée par défaut : seul un accord explicite (« 1 ») autorise l'envoi
+  function consent() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
   function setConsent(on) { try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) { /* ignoré */ } }
 
   const headers = (type) => Object.assign({ apikey: cfg.supabaseAnonKey, Authorization: `Bearer ${cfg.supabaseAnonKey}` }, type ? { 'Content-Type': type } : {});

@@ -1217,7 +1217,7 @@ test.describe('Découpe apprise des retouches', () => {
 });
 
 test.describe('Retouches partagées (option)', () => {
-  test('case cochée par défaut ; décochée, mémorisé et rien n’est envoyé ; cochée, une retouche envoie image, découpes et fiche ; décochée, rien', async ({ page }) => {
+  test('case décochée par défaut et rien n’est envoyé ; cochée, une retouche envoie image, découpes et fiche ; décochée, rien', async ({ page }) => {
     const { fixture } = require('./helpers');
     const sent = [];
     await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
@@ -1233,10 +1233,9 @@ test.describe('Retouches partagées (option)', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.locator('#import-section > h2').click(); // (l'étape Importer est repliée à l'arrivée)
     await expect(page.locator('#share-cuts')).toBeVisible();
-    await expect(page.locator('#share-cuts-box')).toBeChecked();
-    // décochée (refus mémorisé) avant l'import
-    await page.locator('#share-cuts-box').uncheck();
-    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBe('0');
+    // décochée par défaut, sans rien mémoriser
+    await expect(page.locator('#share-cuts-box')).not.toBeChecked();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.partage-decoupes'))).toBeNull();
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const k = await page.evaluate(() => { const ps = AtelierGribouille.state.drawings[0].analysis.pieces; return ps.indexOf(ps.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });

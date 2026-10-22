@@ -3223,7 +3223,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   // ---------- Partage des retouches (option) ----------
-  // Case à cocher à l'import, cochée par défaut et mémorisée : chaque retouche de découpe est alors
+  // Case à cocher à l'import, décochée par défaut et mémorisée : chaque retouche de découpe est alors
   // envoyée (dessin recadré, découpe automatique, découpe corrigée) pour les exemples d'un futur
   // détourage par apprentissage. Voir js/collect.js et confidentialite.html#retouches.
   (function shareConsent() {
