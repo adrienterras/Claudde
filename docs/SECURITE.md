@@ -173,6 +173,20 @@ et la correction tient en une ligne par page.
 - Rien n'est envoyé sans la case cochée ; la case est décochée par défaut et son état n'est gardé
   que dans le navigateur (`atelier.partage-decoupes`).
 
+## 22 octobre 2026 : audit, retrait du partage des retouches
+
+- La case « Aider à améliorer le détourage » était cochée par défaut (consentement non valable) :
+  d'abord décochée par défaut, puis l'option retirée entièrement.
+- Le point d'écriture anonyme `retouches` (table, bucket, politiques) est supprimé dans
+  `supabase/schema.sql` : plus personne ne peut y déposer de fichiers ni fausser l'apprentissage.
+- Le workflow « Apprentissage de la découpe » (clé `service_role` exposée dans le même job que
+  `npm ci`, droit d'écriture sur le dépôt) et `tools/apprendre.js` sont retirés ; le secret
+  `SUPABASE_SERVICE_ROLE_KEY` est à supprimer des secrets du dépôt.
+- Restent, connus et mineurs : script Umami chargé depuis son serveur, pas d'en-têtes HTTP sur
+  GitHub Pages (CSP en balise meta), pas de quota de stockage par compte, total des commandes
+  calculé dans le navigateur (à vérifier avant d'encaisser). Les œuvres gardées dans le navigateur
+  ne sont rattachées à aucun compte (appareil partagé : visibles par le suivant).
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.

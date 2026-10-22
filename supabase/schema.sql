@@ -53,29 +53,11 @@ create policy "drawings: own folder" on storage.objects
   using (bucket_id = 'drawings' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'drawings' and (storage.foldername(name))[1] = auth.uid()::text);
 
--- Retouches de découpe partagées (option « Aider à améliorer le détourage », décochée par défaut) :
--- le navigateur y écrit seulement (anonyme ou connecté), personne n'y lit depuis l'application.
--- Fichiers : retouches/<AAAA-MM>/<id>/{image.jpg, auto.png, corrige.png, meta.json} ; une ligne par envoi.
-create table if not exists public.retouches (
-  id uuid primary key default gen_random_uuid(),
-  path text not null,         -- dossier des fichiers dans le bucket « retouches »
-  meta jsonb not null,        -- indications sur la page et la découpe (jamais de nom de fichier ni d'identifiant)
-  created_at timestamptz not null default now()
-);
-alter table public.retouches enable row level security;
-drop policy if exists "retouches: insert only" on public.retouches;
-create policy "retouches: insert only" on public.retouches
-  for insert to anon, authenticated
-  with check (length(path) <= 120 and pg_column_size(meta) <= 8192);
-revoke select, update, delete on public.retouches from anon, authenticated;
-
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-  values ('retouches', 'retouches', false, 4194304, array['image/jpeg', 'image/png', 'application/json'])
-  on conflict (id) do update set file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+-- Ancien partage des retouches de découpe (retiré le 22 octobre 2026) : plus aucun envoi anonyme.
+-- Le bucket « retouches » se vide puis se supprime depuis le tableau de bord (Storage → retouches) :
+-- Supabase interdit d'effacer ses fichiers en SQL.
 drop policy if exists "retouches: write only" on storage.objects;
-create policy "retouches: write only" on storage.objects
-  for insert to anon, authenticated
-  with check (bucket_id = 'retouches' and name ~ '^[0-9]{4}-[0-9]{2}/[0-9a-f-]{8,40}/(image\.jpg|auto\.png|corrige\.png|meta\.json)$');
+drop table if exists public.retouches;
 
 -- Suppression du compte par l'utilisateur lui-même (bouton « Supprimer mon compte ») :
 -- efface ses compositions (cascade) et son compte ; ses fichiers sont effacés avant par l'application.

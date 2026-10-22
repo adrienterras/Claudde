@@ -115,8 +115,6 @@
     // importer demande un compte (l'exemple reste libre)
     'importer vos dessins': 'import your drawings',
     'photographier vos dessins': 'photograph your drawings',
-    'Aider à améliorer le détourage : partager mes retouches de découpe (le dessin concerné et sa découpe corrigée), sans compte ni nom de fichier.': 'Help improve the cut-out: share my cut-out edits (the drawing concerned and its corrected cut-out), with no account and no file name.',
-    'En savoir plus': 'Learn more',
     'Exemple chargé : des dessins de démonstration. Ajoutez vos scans, ou': 'Sample loaded: demonstration drawings. Add your scans, or',
     'repartez de zéro': 'start over',
     'Propositions': 'Proposals',

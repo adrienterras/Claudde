@@ -70,37 +70,14 @@ est en cours sur place). Aucun changement de schéma : la ligne et le dossier su
 existantes (propriétaire seulement). Place : une photo de téléphone pèse 2 à 5 Mo ; une œuvre de
 vingt photos occupe donc jusqu'à 100 Mo du quota de fichiers.
 
-## Retouches de découpe partagées (option)
+## Retouches de découpe partagées (retirées le 22 octobre 2026)
 
-Dans l'atelier, une case « Aider à améliorer le détourage » (section Importer, décochée par défaut,
-mémorisée dans le navigateur) envoie chaque retouche de découpe faite à la main : le dessin recadré
-autour de la pièce (JPEG, 1200 px au plus), la découpe automatique et la découpe corrigée (PNG
-noir et blanc) et une fiche JSON (taille de page, rectangles, réglages de découpe, type de page).
-Jamais de nom de fichier, d'e-mail ni d'identifiant de compte ; les dossiers sont nommés par mois
-et identifiant aléatoire. Le schéma crée la table `retouches` et le bucket `retouches` (4 Mo par
-fichier, JPEG/PNG/JSON), tous deux **en écriture seule** pour `anon` et `authenticated` : rien n'est
-lisible depuis l'application, seul le tableau de bord Supabase (ou la clé service) y accède.
-Finalité : constituer, avec consentement, les exemples d'un futur modèle de détourage. Pour
-l'exploiter : Storage → retouches, ou `select path, meta from retouches order by created_at`.
-Effacement sur demande : supprimer le dossier et la ligne ; la fiche porte l'horodatage que
-l'utilisateur peut citer.
-
-### Apprentissage à partir des retouches
-
-Le workflow « Apprentissage de la découpe » (`.github/workflows/apprentissage.yml`, chaque lundi
-matin ou à la main depuis l'onglet Actions) exécute `collage/tools/apprendre.js` : il télécharge les
-retouches avec la **clé service** de Supabase, rejoue la découpe de l'atelier sur chaque exemple
-avec différents réglages, et retient ceux qui rapprochent le plus les découpes automatiques des
-découpes corrigées. Résultat : `collage/js/cut-learned.js` (réglages d'office de l'atelier, appliqués
-seulement à partir de 20 exemples et si le gain se confirme en validation croisée) et le rapport
-`docs/APPRENTISSAGE.md`, validés et poussés par le workflow, ce qui republie l'atelier. Les exemples
-restent dans l'espace temporaire du runner : jamais dans le dépôt.
-
-Mise en place (une fois) : dans le dépôt GitHub, Settings → Secrets and variables → Actions → New
-repository secret, nom `SUPABASE_SERVICE_ROLE_KEY`, valeur : la clé `service_role` du projet
-(Supabase → Project Settings → API). Cette clé donne tous les droits sur le projet : elle ne doit
-figurer nulle part ailleurs (ni dans le code, ni dans une conversation). L'URL du projet est lue
-dans `collage/config.js` (ou le secret `SUPABASE_URL`).
+L'option « Aider à améliorer le détourage » et l'apprentissage hebdomadaire qui s'en servait ont été
+retirés de l'atelier : ils ouvraient un point d'écriture anonyme dans Supabase et donnaient la clé
+service à un workflow GitHub. Chaque utilisateur garde la découpe apprise de ses propres retouches,
+dans son navigateur (`Extract.learnCut`). Côté Supabase, `supabase/schema.sql` supprime la table et
+les politiques `retouches` ; le bucket se vide puis se supprime depuis le tableau de bord (Storage →
+retouches). Le secret GitHub `SUPABASE_SERVICE_ROLE_KEY` n'a plus d'usage et doit être supprimé.
 
 ## Limites et coûts
 
