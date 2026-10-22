@@ -1164,6 +1164,7 @@ body.stage-full .scene-open { display: none; }
 
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin: 14px 0 10px; } /* téléphone : un peu d'air sous la barre d'onglets */
+@media (max-width: 860px) { #draft-offer { margin-top: 14px; } } /* « Votre dernière œuvre… » : de l'air sous la barre d'onglets */
 @media (min-width: 861px) { .camera-open { display: none !important; } } /* ordinateur : pas de bouton photo (on photographie au téléphone) */
 .cloud-sync { margin: 4px 0 12px; display: grid; } /* une ligne discrète : l'œuvre s'enregistre d'elle-même */
 .cloud-sync .hint { margin: 0; font-size: 0.76rem; }
