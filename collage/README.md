@@ -515,8 +515,9 @@ cd collage && python3 -m http.server 8000
      `Compose.skyness` d'après la couleur du crayon : marron, vert, rouge, noir, bleu nuit en bas,
      bleu ciel, jaune et tons clairs en haut ; devant, une scène de vie de village : ce qui vole
      (décidé par Claude, ou un soleil reconnu à sa forme et sa couleur) au ciel, le reste debout
-     sur trois lignes de sol, les plus grands sujets au fond, les plus petits devant, à une même
-     échelle qui fait tenir chaque rangée),
+     sur trois lignes de sol, les plus grands sujets au fond, les plus petits devant, grands et
+     entremêlés (chaque rangée jusqu'à 1,7 fois la largeur, jamais au-delà de la taille réelle) ;
+     `keepVisible` fait glisser sur sa ligne un sujet caché à plus de moitié par ceux de devant),
      *Scène* (une scène est une sélection : au plus 18 sujets, les plus nets et colorés, un sujet
      reconnu par Claude passant devant, sans feuilles de texte ni fragments ; le reste attend dans le
      panneau, à ajouter d'un clic ; la toile automatique se calcule sur cette sélection ; une vraie

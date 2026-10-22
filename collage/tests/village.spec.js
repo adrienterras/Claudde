@@ -61,6 +61,14 @@ test.describe('Village', () => {
         sunY: sun ? sun.y / c.H : null,
         feet: standing.map((L) => (L.y + L.h / 2) / c.H),
         inside: c.items.every((L) => L.x >= 0 && L.x <= c.W),
+        // grands et entremêlés : des sujets se chevauchent, mais chacun reste visible au moins à moitié
+        overlaps: standing.filter((L, i) => standing.some((M, j) => j !== i && Math.abs(L.x - M.x) < (L.w + M.w) / 2 && Math.abs(L.y - M.y) < (L.h + M.h) / 2)).length,
+        minSeen: Math.min(...c.items.map((L, i) => {
+          const at = (M, x, y) => { const u = (x - M.x) / M.w + 0.5, v = (y - M.y) / M.h + 0.5; if (u < 0 || u >= 1 || v < 0 || v >= 1) return false; const h = M.piece.hit; return !h || !!h.data[Math.floor(v * h.h) * h.w + Math.floor(u * h.w)]; };
+          let own = 0, seen = 0;
+          for (let a = 0; a < 20; a++) for (let b = 0; b < 20; b++) { const x = L.x + ((a + 0.5) / 20 - 0.5) * L.w, y = L.y + ((b + 0.5) / 20 - 0.5) * L.h; if (!at(L, x, y)) continue; own++; if (!c.items.some((M, j) => j > i && at(M, x, y))) seen++; }
+          return own ? seen / own : 1;
+        })),
         n: c.items.length, bg: c.bg.length, first: [P[0].sx, P[0].sy, P[0].x, P[0].y],
       };
     });
@@ -72,6 +80,8 @@ test.describe('Village', () => {
     expect(v.sunY).toBeLessThan(0.45); // le soleil au ciel
     for (const f of v.feet) { expect(f).toBeGreaterThan(0.55); expect(f).toBeLessThanOrEqual(1.02); }
     expect(v.inside).toBe(true);
+    expect(v.overlaps).toBeGreaterThanOrEqual(3);
+    expect(v.minSeen).toBeGreaterThan(0.4);
 
     // rangée puis rouverte : mêmes carreaux, au même endroit (pris dans les pages des dessins découpés aussi)
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1, { timeout: 30000 });

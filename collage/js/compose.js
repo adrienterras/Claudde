@@ -1370,6 +1370,50 @@
   }
 
   /*
+   * Village : les sujets s'entremêlent, mais aucun ne disparaît. La part visible d'un sujet se mesure
+   * sur sa forme (carte de clic de la découpe) : les points de sa forme que recouvre la forme d'un
+   * sujet posé devant lui sont cachés. Un sujet à moins de la moitié visible glisse sur sa ligne de
+   * sol jusqu'à la place où il se voit le mieux, sans en cacher un autre à plus de moitié.
+   */
+  function keepVisible(items, W, from) {
+    const inShape = (L, x, y) => {
+      const u = (x - L.x) / L.w + 0.5, v = (y - L.y) / L.h + 0.5;
+      if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
+      const hm = L.piece && L.piece.hit;
+      if (!hm || !hm.data) return true;
+      return !!hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)];
+    };
+    const visible = (i) => {
+      const L = items[i];
+      let own = 0, seen = 0;
+      for (let a = 0; a < 14; a++) for (let b = 0; b < 14; b++) {
+        const x = L.x + ((a + 0.5) / 14 - 0.5) * L.w, y = L.y + ((b + 0.5) / 14 - 0.5) * L.h;
+        if (!inShape(L, x, y)) continue;
+        own++;
+        if (!items.some((M, j) => j > i && inShape(M, x, y))) seen++;
+      }
+      return own ? seen / own : 1;
+    };
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = from; i < items.length; i++) {
+        if (visible(i) >= 0.5) continue;
+        const L = items[i], x0 = L.x;
+        const lo = Math.min(L.w * 0.4, W / 2), hi = Math.max(W - L.w * 0.4, W / 2);
+        const before = items.slice(from, i).map((_, k) => visible(from + k));
+        let best = { x: x0, v: visible(i) };
+        for (let k = 0; k <= 24; k++) {
+          L.x = lo + ((hi - lo) * k) / 24;
+          const v = visible(i);
+          // (ne pas cacher à son tour un sujet qui se voyait)
+          const harm = items.slice(from, i).some((_, q) => before[q] >= 0.5 && visible(from + q) < 0.5);
+          if (!harm && (v > best.v + 0.02 || (Math.abs(v - best.v) <= 0.02 && Math.abs(L.x - x0) < Math.abs(best.x - x0)))) best = { x: L.x, v };
+        }
+        L.x = best.x;
+      }
+    }
+  }
+
+  /*
    * Village : devant le patchwork, une scène de vie de village. Ce qui vole (soleil, nuages) va au
    * ciel ; tout le reste se tient debout sur trois lignes de sol, les plus grands sujets (maisons,
    * arbres) au fond, les moyens au milieu, les plus petits (personnages, animaux, véhicules) devant.
@@ -1392,22 +1436,26 @@
     const lines = nRows === 1 ? [0.93] : nRows === 2 ? [0.74, 0.95] : [0.62, 0.79, 0.96];
     const rows = lines.map(() => []);
     standing.forEach((p, i) => rows[Math.min(nRows - 1, Math.floor((i * nRows) / Math.max(1, n)))].push(p));
-    // échelle commune : chaque rangée tient dans la largeur (un peu de chevauchement permis), les sujets
-    // du fond ne dépassent pas le haut du ciel ; au plus la taille permise (o.maxGrow, affiche)
+    // échelle commune, généreuse : les sujets sont grands, se chevauchent et s'entremêlent (chaque
+    // rangée fait jusqu'à 1,7 fois la largeur, les sujets de devant montent devant ceux du fond) ; les
+    // plus grands restent dans la toile ; au plus la taille permise (o.maxGrow : jamais au-delà de la
+    // taille réelle en tableau imprimé)
     let g = o.maxGrow || 1;
     rows.forEach((row, r) => {
       const sumW = row.reduce((a, p) => a + p.wcm, 0);
-      if (sumW) g = Math.min(g, (W * (0.96 + 0.08 * r)) / sumW);
+      if (sumW) g = Math.min(g, (W * 1.7) / sumW);
       const top = Math.max(0, ...row.map((p) => p.hcm));
-      if (top) g = Math.min(g, (H * lines[r] - H * 0.06) / top, (H * (r === 0 ? 0.5 : 0.36)) / top);
+      if (top) g = Math.min(g, (H * lines[r] - H * 0.02) / top, (H * [0.62, 0.5, 0.42][nRows === 3 ? r : r + 3 - nRows]) / top);
     });
-    flying.forEach((p) => { g = Math.min(g, (H * 0.3) / p.hcm, (W * 0.4) / p.wcm); });
-    const item = (p, x, y, rot) => { p.placed = true; return { kind: 'piece', piece: p, x, y, w: p.wcm * g, h: p.hcm * g, rot: rot || 0, flip: false, scale: g }; };
+    // ce qui vole garde une taille de ciel
+    let gs = g;
+    flying.forEach((p) => { gs = Math.min(gs, (H * 0.3) / p.hcm, (W * 0.4) / p.wcm); });
+    const item = (p, x, y, rot, k) => { p.placed = true; return { kind: 'piece', piece: p, x, y, w: p.wcm * k, h: p.hcm * k, rot: rot || 0, flip: false, scale: k }; };
     const items = [];
     // ciel : ce qui vole, sans se recouvrir, dans le haut de la toile
     const placed = [];
     flying.forEach((p) => {
-      const w = p.wcm * g, h = p.hcm * g;
+      const w = p.wcm * gs, h = p.hcm * gs;
       let best = null;
       for (let k = 0; k < 300; k++) {
         const c = { x: w / 2 + 1 + R() * Math.max(0, W - w - 2), y: h / 2 + H * 0.03 + R() * Math.max(0, H * 0.36 - h), w, h };
@@ -1416,22 +1464,21 @@
         if (!over) break;
       }
       placed.push(best);
-      items.push(item(p, best.x, best.y, (R() - 0.5) * 0.08));
+      items.push(item(p, best.x, best.y, (R() - 0.5) * 0.08, gs));
     });
-    // rangées du fond vers l'avant ; grands et petits alternés, décalés d'une rangée à l'autre
+    // rangées du fond vers l'avant : les centres répartis sur la largeur, décalés d'une demi-place
+    // d'une rangée à l'autre et un peu bousculés, pour que les sujets se mêlent d'une rangée à l'autre
     rows.forEach((row, r) => {
       if (!row.length) return;
-      const seq = shuffle(row, R);
-      const ws = seq.map((p) => p.wcm * g), sum = ws.reduce((a, b) => a + b, 0);
-      const free = W - sum;
-      const gap = free >= 0 ? free / seq.length : free / Math.max(1, seq.length - 1);
-      let x = free >= 0 ? gap * (r % 2 ? 0.25 : 0.75) : 0;
+      const seq = shuffle(row, R), m = seq.length, step = W / m;
       seq.forEach((p, i) => {
-        const w = ws[i], h = p.hcm * g;
-        items.push(item(p, clamp(x + w / 2, w * 0.3, W - w * 0.3), H * lines[r] - h / 2 + (R() - 0.5) * 0.6, (R() - 0.5) * 0.05));
-        x += w + gap;
+        const w = p.wcm * g, h = p.hcm * g;
+        const x = (i + 0.5 + (r % 2 ? 0.25 : -0.25) * (m > 1 ? 1 : 0)) * step + (R() - 0.5) * step * 0.35;
+        const y = H * lines[r] - h / 2 + (R() - 0.5) * H * 0.04;
+        items.push(item(p, w < W ? clamp(x, w * 0.4, W - w * 0.4) : W / 2, Math.min(y, H - h / 2 + h * 0.08), (R() - 0.5) * 0.06, g));
       });
     });
+    keepVisible(items, W, flying.length);
     return { bg, items };
   }
 
