@@ -93,7 +93,7 @@
     "Ne jetez plus les dessins de vos enfants : réunissez-les en une œuvre à accrocher. Photo, découpe automatique, 7 compositions au choix. Gratuit pour composer.": "Don’t throw away your children’s drawings: gather them into an artwork to hang. Photo, automatic cut-out, 7 compositions to choose from. Free to compose.",
     "Imprimez, ou réalisez-la avec les originaux": "Print it, or make it with the originals",
     "Voir un exemple de guide de découpe et de collage (PDF)": "See a sample cutting and gluing guide (PDF, in French)",
-    "Un fichier haute définition à 300 dpi pour l’impression, aux formats du commerce. Ou le guide de création pour la faire à la main avec les vrais dessins : plan de pose à l’échelle 1, ordre de collage, trait de coupe de chaque original.": "A high-definition 300 dpi file for printing, in shop formats. Or the making-of guide to do it by hand with the real drawings: 1:1 layout plan, gluing order, cut line for each original.",
+    "Un fichier haute définition à 300 dpi pour l’impression, aux formats du commerce. Ou le guide de création pour la faire à la main avec les vrais dessins.": "A high-definition 300 dpi file for printing, in shop formats. Or the making-of guide to do it by hand with the real drawings.",
     "Sept manières de raconter les mêmes dessins.": "Seven ways to tell the same drawings.",
     "Chaque import donne sept propositions, toujours avec les dessins. Choisissez-en une, puis faites-la vôtre.": "Every import gives seven proposals, always with the drawings. Pick one, then make it yours.",
     "Composition Paysage": "Landscape composition",
