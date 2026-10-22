@@ -1204,18 +1204,249 @@
     return { bg, items, kept: drawingsOf(T.concat(items.map((L) => L.piece))), total: drawingsOf(texs.concat(pieces)) };
   }
 
+  /*
+   * Grandes zones de couleur d'un dessin (Village) : sur une image réduite (au plus 220 px de côté),
+   * chaque point est rangé par famille de teintes ou en noir ; le papier, les gris et le transparent
+   * (hors d'une découpe) ne comptent pas. Les traits de crayon d'un coloriage sont
+   * soudés (fermeture d'un point), puis, teinte par teinte, le plus grand rectangle plein est retenu,
+   * et le suivant, jusqu'à trois par teinte. Rectangles rendus en pixels de `canvas`, d'au moins
+   * minPx de côté, avec leur couleur moyenne.
+   */
+  function colorPatches(canvas, minPx) {
+    const k = Math.min(1, 220 / Math.max(canvas.width, canvas.height));
+    const gw = Math.max(1, Math.round(canvas.width * k)), gh = Math.max(1, Math.round(canvas.height * k));
+    const c = Extract.makeCanvas(gw, gh);
+    const cx = c.getContext('2d', { willReadFrequently: true });
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(canvas, 0, 0, gw, gh);
+    const px = cx.getImageData(0, 0, gw, gh).data;
+    const n = gw * gh, cls = new Int16Array(n).fill(-1);
+    for (let i = 0; i < n; i++) {
+      const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2];
+      if (px[i * 4 + 3] < 200) continue;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = 0.299 * r + 0.587 * g + 0.114 * b;
+      const sat = mx ? (mx - mn) / mx : 0;
+      if (L < 55) { cls[i] = 0; continue; }
+      if (sat < 0.14) { if (L < 150) cls[i] = -2; continue; } // papier ; plus foncé : un trait gris, un contour
+      // familles de teintes : rouge, orange, jaune, vert, bleu, violet, rose (une peinture ou un
+      // coloriage varie dans sa famille sans s'y morceler)
+      const h = hue([r, g, b]);
+      cls[i] = h < 15 || h >= 345 ? 1 : h < 40 ? 2 : h < 70 ? 3 : h < 170 ? 4 : h < 250 ? 5 : h < 300 ? 6 : 7;
+    }
+    const minC = Math.max(5, Math.ceil(minPx * k) + 2);
+    const out = [];
+    const counts = new Map();
+    for (let i = 0; i < n; i++) if (cls[i] >= 0) counts.set(cls[i], (counts.get(cls[i]) || 0) + 1);
+    const m = new Uint8Array(n), t = new Uint8Array(n), hts = new Int32Array(gw);
+    counts.forEach((cnt, id) => {
+      if (cnt < minC * minC) return;
+      // masque de la teinte, fermé (dilatation puis érosion d'un point)
+      for (let i = 0; i < n; i++) m[i] = cls[i] === id ? 1 : 0;
+      const morph = (src, dst, want) => {
+        for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+          let v = want ? 0 : 1;
+          for (let dy = -1; dy <= 1 && v !== want; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx, yy = y + dy;
+            const s = xx < 0 || yy < 0 || xx >= gw || yy >= gh ? 0 : src[yy * gw + xx];
+            if (s === want) { v = want; break; }
+          }
+          dst[y * gw + x] = v;
+        }
+      };
+      morph(m, t, 1); morph(t, m, 0);
+      // la fermeture ne comble que le papier entre les traits : jamais un contour, un trait gris ou une
+      // autre couleur (deux zones bleues de part et d'autre d'un trait noir restent séparées)
+      for (let i = 0; i < n; i++) if (cls[i] !== id && cls[i] !== -1) m[i] = 0;
+      for (let found = 0; found < 3; found++) {
+        // plus grand rectangle plein (histogramme par ligne et pile)
+        let best = null;
+        hts.fill(0);
+        for (let y = 0; y < gh; y++) {
+          for (let x = 0; x < gw; x++) hts[x] = m[y * gw + x] ? hts[x] + 1 : 0;
+          const st = [];
+          for (let x = 0; x <= gw; x++) {
+            const h = x < gw ? hts[x] : 0;
+            let start = x;
+            while (st.length && st[st.length - 1][1] >= h) {
+              const [sx, sh] = st.pop();
+              const w = x - sx;
+              if (w >= minC && sh >= minC && (!best || w * sh > best.w * best.h)) best = { x: sx, y: y - sh + 1, w, h: sh };
+              start = sx;
+            }
+            st.push([start, h]);
+          }
+        }
+        if (!best) break;
+        const mine = [];
+        let other = 0;
+        for (let y = best.y; y < best.y + best.h; y++) for (let x = best.x; x < best.x + best.w; x++) {
+          const i = y * gw + x;
+          if (cls[i] === id) mine.push(i);
+          else if (cls[i] >= 0 || cls[i] === -2) other++; // un motif, un contour, une autre couleur dans l'aplat
+          m[i] = 0;
+        }
+        const area = best.w * best.h;
+        // (un rectangle surtout fait de papier entre les traits, ou parsemé d'autres traits, n'est pas un aplat)
+        if (mine.length < area * 0.35 || other > area * 0.04) continue;
+        // couleur du crayon ou de la peinture : la moyenne des points les plus saturés (le papier entre
+        // les traits d'un coloriage éclaircit la moyenne)
+        const satOf = (i) => { const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2], mx = Math.max(r, g, b); return mx ? (mx - Math.min(r, g, b)) / mx : 0; };
+        const top = mine.map((i) => [satOf(i), i]).sort((a, b) => b[0] - a[0]).slice(0, Math.max(1, Math.round(mine.length * 0.3)));
+        const ink = [0, 1, 2].map((ch) => top.reduce((a, [, i]) => a + px[i * 4 + ch], 0) / top.length);
+        const color = [0, 1, 2].map((ch) => mine.reduce((a, i) => a + px[i * 4 + ch], 0) / mine.length);
+        // bords rentrés d'une case : rien du contour voisin
+        out.push({ x: (best.x + 1) / k, y: (best.y + 1) / k, w: (best.w - 2) / k, h: (best.h - 2) / k, color, ink });
+      }
+    });
+    return out;
+  }
+
+  // Place d'une couleur dans le patchwork du Village, du bas (petit) vers le haut (grand) : les teintes
+  // sombres et terreuses (marron, vert, rouge, noir, bleu nuit) en bas, les claires (bleu ciel, jaune,
+  // rose, tons pâles) en haut.
+  function skyness(c) {
+    const L = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+    const mx = Math.max(...c), mn = Math.min(...c), sat = mx ? (mx - mn) / mx : 0, h = hue(c);
+    let v = L;
+    if (L < 60) v -= 80; // noir
+    else if (sat > 0.18) {
+      if (h >= 40 && h < 75) v += 70; // jaune
+      else if (h >= 75 && h < 170) v += L > 190 ? 10 : -60; // vert (un vert très pâle reste clair)
+      else if (h >= 170 && h < 250) v += L >= 130 ? 55 : -60; // bleu ciel / bleu nuit
+      else if (h >= 15 && h < 40) v += L >= 150 && sat < 0.75 ? 15 : L >= 150 ? -10 : -70; // pêche / orange / marron
+      else if (h >= 250 && h < 300) v += L >= 160 ? 35 : -20; // lilas / violet
+      else v += L >= 175 && sat < 0.45 ? 35 : -55; // rose / rouge
+    } else v += L > 170 ? 25 : -20; // gris clair, gris foncé
+    return v;
+  }
+
+  /*
+   * Patchwork du Village : la toile entière en rangées de carreaux bord à bord (largeurs variées),
+   * chaque carreau taillé dans une zone de couleur (un même aplat peut resservir, recadré
+   * autrement), les plus « terre » dans les rangées du bas, les plus « ciel » en haut.
+   * patches : [{ src, sx, sy, sw, sh, wcm, hcm, color, drawing }].
+   */
+  function villagePatchwork(W, H, patches, R) {
+    if (!patches.length) return [];
+    const short = patches.map((p) => Math.min(p.wcm, p.hcm)).sort((a, b) => a - b);
+    const med = short[Math.floor(short.length / 2)];
+    const rows = Math.max(3, Math.round(H / clamp(med * 1.15, H / 9, H / 3.5)));
+    const rowH = H / rows;
+    const cells = [];
+    for (let r = 0; r < rows; r++) {
+      const ws = [];
+      let sum = 0;
+      while (sum < W) { const w = rowH * (0.75 + R() * 0.75); ws.push(w); sum += w; }
+      if (ws.length > 1 && sum - W > ws[ws.length - 1] * 0.5) { sum -= ws.pop(); }
+      let x = 0;
+      ws.forEach((w) => { const cw = (w * W) / sum; cells.push({ r, x, y: H - (r + 1) * rowH, w: cw, h: rowH }); x += cw; });
+    }
+    // autant de carreaux que de cases, pris régulièrement le long du dégradé (chaque aplat au moins une
+    // fois quand il y en a assez peu)
+    const byS = patches.map((p) => Object.assign({ s: skyness(p.ink || p.color) }, p)).sort((a, b) => a.s - b.s);
+    const pool = [];
+    const rep = Math.max(1, Math.ceil(cells.length / byS.length));
+    byS.forEach((p) => { for (let i = 0; i < rep; i++) pool.push(p); });
+    const uses = cells.map((_, i) => pool[Math.min(pool.length - 1, Math.floor(((i + 0.5) * pool.length) / cells.length))]);
+    // rangée par rangée, du bas vers le haut ; dans une rangée, ordre mélangé, sans deux fois le même côte à côte
+    const out = [];
+    let u = 0;
+    for (let r = 0; r < rows; r++) {
+      const row = cells.filter((c) => c.r === r);
+      const mine = shuffle(uses.slice(u, u + row.length), R); u += row.length;
+      for (let i = 1; i < mine.length; i++) if (mine[i] === mine[i - 1]) { const j = mine.findIndex((q, k) => k > i && q !== mine[i - 1] && q !== mine[i]); if (j > 0) [mine[i], mine[j]] = [mine[j], mine[i]]; }
+      row.forEach((c, i) => {
+        const p = mine[i];
+        // le plus grand recadrage de l'aplat à la proportion de la case, posé au hasard dedans
+        const kp = p.sw / p.wcm; // pixels par cm de l'aplat
+        let cw = Math.min(p.wcm, p.hcm * (c.w / c.h)), ch = (cw * c.h) / c.w;
+        const sw = cw * kp, sh = ch * kp;
+        const sx = p.sx + R() * Math.max(0, p.sw - sw), sy = p.sy + R() * Math.max(0, p.sh - sh);
+        // (un léger débord : pas de jour entre deux carreaux)
+        out.push({ kind: 'bg', patch: true, sky: p.s, src: p.src, drawing: p.drawing, sx, sy, sw, sh, x: c.x + c.w / 2, y: c.y + c.h / 2, w: c.w + 0.12, h: c.h + 0.12, rot: 0, flip: R() < 0.5, clip: null });
+      });
+    }
+    return out;
+  }
+
+  /*
+   * Village : devant le patchwork, une scène de vie de village. Ce qui vole (soleil, nuages) va au
+   * ciel ; tout le reste se tient debout sur trois lignes de sol, les plus grands sujets (maisons,
+   * arbres) au fond, les moyens au milieu, les plus petits (personnages, animaux, véhicules) devant.
+   * Une même échelle pour tous, choisie pour que chaque rangée tienne dans la largeur.
+   */
+  function village(W, H, o, R) {
+    const bg = villagePatchwork(W, H, o.patches || [], R);
+    const score = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 0.5 : 0) + Math.min(1, (p.wcm * p.hcm) / 400) * 0.5;
+    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
+    let chosen = o.pieces.slice().sort((a, b) => score(b) - score(a));
+    if (o.count) chosen = chosen.slice(0, Math.max(1, o.count));
+    else if (!o.everything) chosen = chosen.slice(0, Math.max(1, Math.round(chosen.length * (0.2 + 0.8 * t))));
+    // ce qui vole : décidé par Claude, ou, sans lui, un soleil (rond, jaune orangé, qui ne repose pas)
+    const sunLike = (p) => { const c = p.color || [0, 0, 0], h = hue(c), L = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2], r = p.wcm / p.hcm; return !p.ai && !p.grounded && h >= 28 && h <= 62 && L > 165 && r > 0.7 && r < 1.45; };
+    const flies = (p) => p.place === 'ciel' || sunLike(p);
+    const flying = chosen.filter(flies);
+    const standing = chosen.filter((p) => !flies(p)).sort((a, b) => b.hcm - a.hcm);
+    const n = standing.length;
+    const nRows = n <= 3 ? 1 : n <= 7 ? 2 : 3;
+    const lines = nRows === 1 ? [0.93] : nRows === 2 ? [0.74, 0.95] : [0.62, 0.79, 0.96];
+    const rows = lines.map(() => []);
+    standing.forEach((p, i) => rows[Math.min(nRows - 1, Math.floor((i * nRows) / Math.max(1, n)))].push(p));
+    // échelle commune : chaque rangée tient dans la largeur (un peu de chevauchement permis), les sujets
+    // du fond ne dépassent pas le haut du ciel ; au plus la taille permise (o.maxGrow, affiche)
+    let g = o.maxGrow || 1;
+    rows.forEach((row, r) => {
+      const sumW = row.reduce((a, p) => a + p.wcm, 0);
+      if (sumW) g = Math.min(g, (W * (0.96 + 0.08 * r)) / sumW);
+      const top = Math.max(0, ...row.map((p) => p.hcm));
+      if (top) g = Math.min(g, (H * lines[r] - H * 0.06) / top, (H * (r === 0 ? 0.5 : 0.36)) / top);
+    });
+    flying.forEach((p) => { g = Math.min(g, (H * 0.3) / p.hcm, (W * 0.4) / p.wcm); });
+    const item = (p, x, y, rot) => { p.placed = true; return { kind: 'piece', piece: p, x, y, w: p.wcm * g, h: p.hcm * g, rot: rot || 0, flip: false, scale: g }; };
+    const items = [];
+    // ciel : ce qui vole, sans se recouvrir, dans le haut de la toile
+    const placed = [];
+    flying.forEach((p) => {
+      const w = p.wcm * g, h = p.hcm * g;
+      let best = null;
+      for (let k = 0; k < 300; k++) {
+        const c = { x: w / 2 + 1 + R() * Math.max(0, W - w - 2), y: h / 2 + H * 0.03 + R() * Math.max(0, H * 0.36 - h), w, h };
+        const over = placed.reduce((a, q) => a + Math.max(0, Math.min(c.x + w / 2, q.x + q.w / 2) - Math.max(c.x - w / 2, q.x - q.w / 2)) * Math.max(0, Math.min(c.y + h / 2, q.y + q.h / 2) - Math.max(c.y - h / 2, q.y - q.h / 2)), 0);
+        if (!best || over < best.over) best = Object.assign(c, { over });
+        if (!over) break;
+      }
+      placed.push(best);
+      items.push(item(p, best.x, best.y, (R() - 0.5) * 0.08));
+    });
+    // rangées du fond vers l'avant ; grands et petits alternés, décalés d'une rangée à l'autre
+    rows.forEach((row, r) => {
+      if (!row.length) return;
+      const seq = shuffle(row, R);
+      const ws = seq.map((p) => p.wcm * g), sum = ws.reduce((a, b) => a + b, 0);
+      const free = W - sum;
+      const gap = free >= 0 ? free / seq.length : free / Math.max(1, seq.length - 1);
+      let x = free >= 0 ? gap * (r % 2 ? 0.25 : 0.75) : 0;
+      seq.forEach((p, i) => {
+        const w = ws[i], h = p.hcm * g;
+        items.push(item(p, clamp(x + w / 2, w * 0.3, W - w * 0.3), H * lines[r] - h / 2 + (R() - 0.5) * 0.6, (R() - 0.5) * 0.05));
+        x += w + gap;
+      });
+    });
+    return { bg, items };
+  }
+
   function paperLayer(W, H) {
     const c = paperTexture();
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan), 'village' (scène de village sur un patchwork de couleurs).
   // o.flat (atelier Impression) : le fond est un aplat parfaitement uni, sans coups de brosse
   function generate(o) {
     const comp = generateInner(o);
     if (o.flat) comp.paint = false;
     if (o.count && (comp.style === 'nuage' || comp.style === 'paysage') && !comp.bg.some((L) => L.panel)) relaxItems(comp);
-    if (o.count && !['galerie', 'cabinet', 'frise', 'scene'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
+    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
     return comp;
   }
 
@@ -1314,6 +1545,11 @@
     if (style === 'scene') {
       const sc = scene(W, H, o.textures, o.pieces, o, R);
       return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...sc.bg], items: sc.items, ground: o.ground || null, groundName: o.groundName || null, style, f: 1, scale: 1, kept: sc.kept, total: sc.total };
+    }
+    if (style === 'village') {
+      const v = village(W, H, o, R);
+      // sans aplat repéré, le fond uni choisi (ou la toile nue) reste seul derrière la scène
+      return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...v.bg], items: v.items, ground: o.ground || null, groundName: o.groundName || null, style, f: 1, scale: 1 };
     }
     if (style === 'cabinet') {
       const cab = cabinet(W, H, o.textures, o.pieces, o, R);
@@ -1761,5 +1997,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
+  window.Compose = { colorPatches, skyness, galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
 })();

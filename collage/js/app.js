@@ -2230,6 +2230,55 @@
     return { w: Math.round(w), h: Math.round(h), auto: true };
   }
 
+  // La page entière d'un dessin, préparée comme une page de fond (quel que soit son rôle) : le Village
+  // y taille ses carreaux de couleur, et une œuvre rouverte les y retrouve.
+  function pageTexture(d) {
+    const a = d.analysis;
+    if (!a.texture && a.page) a.texture = EX(d).textureFrom(a.page);
+    return a.texture || null;
+  }
+  // Village : les grandes zones de couleur des dessins, repérées une fois par dessin (en pixels de sa
+  // page de fond) : la page entière d'une page de fond, l'intérieur des sujets d'un dessin découpé
+  // (jamais le sol ou la table d'une photo, autour du dessin).
+  function patchRectsOf(d) {
+    const a = d.analysis, role = roleOf(d);
+    const key = `${role}|${(a.pieces || []).map((p) => (p.enabled === false ? 0 : p.canvas.width)).join(',')}`;
+    if (a.patchRects && a.patchRects.key === key) return a.patchRects.list;
+    const minPx = 2.2 / cmPerPx(d); // au moins 2,2 cm de côté, à taille réelle
+    let list = [];
+    if (role === 'texture') {
+      const t = pageTexture(d);
+      if (t) list = Compose.colorPatches(t.canvas, minPx);
+    } else if (role === 'cutout' && a.page) {
+      const mx = a.page.width * 0.015, my = a.page.height * 0.015; // (la page de fond est rognée d'autant : voir textureFrom)
+      (a.pieces || []).filter((p) => p.enabled !== false && p.src).forEach((p) => {
+        const kx = p.src.w / p.canvas.width, ky = p.src.h / p.canvas.height;
+        Compose.colorPatches(p.canvas, minPx / kx).forEach((r) => {
+          const x = p.src.x + r.x * kx - mx, y = p.src.y + r.y * ky - my;
+          if (x >= 0 && y >= 0) list.push({ x, y, w: r.w * kx, h: r.h * ky, color: r.color, ink: r.ink });
+        });
+      });
+    }
+    a.patchRects = { key, list };
+    return list;
+  }
+  function villagePatches(o) {
+    const kb = printMode() ? state.bgScale || o.scale : o.scale;
+    const out = [];
+    state.drawings.forEach((d) => {
+      const rects = patchRectsOf(d);
+      if (!rects.length) return;
+      const t = pageTexture(d);
+      if (!t) return;
+      const c = cmPerPx(d) * kb;
+      rects.forEach((r) => {
+        const sw = Math.min(r.w, t.canvas.width - r.x), sh = Math.min(r.h, t.canvas.height - r.y);
+        if (sw > 4 && sh > 4) out.push({ src: t.canvas, drawing: d, sx: r.x, sy: r.y, sw, sh, wcm: sw * c, hcm: sh * c, color: r.color, ink: r.ink });
+      });
+    });
+    return out;
+  }
+
   // Les styles proposés à chaque fois, avec tous les dessins.
   const STYLES = [
     { id: 'paysage', name: tr('Paysage'), hint: tr('ciel, milieu, sol') },
@@ -2239,6 +2288,7 @@
     { id: 'courtepointe', name: tr('Courtepointe'), hint: tr('patchwork, un médaillon par carreau') },
     { id: 'cabinet', name: tr('Cabinet de curiosités'), hint: tr('les plus beaux, en rangées') },
     { id: 'galerie', name: tr('Galerie'), hint: tr('grille de cadres, un dessin par case') },
+    { id: 'village', name: tr('Village'), hint: tr('scène de village sur un patchwork de couleurs') },
   ];
 
   // La toile Cultura la plus proche d'un format calculé par un style (même orientation) : surface et
@@ -2258,10 +2308,12 @@
   }
 
   // la Galerie (grille de cases, dessins réduits) n'a de sens qu'en tableau imprimé ; en collage, elle
-  // n'est pas proposée (sauf pour une œuvre rouverte dans ce style, qui garde sa place)
+  // n'est pas proposée (sauf pour une œuvre rouverte dans ce style, qui garde sa place) ;
+  // le Village (fond taillé dans les zones de couleur des dessins, que les originaux ne pourraient pas
+  // fournir en plus de leurs sujets) aussi
   function activeStyles() {
-    const keepGallery = printMode() || (state.pinned && state.pinned.style === 'galerie');
-    return keepGallery ? STYLES : STYLES.filter((st) => st.id !== 'galerie');
+    const keep = (id) => printMode() || (state.pinned && state.pinned.style === id);
+    return STYLES.filter((st) => (st.id !== 'galerie' && st.id !== 'village') || keep(st.id));
   }
   function regenerate(opts) {
     if (!state.drawings.length) return;
@@ -2288,6 +2340,7 @@
       if (st.id === 'galerie' && (o.format.auto || advised)) so.format = own(galleryFormat(o));
       if (st.id === 'frise' && (o.format.auto || advised)) so.format = own(friseFormat(o));
       if (st.id === 'nuage' && (o.format.auto || advised)) so.format = own(nuageFormat(o));
+      if (st.id === 'village') so.patches = villagePatches(o);
       // Frise et Nuage montrent tous les dessins (ou presque) : le curseur de densité part plus haut
       if (st.id === 'frise' || st.id === 'nuage') so.densityT = Math.max(so.densityT, 0.8);
       if (st.id === 'scene' && state.sceneLayout) { so.sceneLayout = state.sceneLayout; if (o.format.auto || advised) so.format = own(state.sceneLayout.format); }
@@ -5491,7 +5544,7 @@ Réponds uniquement avec ce JSON :
       if (p.copyOf) it.copy = { edit: p.canvas !== orig.canvas ? await editOf(p, p.drawing) : null };
       items.push(it);
     }
-    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L) }, pick(L, ['paper', 'panel', 'scrap', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
+    const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L) }, pick(L, ['paper', 'panel', 'scrap', 'patch', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'frameColor', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
@@ -5791,7 +5844,8 @@ Réponds uniquement avec ce JSON :
       const d = state.drawings[L.d];
       if (!d) return;
       ensureMaterial(d);
-      const t = d.analysis.texture;
+      // (les carreaux du Village viennent aussi des dessins découpés)
+      const t = d.analysis.texture || (L.patch ? pageTexture(d) : null);
       if (!t) return;
       comp.bg.push(Object.assign({ kind: 'bg' }, L, { drawing: d, src: t.canvas, sw: L.sw || t.canvas.width, sh: L.sh || t.canvas.height, sx: L.sx || 0, sy: L.sy || 0 }));
     });

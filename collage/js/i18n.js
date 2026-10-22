@@ -502,6 +502,8 @@
     'les plus beaux, en rangées': 'the finest, in rows',
     'Galerie': 'Gallery',
     'grille de cadres, un dessin par case': 'grid of frames, one drawing per cell',
+    'Village': 'Village',
+    'scène de village sur un patchwork de couleurs': 'a village scene on a colour patchwork',
     '{0} sur {1}': '{0} of {1}',
     '{0} des {1} dessins, les plus {2}': '{0} of the {1} drawings, the {2}',
     'adaptés': 'best suited',
