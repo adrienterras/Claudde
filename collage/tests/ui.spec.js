@@ -1880,7 +1880,7 @@ test.describe('Barre d’outils sur iPad', () => {
   test('trop étroite pour ses libellés : icônes seules, tous les boutons visibles (Retirer compris) ; libellés sur grand écran', async ({ page }) => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.setViewportSize({ width: 1180, height: 820 }); // iPad Air en paysage
-    await page.goto('index.html?mode=impression'); // (Agrandir et Réduire en plus)
+    await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(require('./helpers').fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
@@ -1890,11 +1890,11 @@ test.describe('Barre d’outils sur iPad', () => {
       return { icons: t.classList.contains('icons'), inside: btns.every((b) => { const q = b.getBoundingClientRect(); return q.left >= r.left - 1 && q.right <= r.right + 1; }), del: btns.some((b) => b.dataset.act === 'del'), scroll: t.scrollWidth - t.clientWidth };
     });
     let f = await fits();
-    expect(f).toEqual({ icons: true, inside: true, del: true, scroll: 0 });
-    await page.setViewportSize({ width: 1024, height: 1366 }); // iPad Pro en portrait
+    expect(f.inside && f.del && f.scroll === 0).toBe(true);
+    await page.setViewportSize({ width: 1024, height: 1366 }); // iPad Pro en portrait : icônes seules
     await page.waitForTimeout(200);
     f = await fits();
-    expect(f.inside && f.scroll === 0).toBe(true);
+    expect(f).toEqual({ icons: true, inside: true, del: true, scroll: 0 });
     await page.setViewportSize({ width: 1600, height: 1000 }); // grand écran : les libellés reviennent
     await page.waitForTimeout(200);
     f = await fits();

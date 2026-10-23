@@ -29,14 +29,14 @@ test.describe('Compositions', () => {
       await page.waitForTimeout(200);
       const active = await page.evaluate(() => AtelierGribouille.state.comp.style);
       expect(active).toBe(id);
-      await expect(page.locator('[data-act="bigger"]')).toBeHidden();
     }
-    // tableau imprimé : la Galerie (avec ses boutons agrandir / réduire) et le Village s'ajoutent
+    // tableau imprimé : la Galerie et le Village s'ajoutent (plus de boutons agrandir / réduire : la
+    // poignée carrée sur l'œuvre suffit)
     await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     expect(await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id))).toEqual([...STYLES, 'galerie', 'village']);
     await app.select('galerie');
     await page.waitForTimeout(200);
-    await expect(page.locator('[data-act="bigger"]')).toBeVisible();
+    await expect(page.locator('#toolbar [data-act="bigger"], #toolbar [data-act="smaller"]')).toHaveCount(0);
     // retour au collage : la Galerie disparaît, la proposition affichée reste valable
     await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     expect(await page.evaluate(() => AtelierGribouille.state.proposals.some((p) => p.style.id === 'galerie'))).toBe(false);

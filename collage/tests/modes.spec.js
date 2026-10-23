@@ -189,20 +189,21 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.evaluate(() => document.querySelector('#ground button[data-hex="auto"]').click());
     await page.waitForTimeout(400);
     await expect(page.locator('#export-info')).toContainText('tableau imprimé de 29,7 × 21 cm');
-    // chaque dessin s'agrandit ou se réduit à la main : boutons (10 %), puis poignée carrée
+    // chaque dessin s'agrandit ou se réduit à la main : touches + et − (10 %), puis poignée carrée (plus de
+    // boutons dans la barre d'outils)
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
-    await expect(page.locator('#toolbar [data-act="bigger"]')).toBeVisible();
+    await expect(page.locator('#toolbar [data-act="bigger"]')).toHaveCount(0);
     const w0 = await page.evaluate(() => AtelierGribouille.state.selected.w);
-    await page.locator('#toolbar [data-act="bigger"]').click();
+    await page.keyboard.press('=');
     expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w0 * 1.1, 4);
-    await page.locator('#toolbar [data-act="smaller"]').click();
+    await page.keyboard.press('-');
     expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w0, 4);
     // une page de fond agrandie : son contour déchiré grandit avec elle (rien de la page n'est masqué)
     const ext = () => page.evaluate(() => { const L = AtelierGribouille.state.selected; const xs = L.clip.map((q) => q[0]), ys = L.clip.map((q) => q[1]); return { w: L.w, h: L.h, cw: Math.max(...xs) - Math.min(...xs), ch: Math.max(...ys) - Math.min(...ys) }; });
     const hasClip = await page.evaluate(() => { const A = AtelierGribouille, L = A.state.comp.bg.find((q) => q.clip && q.panel); if (!L) return false; A.state.selected = L; A.render(); return true; });
     expect(hasClip).toBe(true);
     const e0 = await ext();
-    for (let i = 0; i < 4; i++) await page.locator('#toolbar [data-act="bigger"]').click();
+    for (let i = 0; i < 4; i++) await page.keyboard.press('=');
     const e1 = await ext();
     expect(e1.w).toBeGreaterThan(e0.w * 1.3);
     expect(e1.cw / e1.w).toBeCloseTo(e0.cw / e0.w, 3);
@@ -220,7 +221,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(after.sized).toBe(true);
     // la même page, non retouchée, aurait repris la taille de la proposition (plus petite)
     expect(before.other.every((w) => w < before.w)).toBe(true);
-    for (let i = 0; i < 4; i++) await page.locator('#toolbar [data-act="smaller"]').click();
+    for (let i = 0; i < 4; i++) await page.keyboard.press('-');
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     const h = await page.evaluate(() => {
       const A = AtelierGribouille, L = A.state.selected, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
@@ -435,7 +436,11 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => AtelierGribouille.scale())).toBe(1);
     // taille réelle : pas d'agrandissement à la main (sauf en Galerie)
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
-    if ((await page.evaluate(() => AtelierGribouille.state.comp.style)) !== 'galerie') await expect(page.locator('#toolbar [data-act="bigger"]')).toBeHidden();
+    if ((await page.evaluate(() => AtelierGribouille.state.comp.style)) !== 'galerie') {
+      const w = await page.evaluate(() => AtelierGribouille.state.selected.w);
+      await page.keyboard.press('=');
+      expect(await page.evaluate(() => AtelierGribouille.state.selected.w)).toBeCloseTo(w, 6);
+    }
     await page.evaluate(() => { AtelierGribouille.state.selected = null; AtelierGribouille.render(); });
     await page.evaluate(() => { const s = document.getElementById('export-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await expect(page.locator('#guide-box')).toBeVisible();

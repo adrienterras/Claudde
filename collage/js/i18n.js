@@ -293,10 +293,6 @@
     'Dupliquer': 'Duplicate',
     'Retoucher la découpe (double-clic)': 'Edit the cut-out (double-click)',
     'Retoucher': 'Edit',
-    'Agrandir de 10 % (touche +)': 'Enlarge by 10% (+ key)',
-    'Agrandir': 'Enlarge',
-    'Réduire de 10 % (touche −)': 'Shrink by 10% (− key)',
-    'Réduire': 'Shrink',
     'Retirer (Suppr)': 'Remove (Del)',
     'Retirer': 'Remove',
     'Zoom sur l’œuvre': 'Zoom on the artwork',
@@ -642,6 +638,7 @@
     'Mon compte': 'My account',
     'Connecté avec {0}{1}.': 'Signed in with {0}{1}.',
     'Développer': 'Expand',
+    'Réduire': 'Collapse',
 
     // ---------- guide.js (PDF) ----------
     'ATELIER GRIBOUILLE · GUIDE DE CRÉATION': 'ATELIER GRIBOUILLE · MAKING-OF GUIDE',

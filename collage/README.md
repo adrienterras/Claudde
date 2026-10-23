@@ -55,7 +55,8 @@ cd collage && python3 -m http.server 8000
      feuille peinte, couleur franche, larges aplats calmes, ou rôle « fond » donné par Claude) se
      collent en fond d'office, toutes (`printBg` dans `planCoverage`) ; les autres pages sont des
      découpes ; le rôle « fond » se choisit aussi à la main. Chaque pièce posée s'agrandit ou se réduit à la
-     main (poignée carrée au coin haut droit, boutons Agrandir / Réduire de 10 %, touches + et −),
+     main (poignée carrée au coin haut droit, touches + et − de 10 % ; plus de boutons Agrandir /
+     Réduire dans la barre d'outils : on agrandit directement sur l'œuvre),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
      Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et
@@ -360,7 +361,7 @@ cd collage && python3 -m http.server 8000
      redessiné en direct pendant le geste ; le **mode « Fond seul »** (bouton près du zoom) reste
      pour voir les pages sans les découpes : on les déplace, tourne, met devant ou derrière, retourne
      ou retire à sa guise ; « Tout voir » ramène les découpes. Les pages restent entières et ne servent qu'une fois (pas de duplication).
-     Une page que l'on redimensionne (poignée carrée ou boutons Agrandir / Réduire, en Affiche et en
+     Une page que l'on redimensionne (poignée carrée ou touches + et −, en Affiche et en
      Galerie) passe devant les autres pages : agrandie sous elles, on ne verrait que son cadre. Les pages
      retouchées à la main (déplacées, tournées, retournées, redimensionnées) gardent leur place et leur
      taille quand la composition est refaite (curseur de densité, format, nouveau dessin) ; les autres

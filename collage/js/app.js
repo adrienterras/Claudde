@@ -3509,19 +3509,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function updateToolbar() {
     updateHistoryButtons();
     const L = state.selected;
-    const sizable = resizable();
     document.querySelectorAll('#toolbar button').forEach((b) => {
       if (b.classList.contains('history')) return;
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
-      // agrandir / réduire : en Galerie et dans l'atelier Impression
-      if (b.classList.contains('gallery-only')) b.hidden = !sizable;
     });
+    // (agrandir / réduire n'ont plus de boutons : la poignée carrée sur l'œuvre, et les touches + et −)
     fitToolbar();
     editHint();
   }
   // La barre d'outils tient toujours en entier : quand ses libellés la feraient déborder (iPad, fenêtre
-  // étroite, Agrandir et Réduire en plus dans l'atelier Impression), elle passe en icônes seules, comme
+  // étroite), elle passe en icônes seules, comme
   // sur téléphone ; sinon Retirer, au bout, sortait de la barre sans qu'on le voie.
   function fitToolbar() {
     const tb = $('toolbar');
