@@ -318,7 +318,8 @@
     if (!state.drawings.length && !state.restoring) setGround(undefined); // et la couleur du fond, automatique
     notice('');
     setProgress(0, 1, tr('Lecture des fichiers…'));
-    const known = new Set(state.drawings.map((d) => d.fileKey).filter(Boolean));
+    // (les sujets d'une feuille découpée en plusieurs dessins gardent la clé de son fichier : sheetKey)
+    const known = new Set(state.drawings.flatMap((d) => [d.fileKey, d.sheetKey]).filter(Boolean));
     const twins = [];
     for (let fi = 0; fi < files.length; fi++) {
       const f = files[fi];
@@ -385,12 +386,16 @@
           d.savedPack = { sig: [analysis.page].concat((analysis.pieces || []).map((q) => q.canvas)), id: sv.pack, page: { w: sv.page.w, h: sv.page.h, data: sv.page.data }, atlases: sv.atlases.map((x) => ({ w: x.w, h: x.h, data: x.data })), at: sv.pieces.map((q) => q.at) };
         }
         if (!d.original) Extract.release(src.canvas);
-        preparePieces(analysis.pieces, d);
-        loadSize(d);
-        loadOrient(d);
-        loadTone(d);
-        if (sizes && sizes[d.name]) { d.sizeCm = clampCm(sizes[d.name]); d.sizeMode = 'manual'; }
-        state.drawings.push(d);
+        // une page à plusieurs sujets devient un dessin par sujet (voir splitSheet)
+        const parts = !sv && !replacing && !state.restoring && !(opts && opts.sample) ? await splitSheet(d) : null;
+        (parts || [d]).forEach((x) => {
+          preparePieces(x.analysis.pieces, x);
+          loadSize(x);
+          loadOrient(x);
+          loadTone(x);
+          if (sizes && sizes[x.name]) { x.sizeCm = clampCm(sizes[x.name]); x.sizeMode = 'manual'; }
+          state.drawings.push(x);
+        });
       } catch (e) {
         console.error(e);
         notice(tr`Le dessin « ${pages[i].name} » n’a pas pu être analysé (image trop grande pour cet appareil ?).`);
@@ -423,6 +428,67 @@
   }
 
   /*
+   * Une page qui porte plusieurs sujets (une planche en cases, une feuille à plusieurs personnages)
+   * n'entre pas dans la liste comme une seule feuille : chaque sujet y devient un dessin à part, que
+   * l'on pose sur l'œuvre ou retire comme les autres. Le dessin d'un sujet est une image à lui : la
+   * zone de la page autour de sa découpe, le reste de la feuille remplacé par la couleur du papier ;
+   * sa découpe est celle trouvée sur la page. Il garde l'échelle de la feuille (sheet : la taille de
+   * la feuille est estimée pour elle, puis chaque sujet en prend sa part, voir estimateSizes).
+   * Les fragments (traits fins, miettes) ne deviennent pas des dessins. null : la page reste entière.
+   */
+  async function splitSheet(d) {
+    const a = d.analysis, ps = a.pieces || [];
+    if (a.kind !== 'cutout' || ps.length < 2) return null;
+    const page = a.page, long = Math.max(page.width, page.height);
+    const ar = (p) => Math.min(p.src.w / p.src.h, p.src.h / p.src.w);
+    const keep = ps.filter((p) => p.frac > 0.002 && p.colorful >= 0.04 && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.08 * long);
+    if (keep.length < 2) return null;
+    const sheet = { origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
+    const paper = a.paper || [250, 250, 250];
+    const base = d.name.replace(/\.[a-z0-9]+$/i, '');
+    const out = [];
+    // dans l'ordre de lecture : de haut en bas, puis de gauche à droite
+    keep.sort((p, q) => (Math.abs(p.src.y - q.src.y) > 0.15 * long ? p.src.y - q.src.y : p.src.x - q.src.x));
+    for (let i = 0; i < keep.length; i++) {
+      const p = keep[i], m = Math.round(0.015 * long);
+      const x0 = Math.max(0, Math.floor(p.src.x - m)), y0 = Math.max(0, Math.floor(p.src.y - m));
+      const x1 = Math.min(page.width, Math.ceil(p.src.x + p.src.w + m)), y1 = Math.min(page.height, Math.ceil(p.src.y + p.src.h + m));
+      const w = x1 - x0, h = y1 - y0;
+      // le sujet tel qu'il est sur la page, là où sa découpe est opaque, sur la couleur du papier
+      const subj = Extract.makeCanvas(w, h), sx = subj.getContext('2d');
+      sx.drawImage(page, x0, y0, w, h, 0, 0, w, h);
+      sx.globalCompositeOperation = 'destination-in';
+      sx.drawImage(p.canvas, p.src.x - x0, p.src.y - y0, p.src.w, p.src.h);
+      const img = Extract.makeCanvas(w, h), ix = img.getContext('2d');
+      ix.fillStyle = `rgb(${paper[0]}, ${paper[1]}, ${paper[2]})`;
+      ix.fillRect(0, 0, w, h);
+      ix.drawImage(subj, 0, 0);
+      Extract.release(subj);
+      const name = `${base} — ${i + 1}`;
+      const blob = await toBlob(img, 'image/png');
+      const file = new File([blob], `${name}.png`, { type: 'image/png' });
+      const piece = Object.assign({}, p, { src: Object.assign({}, p.src, { x: p.src.x - x0, y: p.src.y - y0 }), frac: Math.min(1, (p.frac * page.width * page.height) / (w * h)) });
+      const k = Math.max(w, h) / d.srcLong; // part de la feuille (en pixels de travail)
+      out.push(Object.assign({}, d, {
+        id: ++state.seq, name, thumb: thumbOf(img),
+        analysis: { page: img, paper, texture: null, kind: 'cutout', paperFrac: a.paperFrac, pieces: [piece], cut: a.cut },
+        original: img, photo: null, photoMode: 'auto', photoDebug: null,
+        source: { file, index: 0 }, fileKey: await fileKey(file),
+        srcLong: Math.max(w, h), origLong: Math.round(d.origLong * k), origShort: Math.max(1, Math.round(d.origShort * k)),
+        physCm: null, pxLong: d.pxLong ? Math.round(d.pxLong * k) : null,
+        sheet, sheetK: k, sheetKey: d.fileKey || null,
+      }));
+      out[out.length - 1].base = out[out.length - 1].analysis;
+    }
+    // la feuille entière n'est plus gardée
+    ps.forEach((p) => { if (!keep.includes(p)) Extract.release(p.canvas); });
+    if (d.original && d.original !== page) Extract.release(d.original);
+    Extract.release(page);
+    return out;
+  }
+
+  /*
+   * Taille réelle des feuilles.  /*
    * Taille réelle des feuilles.
    * Sans information physique, on suppose que les scans ont été faits à une distance
    * comparable : la taille en pixels est alors proportionnelle à la taille de la feuille.
@@ -430,7 +496,10 @@
    * standard le plus proche. L'utilisateur peut corriger dessin par dessin.
    */
   function estimateSizes() {
-    const unknown = state.drawings.filter((d) => !d.physCm);
+    // les sujets d'une même feuille (splitSheet) : la feuille est estimée comme une page, à leur place
+    const sheets = [...new Set(state.drawings.filter((d) => d.sheet).map((d) => d.sheet))];
+    const pages = state.drawings.filter((d) => !d.sheet).concat(sheets);
+    const unknown = pages.filter((d) => !d.physCm);
     const longs = unknown.map((d) => d.origLong).sort((a, b) => a - b);
     const median = longs.length ? longs[Math.floor(longs.length / 2)] : 1;
     // Étalonnage : les tailles saisies à la main sur des scans sans résolution connue servent de référence
@@ -446,7 +515,7 @@
       const med = refs[Math.floor(refs.length / 2)];
       if (refs.every((v) => Math.abs(v / med - 1) < 0.15)) calib = med;
     }
-    state.drawings.forEach((d) => {
+    pages.forEach((d) => {
       d.uncertain = false;
       if (d.sizeMode !== 'auto') return;
       if (d.physCm) { d.sizeCm = d.physCm; return; }
@@ -463,6 +532,13 @@
       // Photo prise au téléphone (dessin posé sur un sol, une table) : le nombre de pixels dépend de la
       // distance de prise de vue, pas de la feuille. On reste entre A5 et A3 et on demande confirmation.
       if (d.photo && !calib) { d.sizeCm = Math.min(42, Math.max(15, d.sizeCm)); d.uncertain = true; }
+    });
+    // chaque sujet d'une feuille en prend sa part, à la même échelle
+    state.drawings.forEach((d) => {
+      if (!d.sheet) return;
+      d.uncertain = d.sizeMode === 'auto' && d.sheet.uncertain;
+      d.calibrated = d.sheet.calibrated;
+      if (d.sizeMode === 'auto') d.sizeCm = Math.round(d.sheet.sizeCm * d.sheetK * 10) / 10;
     });
   }
 
@@ -6035,6 +6111,7 @@ Réponds uniquement avec ce JSON :
         saved,
         cut: d.cutPrefs || null,
         crop: d.crop || null,
+        sheetKey: d.sheetKey || null,
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
@@ -6321,6 +6398,7 @@ Réponds uniquement avec ce JSON :
       const d = state.drawings[i];
       if (!d) continue;
       d.ai = sd.ai || null;
+      d.sheetKey = sd.sheetKey || null;
       // la découpe apprise au moment de la sauvegarde : le dessin est réanalysé avec, pour retrouver
       // les mêmes pièces (les retouches y sont rejouées par rang)
       if (sd.saved) {

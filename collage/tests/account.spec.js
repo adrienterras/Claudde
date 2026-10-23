@@ -133,7 +133,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     // des fichiers déposés sans compte : importés tout de suite, à la place de l'exemple
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#account-section')).toBeHidden();
     // connecté ensuite : l'indication disparaît
     await page.locator('#acc-open').click();
@@ -184,14 +184,14 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await waitDraft(page, 3);
+    await waitDraft(page, 4);
     const w1 = await page.evaluate(() => AtelierGribouille.state.workId);
     // envoi sans attendre le délai : une ligne marquée « œuvre », à l'identifiant de l'œuvre
     await page.evaluate(() => AtelierGribouille.syncCloud());
-    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work && r.meta.drawings.length === 3), w1);
-    // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques, dans le dossier de l'œuvre
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work && r.meta.drawings.length === 4), w1);
+    // chaque dessin (page-two.png en donne deux) : son image, sa page de travail et (dessins découpés) la planche de ses masques, dans le dossier de l'œuvre
     const up1 = await page.evaluate((id) => window.__fake.calls.filter((c) => c[0] === 'upload').map((c) => c[1].split('/')[1] === id), w1);
-    expect(up1.length).toBe(8);
+    expect(up1.length).toBe(11);
     expect(up1.every(Boolean)).toBe(true);
     await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
     // un changement repart, sans renvoyer les images, dans la même ligne
@@ -202,31 +202,31 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForTimeout(3500);
     await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForFunction((a) => window.__fake.db.rows.find((r) => r.id === a.id).meta.comp.style === a.st, { id: w1, st: style2 });
-    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(8);
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(11);
     expect(await page.evaluate(() => window.__fake.db.rows.length)).toBe(1);
     // une deuxième œuvre : la première est rangée, rien n'est effacé
     await page.locator('#new-work').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
     await page.setInputFiles('#file', ['page-two.png'].map(fixture));
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 1 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await waitDraft(page, 1);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 2);
     const w2 = await page.evaluate(() => AtelierGribouille.state.workId);
     expect(w2).not.toBe(w1);
     await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForFunction(() => window.__fake.db.rows.filter((r) => r.meta.work).length === 2);
     await openStep(page, 'saved-section');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
-    await expect(page.locator('#saved-list .saved.current .saved-meta')).toContainText('1 dessins');
+    await expect(page.locator('#saved-list .saved.current .saved-meta')).toContainText('2 dessins');
     await expect(page.locator('#saved-list .saved-tag')).not.toContainText(['sur cet appareil']);
     // un autre appareil (rien en local) : la plus récente se rouvre d'elle-même, les deux sont dans la liste
     await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
     await page.reload();
-    await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 1 && document.getElementById('progress').hidden, w2, { timeout: 120000 });
+    await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, w2, { timeout: 120000 });
     await openStep(page, 'saved-section');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
     // l'autre se rouvre depuis le compte, telle qu'elle était
     await page.locator('#saved-list .saved:not(.current)').click();
-    await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, w1, { timeout: 120000 });
+    await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 4 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, w1, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style2);
     // rouverte telle quelle : rien ne repart dans le compte (ni fichier, ni nouvelle version)
     const t1 = await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, w1);
@@ -250,7 +250,7 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await waitDraft(page, 2);
+    await waitDraft(page, 3);
     await page.evaluate(() => AtelierGribouille.syncCloud());
     const id = await page.evaluate(() => AtelierGribouille.state.workId);
     await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), id);
@@ -311,7 +311,7 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'lent@example.org', 'Rouge-Soleil-42', 'Lent');
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await waitDraft(page, 2);
+    await waitDraft(page, 3);
     await openStep(page, 'saved-section');
     // le compte ne répond pas (réseau mobile) : l'œuvre de ce navigateur est là, avec un mot
     await page.evaluate(() => { window.__list = window.Account.cloud.list; window.Account.cloud.list = () => new Promise(() => {}); });
@@ -420,7 +420,7 @@ test.describe('Comptes utilisateurs', () => {
     expect(await rows()).toEqual([{ name: await page.locator('#cart .cart-item b').first().textContent(), qty: 1, finish: 'cadre', size: '50x70' }]); // (cadre par défaut d'une œuvre imprimée passée de la toile à l'impression)
     // (hors l'œuvre elle-même, qui a son propre dossier)
     const cartUploads = () => page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] !== AtelierGribouille.state.workId).length);
-    expect(await cartUploads()).toBe(6);
+    expect(await cartUploads()).toBe(9);
     // la quantité change : le compte suit
     await page.locator('#cart .cart-item [data-qty="1"]').click();
     await expect.poll(async () => (await rows())[0].qty).toBe(2);
@@ -475,7 +475,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#auth-submit').click();
     await expect(page.locator('#cart .cart-status')).toContainText('prête', { timeout: 60000 });
     const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] !== AtelierGribouille.state.workId).length);
-    expect(uploads).toBe(6); // les deux dessins de la composition commandée (image, page, masques), envoyés une seule fois (hors l'œuvre elle-même)
+    expect(uploads).toBe(9); // les trois dessins de la composition commandée (image, page, masques), envoyés une seule fois (hors l'œuvre elle-même)
     // l'article du panier, parti dans le compte à la connexion, est devenu la composition commandée (plus de « panier »)
     expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length)).toBe(0);
     const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));

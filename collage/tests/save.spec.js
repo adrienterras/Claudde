@@ -49,7 +49,7 @@ test.describe('Mes œuvres', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
-    await expect(page.locator('.saved .saved-meta')).toContainText('4 dessins');
+    await expect(page.locator('.saved .saved-meta')).toContainText('5 dessins'); // (page-two.png en donne deux)
     await expect(page.locator('.saved .saved-meta')).toContainText('Collage des originaux'); // le type d'œuvre
 
     await page.reload();
@@ -77,7 +77,7 @@ test.describe('Mes œuvres', () => {
     expect(after.first[0]).toBeCloseTo(before.first[0], 3);
     expect(after.first[1]).toBeCloseTo(before.first[1], 3);
     expect(after.first[2]).toBeCloseTo(before.first[2], 3);
-    expect(after.drawings).toBe(4);
+    expect(after.drawings).toBe(5);
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
 
@@ -101,7 +101,7 @@ test.describe('Mes œuvres', () => {
     await expect(page.locator('#saved-status')).toBeHidden(); // (le message de la réouverture d'avant est parti)
     await page.locator('#saved-list .saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
-    await page.waitForFunction(() => AtelierGribouille.state.comp && AtelierGribouille.state.drawings.length === 4 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.comp && AtelierGribouille.state.drawings.length === 5 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].x)).toBeCloseTo(before.first[0], 3);
     await page.locator('#saved-list .saved .saved-del').click();
     await page.locator('#saved-list .saved .saved-del').click();
@@ -302,21 +302,21 @@ test.describe('Réouverture fidèle des retouches', () => {
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
       q.onerror = () => res(null);
     }));
-    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 2) break; await page.waitForTimeout(500); }
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3) break; await page.waitForTimeout(500); }
     // arrivée depuis l'accueil : rien n'est importé, l'œuvre en cours est proposée
     await page.goto('index.html?nouveau');
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#draft-offer')).toBeVisible();
-    await expect(page.locator('#draft-offer span')).toContainText('2 dessins');
+    await expect(page.locator('#draft-offer span')).toContainText('3 dessins');
     await expect(page.locator('#draft-resume')).toBeVisible();
     await page.waitForTimeout(1500);
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
     // Reprendre : l'œuvre revient
     await page.locator('#draft-resume').click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // sans le paramètre, l'œuvre en cours est rouverte d'elle-même
     await page.goto('index.html');
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3, null, { timeout: 120000 });
   });
 
   test('atelier/?exemple (« Voir un exemple ») : les dessins d’exemple seuls, l’œuvre en cours seulement proposée', async ({ page }) => {
@@ -331,7 +331,7 @@ test.describe('Réouverture fidèle des retouches', () => {
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
       q.onerror = () => res(null);
     }));
-    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 2) break; await page.waitForTimeout(500); }
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3) break; await page.waitForTimeout(500); }
     await page.goto('index.html?exemple');
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.proposals && document.getElementById('progress').hidden && AtelierGribouille.state.drawings.length > 2, null, { timeout: 180000 });
     await page.waitForTimeout(1500);
@@ -344,9 +344,9 @@ test.describe('Réouverture fidèle des retouches', () => {
     await expect(page.locator('#sample-note')).toBeVisible();
     // l'exemple n'écrase pas l'œuvre en cours ; « Reprendre » la ramène à la place de l'exemple
     await page.waitForTimeout(3500);
-    expect((await draft()).drawings.length).toBe(2);
+    expect((await draft()).drawings.length).toBe(3);
     await page.locator('#draft-resume').click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.some((d) => d.sample))).toBe(false);
     await expect(page.locator('#sample-note')).toBeHidden();
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
@@ -384,21 +384,21 @@ test.describe('Réouverture fidèle des retouches', () => {
     expect(edited.opaque).toBeLessThan(auto.opaque * 0.95);
     // deuxième import : les nouveaux dessins sont lus à une résolution plus basse
     await page.setInputFiles('#file', [fixture('page-two.png'), fixture('scan-300dpi.jpg')]);
-    await ready(3);
+    await ready(4); // (page-two.png en donne deux)
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[1].srcLong)).toBeLessThan(edited.long);
     // le même fichier, réimporté, n'est pas ajouté une deuxième fois
     await page.setInputFiles('#file', [fixture('page-cutout.png')]);
     await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(3);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(4);
     const draft = () => page.evaluate(() => new Promise((res) => {
       const q = indexedDB.open('atelier-gribouille');
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
       q.onerror = () => res(null);
     }));
-    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3 && r.drawings[0].saved && r.drawings[0].saved.pieces.some((p) => p.edited)) break; await page.waitForTimeout(500); }
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 4 && r.drawings[0].saved && r.drawings[0].saved.pieces.some((p) => p.edited)) break; await page.waitForTimeout(500); }
     // rechargement : tout est relu d'un coup, chaque dessin à sa résolution d'origine
     await page.reload();
-    await ready(3);
+    await ready(4);
     await page.waitForTimeout(500);
     const back = await piece();
     expect(back.long).toBe(edited.long);
@@ -426,7 +426,7 @@ test.describe('Réouverture fidèle des retouches', () => {
     }));
     expect(await page.evaluate(() => !!window.ExtractLegacy)).toBe(false);
     await page.reload();
-    await ready(3);
+    await ready(4);
     expect(await page.evaluate(() => !!window.ExtractLegacy && AtelierGribouille.state.drawings.every((d) => d.extract === window.ExtractLegacy))).toBe(true);
     const relu = await piece();
     expect(relu.edited).toBe(false);

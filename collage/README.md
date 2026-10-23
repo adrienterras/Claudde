@@ -139,6 +139,14 @@ cd collage && python3 -m http.server 8000
      leur sens (`ruledLines` : un peu penchés, interrompus ou passant sous un sujet posé dessus) sont
      retirés de l'encre avant de regrouper — gardé seulement si les sujets se détachent vraiment ;
      la découpe fine les ignore aussi, et une telle feuille peut donner jusqu'à 16 pièces.
+     **Un dessin par sujet** : une page qui porte plusieurs sujets (planche en cases, feuille à
+     plusieurs personnages) entre dans la liste comme un dessin par sujet (`splitSheet`), que l'on
+     retire ou remet un par un (« + ») ; chaque dessin est la zone de la page autour de sa découpe,
+     le reste de la feuille à la couleur du papier, nommé « nom — 1 », « nom — 2 »… La feuille
+     entière n'est pas gardée. Les sujets gardent l'échelle de leur feuille : sa taille est estimée
+     comme pour une page, chacun en prend sa part (`sheet`, `sheetK`) ; la clé du fichier d'origine
+     (`sheetKey`) fait reconnaître la feuille si on la réimporte. Les fragments (traits fins,
+     miettes) ne deviennent pas des dessins. Une œuvre rouverte relit les dessins tels quels.
      Photographiée sur un mur ou une table de la couleur du papier (surface claire sans papier
      distinct), la feuille est traitée comme un scan : le retrait de surface ne garderait que l'encre
      et perdrait un short noir, donc les jambes (`removeSurface`, porte `feuille≈surface`). Les seuils

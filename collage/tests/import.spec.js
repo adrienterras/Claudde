@@ -4,11 +4,13 @@ test.describe('Import des scans', () => {
   test('images : chaque page est classée et les sections s’ouvrent', async ({ app }) => {
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'page-pale.png', 'photo-wood.png']);
     const ds = await app.drawings();
-    expect(ds.map((d) => d.name)).toEqual(['page-cutout.png', 'page-two.png', 'page-texture.png', 'page-pale.png', 'photo-wood.png']);
+    // page-two.png porte deux sujets : un dessin pour chacun
+    expect(ds.map((d) => d.name)).toEqual(['page-cutout.png', 'page-two — 1', 'page-two — 2', 'page-texture.png', 'page-pale.png', 'photo-wood.png']);
     const by = Object.fromEntries(ds.map((d) => [d.name, d]));
     expect(by['page-cutout.png'].kind).toBe('cutout');
     expect(by['page-cutout.png'].pieces).toBe(1);
-    expect(by['page-two.png'].pieces).toBe(2);
+    expect(by['page-two — 1'].pieces).toBe(1);
+    expect(by['page-two — 2'].pieces).toBe(1);
     expect(by['page-texture.png'].kind).toBe('texture');
     expect(by['photo-wood.png'].photo).toBe('bois');
     expect(by['photo-wood.png'].role).toBe('cutout'); // une photo détourée est toujours une découpe
@@ -16,7 +18,7 @@ test.describe('Import des scans', () => {
     expect(by['page-pale.png'].role).toBe('off');
     await expect(app.page.locator('#compose-section')).toBeVisible();
     await expect(app.page.locator('#export-section')).toBeVisible();
-    await expect(app.page.locator('#drawings-count')).toContainText('5');
+    await expect(app.page.locator('#drawings-count')).toContainText('6');
   });
 
   test('PDF : une page par dessin, nommée d’après le fichier', async ({ app }) => {

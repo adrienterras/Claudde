@@ -150,10 +150,10 @@ test.describe('Photographier un dessin', () => {
     await expect(page.locator('#camera')).toBeHidden();
     expect(await page.evaluate(() => document.getElementById('camera-video').srcObject)).toBeNull();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // (la photo d'essai porte deux sujets : un dessin pour chacun, détouré de la photo)
     const ds = await app.drawings();
-    expect(ds).toHaveLength(1);
-    expect(ds[0].name).toBe('photo-1.jpg');
-    expect(ds[0].photo).toBeTruthy();
+    expect(ds.map((d) => d.name)).toEqual(['photo-1 — 1', 'photo-1 — 2']);
+    expect(ds.every((d) => d.kind === 'cutout' && d.pieces === 1)).toBe(true);
   });
 
   test('vidéo qui ne démarre pas (iPhone en économie d’énergie) : message, relance, et l’appareil du téléphone en secours', async ({ app }) => {

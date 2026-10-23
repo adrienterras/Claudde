@@ -43,7 +43,7 @@ test.describe('Compositions', () => {
     expect(STYLES).toContain(await page.evaluate(() => AtelierGribouille.state.comp.style));
   });
 
-  test('la Galerie, densité au maximum, montre tous les dessins sans chevauchement', async ({ app }) => {
+  test('la Galerie, densité au maximum : une grille pleine, sans chevauchement', async ({ app }) => {
     const { page } = app;
     await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.page.locator('#density').fill('1.8');
@@ -60,8 +60,10 @@ test.describe('Compositions', () => {
       }
       return { kept: c.kept, total: c.total, items: c.items.length, bg: c.bg.length, overlaps, reduced: !!c.reduced };
     });
-    expect(g.kept).toBe(g.total);
+    // cinq dessins (page-two.png en donne deux) : la grille pleine la plus fournie, 2 × 2
+    expect(g.total).toBe(5);
     expect(g.items + g.bg).toBe(4);
+    expect(g.kept).toBe(4);
     expect(g.overlaps).toBe(0);
   });
 
@@ -179,7 +181,8 @@ test.describe('Compositions', () => {
   test('Courtepointe sans page de fond (atelier Impression) : les découpes en rangées pleine largeur, toute la toile couverte', async ({ app }) => {
     // la page peinte serait collée en fond : ici on la veut en découpe, pour une œuvre sans page de fond
     await app.page.evaluate(() => { const sec = document.getElementById('drawings-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
-    await app.page.locator('#drawings .thumb[data-i="2"]').click();
+    const k = await app.page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /page-texture/.test(d.name)));
+    await app.page.locator(`#drawings .thumb[data-i="${k}"]`).click();
     await app.page.locator('#detail [data-role="cutout"]').click();
     await app.page.waitForTimeout(300);
     // tous les dessins (curseur au maximum)

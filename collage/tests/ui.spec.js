@@ -86,7 +86,7 @@ test.describe('Interface', () => {
     // (le brouillon doit être écrit avant de recharger : c'est lui qui rouvre l'œuvre)
     await waitDraft(page);
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#drawings-section')).toHaveClass(/collapsed/);
     // un dessin cliqué sur l'œuvre : la section s'ouvre sur sa fiche
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
@@ -413,7 +413,7 @@ test.describe('Brouillon', () => {
     // le brouillon garde la bande de la Frise affichée
     await expect.poll(savedFormat, { timeout: 60000 }).toBe(band);
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe('frise');
     expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBe(false);
     // curseur au maximum : les autres propositions retrouvent leur toile, avec tous les dessins
@@ -422,12 +422,12 @@ test.describe('Brouillon', () => {
     const r = await page.evaluate(() => { const p = AtelierGribouille.state.proposals.find((x) => x.style.id === 'tournesol').comp; return { r: Math.max(p.W, p.H) / Math.min(p.W, p.H) }; });
     expect(r.r).toBeLessThan(1.8);
     await page.evaluate(() => AtelierGribouille.selectProposal(AtelierGribouille.state.proposals.findIndex((p) => p.style.id === 'tournesol')));
-    await expect(page.locator('#density-note')).toHaveText(/^2 sur 2/);
+    await expect(page.locator('#density-note')).toHaveText(/^3 sur 3/);
     // une toile choisie dans la liste, elle, est gardée à la réouverture
     await page.evaluate(() => { const f = document.getElementById('format'); f.value = '50x50'; f.dispatchEvent(new Event('change')); });
     await expect.poll(savedFormat, { timeout: 60000 }).toBe('50x50');
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => [AtelierGribouille.state.formatManual, document.getElementById('format').value, AtelierGribouille.state.comp.W])).toEqual([true, '50x50', 50]);
   });
 
@@ -444,7 +444,7 @@ test.describe('Brouillon', () => {
     await page.reload();
     // sans rien demander : l'œuvre revient, avec un message pendant la réouverture
     await expect(page.locator('#empty-resume')).toBeVisible();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
     await expect(page.locator('#draft-offer')).toBeHidden();
     await expect(page.locator('#empty-resume')).toBeHidden();
@@ -456,7 +456,7 @@ test.describe('Brouillon', () => {
     await waitDraft(page);
     await page.evaluate(() => sessionStorage.setItem('atelier-gribouille:after-auth', 'télécharger votre œuvre'));
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#draft-offer')).toBeHidden();
     await expect(page.locator('#save-status')).toContainText('télécharger votre œuvre');
     expect(await page.evaluate(() => sessionStorage.getItem('atelier-gribouille:after-auth'))).toBeNull();
@@ -493,7 +493,7 @@ test.describe('Brouillon', () => {
     await expect(page.locator('#draft-offer')).toContainText('n’a pas abouti');
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
     await page.locator('#draft-resume').click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#draft-offer')).toBeHidden();
     // repartir de zéro range l'œuvre dans Mes œuvres : elle n'est plus rouverte d'elle-même, mais reste dans la liste
     await page.locator('#new-work').click();
@@ -509,7 +509,7 @@ test.describe('Brouillon', () => {
     // et se rouvre d'un toucher, avec ses deux dessins
     await page.evaluate(() => { const sec = document.getElementById('saved-section'); if (sec.classList.contains('collapsed')) sec.querySelector('h2').click(); });
     await page.locator('#saved-list .saved').first().click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
   });
 });
@@ -588,9 +588,9 @@ test.describe('Dessins d’exemple', () => {
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(19);
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
-    expect(names).toEqual(['page-cutout.png', 'page-two.png']);
+    expect(names).toEqual(['page-cutout.png', 'page-two — 1', 'page-two — 2']);
     await expect(page.locator('#notice')).toContainText('exemple ont été retirés');
     // le nombre de dessins revient au réglage d'avant (tous les dessins, par défaut)
     expect(await page.locator('#density').inputValue()).toBe('1.8');
@@ -777,7 +777,7 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
       { name: 'IMG_0001.HEIC', mimeType: 'image/heic', buffer: fs.readFileSync(fixture('page-cutout.png')) },
       { name: 'page-two.png', mimeType: 'image/png', buffer: fs.readFileSync(fixture('page-two.png')) },
     ]);
-    await page.waitForFunction(() => AtelierGribouille.state.proposals && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && AtelierGribouille.state.drawings.length === 3 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // un dessin choisi dans la liste est sélectionné sur l'œuvre (cadre, poignée, barre d'outils)
     await page.locator('#drawings-section > h2').click();
     for (const i of [1, 0]) {
@@ -902,7 +902,7 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart .cart-item small')).toContainText('70 × 50');
     // revoir : la composition revient dans l'atelier, telle qu'ajoutée
     await page.locator('#cart [data-review]').click();
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style1);
     // (une copie : elle ne rejoint Mes œuvres qu'au premier changement ; l'œuvre rangée y est seule)
     await expect(page.locator('#cloud-sync-status')).toContainText('Copie');
@@ -1205,7 +1205,7 @@ test.describe('Découpe apprise des retouches', () => {
     expect(await page.evaluate(() => Extract.cutPrefs().close)).toBeLessThan(0.03);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('atelier.decoupe')).close)).toBeLessThan(0.03);
     // appliquée à l'autre dessin : ses pièces sont refaites, la retouche du premier est gardée
-    await expect(page.locator('#cut-learned button.link')).toHaveText(/1 autres? dessins?/);
+    await expect(page.locator('#cut-learned button.link')).toHaveText(/2 autres dessins/); // (page-two.png en donne deux)
     await page.locator('#cut-learned button.link').click();
     await expect(page.locator('#cut-learned')).toBeHidden();
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
@@ -1686,7 +1686,7 @@ test.describe('Couleur du fond', () => {
     for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.settings && r.settings.ground === hex) break; await page.waitForTimeout(500); }
     // rechargement : l'œuvre en cours se rouvre avec sa couleur
     await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.ground)).toBe(hex);
     // une nouvelle création : couleur automatique
     await page.goto('index.html?nouveau');
@@ -1770,10 +1770,10 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };
       q.onerror = () => res(null);
     }));
-    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3 && r.comp && r.comp.style === 'tournesol') break; await page.waitForTimeout(500); }
+    for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 4 && r.comp && r.comp.style === 'tournesol') break; await page.waitForTimeout(500); }
     // l'œuvre en cours est rouverte d'elle-même : composition épinglée telle quelle
     await page.goto('index.html');
-    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 4 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.waitForTimeout(500);
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, pinned: AtelierGribouille.state.pinned === c, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });
     expect(before.pinned).toBe(true);
