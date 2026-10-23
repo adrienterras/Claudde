@@ -506,8 +506,8 @@ cd collage && python3 -m http.server 8000
      pas la taille réelle),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
-     *Village* (tableau imprimé seulement, comme la Galerie : au fond, un patchwork bord à bord
-     des grandes zones de couleur des dessins — `Compose.colorPatches` cherche, famille de teintes
+     *Village* (tableau imprimé seulement, comme la Galerie : au fond, un patchwork bord à bord de
+     quelques grands carreaux (une quinzaine en 30 × 40) taillés dans les grandes zones de couleur des dessins — `Compose.colorPatches` cherche, famille de teintes
      par famille, les plus grands rectangles pleins d'un coloriage ou d'une peinture, sans jamais
      traverser un contour, dans les pages de fond et à l'intérieur des sujets découpés (jamais le
      sol d'une photo) ; les carreaux sont taillés dans la page de chaque dessin (`pageTexture`,

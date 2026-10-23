@@ -1321,33 +1321,40 @@
   }
 
   /*
-   * Patchwork du Village : la toile entière en rangées de carreaux bord à bord (largeurs variées),
+   * Patchwork du Village : la toile entière en quelques rangées de grands carreaux bord à bord (largeurs variées),
    * chaque carreau taillé dans une zone de couleur (un même aplat peut resservir, recadré
    * autrement), les plus « terre » dans les rangées du bas, les plus « ciel » en haut.
    * patches : [{ src, sx, sy, sw, sh, wcm, hcm, color, drawing }].
    */
   function villagePatchwork(W, H, patches, R) {
     if (!patches.length) return [];
-    const short = patches.map((p) => Math.min(p.wcm, p.hcm)).sort((a, b) => a - b);
-    const med = short[Math.floor(short.length / 2)];
-    const rows = Math.max(3, Math.round(H / clamp(med * 1.15, H / 9, H / 3.5)));
+    // peu de grands carreaux : des rangées d’un quart du petit côté de la toile (3 à 7 rangées), des
+    // carreaux d'une à deux fois la hauteur de leur rangée
+    const rows = clamp(Math.round(H / (Math.min(W, H) * 0.27)), 3, 7);
     const rowH = H / rows;
     const cells = [];
     for (let r = 0; r < rows; r++) {
       const ws = [];
       let sum = 0;
-      while (sum < W) { const w = rowH * (0.75 + R() * 0.75); ws.push(w); sum += w; }
+      while (sum < W) { const w = rowH * (0.95 + R() * 0.8); ws.push(w); sum += w; }
       if (ws.length > 1 && sum - W > ws[ws.length - 1] * 0.5) { sum -= ws.pop(); }
       let x = 0;
       ws.forEach((w) => { const cw = (w * W) / sum; cells.push({ r, x, y: H - (r + 1) * rowH, w: cw, h: rowH }); x += cw; });
     }
-    // autant de carreaux que de cases, pris régulièrement le long du dégradé (chaque aplat au moins une
-    // fois quand il y en a assez peu)
+    // autant de carreaux que de cases, le long du dégradé : les aplats rangés du bas vers le haut sont
+    // partagés en autant de tranches que de cases, et chaque tranche donne son plus grand aplat (le
+    // moins agrandi) ; s'il y a moins d'aplats que de cases, chacun sert plusieurs fois
     const byS = patches.map((p) => Object.assign({ s: skyness(p.ink || p.color) }, p)).sort((a, b) => a.s - b.s);
-    const pool = [];
-    const rep = Math.max(1, Math.ceil(cells.length / byS.length));
-    byS.forEach((p) => { for (let i = 0; i < rep; i++) pool.push(p); });
-    const uses = cells.map((_, i) => pool[Math.min(pool.length - 1, Math.floor(((i + 0.5) * pool.length) / cells.length))]);
+    const n = cells.length;
+    let uses;
+    if (byS.length >= n) {
+      uses = cells.map((_, i) => byS.slice(Math.floor((i * byS.length) / n), Math.floor(((i + 1) * byS.length) / n)).sort((a, b) => b.wcm * b.hcm - a.wcm * a.hcm)[0]);
+    } else {
+      const pool = [];
+      const rep = Math.ceil(n / byS.length);
+      byS.forEach((p) => { for (let i = 0; i < rep; i++) pool.push(p); });
+      uses = cells.map((_, i) => pool[Math.min(pool.length - 1, Math.floor(((i + 0.5) * pool.length) / n))]);
+    }
     // rangée par rangée, du bas vers le haut ; dans une rangée, ordre mélangé, sans deux fois le même côte à côte
     const out = [];
     let u = 0;

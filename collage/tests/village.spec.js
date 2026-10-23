@@ -74,6 +74,7 @@ test.describe('Village', () => {
     });
     expect(v.style).toBe('village');
     expect(v.patches).toBeGreaterThanOrEqual(8);
+    expect(v.patches).toBeLessThanOrEqual(20); // peu de grands carreaux
     expect(v.holes).toBe(0);
     expect(v.drawings).toBeGreaterThanOrEqual(4); // pages peintes et coloriages des sujets
     expect(v.bottom).toBeLessThan(v.top - 40);
