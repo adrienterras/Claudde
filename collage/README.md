@@ -341,7 +341,12 @@ cd collage && python3 -m http.server 8000
      signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
      une bordure blanche et n'est pas concerné) ; si elle ne reconnaît pas la surface, le bouton
-     « Retirer le fond autour du dessin » force le détourage d'après la couleur de bordure ;
+     « Retirer le fond autour du dessin » force le détourage d'après la couleur de bordure. Ces
+     boutons de la fiche changent le dessin **sur place** (`setPhotoMode` avec `inPlace` →
+     `swapInPlace`) : ses nouvelles découpes tiennent dans le rectangle qu'il occupait, avec la même
+     inclinaison (dans sa case en Galerie et Pop art), le reste de l'œuvre ne bouge pas, et Défaire
+     remet la version d'avant (l'analyse du dessin est dans l'instantané) — auparavant toute l'œuvre
+     était recomposée ;
    - **nombre de dessins** (curseur « Nombre de dessins » sous l'aperçu de l'œuvre, avec le compte des dessins utilisés) : le curseur
      règle le nombre de sujets posés, des plus forts aux plus faibles, de 20 % au minimum jusqu'à tous ;
    - **curseur au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de

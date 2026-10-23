@@ -386,4 +386,38 @@ test.describe('Compositions', () => {
     await page.mouse.click(at.x, at.y);
     expect(await count()).toEqual([at.n, at.nb - 1, false]);
   });
+  test('photo détourée ou gardée entière (fiche du dessin) : le dessin change sur place, le reste de l’œuvre ne bouge pas ; Défaire', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png']);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    const k = await page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /photo-wood/.test(d.name)));
+    const st = () => page.evaluate((k) => {
+      const S = AtelierGribouille.state, d = S.drawings[k];
+      const own = (L) => (L.piece ? L.piece.drawing === d : L.drawing === d || (d.analysis.texture && L.src === d.analysis.texture.canvas));
+      const sig = (L) => [+L.x.toFixed(3), +L.y.toFixed(3), +L.w.toFixed(3), +L.rot.toFixed(4)];
+      return { style: S.comp.style, mode: d.photoMode || null, others: S.comp.items.filter((L) => !own(L)).map(sig).concat(S.comp.bg.filter((L) => !L.paper && !own(L)).map(sig)), mine: S.comp.items.filter(own).length + S.comp.bg.filter((L) => !L.paper && own(L)).length };
+    }, k);
+    const a = await st();
+    expect(a.mine).toBeGreaterThan(0);
+    await page.locator(`#drawings .thumb[data-i="${k}"]`).click();
+    // la photo gardée entière : le reste de l'œuvre ne bouge pas, le dessin y reste
+    await page.locator('#detail [data-photo="keep"]').click();
+    await page.waitForFunction((k) => AtelierGribouille.state.drawings[k].photoMode === 'keep', k);
+    const b = await st();
+    expect(b.style).toBe(a.style);
+    expect(b.others).toEqual(a.others);
+    expect(b.mine).toBeGreaterThan(0);
+    // le fond retiré de nouveau : toujours rien d'autre ne bouge
+    await page.locator('#detail [data-photo]').first().click();
+    await page.waitForFunction((k) => AtelierGribouille.state.drawings[k].photoMode !== 'keep', k);
+    const c = await st();
+    expect(c.others).toEqual(a.others);
+    expect(c.mine).toBeGreaterThan(0);
+    // Défaire : la photo entière revient, telle qu'elle était posée
+    await page.evaluate(() => AtelierGribouille.undo());
+    const e = await st();
+    expect(e.mode).toBe('keep');
+    expect(e.others).toEqual(a.others);
+    expect(e.mine).toBe(b.mine);
+  });
 });

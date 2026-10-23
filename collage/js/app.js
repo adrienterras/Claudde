@@ -665,23 +665,101 @@
   }
   // Photo sur une surface : bascule entre le dessin détouré et la photo entière.
   // mode : 'auto' (sol reconnu automatiquement), 'force' (retrait demandé par l'utilisateur), 'keep' (photo entière)
-  async function setPhotoMode(d, mode) {
+  // opts.inPlace (fiche du dessin) : l'œuvre affichée garde tout le reste ; le dessin y est remplacé à
+  // sa place (voir swapInPlace), un pas de Défaire. Sans : les propositions sont refaites.
+  async function setPhotoMode(d, mode, opts) {
     if (d.photoMode === mode) return;
     const orig = await originalOf(d);
     if (!orig) return;
     const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: mode !== 'keep', force: mode === 'force' }));
     if (mode !== 'keep' && !a.photo) { notice(tr('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.')); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
+    const comp = opts && opts.inPlace && state.comp ? state.comp : null;
+    const before = roleOf(d);
+    let zone = null;
+    if (comp) {
+      commit();
+      touched();
+      zone = drawingZone(comp, d);
+      comp.items = comp.items.filter((L) => !(L.piece && L.piece.drawing === d));
+      comp.bg = comp.bg.filter((L) => L.paper || pageDrawing(L) !== d);
+      state.selected = null;
+      state.bgCache = null;
+    }
     d.photoMode = mode;
     d.base = a; d.analysis = a; d.orientDeg = 0;
     d.photo = a.photo || null;
     d.thumb = thumbOf(a.page);
     preparePieces(a.pieces, d);
     if (a.pieces) curateDrawing(d);
+    // (posé sur l'œuvre, il y reste : il garde son rôle si la nouvelle analyse le mettait de côté)
+    if (comp && zone && before !== 'off' && roleOf(d) === 'off') d.role = before;
     ensureMaterial(d);
+    if (comp) {
+      if (zone) swapInPlace(comp, d, zone); else if (roleOf(d) !== 'off') putBack(d);
+      state.pinned = comp;
+      refreshLists();
+      refreshPieces();
+      regenerate({ noCommit: true });
+      return;
+    }
     planCoverage();
     state.pinned = null;
     refreshLists();
     regenerate();
+  }
+  // La place d'un dessin sur l'œuvre : le rectangle qui contient tous ses calques, l'inclinaison et
+  // la case (Galerie, Pop art) du plus grand
+  function drawingZone(comp, d) {
+    const Ls = comp.items.filter((L) => L.piece && L.piece.drawing === d).concat(comp.bg.filter((L) => !L.paper && pageDrawing(L) === d));
+    if (!Ls.length) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    Ls.forEach((L) => {
+      const c = Math.abs(Math.cos(L.rot || 0)), sn = Math.abs(Math.sin(L.rot || 0));
+      const hw = (L.w * c + L.h * sn) / 2, hh = (L.w * sn + L.h * c) / 2;
+      x0 = Math.min(x0, L.x - hw); x1 = Math.max(x1, L.x + hw); y0 = Math.min(y0, L.y - hh); y1 = Math.max(y1, L.y + hh);
+    });
+    const big = Ls.reduce((m, L) => (L.w * L.h > m.w * m.h ? L : m));
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0, rot: big.rot || 0, frame: big.frame };
+  }
+  // Le dessin refait (photo détourée ou gardée entière) reprend la place qu'il avait : ses découpes,
+  // dans leur disposition sur la feuille, tiennent dans le même rectangle, avec la même inclinaison
+  // (dans sa case pour la Galerie et le Pop art) ; une page de fond s'y pose de même
+  function swapInPlace(comp, d, zone) {
+    const role = roleOf(d), a = d.analysis, k = scale();
+    const rot = zone.rot, cs = Math.cos(rot), sn = Math.sin(rot);
+    const fitIn = (srcs) => {
+      const U = srcs.reduce((u, r) => ({ x0: Math.min(u.x0, r.x), y0: Math.min(u.y0, r.y), x1: Math.max(u.x1, r.x + r.w), y1: Math.max(u.y1, r.y + r.h) }), { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
+      const f = Math.min(zone.w / (U.x1 - U.x0), zone.h / (U.y1 - U.y0)); // cm sur l'œuvre par pixel de page
+      const ux = (U.x0 + U.x1) / 2, uy = (U.y0 + U.y1) / 2;
+      return (r) => {
+        const dx = (r.x + r.w / 2 - ux) * f, dy = (r.y + r.h / 2 - uy) * f;
+        return { x: zone.x + dx * cs - dy * sn, y: zone.y + dx * sn + dy * cs, w: r.w * f, h: r.h * f };
+      };
+    };
+    if (role === 'cutout' && a.pieces && a.pieces.length) {
+      let ps = a.pieces.filter((p) => p.enabled);
+      if (!ps.length) return;
+      if (zone.frame !== undefined) ps = [ps.reduce((m, p) => (p.frac > m.frac ? p : m))]; // (une case, un dessin)
+      const at = fitIn(ps.map((p) => p.src));
+      ps.forEach((p) => {
+        sizePiece(p, k);
+        const g = at(p.src);
+        const L = { kind: 'piece', piece: p, x: g.x, y: g.y, w: g.w, h: g.h, rot, flip: false, scale: g.w / p.wcm };
+        if (zone.frame !== undefined) L.frame = zone.frame;
+        comp.items.push(L);
+        p.placed = true;
+      });
+    } else if (role === 'texture' && a.texture) {
+      const t = a.texture, at = fitIn([{ x: 0, y: 0, w: t.canvas.width, h: t.canvas.height }]);
+      const g = at({ x: 0, y: 0, w: t.canvas.width, h: t.canvas.height });
+      const c = cmPerPx(d) * (printMode() ? state.bgScale || k : k), pw = t.canvas.width * c, ph = t.canvas.height * c;
+      const L = { kind: 'bg', panel: true, whole: true, src: t.canvas, drawing: d, pageW: pw, pageH: ph, sx: 0, sy: 0, sw: t.canvas.width, sh: t.canvas.height, x: g.x, y: g.y, w: g.w, h: g.h, rot, flip: false, clip: null, scale: g.w / pw, manual: true };
+      if (zone.frame !== undefined) L.frame = zone.frame;
+      comp.bg.push(L);
+    }
+    render();
+    updateExportInfo();
+    updateLabel();
   }
 
   function applyOrientations() {
@@ -1320,7 +1398,7 @@
       // téléphone : le tiroir reprend sa hauteur normale et montre la liste
       if (mobileQuery.matches) { document.body.classList.remove('sheet-tall', 'sheet-detail'); const panel = document.querySelector('.panel'); if (panel) panel.scrollTo({ top: 0, behavior: 'smooth' }); }
     };
-    box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo)));
+    box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo, { inPlace: true })));
     const repl = box.querySelector('[data-replace]');
     if (repl) repl.onclick = () => askReplace(d);
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
@@ -3558,6 +3636,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const pieces = new Map();
     comp.items.forEach((L) => { if (L.piece && !pieces.has(L.piece)) pieces.set(L.piece, pieceState(L.piece)); });
     const roles = new Map(state.drawings.map((d) => [d, d.role]));
+    // l'analyse de chaque dessin (photo détourée ou gardée entière : voir setPhotoMode)
+    const anas = new Map(state.drawings.map((d) => [d, { analysis: d.analysis, base: d.base, photoMode: d.photoMode, photo: d.photo, thumb: d.thumb, orientDeg: d.orientDeg }]));
     // le cadrage des pages de fond (et la page qui en est faite)
     const pages = new Map(state.drawings.filter((d) => d.analysis.texture).map((d) => [d, { crop: d.crop || null, texture: d.analysis.texture, deg: d.orientDeg || 0, thumb: d.cropThumb || null }]));
     // la toile elle-même : taille, cadre, orientation, passe-partout, cases (Galerie, Pop art) ; un
@@ -3565,7 +3645,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // dans la toile d'après)
     const copy = (l) => (l ? l.map((x) => (Array.isArray(x) ? x.slice() : Object.assign({}, x))) : l);
     const geo = { W: comp.W, H: comp.H, frameKey: comp.frameKey, mat: comp.mat, frames: copy(comp.frames), tiles: copy(comp.tiles), lines: copy(comp.lines), format: state.compFormat || $('format').value, orient: state.compOrient || canvasOrient(), matOn: state.compMat === undefined ? printMat() : state.compMat, formatManual: state.formatManual };
-    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles, pages };
+    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles, pages, anas };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -3588,6 +3668,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       Object.assign(p, st);
       delete p.hd;
     });
+    // dessins refaits entre-temps (photo détourée ou gardée entière, seulement) : leur analyse d'alors revient
+    let reanalysed = false;
+    if (s.anas) s.anas.forEach((st, d) => { if (d.photoMode !== st.photoMode && d.analysis !== st.analysis) { Object.assign(d, st); reanalysed = true; } });
     // pages recadrées entre-temps : leur cadrage d'alors revient (même règle que les pièces)
     let cropped = false;
     if (s.pages) s.pages.forEach((st, d) => {
@@ -3622,7 +3705,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (s.roles) s.roles.forEach((r, d) => { if (d.role !== r) { d.role = r; rolesChanged = true; } });
     s.enabled.forEach((on, p) => { p.enabled = on; });
     activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
-    if (rolesChanged || cropped) refreshLists();
+    if (rolesChanged || cropped || reanalysed) refreshLists();
     state.comp = comp;
     if (state.proposals && state.proposals[s.active] && state.proposals[s.active].style.id === comp.style) { state.proposals[s.active].comp = comp; state.active = s.active; }
     state.selected = null;
