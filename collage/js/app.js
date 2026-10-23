@@ -3041,6 +3041,28 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       ctx.lineTo(ax + 0.6 * dpr, ay + 2.2 * dpr);
       ctx.closePath();
       ctx.fill();
+      // la poubelle (retirer le dessin de l'œuvre), coin haut gauche : un rond avec une corbeille tracée
+      {
+        const tx = (-L.w / 2) * s, ty = (-L.h / 2) * s, u = dpr;
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 10 * u, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(-L.rot); // (la corbeille reste droite)
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5 * u;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-4.5 * u, -3 * u); ctx.lineTo(4.5 * u, -3 * u); // couvercle
+        ctx.moveTo(-1.5 * u, -3 * u); ctx.lineTo(-1.5 * u, -4.6 * u); ctx.lineTo(1.5 * u, -4.6 * u); ctx.lineTo(1.5 * u, -3 * u); // poignée
+        ctx.moveTo(-3.4 * u, -1.6 * u); ctx.lineTo(-2.8 * u, 4.6 * u); ctx.lineTo(2.8 * u, 4.6 * u); ctx.lineTo(3.4 * u, -1.6 * u); // cuve
+        ctx.moveTo(0, -0.4 * u); ctx.lineTo(0, 3.2 * u);
+        ctx.stroke();
+        ctx.restore();
+      }
       if (resizable()) {
         // poignée carrée (agrandir / réduire), coin haut droit
         const q = 7 * dpr, qx = (L.w / 2) * s, qy = (-L.h / 2) * s;
@@ -3068,6 +3090,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Agrandir / réduire une pièce à la main : en Galerie (cases) et dans l'atelier Impression (les
   // dessins n'y sont plus à leur taille réelle). Poignée carrée au coin haut droit, boutons, touches + et −.
   const resizable = () => !!(state.comp && (state.comp.style === 'galerie' || printMode()));
+  // la poubelle, coin haut gauche du cadre de sélection
+  function trashHandlePos(L) {
+    const c = Math.cos(L.rot), s = Math.sin(L.rot);
+    const hx = -L.w / 2, hy = -L.h / 2;
+    return { x: L.x + hx * c - hy * s, y: L.y + hx * s + hy * c };
+  }
   function scaleHandlePos(L) {
     const c = Math.cos(L.rot), s = Math.sin(L.rot);
     const hx = L.w / 2, hy = -L.h / 2;
@@ -3212,6 +3240,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const p = toComp(e);
     const L = state.selected;
     if (L) {
+      const t = trashHandlePos(L);
+      if (Math.hypot(t.x - p.X, t.y - p.Y) * view.s < 18 * view.dpr) {
+        // la poubelle retire le dessin de l'œuvre (comme Retirer, ou la touche Suppr)
+        act('del');
+        return;
+      }
       if (resizable()) {
         const q = scaleHandlePos(L);
         if (Math.hypot(q.x - p.X, q.y - p.Y) * view.s < 18 * view.dpr) {

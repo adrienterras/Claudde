@@ -358,4 +358,32 @@ test.describe('Compositions', () => {
     const prevented = await page.evaluate(() => [document.querySelector('#drawings .thumb img'), document.querySelector('#drawings .thumb')].map((el) => { const ev = new DragEvent('dragstart', { bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev.defaultPrevented; }));
     expect(prevented).toEqual([true, true]);
   });
+  test('la poubelle, au coin haut gauche du dessin sélectionné, le retire de l’œuvre ; Défaire le remet', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    const pick = async (kind) => {
+      // le dessin sélectionné, et la place de sa poubelle à l'écran
+      return page.evaluate((kind) => {
+        const A = AtelierGribouille, S = A.state, L = kind === 'bg' ? S.comp.bg.find((q) => !q.paper) : S.comp.items[0];
+        S.selected = L; A.render();
+        const v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+        const c = Math.cos(L.rot), sn = Math.sin(L.rot), hx = -L.w / 2, hy = -L.h / 2;
+        const X = L.x + hx * c - hy * sn, Y = L.y + hx * sn + hy * c;
+        return { x: r.left + (v.ox + X * v.s) / v.dpr, y: r.top + (v.oy + Y * v.s) / v.dpr, n: S.comp.items.length, nb: S.comp.bg.length };
+      }, kind);
+    };
+    const count = () => page.evaluate(() => [AtelierGribouille.state.comp.items.length, AtelierGribouille.state.comp.bg.length, !!AtelierGribouille.state.selected]);
+    // une découpe
+    let at = await pick('item');
+    await page.waitForTimeout(100);
+    await page.mouse.click(at.x, at.y);
+    expect(await count()).toEqual([at.n - 1, at.nb, false]);
+    await page.evaluate(() => AtelierGribouille.undo());
+    expect((await count())[0]).toBe(at.n);
+    // une page de fond
+    at = await pick('bg');
+    await page.waitForTimeout(100);
+    await page.mouse.click(at.x, at.y);
+    expect(await count()).toEqual([at.n, at.nb - 1, false]);
+  });
 });

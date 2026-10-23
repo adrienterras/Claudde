@@ -60,7 +60,8 @@ cd collage && python3 -m http.server 8000
      main (poignée carrée au coin haut droit, touches + et − de 10 % ; plus de boutons Agrandir /
      Réduire dans la barre d'outils : on agrandit directement sur l'œuvre ; la barre se limite à
      Défaire, Refaire, Devant, Derrière, Retoucher et Retirer — plus de Miroir ni de Dupliquer, les
-     copies et miroirs des œuvres déjà faites se gardent),
+     copies et miroirs des œuvres déjà faites se gardent ; une petite poubelle au coin haut gauche du
+     dessin sélectionné le retire de l'œuvre, comme Retirer ou Suppr — `trashHandlePos`),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
      Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et
