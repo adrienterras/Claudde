@@ -1929,9 +1929,9 @@
       L.x *= kx; L.y *= ky; L.w *= ks; L.h *= ks; L.scale = (L.scale || 1) * ks;
       if (L.clip) L.clip = L.clip.map(([x, y]) => [x * ks, y * ks]);
     };
-    // un dessin n'est jamais imprimé plus grand que sa taille réelle (sa feuille scannée)
-    const realW = (L) => (L.piece && L.piece.canvas ? L.piece.canvas.width * cmPerPx(L.piece.drawing) : Infinity);
-    comp.items.forEach((L) => each(L, Math.min(km, Math.max(1, realW(L) / L.w))));
+    // l'œuvre reste identique : tous les dessins suivent d'un même facteur, en plus grand comme en
+    // plus petit (même au-delà de leur taille réelle : l'œuvre agrandie ne doit pas changer)
+    comp.items.forEach((L) => each(L, km));
     comp.bg.forEach((L) => each(L, L.paper ? 1 : Math.max(kx, ky))); // les pages de fond couvrent toujours
     comp.bg.filter((L) => L.paper).forEach((L) => { L.w = W; L.h = H; L.x = W / 2; L.y = H / 2; });
     if (comp.frames) comp.frames.forEach((f) => { f.x *= kx; f.y *= ky; f.w *= kx; f.h *= ky; });
@@ -3776,9 +3776,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const L = state.selected;
     document.querySelectorAll('#toolbar button').forEach((b) => {
       if (b.classList.contains('history')) return;
-      // sur une page de fond, pas de retouche de découpe (plus de Miroir ni de Dupliquer dans la barre :
-      // les copies et les miroirs des œuvres déjà faites se gardent et se rouvrent)
-      b.disabled = !L || (L.kind === 'bg' && b.dataset.act === 'edit');
+      // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
+      // (plus de Miroir dans la barre : les miroirs des œuvres déjà faites se gardent et se rouvrent)
+      b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
     });
     // (agrandir / réduire n'ont plus de boutons : la poignée carrée sur l'œuvre, et les touches + et −)
     fitToolbar();

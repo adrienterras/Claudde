@@ -505,6 +505,7 @@
     'Ouvrir « {0} »': 'Open “{0}”',
     'Raccourcis clavier': 'Keyboard shortcuts',
     'Recadrer la page': 'Crop the page',
+    'Dupliquer': 'Duplicate',
     'Ajouter à l’œuvre': 'Add to the artwork',
     'Ajouter « {0} » à l’œuvre': 'Add “{0}” to the artwork',
     'Mise en scène de l’œuvre': 'The artwork on a wall at home',

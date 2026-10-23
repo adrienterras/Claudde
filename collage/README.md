@@ -59,8 +59,8 @@ cd collage && python3 -m http.server 8000
      découpes ; le rôle « fond » se choisit aussi à la main. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, touches + et − de 10 % ; plus de boutons Agrandir /
      Réduire dans la barre d'outils : on agrandit directement sur l'œuvre ; la barre se limite à
-     Défaire, Refaire, Devant, Derrière, Retoucher et Retirer — plus de Miroir ni de Dupliquer, les
-     copies et miroirs des œuvres déjà faites se gardent ; une petite poubelle au coin haut gauche du
+     Défaire, Refaire, Devant, Derrière, Dupliquer (pas pour une page de fond), Retoucher et Retirer —
+     plus de Miroir, les miroirs des œuvres déjà faites se gardent ; une petite poubelle au coin haut gauche du
      dessin sélectionné le retire de l'œuvre, comme Retirer ou Suppr — `trashHandlePos`),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
@@ -133,6 +133,12 @@ cd collage && python3 -m http.server 8000
      objets sont posés sur l'œuvre), jamais une page de fond, sauf rôle choisi à la main. Une page
      « pontée » (lignes d'écriture, carreaux ou cadre dessiné reliés par la fermeture, intérieur
      bouché) est refermée de moins loin, sans boucher les grands trous : les sujets se séparent.
+     Une feuille **partagée en cases** par de longs traits droits (planche à quatre cases, lignes de
+     partage, cadre tracé autour) donnait un seul bloc : les traits relient tous les sujets. Quand un
+     bloc s'étend sur la feuille, les traits droits et fins longs d'au moins 60 % de la feuille dans
+     leur sens (`ruledLines` : un peu penchés, interrompus ou passant sous un sujet posé dessus) sont
+     retirés de l'encre avant de regrouper — gardé seulement si les sujets se détachent vraiment ;
+     la découpe fine les ignore aussi, et une telle feuille peut donner jusqu'à 16 pièces.
      Photographiée sur un mur ou une table de la couleur du papier (surface claire sans papier
      distinct), la feuille est traitée comme un scan : le retrait de surface ne garderait que l'encre
      et perdrait un short noir, donc les jambes (`removeSurface`, porte `feuille≈surface`). Les seuils
@@ -479,7 +485,8 @@ cd collage && python3 -m http.server 8000
      restent ;
    - **tableau imprimé : la taille ne refait pas l'œuvre** : changer de cadre ou de passe-partout met
      l'œuvre affichée à la nouvelle taille telle quelle (`keepPrintComp` → `fitCompTo` : places en
-     proportion, dessins et pages à la même échelle, cadre noté sur la composition) et changer
+     proportion, dessins et pages agrandis ou réduits d'un même facteur — même au-delà de leur
+     taille réelle : l'œuvre agrandie reste identique —, cadre noté sur la composition) et changer
      d'orientation la tourne d'un quart de tour (`turnComp`) ; les autres propositions sont recomposées
      à la nouvelle taille. En atelier Toile, la composition est refaite comme avant ;
    - **toutes les sections repliées par défaut** (ordinateur) : à l'arrivée et à chaque nouvelle œuvre,

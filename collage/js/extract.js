@@ -438,8 +438,9 @@
     let strongT = Math.max(20, (strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST) * CUT.ink);
     const unit = Math.max(w, h);
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
-    const masks = (sT, wT, closeR, holeMax) => {
+    const masks = (sT, wT, closeR, holeMax, drop) => {
       const ink = inkMask(data, w, h, paper, sT, wT);
+      if (drop) for (let p = 0; p < n; p++) if (drop[p]) ink[p] = 0;
       // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
@@ -477,17 +478,95 @@
         if (r2.comps.length && !bridged(r2)) { r = r2; r.closeR = cr; r.holeMax = 0.08; break; }
       }
     }
+    // feuille partagée par de longs traits droits (cases d'une planche, lignes de partage, cadre tracé
+    // autour) : ils relient tous les sujets en un seul bloc qui s'étend sur la feuille. On les retire de
+    // l'encre avant de regrouper ; gardé seulement si les sujets se détachent vraiment
+    const box = (c) => (c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1);
+    if (r.comps[0] && Math.max(...r.comps.map(box)) >= 0.6 * n) {
+      const lines = ruledLines(r.ink, w, h);
+      let any = false;
+      for (let p = 0; p < n && !any; p++) if (lines[p]) any = true;
+      if (any) {
+        const r2 = masks(strongT, weakT, r.closeR || CUT.close, r.holeMax || 0, lines);
+        if (r2.comps.length >= r.comps.length + 2 && Math.max(...r2.comps.map(box)) < 0.5 * n) {
+          r2.closeR = r.closeR; r2.holeMax = r.holeMax; r2.lines = lines;
+          r = r2;
+        }
+      }
+    }
     // dessin très pâle (crayon léger sur papier blanc) : la première passe ne trouve que des miettes
     // éparses ; on refait avec des seuils plus bas, juste au-dessus du grain du papier, et des traits
     // reliés de plus loin
     let total = 0; r.comps.forEach((c) => { total += c.area; });
     if (r.comps.length >= 3 && total < n * 0.2 && r.comps[0].area < n * 0.08 && weakT < 30) {
       const wT2 = Math.max(10, Math.round(weakT * 0.7)), sT2 = Math.max(20, wT2 + 6);
-      const r2 = masks(sT2, wT2, CUT.close + 0.01);
+      const r2 = masks(sT2, wT2, CUT.close + 0.01, 0, r.lines); // (sans les traits de partage retirés plus haut)
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
-      if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r = r2; weakT = wT2; strongT = sT2; }
+      if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r2.lines = r.lines; r = r2; weakT = wT2; strongT = sT2; }
     }
-    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, paperFrac: paperCount / n, labels: r.labels, comps: r.comps };
+    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, paperFrac: paperCount / n, labels: r.labels, comps: r.comps };
+  }
+
+  /*
+   * Longs traits droits et fins qui partagent une feuille (cases d'une planche, lignes de partage,
+   * cadre tracé autour) : horizontaux ou verticaux, longs d'au moins 60 % de la feuille dans leur sens,
+   * épais de quelques pixels ; ils peuvent pencher un peu, s'interrompre, ou passer sous un sujet posé
+   * dessus (on les suit à travers, sans retirer le sujet). Un trait plus court (jambe, tronc, mur
+   * d'une maison) n'en est pas un. Rend les pixels de ces traits.
+   */
+  function ruledLines(ink, w, h) {
+    const n = w * h, out = new Uint8Array(n);
+    const T = Math.max(2, Math.round(Math.max(w, h) * 0.008)); // épaisseur maximale
+    const GAP = Math.max(3, T * 2); // interruption permise
+    const scan = (horiz) => {
+      const A = horiz ? w : h, B = horiz ? h : w; // le long du trait, et en travers
+      const L = Math.round(A * 0.6); // longueur minimale
+      const at = horiz ? (a, b) => b * w + a : (a, b) => a * w + b;
+      // les pixels d'encre où le trait est fin, en travers
+      const thin = new Uint8Array(n);
+      for (let a = 0; a < A; a++) {
+        let b = 0;
+        while (b < B) {
+          if (!ink[at(a, b)]) { b++; continue; }
+          let b1 = b;
+          while (b1 < B && ink[at(a, b1)]) b1++;
+          if (b1 - b <= T) for (let k = b; k < b1; k++) thin[at(a, k)] = 1;
+          b = b1;
+        }
+      }
+      const seen = new Uint8Array(n);
+      for (let b0 = 0; b0 < B; b0++) {
+        for (let a0 = 0; a0 < A; a0++) {
+          const p0 = at(a0, b0);
+          if (!thin[p0] || seen[p0]) continue;
+          // on suit le trait pas à pas, à un pixel près en travers ; sous un sujet (encre épaisse), on
+          // continue tout droit ; un vrai blanc peut l'interrompre un peu
+          const pts = [[a0, b0]];
+          let a = a0, b = b0, miss = 0, end = a0;
+          while (a + 1 < A && miss <= GAP) {
+            a++;
+            let nb = -1;
+            for (const d of [0, -1, 1]) { const bb = b + d; if (bb >= 0 && bb < B && thin[at(a, bb)]) { nb = bb; break; } }
+            if (nb >= 0) { miss = 0; b = nb; pts.push([a, b]); end = a; continue; }
+            if (ink[at(a, b)]) { miss = 0; continue; }
+            miss++;
+          }
+          pts.forEach(([pa, pb]) => { seen[at(pa, pb)] = 1; });
+          const len = end - a0;
+          const eb = pts[pts.length - 1][1];
+          // assez long, droit, et fin sur au moins la moitié de sa longueur
+          if (len < L || Math.abs(eb - b0) > len * 0.08 || pts.length < len * 0.5) continue;
+          pts.forEach(([pa, pb]) => {
+            for (let k = pb; k >= 0 && k > pb - T - 1 && ink[at(pa, k)]; k--) out[at(pa, k)] = 1;
+            for (let k = pb + 1; k < B && k < pb + T + 1 && ink[at(pa, k)]; k++) out[at(pa, k)] = 1;
+          });
+        }
+      }
+    };
+    scan(true);
+    scan(false);
+    // avec le liseré pâle du trait (une passe aux seuils plus bas le verrait encore)
+    return dilate(out, w, h, 2);
   }
 
   /*
@@ -864,6 +943,13 @@
     const allowed = dilate(region, fw, fh, funit * 0.012);
     const inkF = inkMask(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30);
     for (let p = 0; p < inkF.length; p++) if (!allowed[p]) inkF[p] = 0;
+    // feuille partagée par des traits (voir ruledLines) : ils ne font pas partie du sujet
+    if (seg.lines) {
+      for (let y = 0; y < fh; y++) {
+        const r0 = (y0 + Math.min(bh - 1, Math.floor(y / kf))) * w + x0, o = y * fw;
+        for (let x = 0; x < fw; x++) if (seg.lines[r0 + colF[x]]) inkF[o + x] = 0;
+      }
+    }
     // marge de quelques millimètres autour de l'encre, trous bouchés, puis coupe nette
     const closeR = seg.closeR || CUT.close;
     let fm = dilate(inkF, fw, fh, funit * closeR);
@@ -931,7 +1017,8 @@
     const minArea = seg.w * seg.h * 0.006;
     return seg.comps
       .filter((c) => c.area >= minArea && c.x1 - c.x0 > 10 && c.y1 - c.y0 > 10)
-      .slice(0, MAX_PIECES_PER_PAGE)
+      // (une feuille partagée en cases en a davantage : chaque case a ses sujets)
+      .slice(0, seg.lines ? 2 * MAX_PIECES_PER_PAGE : MAX_PIECES_PER_PAGE)
       .map((c) => {
         const piece = makePiece(enhanced, seg, c, page);
         piece.src.paper = seg.paper;
