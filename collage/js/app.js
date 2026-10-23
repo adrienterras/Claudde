@@ -3517,8 +3517,20 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // agrandir / réduire : en Galerie et dans l'atelier Impression
       if (b.classList.contains('gallery-only')) b.hidden = !sizable;
     });
+    fitToolbar();
     editHint();
   }
+  // La barre d'outils tient toujours en entier : quand ses libellés la feraient déborder (iPad, fenêtre
+  // étroite, Agrandir et Réduire en plus dans l'atelier Impression), elle passe en icônes seules, comme
+  // sur téléphone ; sinon Retirer, au bout, sortait de la barre sans qu'on le voie.
+  function fitToolbar() {
+    const tb = $('toolbar');
+    if (!tb) return;
+    tb.classList.remove('icons');
+    tb.classList.toggle('icons', tb.scrollWidth > tb.clientWidth + 1);
+  }
+  window.addEventListener('resize', fitToolbar);
+  if (window.ResizeObserver) new ResizeObserver(() => fitToolbar()).observe(document.querySelector('.stage') || document.body);
   // « Touchez un dessin de l'œuvre pour le modifier » : à chaque ouverture d'une œuvre (import, réouverture,
   // rechargement), jusqu'au premier dessin touché
   try { localStorage.removeItem('atelier.astuce-edition'); } catch (e) { /* (n'est plus mémorisée) */ }

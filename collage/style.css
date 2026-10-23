@@ -669,6 +669,10 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .toolbar button[data-act="del"]:hover:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
 .toolbar button:disabled { opacity: .35; cursor: default; }
 .toolbar .tb-sep { width: 1px; align-self: stretch; margin: 6px 3px; background: var(--line); flex: none; }
+/* barre trop étroite pour ses libellés (iPad, fenêtre étroite) : icônes seules, chaque bouton garde son titre */
+.toolbar.icons { gap: 0; }
+.toolbar.icons button span { display: none; }
+.toolbar.icons button { padding: 8px 10px; }
 
 /* Zoom sur l'œuvre */
 .zoom {
