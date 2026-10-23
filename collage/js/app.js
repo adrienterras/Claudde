@@ -1771,7 +1771,8 @@
     { key: '50x70', w: 50, h: 70, print: [50, 70], mat: [40, 50] },
     { key: '70x100', w: 70, h: 100, print: [70, 100], mat: [50, 70] },
   ];
-  const FRAME_DEFAULT = 'cadre:50x70'; // cadre d'une nouvelle œuvre imprimée
+  const FRAME_DEFAULT = 'cadre:50x70'; // cadre d'une nouvelle œuvre imprimée (30 × 40 jusqu'à 4 dessins : voir regenerate)
+  const FRAME_SMALL = 'cadre:30x40';
   const frameOf = (v) => PRINT_FRAMES.find((f) => `cadre:${f.key}` === v) || null;
   // un réglage ancien (A3, 18 × 24, carré…) : le cadre de surface la plus proche
   function normalizeFrame(v) {
@@ -2324,6 +2325,15 @@
   }
   function regenerate(opts) {
     if (!state.drawings.length) return;
+    // tableau imprimé, nouvelle œuvre : à sa première composition, le cadre suit le nombre de dessins
+    // (30 × 40 jusqu'à 4, 50 × 70 au-delà : peu de dessins, à leur taille réelle au plus, paraîtraient
+    // perdus dans un grand cadre) ; ensuite il ne change plus de lui-même, et un cadre choisi à la main
+    // garde l'œuvre telle quelle, à l'échelle (keepPrintComp)
+    if (printMode() && !state.comp && !state.formatManual) {
+      const n = state.drawings.filter((d) => roleOf(d) !== 'off').length;
+      const f = n <= 4 ? FRAME_SMALL : FRAME_DEFAULT;
+      if ([...$('format').options].some((o) => o.value === f)) $('format').value = f;
+    }
     if (state.comp && !state.restoring && !(opts && opts.noCommit)) commit();
     if (!printMode() && !state.formatManual) pickCanvas();
     planCoverage();
@@ -4793,7 +4803,7 @@ Réponds uniquement avec ce JSON :
     emptyChoice(false); // le type d'œuvre se choisit de nouveau
     $('density').value = $('density').max; // une nouvelle œuvre part avec tous les dessins
     setCanvasOrient('port'); // et en portrait
-    // en tableau imprimé, dans le cadre par défaut (50 × 70)
+    // en tableau imprimé, dans le cadre par défaut (choisi selon le nombre de dessins à la première composition)
     state.frameReset = true; state.formatManual = false;
     if ([...$('format').options].some((o) => o.value === FRAME_DEFAULT)) $('format').value = FRAME_DEFAULT;
     refreshLists();

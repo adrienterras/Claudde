@@ -36,11 +36,11 @@ test.describe('Village', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille);
-    // un 30 × 40 : les dessins d'exemple, jamais agrandis au-delà de leur taille réelle, y sont assez
-    // grands pour s'entremêler (sur le 50 × 70 par défaut, ils restent à leur taille)
-    await page.evaluate(() => { document.getElementById('format').value = 'cadre:30x40'; }); // (le choix est encore replié)
     await page.setInputFiles('#file', ['maison', 'arbre', 'oiseau', 'voiture', 'soleil', 'chat', 'herbe-peinte', 'ciel-peint', 'terre-peinte', 'rayures-peintes'].map(sample));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
+    // un 30 × 40 : les dessins d'exemple, jamais agrandis au-delà de leur taille réelle, y sont assez
+    // grands pour s'entremêler (dix dessins partent en 50 × 70, où ils restent à leur taille)
+    await page.evaluate(() => { const A = AtelierGribouille; document.getElementById('format').value = 'cadre:30x40'; A.state.formatManual = true; A.state.pinned = null; A.regenerate(); });
     const ids = await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id));
     expect(ids[ids.length - 1]).toBe('village');
     await page.locator('#proposals .proposal').last().click();

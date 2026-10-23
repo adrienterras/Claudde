@@ -23,7 +23,9 @@ cd collage && python3 -m http.server 8000
    le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).
    - **Création imprimée à partir de vos dessins** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des
      **cinq cadres du commerce** (`PRINT_FRAMES` : 21 × 30, 30 × 40, 40 × 50, 50 × 70, 70 × 100 ; seule liste
-     proposée, 50 × 70 par défaut pour toute nouvelle œuvre, un ancien réglage ramené au cadre le plus proche). Un choix « Sans /
+     proposée ; pour une nouvelle œuvre, le cadre suit le nombre de dessins à sa première composition :
+     30 × 40 jusqu'à 4 dessins, 50 × 70 au-delà, puis il ne change plus de lui-même ; un ancien réglage est
+     ramené au cadre le plus proche). Un choix « Sans /
      Avec passe-partout » à côté du cadre (mémorisé, repris par la mise en scène) fixe la taille
      d'impression : sans, elle remplit le cadre (A4 dans le 21 × 30) ; avec, elle prend la taille en
      dessous (13 × 18, A4, 30 × 40, 40 × 50, 50 × 70) et la composition est refaite à cette taille. Les dessins

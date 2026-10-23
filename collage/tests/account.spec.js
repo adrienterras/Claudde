@@ -394,7 +394,7 @@ test.describe('Comptes utilisateurs', () => {
     // connecté : l'article part dans le compte (ses images aussi), marqué « panier », une seule fois
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier')).every((it) => it.recId.startsWith('cloud:')), null, { timeout: 60000 });
     const rows = () => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).map((r) => ({ name: r.name, qty: r.meta.cart.qty, finish: r.meta.cart.finish, size: r.meta.cart.size })));
-    expect(await rows()).toEqual([{ name: await page.locator('#cart .cart-item b').first().textContent(), qty: 1, finish: 'cadre', size: '50x70' }]); // (cadre par défaut d'une œuvre imprimée)
+    expect(await rows()).toEqual([{ name: await page.locator('#cart .cart-item b').first().textContent(), qty: 1, finish: 'cadre', size: '50x70' }]); // (cadre par défaut d'une œuvre imprimée passée de la toile à l'impression)
     // (hors l'œuvre elle-même, qui a son propre dossier)
     const cartUploads = () => page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] !== AtelierGribouille.state.workId).length);
     expect(await cartUploads()).toBe(6);
