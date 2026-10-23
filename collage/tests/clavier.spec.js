@@ -88,4 +88,40 @@ test.describe('Clavier', () => {
       expect(await page.evaluate((o) => document.activeElement === document.querySelector(o), opener)).toBe(true);
     }
   });
+  test('aide des raccourcis : la touche ? ou le lien du carnet l’ouvrent ; Échap la ferme', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png']);
+    await page.focus('#canvas');
+    await page.keyboard.press('?');
+    await expect(page.locator('#shortcuts')).toBeVisible();
+    await expect(page.locator('#shortcuts')).toContainText('Page suivante'.slice(0, 0) + 'Choisir un dessin');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#shortcuts')).toBeHidden();
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('canvas'); // (le focus revient sur l'œuvre)
+    await page.locator('#shortcuts-open').click();
+    await expect(page.locator('#shortcuts')).toBeVisible();
+    await page.locator('#shortcuts [data-close]').click();
+    await expect(page.locator('#shortcuts')).toBeHidden();
+  });
+
+  test('structure : titres de section, fiches de Mes œuvres et vignettes sans bouton dans un bouton', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    const r = await page.evaluate(() => ({
+      h2role: [...document.querySelectorAll('aside section.step > h2')].filter((h) => h.getAttribute('role')).length,
+      toggles: document.querySelectorAll('aside section.step > h2 > button.step-toggle[aria-expanded]').length,
+      nested: [...document.querySelectorAll('button, [role="button"]')].filter((b) => b.parentElement && b.parentElement.closest('button, [role="button"]')).length,
+      groups: document.querySelectorAll('.drawings-group > h3').length,
+      h4: document.querySelectorAll('.drawings-group > h4').length,
+    }));
+    expect(r).toMatchObject({ h2role: 0, nested: 0, h4: 0 });
+    expect(r.toggles).toBeGreaterThan(3);
+    expect(r.groups).toBeGreaterThan(0);
+    // un titre se replie et se déplie au clavier (son bouton)
+    const t = page.locator('#export-section > h2 > .step-toggle');
+    const before = await t.getAttribute('aria-expanded');
+    await t.focus();
+    await page.keyboard.press('Enter');
+    await expect(t).not.toHaveAttribute('aria-expanded', before);
+  });
 });

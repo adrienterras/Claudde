@@ -616,6 +616,14 @@ n'est mémorisé).
   bouton qui l'avait ouverte (`dialogFocus`).
 - **La retouche** : E (gomme), R (restaurer), W (baguette), H (déplacer), [ et ] (taille du pinceau),
   Espace maintenu (déplacer la vue), Entrée (valider), Échap (fermer).
+- **L'aide** (`#shortcuts`) : la touche ? ou le lien « Raccourcis clavier » du pied de la colonne
+  (masqué sur téléphone et tablette) ouvre la liste de ces raccourcis.
+- **La structure** pour les lecteurs d'écran : le titre de chaque étape contient le bouton qui la
+  replie (`button.step-toggle`, `aria-expanded`) ; une fiche de « Mes œuvres » s'ouvre par un bouton
+  posé dessus (`button.saved-open`), sans contrôle imbriqué ; les groupes de dessins ont un titre h3 ;
+  les finitions de cadre du panier sont des `role="radio"` ; sur téléphone, l'en-tête est un `<header>`
+  avec le titre de niveau 1. Sur le site, les deux `<nav>` sont nommées (« Navigation principale »,
+  « Pied de page »). Les contrastes et les couleurs ne sont pas modifiés.
 
 ## Qualité pour l’impression (`js/quality.js`)
 

@@ -262,7 +262,7 @@ test.describe('Compositions', () => {
     }
     expect(await left()).toBe(0);
     expect(await group()).toBe('off');
-    await expect(page.locator('#drawings .drawings-group.off h4')).toContainText('Non utilisé');
+    await expect(page.locator('#drawings .drawings-group.off h3')).toContainText('Non utilisé');
     // sa vignette reste bien visible (ni estompée ni grise, comme l'est une pièce retirée)
     expect(await page.evaluate((k) => { const s = getComputedStyle(document.querySelector(`#drawings .thumb[data-i="${k}"] img`)); return [s.opacity, s.filter]; }, i)).toEqual(['1', 'none']);
     // une recomposition (densité) ne le remet pas

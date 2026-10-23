@@ -1117,7 +1117,7 @@
       if (!n) return;
       const g = document.createElement('div');
       g.className = `drawings-group ${role}`;
-      g.innerHTML = `<h4>${name} <small>(${n})</small></h4><div class="grid"></div>`;
+      g.innerHTML = `<h3>${name} <small>(${n})</small></h3><div class="grid"></div>`;
       dEl.appendChild(g);
       grids[role] = g.querySelector('.grid');
     });
@@ -3653,6 +3653,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     // (Retour arrière seulement quand l'œuvre a le focus : ailleurs, il ne supprime rien par mégarde)
     if (e.key === 'Delete' || (e.key === 'Backspace' && e.target === canvas)) act('del');
+    if (e.key === '?') { e.preventDefault(); openModal($('shortcuts')); return; } // l'aide des raccourcis
     if (e.key === '+' || e.key === '=') act('bigger');
     if (e.key === '-') act('smaller');
     if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
@@ -5815,8 +5816,6 @@ Réponds uniquement avec ce JSON :
     const rec = e.info, comp = rec.comp || {};
     const el = document.createElement('div');
     el.className = `saved${e.current ? ' current' : ''}`;
-    el.setAttribute('role', 'button');
-    el.tabIndex = 0;
     const st = STYLES.find((x) => x.id === comp.style);
     const tags = [
       e.current ? `<span class="saved-tag on">${tr('en cours')}</span>` : '',
@@ -5838,7 +5837,13 @@ Réponds uniquement avec ce JSON :
     };
     const open = () => openWork(e, el);
     el.onclick = open;
-    el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); } };
+    // au clavier : un bouton qui couvre la fiche (ouvrir l'œuvre), à côté de celui qui la supprime
+    // (pas de bouton dans un bouton)
+    const hit = document.createElement('button');
+    hit.type = 'button';
+    hit.className = 'saved-open';
+    hit.setAttribute('aria-label', tr`Ouvrir « ${rec.name} »`);
+    el.prepend(hit);
     box.appendChild(el);
   }
   // supprimée partout : dans ce navigateur et dans le compte ; l'œuvre affichée laisse la place à une nouvelle
@@ -6249,14 +6254,19 @@ Réponds uniquement avec ce JSON :
       chev.setAttribute('class', 'chev'); chev.setAttribute('viewBox', '0 0 24 24'); chev.setAttribute('aria-hidden', 'true');
       chev.innerHTML = '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
       h.appendChild(chev);
-      h.setAttribute('role', 'button'); h.setAttribute('tabindex', '0');
-      const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); h.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); h.title = collapsed ? tr('Développer') : tr('Réduire'); };
+      // le titre garde son rôle de titre ; un bouton à l'intérieur replie ou développe la section
+      // (Entrée et Espace : le bouton s'en charge)
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'step-toggle';
+      while (h.firstChild) btn.appendChild(h.firstChild);
+      h.appendChild(btn);
+      const apply = (collapsed) => { sec.classList.toggle('collapsed', collapsed); btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true'); btn.title = collapsed ? tr('Développer') : tr('Réduire'); };
       sec._expand = () => apply(false);
       sec._collapse = () => apply(true);
       apply(true);
       const toggle = () => apply(!sec.classList.contains('collapsed'));
       h.addEventListener('click', toggle);
-      h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     });
   })();
 
@@ -6521,6 +6531,7 @@ Réponds uniquement avec ce JSON :
   }
   document.querySelectorAll('.order-cta').forEach((b) => (b.onclick = orderNow));
   $('cart-add-view').onclick = () => { closeModal($('cart-add')); openCart(); };
+  $('shortcuts-open').onclick = () => openModal($('shortcuts'));
 
   // fenêtres
   // Fenêtres (role="dialog", aria-modal) : le focus y entre à l'ouverture, Tab et Maj+Tab bouclent à
@@ -6558,7 +6569,7 @@ Réponds uniquement avec ce JSON :
   })();
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
   const closeModal = (el) => { el.hidden = true; };
-  ['cart-add', 'cart'].forEach((id) => {
+  ['cart-add', 'cart', 'shortcuts'].forEach((id) => {
     const el = $(id);
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
     el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });

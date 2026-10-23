@@ -296,7 +296,8 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 /* sections repliables : un clic sur le titre replie ou développe la section */
 .step h2 { cursor: pointer; user-select: none; border-radius: var(--r-sm); }
 .step h2:hover { color: var(--accent); }
-.step h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.step-toggle { all: unset; display: flex; align-items: baseline; gap: 10px; flex: 1; min-width: 0; cursor: pointer; border-radius: var(--r-sm); }
+.step-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .step h2 .chev { margin-left: auto; width: 14px; height: 14px; flex: none; align-self: center; color: var(--muted); transition: transform .18s; }
 .step.collapsed h2 .chev { transform: rotate(-90deg); }
 .step.collapsed > :not(h2) { display: none !important; }
@@ -533,8 +534,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 /* Dessins et pièces */
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .drawings-groups { display: grid; gap: 12px; }
-.drawings-group h4 { margin: 0 0 6px; font-size: 0.72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.drawings-group h4 small { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.drawings-group h3 { margin: 0 0 6px; font-family: var(--f-body); line-height: 1.4; font-size: 0.72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.drawings-group h3 small { font-weight: 400; letter-spacing: 0; text-transform: none; }
 .grid.pieces { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 
 .thumb {
@@ -1119,7 +1120,11 @@ body.stage-full .scene-open { display: none; }
 
 /* ---------- Mes œuvres ---------- */
 .saved-list { display: flex; flex-direction: column; gap: 8px; }
-.saved { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); cursor: pointer; text-align: left; }
+.saved { position: relative; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); cursor: pointer; text-align: left; }
+/* le bouton qui ouvre l'œuvre couvre la fiche ; celui qui la supprime passe au-dessus */
+.saved-open { all: unset; position: absolute; inset: 0; border-radius: inherit; cursor: pointer; }
+.saved-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.saved .saved-del { position: relative; z-index: 1; }
 .saved:hover { border-color: var(--accent); }
 .saved img { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; background: var(--wall); }
 .saved .saved-name { margin: 0; font-weight: 600; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1233,3 +1238,12 @@ body.stage-full .scene-open { display: none; }
 .thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .thumb-hit { all: unset; display: block; width: 100%; height: 100%; cursor: pointer; }
 .thumb-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-sm); }
+/* aide des raccourcis clavier */
+.shortcuts-card { max-width: 460px; }
+.shortcuts-card h3 { margin: 14px 0 6px; font-size: 0.78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 0.86rem; }
+.keys dt { white-space: nowrap; }
+.keys dd { margin: 0; }
+kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); font: 600 0.78rem var(--f-body); text-align: center; }
+.foot-links .link { font: inherit; color: inherit; }
+@media (max-width: 860px) { .kbd-only { display: none !important; } }
