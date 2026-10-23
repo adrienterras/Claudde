@@ -60,6 +60,17 @@ test.describe('Pop art', () => {
     expect([x.W, x.H]).toEqual([40, 50]);
     expect(x.cover).toBeCloseTo(1, 3);
     expect(x.colors).toEqual(v.colors);
+    // Défaire le changement de cadre : la toile, ses cases et les dessins reviennent ensemble (les
+    // dessins ne gardent pas leurs places d'avant dans la toile d'après) ; Refaire de même
+    await page.locator('#toolbar [data-act="undo"]').click();
+    const u = await pop(page);
+    expect([u.W, u.H, await page.locator('#format').inputValue()]).toEqual([50, 70, 'cadre:50x70']);
+    expect(u).toMatchObject({ inCell: true, items: 9, same: false });
+    expect(u.cover).toBeCloseTo(1, 3);
+    await page.locator('#toolbar [data-act="redo"]').click();
+    const r = await pop(page);
+    expect([r.W, r.H, await page.locator('#format').inputValue()]).toEqual([40, 50, 'cadre:40x50']);
+    expect(r.inCell).toBe(true);
     // l'image et le PDF se rendent
     await openStep(page, 'export-section');
     await page.locator('#dpi').selectOption('150');

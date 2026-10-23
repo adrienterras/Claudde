@@ -1832,6 +1832,9 @@
     comp.W = H0; comp.H = W0;
   }
   // change() applique le réglage ; how : 'fit' (même œuvre à la nouvelle taille) ou 'turn' (quart de tour)
+  // le cadre, l'orientation et le passe-partout de l'œuvre affichée (l'historique les retrouve : la liste
+  // a déjà changé quand l'étape est enregistrée)
+  function noteCompFrame() { state.compFormat = $('format').value; state.compOrient = canvasOrient(); state.compMat = printMat(); }
   function keepPrintComp(change, how) {
     const comp = state.comp;
     if (!(printMode() && comp && state.drawings.length)) { change(); state.pinned = null; regenerate(); return; }
@@ -1841,6 +1844,7 @@
     if (how === 'turn') { turnComp(comp, fc.w >= fc.h); if (Math.abs(comp.W - fc.w) > 1e-6 || Math.abs(comp.H - fc.h) > 1e-6) fitCompTo(comp, fc.w, fc.h); }
     else fitCompTo(comp, fc.w, fc.h);
     if (fc.frame) { comp.frameKey = fc.key; comp.mat = fc.mat; }
+    noteCompFrame();
     comp.touched = true;
     state.pinned = comp;
     state.bgCache = null;
@@ -2341,6 +2345,7 @@
     if (!printMode() && !state.formatManual) pickCanvas();
     planCoverage();
     state.canvasSize = formatCm();
+    noteCompFrame();
     state.printScale = computePrintScale();
     state.bgScale = computeBgScale();
     applyOrientations();
@@ -3401,7 +3406,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const pieces = new Map();
     comp.items.forEach((L) => { if (L.piece && !pieces.has(L.piece)) pieces.set(L.piece, pieceState(L.piece)); });
     const roles = new Map(state.drawings.map((d) => [d, d.role]));
-    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles };
+    // la toile elle-même : taille, cadre, orientation, passe-partout, cases (Galerie, Pop art) ; un
+    // changement de cadre se défait avec l'œuvre (sinon les dessins reprenaient leurs places d'avant
+    // dans la toile d'après)
+    const copy = (l) => (l ? l.map((x) => (Array.isArray(x) ? x.slice() : Object.assign({}, x))) : l);
+    const geo = { W: comp.W, H: comp.H, frameKey: comp.frameKey, mat: comp.mat, frames: copy(comp.frames), tiles: copy(comp.tiles), lines: copy(comp.lines), format: state.compFormat || $('format').value, orient: state.compOrient || canvasOrient(), matOn: state.compMat === undefined ? printMat() : state.compMat, formatManual: state.formatManual };
+    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -3427,6 +3437,19 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     comp.items = s.items.map((L) => Object.assign({}, L));
     comp.bg = s.bg.map((L) => Object.assign({}, L));
     comp.reduced = s.reduced;
+    let reframed = false;
+    if (s.geo) {
+      const g = s.geo, copy = (l) => (l ? l.map((x) => (Array.isArray(x) ? x.slice() : Object.assign({}, x))) : l);
+      Object.assign(comp, { W: g.W, H: g.H, frameKey: g.frameKey, mat: g.mat, frames: copy(g.frames), tiles: copy(g.tiles), lines: copy(g.lines) });
+      reframed = g.format !== $('format').value || g.orient !== canvasOrient() || g.matOn !== printMat();
+      if (canvasOrient() !== g.orient) setCanvasOrient(g.orient);
+      if (printMat() !== g.matOn) { try { localStorage.setItem('atelier.passe-partout', g.matOn ? '1' : '0'); } catch (e) { /* ignoré */ } syncMatButtons(); }
+      if ([...$('format').options].some((o) => o.value === g.format)) $('format').value = g.format;
+      state.formatManual = g.formatManual;
+      state.canvasSize = formatCm();
+      noteCompFrame();
+      updateScaleLabel();
+    }
     if ('ground' in s) { comp.ground = s.ground; comp.groundName = s.groundName; }
     // (un dessin retiré de l'œuvre, rangé dans « Non utilisé », reprend sa catégorie)
     let rolesChanged = false;
@@ -3445,6 +3468,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     updateExportInfo();
     updateLabel();
     refreshActiveThumb();
+    // cadre, orientation ou passe-partout défaits : les autres propositions sont refaites à cette
+    // toile, l'œuvre affichée reste telle quelle
+    if (reframed) { state.pinned = comp; regenerate({ noCommit: true }); }
   }
   function undo() {
     if (!history.past.length || !state.comp) return;
