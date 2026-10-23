@@ -1491,18 +1491,68 @@
     return { bg, items };
   }
 
+  /*
+   * Pop art (tableau imprimé) : la toile en grille de cases bord à bord, chacune peinte d'une couleur
+   * vive (comp.tiles), un dessin au centre de chaque case. À partir de 4 dessins, un dessin différent
+   * par case (les plus beaux, autant que le curseur en demande) ; de 1 à 3, le plus beau répété en
+   * 2 × 2. Chaque case prend la couleur vive la plus éloignée de celle du dessin, jamais la même que
+   * ses voisines de gauche et du dessus ; « Nouvelles propositions » tire d'autres couleurs.
+   */
+  const POP = ['#ff4f9a', '#ffd23f', '#2bb5ff', '#7cdb4a', '#ff7a1a', '#9b5cff', '#1fc8c8', '#ff3b3b', '#ffe8a3', '#3a4fd8'];
+  function popart(W, H, o, R) {
+    const score = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 0.5 : 0) + Math.min(1, (p.wcm * p.hcm) / 400) * 0.5;
+    const byDrawing = new Map();
+    o.pieces.forEach((p) => { const d = p.drawing || p; if (!byDrawing.has(d) || score(p) > score(byDrawing.get(d))) byDrawing.set(d, p); });
+    const cands = [...byDrawing.values()].sort((a, b) => score(b) - score(a));
+    if (!cands.length) return { tiles: [], items: [], kept: 0 };
+    const t = o.densityT === undefined ? 0.46 : clamp(o.densityT, 0, 1);
+    const target = Math.min(16, o.count ? Math.min(cands.length, o.count) : o.everything ? cands.length : Math.max(1, Math.round(cands.length * (0.2 + 0.8 * t))));
+    let cols, rows, chosen;
+    if (target < 4) { cols = 2; rows = 2; chosen = [cands[0], cands[0], cands[0], cands[0]]; }
+    else {
+      const g = galleryShape(target, W / H);
+      cols = g.cols; rows = g.rows;
+      chosen = shuffle(cands.slice(0, cols * rows), R);
+    }
+    const cw = W / cols, ch = H / rows;
+    const pal = shuffle(POP, R);
+    const used = new Map();
+    const hueGap = (a, b) => { const d = Math.abs(hue(a) - hue(b)) % 360; return Math.min(d, 360 - d); };
+    const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const tiles = [], items = [];
+    chosen.forEach((p, i) => {
+      const r = Math.floor(i / cols), c = i % cols;
+      const near = [c > 0 ? tiles[i - 1].color : null, r > 0 ? tiles[i - cols].color : null];
+      const pc = p.color || [200, 200, 200];
+      const colorful = (p.colorful || 0) > 0.08;
+      let best = null;
+      pal.forEach((col) => {
+        if (near.includes(col)) return;
+        const v = (colorful ? hueGap(rgb(col), pc) / 180 : 0.5) - (used.get(col) || 0) * 0.6 + R() * 0.25;
+        if (!best || v > best.v) best = { col, v };
+      });
+      const color = best ? best.col : pal[i % pal.length];
+      used.set(color, (used.get(color) || 0) + 1);
+      tiles.push({ x: c * cw, y: r * ch, w: cw, h: ch, color });
+      const f = Math.min(o.maxGrow || 1, (cw * 0.8) / p.wcm, (ch * 0.8) / p.hcm);
+      p.placed = true;
+      items.push({ kind: 'piece', piece: p, x: c * cw + cw / 2, y: r * ch + ch / 2, w: p.wcm * f, h: p.hcm * f, rot: 0, flip: false, scale: f, frame: i });
+    });
+    return { tiles, items, kept: new Set(chosen.map((p) => p.drawing)).size, total: byDrawing.size };
+  }
+
   function paperLayer(W, H) {
     const c = paperTexture();
     return { kind: 'bg', paper: true, src: c, x: W / 2, y: H / 2, w: W, h: H, rot: 0, flip: false, clip: null, sx: 0, sy: 0, sw: c.width, sh: c.height };
   }
 
-  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan), 'village' (scène de village sur un patchwork de couleurs).
+  // Styles : 'paysage' (ciel, milieu, sol), 'tournesol' (spirale), 'courtepointe' (patchwork), 'galerie' (grille de cadres), 'cabinet' (rangées alignées), 'scene' (ciel, horizon, ligne de sol, premier plan), 'village' (scène de village sur un patchwork de couleurs, plus proposée : seules les œuvres déjà faites se rouvrent), 'popart' (une couleur vive par case).
   // o.flat (atelier Impression) : le fond est un aplat parfaitement uni, sans coups de brosse
   function generate(o) {
     const comp = generateInner(o);
     if (o.flat) comp.paint = false;
     if (o.count && (comp.style === 'nuage' || comp.style === 'paysage') && !comp.bg.some((L) => L.panel)) relaxItems(comp);
-    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
+    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village', 'popart'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
     return comp;
   }
 
@@ -1601,6 +1651,11 @@
     if (style === 'scene') {
       const sc = scene(W, H, o.textures, o.pieces, o, R);
       return { W, H, bg: [...(o.ground ? [] : [paperLayer(W, H)]), ...sc.bg], items: sc.items, ground: o.ground || null, groundName: o.groundName || null, style, f: 1, scale: 1, kept: sc.kept, total: sc.total };
+    }
+    if (style === 'popart') {
+      const pa = popart(W, H, o, R);
+      // les cases couvrent toute la toile : ni papier ni coups de brosse dessous
+      return { W, H, bg: [], tiles: pa.tiles, items: pa.items, ground: '#ffffff', paint: false, style, f: 1, scale: 1, kept: pa.kept, total: pa.total };
     }
     if (style === 'village') {
       const v = village(W, H, o, R);
@@ -1994,6 +2049,8 @@
 
   function renderBg(ctx, comp, s, shadows) {
     renderGround(ctx, comp, s);
+    // Pop art : les cases de couleur vive (un léger débord : pas de jour entre deux cases)
+    if (comp.tiles) comp.tiles.forEach((t) => { ctx.fillStyle = t.color; ctx.fillRect(t.x * s - 0.5, t.y * s - 0.5, t.w * s + 1, t.h * s + 1); });
     comp.bg.forEach((L) => drawLayer(ctx, L, s, shadows));
     if (comp.frames) {
       // galerie : le cadre de chaque case, peint au trait (noir, ou la couleur choisie : comp.frameColor)

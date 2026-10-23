@@ -1817,6 +1817,7 @@
     comp.bg.forEach((L) => each(L, L.paper ? 1 : Math.max(kx, ky))); // les pages de fond couvrent toujours
     comp.bg.filter((L) => L.paper).forEach((L) => { L.w = W; L.h = H; L.x = W / 2; L.y = H / 2; });
     if (comp.frames) comp.frames.forEach((f) => { f.x *= kx; f.y *= ky; f.w *= kx; f.h *= ky; });
+    if (comp.tiles) comp.tiles.forEach((f) => { f.x *= kx; f.y *= ky; f.w *= kx; f.h *= ky; });
     if (comp.lines) comp.lines = comp.lines.map(([x0, y0, x1, y1]) => [x0 * kx, y0 * ky, x1 * kx, y1 * ky]);
     comp.W = W; comp.H = H;
     comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => !q.paper && (q.scale || 1) !== 1);
@@ -1826,7 +1827,7 @@
     const pt = cw ? (x, y) => [H0 - y, x] : (x, y) => [y, W0 - x];
     [...comp.items, ...comp.bg].forEach((L) => { [L.x, L.y] = pt(L.x, L.y); L.rot = (L.rot || 0) + (cw ? Math.PI / 2 : -Math.PI / 2); });
     comp.bg.filter((L) => L.paper).forEach((L) => { L.rot = 0; L.x = H0 / 2; L.y = W0 / 2; [L.w, L.h] = [L.h, L.w]; });
-    if (comp.frames) comp.frames.forEach((f) => { const [x, y] = cw ? [H0 - (f.y + f.h), f.x] : [f.y, W0 - (f.x + f.w)]; f.x = x; f.y = y; [f.w, f.h] = [f.h, f.w]; });
+    [comp.frames, comp.tiles].forEach((list) => { if (list) list.forEach((f) => { const [x, y] = cw ? [H0 - (f.y + f.h), f.x] : [f.y, W0 - (f.x + f.w)]; f.x = x; f.y = y; [f.w, f.h] = [f.h, f.w]; }); });
     if (comp.lines) comp.lines = comp.lines.map(([x0, y0, x1, y1]) => [...pt(x0, y0), ...pt(x1, y1)]);
     comp.W = H0; comp.H = W0;
   }
@@ -2296,6 +2297,8 @@
     { id: 'courtepointe', name: tr('Courtepointe'), hint: tr('patchwork, un médaillon par carreau') },
     { id: 'cabinet', name: tr('Cabinet de curiosités'), hint: tr('les plus beaux, en rangées') },
     { id: 'galerie', name: tr('Galerie'), hint: tr('grille de cadres, un dessin par case') },
+    { id: 'popart', name: tr('Pop art'), hint: tr('chaque dessin sur une couleur vive') },
+    // (plus proposé : une œuvre déjà faite en Village se rouvre telle quelle)
     { id: 'village', name: tr('Village'), hint: tr('scène de village sur un patchwork de couleurs') },
   ];
 
@@ -2315,13 +2318,13 @@
     return { w: best.w, h: best.h, auto: false, advised: true };
   }
 
-  // la Galerie (grille de cases, dessins réduits) n'a de sens qu'en tableau imprimé ; en collage, elle
-  // n'est pas proposée (sauf pour une œuvre rouverte dans ce style, qui garde sa place) ;
-  // le Village (fond taillé dans les zones de couleur des dessins, que les originaux ne pourraient pas
-  // fournir en plus de leurs sujets) aussi
+  // la Galerie (grille de cases, dessins réduits) et le Pop art (un dessin répété, des cases peintes)
+  // n'ont de sens qu'en tableau imprimé ; en collage, ils ne sont pas proposés (sauf pour une œuvre
+  // rouverte dans ce style, qui garde sa place) ; le Village n'est plus proposé, une œuvre déjà faite
+  // dans ce style se rouvre seulement
   function activeStyles() {
-    const keep = (id) => printMode() || (state.pinned && state.pinned.style === id);
-    return STYLES.filter((st) => (st.id !== 'galerie' && st.id !== 'village') || keep(st.id));
+    const pinned = (id) => !!(state.pinned && state.pinned.style === id);
+    return STYLES.filter((st) => (st.id === 'village' ? pinned('village') : st.id === 'galerie' || st.id === 'popart' ? printMode() || pinned(st.id) : true));
   }
   function regenerate(opts) {
     if (!state.drawings.length) return;
@@ -4098,6 +4101,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const ground = comp.ground || '#f8f5ef';
     doc.setFillColor(ground);
     doc.rect(0, 0, W, H, 'F');
+    // Pop art : les cases de couleur, en vecteurs
+    if (comp.tiles) comp.tiles.forEach((t) => { doc.setFillColor(t.color); doc.rect(t.x, t.y, t.w, t.h, 'F'); });
     if (comp.ground) {
       // l'aplat de peinture avec ses coups de brosse, en une image pleine page (100 dpi suffisent)
       const gs = Math.min(s, 100 / 2.54);
@@ -5625,7 +5630,7 @@ Réponds uniquement avec ce JSON :
       items.push(it);
     }
     const bg = comp.bg.map((L) => Object.assign({ d: L.paper ? -1 : texOwner(L) }, pick(L, ['paper', 'panel', 'scrap', 'patch', 'whole', 'x', 'y', 'w', 'h', 'rot', 'flip', 'sx', 'sy', 'sw', 'sh', 'clip', 'pageW', 'pageH', 'scale', 'plan', 'frame'])));
-    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'frameWidth', 'frameColor', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
+    const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'tiles', 'frameWidth', 'frameColor', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
       settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, mat: printMat(), orient: canvasOrient(), ground: state.ground, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },

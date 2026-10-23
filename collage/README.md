@@ -440,7 +440,7 @@ cd collage && python3 -m http.server 8000
      (`state.frameColor`, `setFrameColor`, `comp.frameColor` peint par `renderBg` et dans le PDF ;
      'auto' = l'encre noire ; ni « toile nue » ni « blanc » pour un trait ; libellés « Couleur du
      trait » dans la section et sur la pastille) ;
-   - **Galerie et Village en tableau imprimé seulement** : en collage, ils ne sont pas proposés
+   - **Galerie et Pop art en tableau imprimé seulement** : en collage, ils ne sont pas proposés
      (`activeStyles`) — sauf pour une œuvre rouverte dans ce style, qui garde sa place ;
    - **« Mettre en scène » en haut à gauche** de la zone d'édition sur ordinateur, sous la barre
      d'outils (celle qui commence par Défaire) ; `layoutLabel` n'a plus à le placer ; un second
@@ -515,18 +515,15 @@ cd collage && python3 -m http.server 8000
      pas la taille réelle),
      *Cabinet de curiosités* (sur la même toile, les plus beaux dessins exposés droits, en rangées,
      sans chevauchement : ceux qui n'y tiennent pas restent disponibles),
-     *Village* (tableau imprimé seulement, comme la Galerie : au fond, un patchwork bord à bord de
-     quelques grands carreaux (une quinzaine en 30 × 40) taillés dans les grandes zones de couleur des dessins — `Compose.colorPatches` cherche, famille de teintes
-     par famille, les plus grands rectangles pleins d'un coloriage ou d'une peinture, sans jamais
-     traverser un contour, dans les pages de fond et à l'intérieur des sujets découpés (jamais le
-     sol d'une photo) ; les carreaux sont taillés dans la page de chaque dessin (`pageTexture`,
-     quel que soit son rôle, ce qui sert aussi à la réouverture et à l'export HD) et rangés par
-     `Compose.skyness` d'après la couleur du crayon : marron, vert, rouge, noir, bleu nuit en bas,
-     bleu ciel, jaune et tons clairs en haut ; devant, une scène de vie de village : ce qui vole
-     (décidé par Claude, ou un soleil reconnu à sa forme et sa couleur) au ciel, le reste debout
-     sur trois lignes de sol, les plus grands sujets au fond, les plus petits devant, grands et
-     entremêlés (chaque rangée jusqu'à 1,7 fois la largeur, jamais au-delà de la taille réelle) ;
-     `keepVisible` fait glisser sur sa ligne un sujet caché à plus de moitié par ceux de devant),
+     *Pop art* (tableau imprimé seulement, comme la Galerie : la toile en grille de cases bord à bord,
+     `comp.tiles`, chacune peinte d'une couleur vive — la plus éloignée de la couleur du dessin, jamais
+     celle de ses voisines de gauche et du dessus — avec un dessin au centre, au plus à sa taille réelle ;
+     à partir de 4 dessins, un dessin différent par case, les plus beaux, autant que le curseur en
+     demande (16 au plus) ; de 1 à 3, le plus beau répété en 2 × 2 ; les cases sont peintes par
+     `renderBg`, en vecteurs dans le PDF, gardées avec la mise en place et suivent un changement de
+     cadre ou d'orientation ; « Nouvelles propositions » tire d'autres couleurs),
+     *Village* (plus proposé, remplacé par le Pop art : une œuvre déjà faite dans ce style se rouvre
+     telle quelle ; son patchwork venait des grandes zones de couleur des dessins, `Compose.colorPatches`),
      *Scène* (une scène est une sélection : au plus 18 sujets, les plus nets et colorés, un sujet
      reconnu par Claude passant devant, sans feuilles de texte ni fragments ; le reste attend dans le
      panneau, à ajouter d'un clic ; la toile automatique se calcule sur cette sélection ; une vraie

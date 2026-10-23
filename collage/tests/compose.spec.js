@@ -20,9 +20,9 @@ test.describe('Compositions', () => {
     await expect(app.page.locator('#proposals .proposal.on')).toContainText('Paysage');
   });
 
-  test('chaque style se sélectionne et se dessine ; la Galerie et le Village n’existent qu’en tableau imprimé, la Galerie avec ses boutons', async ({ app }) => {
+  test('chaque style se sélectionne et se dessine ; la Galerie et le Pop art n’existent qu’en tableau imprimé', async ({ app }) => {
     const { page } = app;
-    // collage : ni Galerie ni Village parmi les propositions
+    // collage : ni Galerie ni Pop art parmi les propositions (le Village n'est plus proposé du tout)
     expect(await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id))).toEqual(STYLES);
     for (const id of STYLES) {
       await app.select(id);
@@ -30,10 +30,10 @@ test.describe('Compositions', () => {
       const active = await page.evaluate(() => AtelierGribouille.state.comp.style);
       expect(active).toBe(id);
     }
-    // tableau imprimé : la Galerie et le Village s'ajoutent (plus de boutons agrandir / réduire : la
+    // tableau imprimé : la Galerie et le Pop art s'ajoutent (plus de boutons agrandir / réduire : la
     // poignée carrée sur l'œuvre suffit)
     await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
-    expect(await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id))).toEqual([...STYLES, 'galerie', 'village']);
+    expect(await page.evaluate(() => AtelierGribouille.state.proposals.map((p) => p.style.id))).toEqual([...STYLES, 'galerie', 'popart']);
     await app.select('galerie');
     await page.waitForTimeout(200);
     await expect(page.locator('#toolbar [data-act="bigger"], #toolbar [data-act="smaller"]')).toHaveCount(0);

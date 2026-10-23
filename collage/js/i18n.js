@@ -495,6 +495,8 @@
     'les plus beaux, en rangées': 'the finest, in rows',
     'Galerie': 'Gallery',
     'grille de cadres, un dessin par case': 'grid of frames, one drawing per cell',
+    'Pop art': 'Pop art',
+    'chaque dessin sur une couleur vive': 'each drawing on a bright colour',
     'Village': 'Village',
     'scène de village sur un patchwork de couleurs': 'a village scene on a colour patchwork',
     '{0} sur {1}': '{0} of {1}',
