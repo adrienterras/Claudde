@@ -50,4 +50,40 @@ test.describe('Une page, plusieurs sujets', () => {
     await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(3);
   });
+
+  test('« Dupliquer » : un nouveau dessin dans la liste, indépendant de l’original ; Défaire le retire ; une page de fond aussi', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-texture.png']);
+    const names = () => page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
+    const on = (name) => page.evaluate((name) => { const S = AtelierGribouille.state, d = S.drawings.find((x) => x.name === name); return d ? S.comp.items.filter((L) => L.piece.drawing === d).length + S.comp.bg.filter((L) => !L.paper && L.drawing === d).length : -1; }, name);
+    // la découpe sélectionnée, dupliquée par la barre d'outils
+    await page.evaluate(() => { const S = AtelierGribouille.state; S.selected = S.comp.items.find((L) => L.piece.drawing === S.drawings[0]); AtelierGribouille.render(); });
+    await page.locator('#toolbar [data-act="dup"]').click();
+    expect(await names()).toEqual(['page-cutout.png', 'page-cutout.png (copie)', 'page-texture.png']);
+    expect(await on('page-cutout.png (copie)')).toBe(1);
+    // la copie a sa page et sa découpe à elle
+    const own = await page.evaluate(() => { const [a, b] = AtelierGribouille.state.drawings; return a.analysis.page !== b.analysis.page && a.analysis.pieces[0] !== b.analysis.pieces[0] && a.analysis.pieces[0].canvas !== b.analysis.pieces[0].canvas && b.analysis.pieces[0].drawing === b; });
+    expect(own).toBe(true);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    await expect(page.locator('#drawings .thumb')).toHaveCount(3);
+    // retirée de l'œuvre : la copie seule passe dans « Non utilisé », l'original reste
+    await page.keyboard.press('Delete');
+    expect(await on('page-cutout.png (copie)')).toBe(0);
+    expect(await on('page-cutout.png')).toBe(1);
+    await expect(page.locator('#drawings .thumb[data-i="1"] + .thumb-add')).toHaveCount(1);
+    // Défaire deux fois : la copie revient, puis disparaît de la liste
+    await page.evaluate(() => AtelierGribouille.undo());
+    expect(await on('page-cutout.png (copie)')).toBe(1);
+    await page.evaluate(() => AtelierGribouille.undo());
+    expect(await names()).toEqual(['page-cutout.png', 'page-texture.png']);
+    // Refaire : elle revient
+    await page.evaluate(() => AtelierGribouille.redo());
+    expect(await names()).toEqual(['page-cutout.png', 'page-cutout.png (copie)', 'page-texture.png']);
+    // une page de fond se duplique aussi : un nouveau dessin, sa page posée sur l'œuvre
+    await page.evaluate(() => { const S = AtelierGribouille.state; S.selected = S.comp.bg.find((L) => !L.paper && L.drawing && /page-texture/.test(L.drawing.name)) || S.comp.bg.find((L) => !L.paper); AtelierGribouille.render(); });
+    await expect(page.locator('#toolbar [data-act="dup"]')).toBeEnabled();
+    await page.locator('#toolbar [data-act="dup"]').click();
+    expect(await names()).toEqual(['page-cutout.png', 'page-cutout.png (copie)', 'page-texture.png', 'page-texture.png (copie)']);
+    expect(await on('page-texture.png (copie)')).toBe(1);
+  });
 });

@@ -59,7 +59,7 @@ cd collage && python3 -m http.server 8000
      découpes ; le rôle « fond » se choisit aussi à la main. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, touches + et − de 10 % ; plus de boutons Agrandir /
      Réduire dans la barre d'outils : on agrandit directement sur l'œuvre ; la barre se limite à
-     Défaire, Refaire, Devant, Derrière, Dupliquer (pas pour une page de fond), Retoucher et Retirer —
+     Défaire, Refaire, Devant, Derrière, Dupliquer, Retoucher et Retirer —
      plus de Miroir, les miroirs des œuvres déjà faites se gardent ; une petite poubelle au coin haut gauche du
      dessin sélectionné le retire de l'œuvre, comme Retirer ou Suppr — `trashHandlePos`),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
@@ -633,8 +633,11 @@ n'est mémorisé).
    magenta est affiché en direct ; en validant, la pièce est mise à jour dans les trois propositions
    sans bouger sur la toile, et le réglage de lumière s'applique à tout le dessin (« Fermer sans
    enregistrer » l'oublie).
-   Une pièce **dupliquée** sur l'œuvre est une copie indépendante : retoucher sa découpe ne touche ni
-   l'originale ni les autres copies (la découpe de la copie est sauvegardée et rejouée à la réouverture).
+   **Dupliquer** fait un nouveau dessin de la liste (« nom (copie) », juste après l'original), totalement
+   indépendant : sa page, ses découpes et ses réglages sont à lui — le retoucher, le recadrer, changer
+   son rôle ou le retirer ne touche pas l'original (`duplicateDrawing`) ; sa copie est posée à côté sur
+   l'œuvre, un pas de Défaire (qui le retire aussi de la liste). Une page de fond se duplique de même.
+   (Les copies posées par les versions d'avant, liées à leur pièce, se rouvrent telles quelles.)
 6. **Guide de création (PDF)** pour réaliser l'œuvre avec les originaux :
    - couverture (taille de la toile, matériel, mode d'emploi), **plan de pose** quadrillé tous les 10 cm
      avec le numéro de chaque élément ;

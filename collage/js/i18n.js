@@ -800,6 +800,7 @@
     'Votre dernière œuvre ({0} dessins) est gardée dans Mes œuvres.': 'Your last artwork ({0} drawings) is kept in My artworks.',
     'Votre œuvre n’a pas pu être rouverte.': 'Your artwork could not be reopened.',
     '{0} (copie)': '{0} (copy)',
+    '{0} (copie {1})': '{0} (copy {1})',
     'Importez des dessins et choisissez une proposition avant de dupliquer l’œuvre.': 'Import drawings and pick a proposal before duplicating the artwork.',
     'Copie de l’œuvre…': 'Copying the artwork…',
     'Copie « {0} » ajoutée à Mes œuvres.': 'Copy “{0}” added to My artworks.',

@@ -177,15 +177,15 @@ test.describe('Retouches de découpe sauvegardées', () => {
 });
 
 test.describe('Dessin dupliqué', () => {
-  test('la copie a sa propre découpe : la retoucher ne change pas l’originale, et c’est gardé à la réouverture', async ({ app }) => {
+  test('« Dupliquer » fait un nouveau dessin, indépendant : le retoucher ne change pas l’original, et c’est gardé à la réouverture', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
     const opaque = (c) => { const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 127) n++; return n; };
     const state = () => page.evaluate((src) => {
       const opaque = new Function(`return (${src})`)();
-      const A = AtelierGribouille, p0 = A.state.drawings[0].analysis.pieces[0];
-      const items = A.state.comp.items.filter((L) => (L.piece.copyOf || L.piece) === p0);
-      return items.map((L) => ({ copy: !!L.piece.copyOf, opaque: opaque(L.piece.canvas) }));
+      const A = AtelierGribouille, d0 = A.state.drawings[0], dc = A.state.drawings.find((d) => /\(copie\)$/.test(d.name));
+      const items = [d0, dc].filter(Boolean).map((d) => A.state.comp.items.find((L) => L.piece.drawing === d)).filter(Boolean);
+      return items.map((L) => ({ copy: L.piece.drawing === dc, opaque: opaque(L.piece.canvas) }));
     }, opaque.toString());
     // sélectionner la pièce sur l'œuvre, la dupliquer (copies des œuvres déjà faites : plus de bouton)
     await page.evaluate(() => {
@@ -193,13 +193,14 @@ test.describe('Dessin dupliqué', () => {
       A.state.selected = A.state.comp.items.find((L) => L.piece === p0); A.render();
     });
     await page.evaluate(() => AtelierGribouille.act('dup'));
+    // un nouveau dessin dans la liste, juste après l'original
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name))).toEqual(['page-cutout.png', 'page-cutout.png (copie)', 'page-two — 1', 'page-two — 2']);
     const s0 = await state();
     expect(s0.map((x) => x.copy)).toEqual([false, true]);
     expect(s0[1].opaque).toBe(s0[0].opaque);
     // retoucher la copie (sélectionnée après la duplication)
     await page.locator('#toolbar [data-act="edit"]').click();
     await expect(page.locator('#editor')).toBeVisible();
-    await expect(page.locator('#editor')).toContainText('copie');
     await page.locator('#ed-size').fill('140');
     const box = await page.locator('#ed-canvas').boundingBox();
     const y = box.y + box.height / 2;

@@ -3595,6 +3595,61 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return c;
   }
 
+  /*
+   * « Dupliquer » : le dessin sélectionné sur l'œuvre devient un nouveau dessin de la liste, juste après
+   * l'original, totalement indépendant : sa page, ses découpes et ses réglages sont à lui (le retoucher,
+   * le recadrer, le retirer ou changer son rôle ne touche pas l'original). Sa copie est posée à côté,
+   * sélectionnée ; un pas de Défaire. (Une page de fond se duplique de même.)
+   */
+  function duplicateDrawing(L) {
+    const comp = state.comp, d = drawingOfLayer(L);
+    if (!comp || !d) return;
+    const copies = new Map();
+    const cc = (c) => {
+      if (!c) return c;
+      if (!copies.has(c)) { const x = Extract.makeCanvas(c.width, c.height); x.getContext('2d').drawImage(c, 0, 0); copies.set(c, x); }
+      return copies.get(c);
+    };
+    const pieceOf = (q) => { const n = Object.assign({}, q, { canvas: cc(q.canvas), src: q.src && Object.assign({}, q.src) }); delete n.copyOf; delete n.hd; return n; };
+    const anaOf = (a) => Object.assign({}, a, { page: cc(a.page), pieces: a.pieces && a.pieces.map(pieceOf), texture: a.texture && Object.assign({}, a.texture, { canvas: cc(a.texture.canvas) }) });
+    const a = d.analysis, na = anaOf(a), nb = d.base === a ? na : anaOf(d.base);
+    const names = new Set(state.drawings.map((x) => x.name));
+    let name = tr`${d.name} (copie)`;
+    for (let k = 2; names.has(name); k++) name = tr`${d.name} (copie ${k})`;
+    const nd = Object.assign({}, d, {
+      id: ++state.seq, name, analysis: na, base: nb, role: roleOf(d),
+      tone: d.tone ? Object.assign({}, d.tone) : undefined, crop: d.crop ? Object.assign({}, d.crop) : null,
+    });
+    delete nd.savedPack; delete nd.roleBefore;
+    if (!nd.tone) delete nd.tone;
+    [na, nb].forEach((x, i) => { if (x && x.pieces && (i === 0 || x !== na)) preparePieces(x.pieces, nd); });
+    (a.pieces || []).forEach((q, i) => { na.pieces[i].enabled = q.enabled; na.pieces[i].main = q.main; });
+    state.drawings.splice(state.drawings.indexOf(d) + 1, 0, nd);
+    // la copie posée à côté de l'original
+    let c;
+    if (L.kind === 'bg') {
+      c = Object.assign({}, L, { src: na.texture ? na.texture.canvas : L.src, drawing: nd, x: L.x + L.w * 0.08, y: L.y + L.h * 0.08 });
+      comp.bg.push(c);
+      state.bgCache = null;
+    } else {
+      const orig = L.piece.copyOf || L.piece, k = (a.pieces || []).indexOf(orig);
+      let np = k >= 0 ? na.pieces[k] : null;
+      if (!np) { np = pieceOf(L.piece); np.id = ++state.seq; np.drawing = nd; na.pieces = (na.pieces || []).concat(np); }
+      // (une copie retouchée sur l'œuvre, d'avant : sa découpe à elle)
+      if (L.piece.canvas !== orig.canvas) Object.assign(np, { canvas: cc(L.piece.canvas), src: Object.assign({}, L.piece.src), hit: L.piece.hit, edited: L.piece.edited, thumb: L.piece.thumb });
+      np.enabled = true; np.placed = true;
+      c = Object.assign({}, L, { piece: np, x: L.x + L.w * 0.15, y: L.y + L.h * 0.15, rot: (L.rot || 0) + 0.1 });
+      comp.items.push(c);
+    }
+    state.selected = c;
+    refreshLists();
+    refreshPieces();
+    refreshActiveThumb();
+    render();
+    updateExportInfo();
+    updateLabel();
+  }
+
   function editPiece(p) {
     if (!p || !p.src || !window.Editor) return;
     const d = p.drawing;
@@ -3752,7 +3807,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // dans la toile d'après)
     const copy = (l) => (l ? l.map((x) => (Array.isArray(x) ? x.slice() : Object.assign({}, x))) : l);
     const geo = { W: comp.W, H: comp.H, frameKey: comp.frameKey, mat: comp.mat, frames: copy(comp.frames), tiles: copy(comp.tiles), lines: copy(comp.lines), format: state.compFormat || $('format').value, orient: state.compOrient || canvasOrient(), matOn: state.compMat === undefined ? printMat() : state.compMat, formatManual: state.formatManual };
-    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles, pages, anas };
+    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles, pages, anas, list: state.drawings.slice() };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -3807,8 +3862,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       updateScaleLabel();
     }
     if ('ground' in s) { comp.ground = s.ground; comp.groundName = s.groundName; }
-    // (un dessin retiré de l'œuvre, rangé dans « Non utilisé », reprend sa catégorie)
+    // dessins ajoutés entre-temps (« Dupliquer ») : la liste d'alors revient
     let rolesChanged = false;
+    if (s.list && (s.list.length !== state.drawings.length || s.list.some((d, i) => d !== state.drawings[i]))) { state.drawings = s.list.slice(); rolesChanged = true; }
+    // (un dessin retiré de l'œuvre, rangé dans « Non utilisé », reprend sa catégorie)
     if (s.roles) s.roles.forEach((r, d) => { if (d.role !== r) { d.role = r; rolesChanged = true; } });
     s.enabled.forEach((on, p) => { p.enabled = on; });
     activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
@@ -3868,6 +3925,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (name === 'front') { comp.bg.splice(i, 1); comp.bg.push(L); }
       if (name === 'back') { comp.bg.splice(i, 1); comp.bg.splice(comp.bg.findIndex((q) => !q.paper), 0, L); }
       if (name === 'flip') { L.flip = !L.flip; L.manual = true; }
+      if (name === 'dup') { duplicateDrawing(L); return; }
       if (name === 'del') { comp.bg.splice(i, 1); state.selected = null; retireIfUnused(pageDrawing(L)); }
       state.bgCache = null;
       refreshActiveThumb();
@@ -3887,11 +3945,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (name === 'front') { comp.items.splice(i, 1); comp.items.push(L); }
     if (name === 'back') { comp.items.splice(i, 1); comp.items.unshift(L); }
     if (name === 'flip') L.flip = !L.flip;
-    if (name === 'dup') {
-      const c = Object.assign({}, L, { piece: copyPiece(L.piece), x: L.x + L.w * 0.15, y: L.y + L.h * 0.15, rot: L.rot + 0.1 });
-      comp.items.push(c);
-      state.selected = c;
-    }
+    if (name === 'dup') { duplicateDrawing(L); return; }
     refreshActiveThumb();
     if (name === 'del') {
       comp.items.splice(i, 1);
@@ -3968,7 +4022,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (b.classList.contains('history')) return;
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       // (plus de Miroir dans la barre : les miroirs des œuvres déjà faites se gardent et se rouvrent)
-      b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
+      b.disabled = !L || (L.kind === 'bg' && b.dataset.act === 'edit');
     });
     // (agrandir / réduire n'ont plus de boutons : la poignée carrée sur l'œuvre, et les touches + et −)
     fitToolbar();

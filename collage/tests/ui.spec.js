@@ -1424,7 +1424,7 @@ test.describe('Défaire une retouche', () => {
     });
     await page.locator('#toolbar [data-act="dup"]').click();
     const copyState = () => page.evaluate(() => {
-      const A = AtelierGribouille, L = A.state.comp.items.find((x) => x.piece.copyOf);
+      const A = AtelierGribouille, L = A.state.comp.items.find((x) => /\(copie\)$/.test(x.piece.drawing.name));
       return { cw: L.piece.canvas.width, ch: L.piece.canvas.height, w: L.w, h: L.h, x: L.x, y: L.y, edited: !!L.piece.edited };
     });
     const s0 = await copyState();
