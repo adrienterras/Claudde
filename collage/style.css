@@ -446,6 +446,7 @@ body.stage-full .stage-cta { display: none; }
 .cart-finish button.on { background: var(--ink); color: var(--on-ink); font-weight: 600; }
 .chips.cart-sizes { grid-template-columns: repeat(3, 1fr); border-radius: 14px; }
 .cart-sizes button { display: grid; gap: 1px; padding: 7px 2px; border-radius: 11px; }
+.cart-sizes button[hidden] { display: none; }
 .cart-sizes button small { font-weight: 500; font-size: 0.7rem; opacity: .75; }
 .cart-sizes button.on small { opacity: .9; color: var(--on-ink); }
 .cart-qty-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.86rem; }

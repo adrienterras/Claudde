@@ -6824,12 +6824,16 @@ Réponds uniquement avec ce JSON :
     });
     box.querySelector('.cart-print').hidden = choice.product !== 'print' || !printMode();
     box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
+    // encadré : couleur du cadre et passe-partout ; les tailles du cadre et de l'impression, en clair
+    const framed = choice.product === 'print' && choice.finish === 'cadre';
+    // encadré avec passe-partout : pas de 21 × 30 (l'impression n'y ferait que 13 × 18) ; le 30 × 40 le remplace
+    const noSmall = framed && !!choice.mat;
+    if (noSmall && choice.size === '21x30') choice.size = '30x40';
     box.querySelectorAll('[data-size]').forEach((b) => {
+      b.hidden = noSmall && b.dataset.size === '21x30';
       b.classList.toggle('on', b.dataset.size === choice.size);
       b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
     });
-    // encadré : couleur du cadre et passe-partout ; les tailles du cadre et de l'impression, en clair
-    const framed = choice.product === 'print' && choice.finish === 'cadre';
     box.querySelectorAll('.cart-frame').forEach((el) => { el.hidden = !framed; });
     box.querySelectorAll('[data-frame-kind]').forEach((b) => {
       const on = b.dataset.frameKind === choice.frame;
