@@ -3548,8 +3548,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const L = state.selected;
     document.querySelectorAll('#toolbar button').forEach((b) => {
       if (b.classList.contains('history')) return;
-      // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
-      b.disabled = !L || (L.kind === 'bg' && (b.dataset.act === 'dup' || b.dataset.act === 'edit'));
+      // sur une page de fond, pas de retouche de découpe (plus de Miroir ni de Dupliquer dans la barre :
+      // les copies et les miroirs des œuvres déjà faites se gardent et se rouvrent)
+      b.disabled = !L || (L.kind === 'bg' && b.dataset.act === 'edit');
     });
     // (agrandir / réduire n'ont plus de boutons : la poignée carrée sur l'œuvre, et les touches + et −)
     fitToolbar();
@@ -6729,7 +6730,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { act, state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

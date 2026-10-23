@@ -56,7 +56,9 @@ cd collage && python3 -m http.server 8000
      collent en fond d'office, toutes (`printBg` dans `planCoverage`) ; les autres pages sont des
      découpes ; le rôle « fond » se choisit aussi à la main. Chaque pièce posée s'agrandit ou se réduit à la
      main (poignée carrée au coin haut droit, touches + et − de 10 % ; plus de boutons Agrandir /
-     Réduire dans la barre d'outils : on agrandit directement sur l'œuvre),
+     Réduire dans la barre d'outils : on agrandit directement sur l'œuvre ; la barre se limite à
+     Défaire, Refaire, Devant, Derrière, Retoucher et Retirer — plus de Miroir ni de Dupliquer, les
+     copies et miroirs des œuvres déjà faites se gardent),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
      Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et

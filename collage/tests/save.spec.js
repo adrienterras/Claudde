@@ -187,12 +187,12 @@ test.describe('Dessin dupliqué', () => {
       const items = A.state.comp.items.filter((L) => (L.piece.copyOf || L.piece) === p0);
       return items.map((L) => ({ copy: !!L.piece.copyOf, opaque: opaque(L.piece.canvas) }));
     }, opaque.toString());
-    // sélectionner la pièce sur l'œuvre, la dupliquer
+    // sélectionner la pièce sur l'œuvre, la dupliquer (copies des œuvres déjà faites : plus de bouton)
     await page.evaluate(() => {
       const A = AtelierGribouille, p0 = A.state.drawings[0].analysis.pieces[0];
       A.state.selected = A.state.comp.items.find((L) => L.piece === p0); A.render();
     });
-    await page.locator('#toolbar [data-act="dup"]').click();
+    await page.evaluate(() => AtelierGribouille.act('dup'));
     const s0 = await state();
     expect(s0.map((x) => x.copy)).toEqual([false, true]);
     expect(s0[1].opaque).toBe(s0[0].opaque);

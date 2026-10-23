@@ -537,10 +537,10 @@ test.describe('Historique', () => {
     await redo.click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.items.length)).toBe(n0 - 1);
     await undo.click();
-    // retourner, puis Ctrl+Z au clavier
+    // retourner (action gardée pour les œuvres déjà faites, plus de bouton), puis Ctrl+Z au clavier
     await page.evaluate(() => { const s = AtelierGribouille.state; s.selected = s.comp.items[0]; AtelierGribouille.render(); });
     const f0 = await page.evaluate(() => !!AtelierGribouille.state.comp.items[0].flip);
-    await page.locator('#toolbar [data-act="flip"]').click();
+    await page.evaluate(() => AtelierGribouille.act('flip'));
     expect(await page.evaluate(() => !!AtelierGribouille.state.comp.items[0].flip)).toBe(!f0);
     await page.keyboard.press('Control+z');
     expect(await page.evaluate(() => !!AtelierGribouille.state.comp.items[0].flip)).toBe(f0);
@@ -784,7 +784,7 @@ test.describe('Liste des dessins et photos de l’iPhone', () => {
       await page.locator(`#drawings .thumb[data-i="${i}"]`).click();
       await expect(page.locator('#detail')).toBeVisible();
       expect(await page.evaluate((i) => { const s = AtelierGribouille.state; return !!s.selected && s.selected.piece && s.selected.piece.drawing === s.drawings[i]; }, i)).toBe(true);
-      await expect(page.locator('#toolbar [data-act="flip"]')).toBeEnabled();
+      await expect(page.locator('#toolbar [data-act="front"]')).toBeEnabled();
     }
     // dessin suivant avec ‹ › : la sélection suit
     await page.locator('#detail [data-nav="1"]').click();
@@ -1161,8 +1161,8 @@ test.describe('Pages de fond sur l’œuvre', () => {
     await frames();
     const moved = await page.evaluate((i) => AtelierGribouille.state.comp.bg[i].x, pt.index);
     expect(moved).toBeGreaterThan(pt.x0 + 1);
-    // la barre d'outils agit sur la page (devant / derrière, miroir, retirer)
-    await expect(page.locator('#toolbar [data-act="flip"]')).toBeEnabled();
+    // la barre d'outils agit sur la page (devant / derrière, retirer)
+    await expect(page.locator('#toolbar [data-act="front"]')).toBeEnabled();
     // une découpe reste prioritaire : cliquer dessus la sélectionne, pas la page dessous
     const piece = await page.evaluate(() => { const A = AtelierGribouille, v = A.view, L = A.state.comp.items[0], r = document.getElementById('canvas').getBoundingClientRect(); return { x: r.left + (L.x * v.s + v.ox) / v.dpr, y: r.top + (L.y * v.s + v.oy) / v.dpr }; });
     await page.mouse.click(piece.x, piece.y);
@@ -1417,7 +1417,7 @@ test.describe('Défaire une retouche', () => {
       const A = AtelierGribouille, p0 = A.state.drawings[0].analysis.pieces[0];
       A.state.selected = A.state.comp.items.find((L) => L.piece === p0); A.render();
     });
-    await page.locator('#toolbar [data-act="dup"]').click();
+    await page.evaluate(() => AtelierGribouille.act('dup')); // (copie d'une œuvre déjà faite : plus de bouton)
     const copyState = () => page.evaluate(() => {
       const A = AtelierGribouille, L = A.state.comp.items.find((x) => x.piece.copyOf);
       return { cw: L.piece.canvas.width, ch: L.piece.canvas.height, w: L.w, h: L.h, x: L.x, y: L.y, edited: !!L.piece.edited };
@@ -1891,7 +1891,11 @@ test.describe('Barre d’outils sur iPad', () => {
     });
     let f = await fits();
     expect(f.inside && f.del && f.scroll === 0).toBe(true);
-    await page.setViewportSize({ width: 1024, height: 1366 }); // iPad Pro en portrait : icônes seules
+    await page.setViewportSize({ width: 1024, height: 1366 }); // iPad Pro en portrait
+    await page.waitForTimeout(200);
+    f = await fits();
+    expect(f.inside && f.del && f.scroll === 0).toBe(true);
+    await page.setViewportSize({ width: 960, height: 1180 }); // plus étroit (encore la mise en page ordinateur) : icônes seules
     await page.waitForTimeout(200);
     f = await fits();
     expect(f).toEqual({ icons: true, inside: true, del: true, scroll: 0 });
