@@ -796,10 +796,13 @@
     return t;
   }
 
-  function textureFrom(page) {
-    // on rogne un peu les bords du scan (ombres, bord de feuille)
+  function textureFrom(page, rect) {
+    // on rogne un peu les bords du scan (ombres, bord de feuille) ; rect (fractions de la page) : le
+    // cadrage choisi à la main
     const mx = page.width * 0.015, my = page.height * 0.015;
-    const c = enhance(crop(page, mx, my, page.width - 2 * mx, page.height - 2 * my), null);
+    const c = enhance(rect
+      ? crop(page, page.width * rect.x, page.height * rect.y, Math.max(1, page.width * rect.w), Math.max(1, page.height * rect.h))
+      : crop(page, mx, my, page.width - 2 * mx, page.height - 2 * my), null);
     const color = averageColor(c);
     const small = scaleTo(c, 32);
     const d = ctx2d(small).getImageData(0, 0, small.width, small.height).data;

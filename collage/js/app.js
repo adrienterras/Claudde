@@ -644,8 +644,9 @@
     if (deg === 0) d.analysis = d.base;
     else {
       const a = withCut(d, () => EX(d).rotated(d.base, deg));
-      // la page tournée garde la découpe ou le fond décidés pour la page droite
+      // la page tournée garde la découpe ou le fond décidés pour la page droite (et son recadrage)
       a.kind = d.base.kind;
+      if (d.crop) a.texture = null;
       d.analysis = a;
     }
     d.thumb = thumbOf(d.analysis.page);
@@ -912,7 +913,91 @@
       a.pieces = withCut(d, () => EX(d).recut(a));
       preparePieces(a.pieces, d);
     }
-    if (role === 'texture' && !a.texture) a.texture = EX(d).textureFrom(a.page);
+    if (role === 'texture' && !a.texture) buildTexture(d);
+  }
+
+  /*
+   * Recadrage d'une page de fond (fiche du dessin, « Recadrer la page ») : d.crop, en fractions de la
+   * page droite (avant l'orientation automatique) ; null : le cadrage d'origine, la page moins un
+   * liseré de 1,5 % (ombres, bord de feuille). La page de fond en est refaite ; sur l'œuvre et dans
+   * les autres propositions, elle garde son échelle et la partie gardée reste à sa place.
+   */
+  const CROP0 = { x: 0.015, y: 0.015, w: 0.97, h: 0.97 };
+  // un cadre (fractions de page) tourné avec la page, dans le sens de Extract.rotateCanvas
+  function turnRect(r, deg) {
+    deg = ((deg % 360) + 360) % 360;
+    if (deg === 90) return { x: 1 - r.y - r.h, y: r.x, w: r.h, h: r.w };
+    if (deg === 180) return { x: 1 - r.x - r.w, y: 1 - r.y - r.h, w: r.w, h: r.h };
+    if (deg === 270) return { x: r.y, y: 1 - r.x - r.w, w: r.h, h: r.w };
+    return { x: r.x, y: r.y, w: r.w, h: r.h };
+  }
+  // le cadrage de la page telle qu'elle est tournée (null : celui d'origine)
+  const cropOf = (d) => (d.crop ? turnRect(d.crop, d.orientDeg || 0) : null);
+  const textureOf = (d, page) => EX(d).textureFrom(page, cropOf(d));
+  function buildTexture(d) {
+    const a = d.analysis;
+    a.texture = textureOf(d, a.page);
+    d.cropThumb = d.crop ? thumbOf(a.texture.canvas) : null;
+    return a.texture;
+  }
+  // la vignette d'un dessin : sa page de fond recadrée, s'il y a lieu
+  const thumbFor = (d) => (d.cropThumb && roleOf(d) === 'texture' ? d.cropThumb : d.thumb);
+  const allComps = () => [...new Set([state.comp, state.pinned].concat((state.proposals || []).map((pr) => pr.comp)).filter(Boolean))];
+
+  // Calques d'une page de fond dont le cadrage passe de « from » à « to » (fractions de la page) :
+  // même échelle ; une page montrée entière le reste, la partie gardée à sa place sur la toile (au
+  // centre de sa case dans la Galerie, sans en déborder) ; une bande de page garde ce qu'elle
+  // montrait, dans le nouveau cadre
+  function fitPageLayers(d, oldT, newT, from, to, comps) {
+    const ow = oldT.canvas.width, oh = oldT.canvas.height, nw = newT.canvas.width, nh = newT.canvas.height;
+    comps.forEach((comp) => comp.bg.forEach((L) => {
+      if (L.paper || L.patch || L.src !== oldT.canvas) return;
+      const sx = L.sx || 0, sy = L.sy || 0, sw = L.sw || ow, sh = L.sh || oh;
+      const P = { x: from.x + (sx / ow) * from.w, y: from.y + (sy / oh) * from.h, w: (sw / ow) * from.w, h: (sh / oh) * from.h };
+      let V = to;
+      if (!(sx <= 1 && sy <= 1 && sw >= ow - 1 && sh >= oh - 1)) {
+        const x0 = Math.max(P.x, to.x), y0 = Math.max(P.y, to.y), x1 = Math.min(P.x + P.w, to.x + to.w), y1 = Math.min(P.y + P.h, to.y + to.h);
+        if (x1 - x0 > 0.01 && y1 - y0 > 0.01) V = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+      }
+      const ux = L.w / P.w, uy = L.h / P.h; // cm sur la toile par fraction de page
+      let w = V.w * ux, h = V.h * uy, m = 1;
+      const fr = L.frame !== undefined && comp.frames ? comp.frames[L.frame] : null;
+      if (fr) {
+        const side = Math.min(fr.w, fr.h), pad = Math.min(1.6, Math.max(0.25, side * 0.12));
+        m = Math.min(1, (side - 2 * pad) / Math.max(w, h));
+        w *= m; h *= m;
+      } else {
+        let dx = (V.x + V.w / 2 - (P.x + P.w / 2)) * ux;
+        const dy = (V.y + V.h / 2 - (P.y + P.h / 2)) * uy;
+        if (L.flip) dx = -dx;
+        const rot = L.rot || 0;
+        L.x += dx * Math.cos(rot) - dy * Math.sin(rot);
+        L.y += dx * Math.sin(rot) + dy * Math.cos(rot);
+      }
+      if (L.clip) L.clip = L.clip.map(([x, y]) => [(x * w) / L.w, (y * h) / L.h]);
+      if (L.pageW) { L.pageW *= (to.w / from.w) * m; L.pageH *= (to.h / from.h) * m; }
+      Object.assign(L, { src: newT.canvas, drawing: d, w, h, sx: ((V.x - to.x) / to.w) * nw, sy: ((V.y - to.y) / to.h) * nh, sw: (V.w / to.w) * nw, sh: (V.h / to.h) * nh });
+    }));
+  }
+  // Nouveau cadrage (fractions de la page tournée ; null : celui d'origine) : un pas de Défaire
+  function setCrop(d, rect) {
+    const same = (a, b) => ['x', 'y', 'w', 'h'].every((k) => Math.abs(a[k] - b[k]) < 1e-4);
+    if (rect && same(rect, CROP0)) rect = null;
+    const from = cropOf(d) || CROP0, to = rect || CROP0;
+    if (same(from, to)) return;
+    if (state.comp) { commit(); touched(); }
+    const old = d.analysis.texture;
+    d.crop = rect ? turnRect(rect, -(d.orientDeg || 0)) : null;
+    if (d.base) d.base.texture = null;
+    d.analysis.texture = null;
+    const t = buildTexture(d);
+    if (old) fitPageLayers(d, old, t, from, to, allComps());
+    state.bgCache = null;
+    refreshLists();
+    renderProposals();
+    render();
+    updateExportInfo();
+    refreshActiveThumb();
   }
 
   function preparePieces(pieces, d) {
@@ -1133,7 +1218,7 @@
       el.setAttribute('aria-label', el.title);
       el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
       el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
-      el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
+      el.innerHTML = `<img src="${thumbFor(d)}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
@@ -1172,7 +1257,7 @@
     const print = printMode();
     box.innerHTML = `
       <button type="button" class="detail-close" aria-label="${tr('Fermer')}" title="${tr('Fermer')}">×</button>
-      <img src="${d.thumb}" alt=""${toneStyle(d)}>
+      <img src="${thumbFor(d)}" alt=""${toneStyle(d)}>
       <div>
         <p class="name">${d.ai ? `${esc(d.ai.sujet)} <small>· ${esc(d.ai.zone)}</small><br>` : ''}<small>${esc(d.name)}</small></p>
         <div class="detail-nav">
@@ -1183,6 +1268,7 @@
         <div class="seg">${ROLES.map((r) => `<button data-role="${r}" class="${r === role ? 'on ' + r : ''}">${ROLE_LABEL[r]}</button>`).join('')}</div>
         <!-- en tête de fiche : visible sans faire défiler, même dans le tiroir à mi-hauteur du téléphone -->
         ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
+        ${role === 'texture' && d.analysis.texture ? `<button type="button" class="btn btn-sm detail-edit" data-crop title="${tr('Choisir la partie de la page posée sur l’œuvre')}"><svg class="ico"><use href="#i-crop"/></svg><span>${tr('Recadrer la page')}</span></button>` : ''}
         ${print ? '' : `<div class="row stack">${tr('Taille réelle')}
           <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
             ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}
@@ -1275,6 +1361,8 @@
     }
     const editBtn = box.querySelector('[data-edit]');
     if (editBtn) editBtn.onclick = () => editPiece(main);
+    const cropBtn = box.querySelector('[data-crop]');
+    if (cropBtn) cropBtn.onclick = () => Crop.open(d.analysis.page, cropOf(d) || CROP0, { initial: CROP0, onApply: (r) => setCrop(d, r) });
     const custom = box.querySelector('[data-custom]');
     const setSize = (cm) => {
       if (!(cm > 0)) return;
@@ -2261,7 +2349,7 @@
   // y taille ses carreaux de couleur, et une œuvre rouverte les y retrouve.
   function pageTexture(d) {
     const a = d.analysis;
-    if (!a.texture && a.page) a.texture = EX(d).textureFrom(a.page);
+    if (!a.texture && a.page) buildTexture(d);
     return a.texture || null;
   }
   // Village : les grandes zones de couleur des dessins, repérées une fois par dessin (en pixels de sa
@@ -3420,12 +3508,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const pieces = new Map();
     comp.items.forEach((L) => { if (L.piece && !pieces.has(L.piece)) pieces.set(L.piece, pieceState(L.piece)); });
     const roles = new Map(state.drawings.map((d) => [d, d.role]));
+    // le cadrage des pages de fond (et la page qui en est faite)
+    const pages = new Map(state.drawings.filter((d) => d.analysis.texture).map((d) => [d, { crop: d.crop || null, texture: d.analysis.texture, deg: d.orientDeg || 0, thumb: d.cropThumb || null }]));
     // la toile elle-même : taille, cadre, orientation, passe-partout, cases (Galerie, Pop art) ; un
     // changement de cadre se défait avec l'œuvre (sinon les dessins reprenaient leurs places d'avant
     // dans la toile d'après)
     const copy = (l) => (l ? l.map((x) => (Array.isArray(x) ? x.slice() : Object.assign({}, x))) : l);
     const geo = { W: comp.W, H: comp.H, frameKey: comp.frameKey, mat: comp.mat, frames: copy(comp.frames), tiles: copy(comp.tiles), lines: copy(comp.lines), format: state.compFormat || $('format').value, orient: state.compOrient || canvasOrient(), matOn: state.compMat === undefined ? printMat() : state.compMat, formatManual: state.formatManual };
-    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles };
+    return { geo, comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles, pages };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -3447,6 +3537,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (p.src && st.src) fitLayers(p, p.src, st.src, (state.proposals || []).map((pr) => pr.comp).filter((c) => c !== comp));
       Object.assign(p, st);
       delete p.hd;
+    });
+    // pages recadrées entre-temps : leur cadrage d'alors revient (même règle que les pièces)
+    let cropped = false;
+    if (s.pages) s.pages.forEach((st, d) => {
+      const t = d.analysis.texture;
+      if (!t || t === st.texture || st.deg !== (d.orientDeg || 0)) return;
+      fitPageLayers(d, t, st.texture, cropOf(d) || CROP0, st.crop ? turnRect(st.crop, st.deg) : CROP0, allComps().filter((c) => c !== comp));
+      d.crop = st.crop;
+      if (d.base) d.base.texture = null;
+      d.analysis.texture = st.texture;
+      d.cropThumb = st.thumb;
+      cropped = true;
     });
     comp.items = s.items.map((L) => Object.assign({}, L));
     comp.bg = s.bg.map((L) => Object.assign({}, L));
@@ -3470,7 +3572,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (s.roles) s.roles.forEach((r, d) => { if (d.role !== r) { d.role = r; rolesChanged = true; } });
     s.enabled.forEach((on, p) => { p.enabled = on; });
     activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
-    if (rolesChanged) refreshLists();
+    if (rolesChanged || cropped) refreshLists();
     state.comp = comp;
     if (state.proposals && state.proposals[s.active] && state.proposals[s.active].style.id === comp.style) { state.proposals[s.active].comp = comp; state.active = s.active; }
     state.selected = null;
@@ -3649,7 +3751,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   document.querySelectorAll('#toolbar button').forEach((b) => (b.onclick = () => act(b.dataset.act)));
 
   window.addEventListener('keydown', (e) => {
-    if (window.Editor && Editor.isOpen()) return;
+    if ((window.Editor && Editor.isOpen()) || (window.Crop && Crop.isOpen())) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
     // (Retour arrière seulement quand l'œuvre a le focus : ailleurs, il ne supprime rien par mégarde)
     if (e.key === 'Delete' || (e.key === 'Backspace' && e.target === canvas)) act('del');
@@ -4148,7 +4250,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         }
         const t = d.analysis.texture;
         if (t && comp.bg.some((L) => L.src === t.canvas)) {
-          const ht = a.texture || EX(d).textureFrom(a.page);
+          const ht = d.crop ? textureOf(d, a.page) : a.texture || EX(d).textureFrom(a.page);
           tmp.push(ht.canvas);
           t.canvas.hd = Extract.scaleTo(ht.canvas, Math.ceil(Math.max(t.canvas.width, t.canvas.height) * r * 1.02));
         }
@@ -5728,6 +5830,7 @@ Réponds uniquement avec ce JSON :
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
         saved,
         cut: d.cutPrefs || null,
+        crop: d.crop || null,
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
@@ -6017,6 +6120,7 @@ Réponds uniquement avec ce JSON :
       if (sd.orient && sd.orient !== d.orient) { d.orient = sd.orient; }
       if (sd.tone) d.tone = sd.tone; else delete d.tone;
       d.role = ROLES.includes(sd.role) ? sd.role : 'auto'; // rôle effectif figé : la composition compte dessus
+      if (sd.crop) { d.crop = sd.crop; if (d.base) d.base.texture = null; d.analysis.texture = null; }
       ensureMaterial(d);
       (d.analysis.pieces || []).forEach((p, k) => { if (sd.enabled && sd.enabled[k] !== undefined) p.enabled = sd.enabled[k]; if (sd.pieceAi && sd.pieceAi[k]) p.ai = sd.pieceAi[k]; });
     }
@@ -6904,7 +7008,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

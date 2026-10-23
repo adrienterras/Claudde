@@ -163,6 +163,14 @@ cd collage && python3 -m http.server 8000
    papier éclairci jusqu'au blanc (s'il y en a assez de visible, jamais assombri), traits pâles foncés
    d'un tiers, couleurs ternes ravivées (jamais sur le crayon gris, avec retenue si le papier a une
    teinte) ; voir `Compose.autoTone`
+   ; pour une page de fond, **« Recadrer la page »** (`js/crop.js`) : la page entière s'affiche avec
+   un cadre à tirer par les coins et les bords, ou à déplacer (au clavier : flèches, Maj+flèches pour
+   sa taille) ; « Toute la page » prend la feuille entière, « Rétablir » le cadrage d'origine (la page
+   moins un liseré de 1,5 %). Le cadre est gardé par dessin (`d.crop`, fractions de la page droite,
+   tourné avec elle), dans les sauvegardes, et repris à l'export haute définition ; la page de fond
+   en est refaite. Sur l'œuvre et dans les autres propositions, la page garde son échelle et la
+   partie gardée reste à sa place (au centre de sa case dans la Galerie) ; Défaire le reprend
+   (`fitPageLayers`). La fiche et la vignette montrent la page recadrée.
    et **taille réelle** de la feuille
    (A5, A4, A3, A2 ou autre) — c'est cette taille qui compte, puisque les dessins sont collés à
    taille réelle. Sans information dans le fichier, la taille est estimée à partir du scan
@@ -664,6 +672,7 @@ taille réelle, son rôle et son orientation, et les autres dessins ne bougent p
 - `js/analytics.js` : mesure d'audience sans cookies (Umami Cloud, gratuit), activée par `analytics` dans
   `config.js` ; quelques compteurs d'usage via `Atelier.track`. Voir `docs/ANALYTIQUE.md`.
 - `js/editor.js` : éditeur de découpe (masque en pixels de la page, historique, zoom tactile).
+- `js/crop.js` : recadrage d'une page de fond (cadre à poignées, clavier, « Toute la page », « Rétablir »).
 - `js/guide.js` : génération du guide de création (pages dessinées à 150 dpi, assemblées en PDF).
 - `assets/` : éléments de la charte Atelier Gribouille (monogramme détouré, motif de crayons, pictogrammes).
   Palette : craie #F8F5EF, lin #DCCBB8, blush #D9A7A0, argile #C26F56, olive #6B6F4E ; typographies
