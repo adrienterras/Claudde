@@ -251,7 +251,8 @@ cd collage && python3 -m http.server 8000
      choisi** (`drawCartScene`, même dessin que « Mettre en scène » : `paintRoom`) : le tableau à la
      taille d'impression choisie, encadré (couleur du cadre, passe-partout) ou sur papier, l'œuvre
      entière dedans (marge blanche si ses proportions diffèrent) ; le fichier HD, le guide ou le kit :
-     l'œuvre à sa taille. Elle suit chaque changement d'option. La composition y est figée telle
+     l'œuvre à sa taille. Elle suit chaque changement d'option ; l'image prend toute la hauteur de
+     la fenêtre (carrée sur téléphone), cadrée plus près du mur que « Mettre en scène » (`spec.fill`). La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
      brouillon ; la liste est dans localStorage et survit au rechargement. **Connecté, le panier est le
      même sur tous les appareils** : chaque article est une composition du compte marquée `meta.cart`

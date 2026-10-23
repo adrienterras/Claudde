@@ -4624,7 +4624,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     // le téléchargement a un format fixe (2000 × 1500) : la photo s'y ajuste à une fraction de pixel près
-    const k = S.pxPerCm, aspect = out ? out.canvas.width / out.canvas.height : S.w / S.h;
+    // spec.fill (le panier) : l'image prend la taille du canevas affiché, cadrée plus près du mur
+    const k = S.pxPerCm, aspect = out ? out.canvas.width / out.canvas.height : spec.fill && cv.clientHeight ? cv.clientWidth / cv.clientHeight : S.w / S.h;
     // hauteur d'accrochage : centre à hauteur de regard (150 cm) pour une petite œuvre, un peu plus
     // bas (135 cm) pour une grande qui descend vers le meuble ; le bas reste au moins 20 cm au-dessus
     // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
@@ -4636,7 +4637,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (mid + Ho / 2 > S.top - 6) mid = Math.max(bottom + Ho / 2, S.top - 6 - Ho / 2);
     // cadrage : l'œuvre, le buffet et un peu de sol ; plus large pour une grande œuvre
     const top = mid + Ho / 2 + 15;
-    const viewW = clamp(Math.max(3 * Wo, 260), 260, S.w / k);
+    const viewW = spec.fill
+      ? Math.min(Math.max(2.2 * Wo, 150), Math.min(S.w, S.h * aspect) / k)
+      : clamp(Math.max(3 * Wo, 260), 260, S.w / k);
     const sw = viewW * k, sh = sw / aspect;
     const ay = S.floorY - mid * k; // centre de l'œuvre, en pixels de la photo
     const sx = clamp(ax - sw / 2, 0, S.w - sw);
@@ -6858,9 +6861,9 @@ Réponds uniquement avec ce JSON :
       const framed = choice.finish === 'cadre', mat = framed && !!choice.mat;
       const [Pw, Ph] = or(mat ? f.mat : f.print);
       const [Fw, Fh] = framed ? or([f.w, f.h]) : [Pw, Ph];
-      return { comp, framed, kind: framed ? choice.frame : null, mat, Fw, Fh, Pw, Ph, paper: !framed };
+      return { comp, framed, kind: framed ? choice.frame : null, mat, Fw, Fh, Pw, Ph, paper: !framed, fill: true };
     }
-    return { comp, framed: false, kind: null, mat: false, Fw: comp.W, Fh: comp.H, paper: printMode() };
+    return { comp, framed: false, kind: null, mat: false, Fw: comp.W, Fh: comp.H, paper: printMode(), fill: true };
   }
   function drawCartScene() {
     const cv = $('cart-scene');
@@ -6895,6 +6898,8 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, maxQty(choice)); renderCartAdd(); }));
     box.querySelectorAll('.cart-kit input[data-kit]').forEach((c) => (c.onchange = () => { choice.kit[c.dataset.kit] = c.checked; renderCartAdd(); }));
     $('cart-add-ok').onclick = addPendingToCart;
+    // la mise en scène suit la taille de la fenêtre
+    if (window.ResizeObserver) new ResizeObserver(() => drawCartScene()).observe($('cart-scene'));
   })();
 
   async function addPendingToCart() {
