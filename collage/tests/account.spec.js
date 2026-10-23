@@ -191,9 +191,10 @@ test.describe('Comptes utilisateurs', () => {
     // envoi sans attendre le délai : une ligne marquée « œuvre », à l'identifiant de l'œuvre
     await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work && r.meta.drawings.length === 4), w1);
-    // chaque dessin (page-two.png en donne deux) : son image, sa page de travail et (dessins découpés) la planche de ses masques, dans le dossier de l'œuvre
+    // chaque dessin : son image, sa page de travail et (dessins découpés) la planche de ses masques, dans le dossier de l'œuvre ;
+    // page-two.png donne deux dessins, qui partagent son image (envoyée une fois)
     const up1 = await page.evaluate((id) => window.__fake.calls.filter((c) => c[0] === 'upload').map((c) => c[1].split('/')[1] === id), w1);
-    expect(up1.length).toBe(11);
+    expect(up1.length).toBe(10);
     expect(up1.every(Boolean)).toBe(true);
     await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
     // un changement repart, sans renvoyer les images, dans la même ligne
@@ -204,7 +205,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForTimeout(3500);
     await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForFunction((a) => window.__fake.db.rows.find((r) => r.id === a.id).meta.comp.style === a.st, { id: w1, st: style2 });
-    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(11);
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(10);
     expect(await page.evaluate(() => window.__fake.db.rows.length)).toBe(1);
     // une deuxième œuvre : la première est rangée, rien n'est effacé
     await page.locator('#new-work').click();

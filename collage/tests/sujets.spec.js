@@ -18,6 +18,22 @@ test.describe('Une page, plusieurs sujets', () => {
     const ds = await list();
     expect(ds.map((d) => d.name)).toEqual(['page-cutout.png', 'page-two — 1', 'page-two — 2']);
     expect(ds.every((d) => d.pieces === 1)).toBe(true);
+    // chaque sujet garde la feuille entière comme page (sa retouche peut agrandir sa découpe partout)
+    const pages = await page.evaluate(() => { const [, a, b] = AtelierGribouille.state.drawings; return { same: a.analysis.page === b.analysis.page, w: a.analysis.page.width, h: a.analysis.page.height, ax: a.analysis.pieces[0].src.x, bx: b.analysis.pieces[0].src.x, ay: a.analysis.pieces[0].src.y, by: b.analysis.pieces[0].src.y }; });
+    expect(pages.same).toBe(true);
+    expect(Math.max(pages.w, pages.h)).toBeGreaterThan(1000);
+    expect([pages.ax, pages.ay]).not.toEqual([pages.bx, pages.by]);
+    // la retouche du deuxième sujet montre la feuille entière ; « Découpe automatique » lui rend sa découpe à lui
+    const own = () => page.evaluate(() => { const p = AtelierGribouille.state.drawings[2].analysis.pieces[0]; return [p.src.x + p.src.w / 2, p.src.y + p.src.h / 2]; });
+    const c0 = await own();
+    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[2].analysis.pieces[0]));
+    await expect(page.locator('#editor')).toBeVisible();
+    await page.locator('#ed-reset').click();
+    await page.locator('#ed-apply').click();
+    await expect(page.locator('#editor')).toBeHidden();
+    const c1 = await own();
+    expect(Math.abs(c1[0] - c0[0])).toBeLessThan(pages.w * 0.05);
+    expect(Math.abs(c1[1] - c0[1])).toBeLessThan(pages.h * 0.05);
     // les deux sujets gardent l'échelle de leur feuille (même nombre de centimètres par pixel)
     expect(Math.abs(ds[1].cmPx / ds[2].cmPx - 1)).toBeLessThan(0.01); // (tailles arrondies au millimètre)
     // deux vignettes dans la liste, sur l'œuvre chacun le sien

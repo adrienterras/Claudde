@@ -430,11 +430,14 @@
   /*
    * Une page qui porte plusieurs sujets (une planche en cases, une feuille à plusieurs personnages)
    * n'entre pas dans la liste comme une seule feuille : chaque sujet y devient un dessin à part, que
-   * l'on pose sur l'œuvre ou retire comme les autres. Le dessin d'un sujet est une image à lui : la
-   * zone de la page autour de sa découpe, le reste de la feuille remplacé par la couleur du papier ;
-   * sa découpe est celle trouvée sur la page. Il garde l'échelle de la feuille (sheet : la taille de
-   * la feuille est estimée pour elle, puis chaque sujet en prend sa part, voir estimateSizes).
-   * Les fragments (traits fins, miettes) ne deviennent pas des dessins. null : la page reste entière.
+   * l'on pose sur l'œuvre ou retire comme les autres. Le dessin d'un sujet garde la feuille entière
+   * comme page (partagée avec les autres sujets, jamais modifiée) : sa retouche peut agrandir sa
+   * découpe n'importe où sur la feuille, et en page de fond il n'en montre que sa partie (crop, à
+   * recadrer). part : l'emplacement du sujet sur la feuille et son rang parmi les découpes de la
+   * page — une découpe refaite (découpe apprise, haute définition, « Découpe automatique ») reprend ce
+   * sujet-là seulement (voir preparePieces, partIndex). Les sujets d'une feuille partagent sa taille
+   * (sheet, estimée comme une page, voir estimateSizes). Les fragments (traits fins, miettes) ne
+   * deviennent pas des dessins. null : la page reste entière.
    */
   async function splitSheet(d) {
     const a = d.analysis, ps = a.pieces || [];
@@ -456,36 +459,27 @@
       const x0 = Math.max(0, Math.floor(p.src.x - m)), y0 = Math.max(0, Math.floor(p.src.y - m));
       const x1 = Math.min(page.width, Math.ceil(p.src.x + p.src.w + m)), y1 = Math.min(page.height, Math.ceil(p.src.y + p.src.h + m));
       const w = x1 - x0, h = y1 - y0;
-      // le sujet tel qu'il est sur la page, là où sa découpe est opaque, sur la couleur du papier
-      const subj = Extract.makeCanvas(w, h), sx = subj.getContext('2d');
-      sx.drawImage(page, x0, y0, w, h, 0, 0, w, h);
-      sx.globalCompositeOperation = 'destination-in';
-      sx.drawImage(p.canvas, p.src.x - x0, p.src.y - y0, p.src.w, p.src.h);
+      // la vignette : le sujet seul, sur la couleur du papier
       const img = Extract.makeCanvas(w, h), ix = img.getContext('2d');
+      ix.drawImage(page, x0, y0, w, h, 0, 0, w, h);
+      ix.globalCompositeOperation = 'destination-in';
+      ix.drawImage(p.canvas, p.src.x - x0, p.src.y - y0, p.src.w, p.src.h);
+      ix.globalCompositeOperation = 'destination-over';
       ix.fillStyle = `rgb(${paper[0]}, ${paper[1]}, ${paper[2]})`;
       ix.fillRect(0, 0, w, h);
-      ix.drawImage(subj, 0, 0);
-      Extract.release(subj);
-      const name = `${base} — ${i + 1}`;
-      const blob = await toBlob(img, 'image/png');
-      const file = new File([blob], `${name}.png`, { type: 'image/png' });
-      const piece = Object.assign({}, p, { src: Object.assign({}, p.src, { x: p.src.x - x0, y: p.src.y - y0 }), frac: Math.min(1, (p.frac * page.width * page.height) / (w * h)) });
-      const k = Math.max(w, h) / d.srcLong; // part de la feuille (en pixels de travail)
+      const thumb = thumbOf(img);
+      Extract.release(img);
+      const part = { index: ps.indexOf(p), x: p.src.x / page.width, y: p.src.y / page.height, w: p.src.w / page.width, h: p.src.h / page.height };
+      const na = Object.assign({}, a, { pieces: [p], texture: null });
       out.push(Object.assign({}, d, {
-        id: ++state.seq, name, thumb: thumbOf(img),
-        analysis: { page: img, paper, texture: null, kind: 'cutout', paperFrac: a.paperFrac, pieces: [piece], cut: a.cut },
-        original: img, photo: null, photoMode: 'auto', photoDebug: null,
-        source: { file, index: 0 }, fileKey: await fileKey(file),
-        srcLong: Math.max(w, h), origLong: Math.round(d.origLong * k), origShort: Math.max(1, Math.round(d.origShort * k)),
-        physCm: null, pxLong: d.pxLong ? Math.round(d.pxLong * k) : null,
-        sheet, sheetK: k, sheetKey: d.fileKey || null,
+        id: ++state.seq, name: `${base} — ${i + 1}`, thumb, analysis: na, base: na,
+        part, crop: { x: x0 / page.width, y: y0 / page.height, w: w / page.width, h: h / page.height },
+        photo: null, photoMode: 'auto', photoDebug: null,
+        sheet, sheetK: 1, sheetKey: d.fileKey || null,
       }));
-      out[out.length - 1].base = out[out.length - 1].analysis;
     }
-    // la feuille entière n'est plus gardée
+    // les fragments ne sont pas gardés
     ps.forEach((p) => { if (!keep.includes(p)) Extract.release(p.canvas); });
-    if (d.original && d.original !== page) Extract.release(d.original);
-    Extract.release(page);
     return out;
   }
 
@@ -746,7 +740,7 @@
       if (d.crop) a.texture = null;
       d.analysis = a;
     }
-    d.thumb = thumbOf(d.analysis.page);
+    if (!d.part) d.thumb = thumbOf(d.analysis.page); // (un sujet d'une feuille garde sa vignette)
     preparePieces(d.analysis.pieces, d);
     if (d.analysis.pieces) curateDrawing(d);
     ensureMaterial(d);
@@ -1212,7 +1206,26 @@
     refreshActiveThumb();
   }
 
+  // le rang d'une pièce parmi les découpes de sa page (pour la retrouver dans une découpe refaite) ;
+  // un sujet d'une feuille découpée en plusieurs dessins : son rang sur la feuille entière
+  function pieceIndex(d, p) {
+    const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
+    return k >= 0 && d.part ? d.part.index : k;
+  }
   function preparePieces(pieces, d) {
+    // un sujet d'une feuille découpée en plusieurs dessins (splitSheet) : une découpe refaite sur la
+    // feuille entière ne lui rend que sa découpe à lui, celle qui recouvre le mieux sa place
+    if (d.part && pieces && pieces.length > 1) {
+      const P = d.analysis && d.analysis.page, W = (P && P.width) || 1, H = (P && P.height) || 1, r = d.part;
+      const cover = (q) => {
+        const ox = Math.min(r.x + r.w, (q.src.x + q.src.w) / W) - Math.max(r.x, q.src.x / W), oy = Math.min(r.y + r.h, (q.src.y + q.src.h) / H) - Math.max(r.y, q.src.y / H);
+        const o = Math.max(0, ox) * Math.max(0, oy);
+        return o / (r.w * r.h + (q.src.w / W) * (q.src.h / H) - o);
+      };
+      const best = pieces.reduce((m, q) => (cover(q) > cover(m) ? q : m));
+      pieces.forEach((q) => { if (q !== best && q.canvas !== best.canvas) Extract.release(q.canvas); });
+      pieces.splice(0, pieces.length, best);
+    }
     (pieces || []).forEach((p) => {
       p.id = ++state.seq;
       p.enabled = true;
@@ -1518,13 +1531,13 @@
           </div>
           <p class="hint" data-tone-msg hidden></p>
         </div>`}
-        <p class="hint photo">${d.photo
+        ${d.part ? '' : `<p class="hint photo">${d.photo
           ? d.photo.sheet
             ? tr`Photo d’une feuille sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un mur ou une table')} : la feuille a été redressée et recadrée. <button class="link" data-photo="keep">Garder la photo entière</button>`
             : tr`Photo sur ${d.photo.kind === 'bois' ? tr('du bois ou du parquet') : tr('un sol ou une table')} : le fond a été retiré et le dessin détouré. <button class="link" data-photo="keep">Garder la photo entière</button>`
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
-            : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
+            : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>`}
         ${qualityBlock(d)}
         ${print ? '' : `<p class="hint">${sz.sizeMode === 'auto' ? (sz.physCm ? tr`Taille lue dans le scan (${sz.physSource || 'PDF'}).` : sz.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>`}
@@ -3675,7 +3688,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       tone: d.tone, autoTone: () => Compose.autoTone(toneSources(d)),
       // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
       autoPiece: () => {
-        const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
+        const k = pieceIndex(d, p);
         return k >= 0 ? withCut(d, () => EX(d).recut(d.analysis))[k] || null : null;
       },
       onTone: (t) => {
@@ -4564,7 +4577,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
               p.hd = Extract.scaleTo(img, needLong);
               return;
             }
-            const k = (d.analysis.pieces || []).indexOf(p.copyOf || p);
+            const k = pieceIndex(d, p);
             const hp = k >= 0 ? a.pieces[k] : null;
             if (!hp) return;
             const same = Math.abs(hp.frac - p.frac) < 0.03 && Math.abs(hp.canvas.width / hp.canvas.height - p.canvas.width / p.canvas.height) < 0.06;
@@ -6192,6 +6205,7 @@ Réponds uniquement avec ce JSON :
         cut: d.cutPrefs || null,
         crop: d.crop || null,
         sheetKey: d.sheetKey || null,
+        part: d.part || null,
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
@@ -6479,6 +6493,7 @@ Réponds uniquement avec ce JSON :
       if (!d) continue;
       d.ai = sd.ai || null;
       d.sheetKey = sd.sheetKey || null;
+      if (sd.part) d.part = sd.part;
       // la découpe apprise au moment de la sauvegarde : le dessin est réanalysé avec, pour retrouver
       // les mêmes pièces (les retouches y sont rejouées par rang)
       if (sd.saved) {

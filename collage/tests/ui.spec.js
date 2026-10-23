@@ -486,7 +486,7 @@ test.describe('Brouillon', () => {
       };
     }));
     expect(store.data).toBe(false);
-    expect(store.keys.sort()).toEqual(store.refs.slice().sort());
+    expect(store.keys.sort()).toEqual([...new Set(store.refs)].sort()); // (les sujets d'une feuille partagent son image)
     // une réouverture qui n'a pas abouti (page fermée faute de mémoire) est proposée, pas relancée d'office
     // (un plantage ne passe pas par une sortie normale : la marque est encore là au démarrage suivant)
     await page.addInitScript(() => localStorage.setItem('atelier-gribouille:reouverture', String(Date.now())));

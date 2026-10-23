@@ -141,11 +141,12 @@ cd collage && python3 -m http.server 8000
      la découpe fine les ignore aussi, et une telle feuille peut donner jusqu'à 16 pièces.
      **Un dessin par sujet** : une page qui porte plusieurs sujets (planche en cases, feuille à
      plusieurs personnages) entre dans la liste comme un dessin par sujet (`splitSheet`), que l'on
-     retire ou remet un par un (« + ») ; chaque dessin est la zone de la page autour de sa découpe,
-     le reste de la feuille à la couleur du papier, nommé « nom — 1 », « nom — 2 »… La feuille
-     entière n'est pas gardée. Les sujets gardent l'échelle de leur feuille : sa taille est estimée
-     comme pour une page, chacun en prend sa part (`sheet`, `sheetK`) ; la clé du fichier d'origine
-     (`sheetKey`) fait reconnaître la feuille si on la réimporte. En collage, la taille à vérifier est
+     retire ou remet un par un (« + »), nommé « nom — 1 », « nom — 2 »… ; la feuille n'est plus un
+     dessin de la liste, mais chaque sujet la garde entière comme page : sa retouche peut agrandir sa
+     découpe n'importe où sur la feuille, et en page de fond il n'en montre que sa partie (à
+     recadrer). Une découpe refaite (découpe apprise, haute définition, « Découpe automatique ») lui
+     rend sa découpe à lui (`part` : sa place et son rang sur la feuille). Les sujets partagent la
+     taille de leur feuille, estimée comme pour une page (`sheet`) ; la feuille réimportée est reconnue. En collage, la taille à vérifier est
      celle de la feuille d'origine, entière (une ligne « Dessins 1 à 9 · feuille entière » dans les
      tailles, et dans la fiche de chacun de ses sujets) : on ne peut pas mesurer un sujet déjà découpé ;
      ses sujets suivent (`setRealSize`). Les fragments (traits fins,
