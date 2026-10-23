@@ -48,6 +48,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
     await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
+    await page.evaluate(() => { document.getElementById('format').value = 'cadre:30x40'; }); // (partant d'un 30 × 40, plus petit que le cadre par défaut ; le choix est encore replié)
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const snap = () => page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, style: c.style, key: c.frameKey, items: c.items.map((L) => [L.x / c.W, L.y / c.H, L.w, L.h, L.rot, (L.piece.canvas.width * L.piece.drawing.sizeCm / L.piece.drawing.srcLong) / L.w]), bg: c.bg.filter((L) => !L.paper).length }; });
@@ -134,9 +135,9 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
-    // cinq cadres du commerce, rien d'autre ; 30 × 40 par défaut
+    // cinq cadres du commerce, rien d'autre ; 50 × 70 par défaut
     expect(opts).toEqual(['cadre:21x30', 'cadre:30x40', 'cadre:40x50', 'cadre:50x70', 'cadre:70x100']);
-    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:30x40');
+    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:50x70');
     await expect(page.locator('#guide-box')).toBeHidden();
     await expect(page.locator('#sizes-hint')).toBeHidden();
     // pas de vérification des tailles en tableau imprimé (la photo importée serait « à vérifier » en collage)
@@ -492,10 +493,27 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // passage en Impression (par le code : plus de bascule dans l'interface) : cadre par défaut, œuvre recomposée à sa taille
     await page.evaluate((m) => { AtelierGribouille.setMode(m); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); }, 'impression');
     await page.waitForTimeout(400);
-    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:30x40', 40, 30]);
+    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:50x70', 70, 50]);
     await page.evaluate((m) => { AtelierGribouille.setMode(m); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); }, 'toile');
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => /^\d+x\d+$/.test(document.getElementById('format').value))).toBe(true);
     expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBeFalsy();
+  });
+  test('Impression : toute nouvelle œuvre part dans un cadre 50 × 70, même après une œuvre dans un autre cadre', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:50x70');
+    await page.setInputFiles('#file', ['page-cutout.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([50, 70]);
+    await page.selectOption('#format', 'cadre:30x40');
+    await page.waitForTimeout(300);
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await page.locator('#mode-pick button[data-mode="impression"]').click();
+    await page.setInputFiles('#file', ['page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:50x70', 50, 70]);
   });
 });

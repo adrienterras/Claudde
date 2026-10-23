@@ -1771,7 +1771,7 @@
     { key: '50x70', w: 50, h: 70, print: [50, 70], mat: [40, 50] },
     { key: '70x100', w: 70, h: 100, print: [70, 100], mat: [50, 70] },
   ];
-  const FRAME_DEFAULT = 'cadre:30x40';
+  const FRAME_DEFAULT = 'cadre:50x70'; // cadre d'une nouvelle œuvre imprimée
   const frameOf = (v) => PRINT_FRAMES.find((f) => `cadre:${f.key}` === v) || null;
   // un réglage ancien (A3, 18 × 24, carré…) : le cadre de surface la plus proche
   function normalizeFrame(v) {
@@ -1898,8 +1898,10 @@
         g.appendChild(o);
       });
       sel.appendChild(g);
-      sel.value = current.startsWith('cadre:') ? normalizeFrame(current) : FRAME_DEFAULT;
+      // (une nouvelle œuvre repart du cadre par défaut, pas de celui de l'œuvre d'avant)
+      sel.value = current.startsWith('cadre:') && !state.frameReset ? normalizeFrame(current) : FRAME_DEFAULT;
       if (sel.selectedIndex < 0) sel.value = FRAME_DEFAULT;
+      state.frameReset = false;
       return;
     }
     const seen = new Set();
@@ -4791,6 +4793,9 @@ Réponds uniquement avec ce JSON :
     emptyChoice(false); // le type d'œuvre se choisit de nouveau
     $('density').value = $('density').max; // une nouvelle œuvre part avec tous les dessins
     setCanvasOrient('port'); // et en portrait
+    // en tableau imprimé, dans le cadre par défaut (50 × 70)
+    state.frameReset = true; state.formatManual = false;
+    if ([...$('format').options].some((o) => o.value === FRAME_DEFAULT)) $('format').value = FRAME_DEFAULT;
     refreshLists();
     updateLabel();
     render();

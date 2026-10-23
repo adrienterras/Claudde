@@ -1027,7 +1027,9 @@
       if (sd < 2.5) { want = g.N; continue; }
       alt = { cols: g.cols, rows: g.rows, side: sd, gap: 1.6 };
     }
-    if (grid && alt && alt.side > grid.side * 1.25) grid = null;
+    // (et la grille qui accueille plus de dessins, à cases presque aussi grandes : sur un 50 × 70, la
+    // grille « même bord » de 2 cases écartait 2 dessins sur 4 au curseur maximum)
+    if (grid && alt && (alt.side > grid.side * 1.25 || (alt.cols * alt.rows > grid.cols * grid.rows && alt.side >= grid.side * 0.75))) grid = null;
     let cols, rows, side, x0g, y0g;
     if (grid) {
       ({ cols, rows, side } = grid);
