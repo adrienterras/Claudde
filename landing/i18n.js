@@ -218,7 +218,7 @@
     "Ouvrez l’atelier sur l’ordinateur, avec le même compte.": "Open the studio on your computer, with the same account.",
     "Il vous propose de reprendre l’œuvre là où vous l’avez laissée : déplacez, agrandissez, choisissez le cadre, puis commandez.": "It offers to pick up the artwork where you left off: move, enlarge, choose the frame, then order.",
     "Sur le téléphone, connectez-vous avec votre compte gratuit.": "On your phone, sign in with your free account.",
-    "Il garde vos photos et l’œuvre en cours, d’elles-mêmes.": "It keeps your photos and the artwork in progress automatically.",
+    "Il garde vos photos et l’œuvre en cours automatiquement.": "It keeps your photos and the artwork in progress automatically.",
     "Touchez « Photographier un dessin ».": "Tap “Photograph a drawing”.",
     "Cadrez la feuille : l’atelier vérifie qu’elle est entière, nette et bien éclairée, et vous dit quand prendre la photo.": "Frame the sheet: the studio checks that it is whole, sharp and well lit, and tells you when to take the photo.",
     "L’atelier sur le téléphone, qui vérifie la photo d’un dessin, et la même œuvre ouverte sur l’ordinateur": "The studio on a phone, checking the photo of a drawing, and the same artwork open on a computer",
