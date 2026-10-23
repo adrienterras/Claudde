@@ -407,6 +407,16 @@ body.stage-full .cart-btn-desk { display: none; }
 body.stage-full .stage-cta { display: none; }
 .cart-card { width: min(520px, 100%); gap: 12px; }
 .cart-card .acc-title { text-align: left; padding-right: 36px; }
+/* ajout au panier : la mise en scène de l'article à gauche, au-dessus sur téléphone */
+.cart-add-card { width: min(980px, 100%); flex-direction: row; align-items: flex-start; gap: 28px; }
+.cart-add-main { flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.cart-scene { flex: 1 1 440px; min-width: 0; position: sticky; top: 0; }
+#cart-scene { display: block; width: 100%; height: auto; border-radius: 14px; background: var(--surface-2); }
+@media (max-width: 860px) {
+  .cart-add-card { flex-direction: column; align-items: stretch; gap: 16px; }
+  .cart-add-main, .cart-scene { flex: none; }
+  .cart-scene { position: static; }
+}
 .cart-what { display: flex; align-items: center; gap: 12px; }
 .cart-what img { width: 84px; height: 60px; object-fit: contain; background: var(--surface-2); border-radius: 8px; }
 .cart-what p { margin: 0; display: grid; gap: 2px; }
@@ -545,7 +555,13 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 }
 .thumb:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -10px rgba(0, 0, 0, .5); }
 .pieces .thumb { background: var(--surface-2) repeating-conic-gradient(var(--line) 0 25%, transparent 0 50%) 0 0 / 10px 10px; }
-.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; user-select: none; }
+/* « Non utilisé » : le « + » qui remet le dessin sur l'œuvre */
+.thumb-wrap { position: relative; }
+.thumb-add { position: absolute; right: 4px; bottom: 4px; z-index: 1; width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: var(--on-primary); cursor: pointer; box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .5); transition: transform .15s; }
+.thumb-add:hover { transform: scale(1.08); }
+.thumb-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.thumb-add .ico { width: 16px; height: 16px; }
 /* une pièce retirée, dans « Pièces découpées » : estompée ; un dessin de « Non utilisé » reste bien
    visible (sa catégorie le dit déjà ; un dessin au crayon pâle disparaissait sinon) */
 .pieces .thumb.off img { opacity: .25; filter: grayscale(1); }
@@ -833,6 +849,8 @@ body.editing { overflow: hidden; }
   .ed-card { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; position: relative; width: min(1280px, 100%); height: min(100%, 900px); border-radius: 22px; overflow: hidden; background: var(--surface); box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .55), 0 0 0 1px var(--line); animation: rise .22s ease-out; }
   .ed-close { display: block; z-index: 2; }
   .ed-card .ed-bar { padding-right: 62px; } /* place pour la croix */
+  /* la prise de photo (iPad en paysage) reste en plein écran, comme un appareil photo */
+  .editor.camera { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; grid-template-rows: auto minmax(0, 1fr) auto; place-items: stretch; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: none; }
 }
 .scene-box { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 /* ordinateur : section Tailles sans passe-partout (il se choisit dans la mise en scène), et un second
@@ -1180,7 +1198,7 @@ body.stage-full .scene-open { display: none; }
 /* ---------- Prise de photo dans l'atelier ---------- */
 .camera-open { margin: 14px 0 10px; } /* téléphone : un peu d'air sous la barre d'onglets */
 @media (max-width: 860px) { #draft-offer { margin-top: 14px; } } /* « Votre dernière œuvre… » : de l'air sous la barre d'onglets */
-@media (min-width: 861px) { .camera-open { display: none !important; } } /* ordinateur : pas de bouton photo (on photographie au téléphone) */
+@media (min-width: 861px) { html:not(.touch) .camera-open { display: none !important; } } /* ordinateur sans écran tactile : pas de bouton photo (on photographie au téléphone ou à la tablette) ; iPad : oui */
 .cloud-sync { margin: 4px 0 12px; display: grid; } /* une ligne discrète : l'œuvre s'enregistre d'elle-même */
 .cloud-sync .hint { margin: 0; font-size: 0.76rem; }
 .cloud-sync[hidden] { display: none !important; }

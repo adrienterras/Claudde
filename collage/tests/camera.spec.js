@@ -196,4 +196,28 @@ test.describe('Photographier un dessin', () => {
     await expect(page.locator('#camera')).toBeHidden();
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
   });
+  test('iPad (écran tactile, mise en page d’ordinateur) : le bouton « Photographier un dessin » est proposé ; pas sur un ordinateur sans tactile', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 }, hasTouch: true, permissions: ['camera'] });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    expect(await page.evaluate(() => navigator.maxTouchPoints > 0)).toBe(true);
+    await expect(page.locator('#empty-camera')).toBeVisible();
+    // la visée s'ouvre, avec l'image de la caméra en grand
+    await page.locator('#empty-camera').click();
+    await expect(page.locator('#camera')).toBeVisible();
+    await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
+    const stage = await page.locator('.camera-stage').boundingBox();
+    expect(stage.height).toBeGreaterThan(400);
+    expect(stage.width).toBeGreaterThan(500);
+    await ctx.close();
+    const desk = await browser.newContext({ viewport: { width: 1180, height: 820 } });
+    const dp = await desk.newPage();
+    await dp.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await dp.goto('index.html?mode=impression');
+    await dp.waitForFunction(() => window.AtelierGribouille);
+    await expect(dp.locator('#empty-camera')).toBeHidden();
+    await desk.close();
+  });
 });

@@ -1232,7 +1232,23 @@
           if (panel && box) setTimeout(() => { panel.scrollTo({ top: Math.max(0, box.offsetTop - 12), behavior: 'smooth' }); }, 60);
         }
       };
-      (grids[role] || dEl).appendChild(el);
+      // « Non utilisé » : un bouton « + » sur la vignette remet le dessin sur l'œuvre (à côté du bouton
+      // de la vignette, pas dedans)
+      let item = el;
+      if (role === 'off' && state.comp) {
+        item = document.createElement('div');
+        item.className = 'thumb-wrap';
+        item.appendChild(el);
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.className = 'thumb-add';
+        add.title = tr('Ajouter à l’œuvre');
+        add.setAttribute('aria-label', tr`Ajouter « ${d.name} » à l’œuvre`);
+        add.innerHTML = '<svg class="ico"><use href="#i-plus"/></svg>';
+        add.onclick = () => addToArt(d);
+        item.appendChild(add);
+      }
+      (grids[role] || dEl).appendChild(item);
     });
     $('drawings-count').textContent = `(${state.drawings.length})`;
     renderDetail();
@@ -3698,10 +3714,25 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Un dessin retiré de l'œuvre (plus aucune de ses découpes ni de ses pages dessus) passe dans
   // « Non utilisé » : il n'y revient pas aux recompositions suivantes ; sa fiche l'y remet (Découpe ou
   // Fond), et Défaire le rend avec sa place.
+  // « + » sur un dessin de « Non utilisé » : il revient sur l'œuvre affichée (rien d'autre ne bouge),
+  // dans le rôle qu'il avait avant d'être retiré, sinon celui que l'atelier lui donnerait
+  function addToArt(d) {
+    if (!state.comp) return;
+    let r = d.roleBefore;
+    if (!r || r === 'off') { const was = d.role; d.role = 'auto'; r = roleOf(d); d.role = was; }
+    if (r === 'off') r = d.analysis.kind === 'texture' ? 'texture' : 'cutout';
+    commit();
+    d.role = r;
+    ensureMaterial(d);
+    const pieces = d.analysis.pieces;
+    if (r === 'cutout' && pieces && !pieces.some((p) => p.enabled)) pieces.forEach((p) => { p.enabled = true; });
+    putBack(d);
+  }
   function retireIfUnused(d) {
     const c = state.comp;
     if (!d || !c || roleOf(d) === 'off') return;
     if (c.items.some((L) => L.piece && L.piece.drawing === d) || c.bg.some((L) => !L.paper && pageDrawing(L) === d)) return;
+    d.roleBefore = roleOf(d); // (le « + » de « Non utilisé » le remet dans ce rôle)
     d.role = 'off';
     refreshLists();
   }
@@ -4408,7 +4439,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   function scheduleScene() {
     clearTimeout(sceneTimer);
-    sceneTimer = setTimeout(drawRoomScene, 300);
+    sceneTimer = setTimeout(() => { drawRoomScene(); drawCartScene(); }, 300);
   }
   // Cadres proposés pour un tableau imprimé : la couleur est choisie d'après celles de l'œuvre
   const FRAME_KINDS = {
@@ -4516,7 +4547,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       b.classList.toggle('ink', on);
     });
     if (!roomReady(room)) return false;
-    const [photo, plant, light] = sceneImgs[room];
     const framed = printMode();
     if (!out) {
       $('scene-mat-field').hidden = !framed;
@@ -4539,6 +4569,24 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         b.classList.toggle('picked', choice === 'auto' && b.dataset.frame === auto);
       });
     }
+    paintRoom(cv, out, room, { comp, framed, kind, mat, Fw, Fh });
+    if (out) return true;
+    const name = framed && FRAME_KINDS[kind].name;
+    const matched = choice === 'auto';
+    $('scene-info').textContent = !framed
+      ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus ${S.over}.`
+      : mat
+        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
+        : tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
+    return true;
+  }
+  // La pièce et l'œuvre accrochée, sur le canevas cv (out : le téléchargement). spec : { comp, framed,
+  // kind (cadre), mat (passe-partout), Fw × Fh (ouverture du cadre), Pw × Ph (l'impression, l'œuvre
+  // entière dedans ; par défaut, l'œuvre à sa taille), paper (impression sur papier, sans cadre) }
+  function paintRoom(cv, out, room, spec) {
+    const S = SCENES[room], [photo, plant, light] = sceneImgs[room];
+    const { comp, framed, kind, mat, Fw, Fh, paper } = spec;
+    const Pw = spec.Pw || comp.W, Ph = spec.Ph || comp.H;
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     // le téléchargement a un format fixe (2000 × 1500) : la photo s'y ajuste à une fraction de pixel près
@@ -4572,17 +4620,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // ombre portée sur le mur, la lumière vient de la fenêtre à gauche
     x.save();
     x.shadowColor = 'rgba(45, 32, 20, 0.38)';
-    x.shadowBlur = (framed ? 1.2 : 2.6) * pc;
-    x.shadowOffsetX = (framed ? 0.5 : 1.4) * pc;
-    x.shadowOffsetY = (framed ? 0.9 : 2) * pc;
+    x.shadowBlur = (framed ? 1.2 : paper ? 0.6 : 2.6) * pc;
+    x.shadowOffsetX = (framed ? 0.5 : paper ? 0.2 : 1.4) * pc;
+    x.shadowOffsetY = (framed ? 0.9 : paper ? 0.4 : 2) * pc;
     x.fillStyle = '#000';
     x.fillRect(ox, oy, Wo * pc, Ho * pc);
     x.restore();
     const fx = ox + f * pc, fy = oy + f * pc; // ouverture du cadre
-    const ix = fx + ((Fw - comp.W) / 2) * pc, iy = fy + ((Fh - comp.H) / 2) * pc; // l'œuvre
+    const ix = fx + ((Fw - Pw) / 2) * pc, iy = fy + ((Fh - Ph) / 2) * pc; // l'impression
+    if (framed && !mat) { x.fillStyle = '#fff'; x.fillRect(fx, fy, Fw * pc, Fh * pc); }
     if (mat) {
       // passe-partout blanc chaud, biseau blanc tout autour de l'ouverture, un trait d'ombre en haut
-      const b = Math.max(1, 0.3 * pc), aw = comp.W * pc, ah = comp.H * pc;
+      const b = Math.max(1, 0.3 * pc), aw = Pw * pc, ah = Ph * pc;
       x.fillStyle = '#f4f1ea';
       x.fillRect(fx, fy, Fw * pc, Fh * pc);
       x.fillStyle = '#fbfaf7';
@@ -4590,18 +4639,21 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.strokeStyle = 'rgba(0, 0, 0, 0.08)'; x.lineWidth = 1;
       x.strokeRect(ix - b + 0.5, iy - b + 0.5, aw + 2 * b - 1, ah + 2 * b - 1);
     }
+    // l'impression : l'œuvre entière, centrée, avec une marge blanche si ses proportions diffèrent
+    const a = Math.min(Pw / comp.W, Ph / comp.H), ac = a * pc;
+    if (Pw - comp.W * a > 0.05 || Ph - comp.H * a > 0.05) { x.fillStyle = '#fff'; x.fillRect(ix, iy, Pw * pc, Ph * pc); }
     x.save();
-    x.translate(ix, iy);
-    x.beginPath(); x.rect(0, 0, comp.W * pc, comp.H * pc); x.clip();
-    Compose.renderBg(x, comp, pc, false);
-    Compose.renderItems(x, comp, pc, false);
+    x.translate(ix + ((Pw - comp.W * a) / 2) * pc, iy + ((Ph - comp.H * a) / 2) * pc);
+    x.beginPath(); x.rect(0, 0, comp.W * ac, comp.H * ac); x.clip();
+    Compose.renderBg(x, comp, ac, false);
+    Compose.renderItems(x, comp, ac, false);
     x.restore();
     if (framed) {
       if (mat) {
         // l'œuvre en retrait du passe-partout : un fin trait d'ombre en haut
         const g = x.createLinearGradient(ix, iy, ix, iy + 0.25 * pc);
         g.addColorStop(0, 'rgba(0, 0, 0, 0.14)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        x.fillStyle = g; x.fillRect(ix, iy, comp.W * pc, 0.25 * pc);
+        x.fillStyle = g; x.fillRect(ix, iy, Pw * pc, 0.25 * pc);
       }
       // ombre légère de la baguette dans l'ouverture, en haut et à gauche ; pas de reflet
       const g = x.createLinearGradient(fx, fy, fx, fy + 0.6 * pc);
@@ -4611,12 +4663,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       gl.addColorStop(0, 'rgba(0, 0, 0, 0.10)'); gl.addColorStop(1, 'rgba(0, 0, 0, 0)');
       x.fillStyle = gl; x.fillRect(fx, fy, 0.5 * pc, Fh * pc);
       drawFrame(x, ox, oy, Wo * pc, Ho * pc, f * pc, kind);
-    } else {
+    } else if (!paper) {
       // tranche de la toile : arête claire en haut à gauche, plus sombre en bas à droite
       x.strokeStyle = 'rgba(255, 255, 255, 0.35)'; x.lineWidth = Math.max(1, 0.15 * pc);
-      x.beginPath(); x.moveTo(ix, iy + comp.H * pc); x.lineTo(ix, iy); x.lineTo(ix + comp.W * pc, iy); x.stroke();
+      x.beginPath(); x.moveTo(ix, iy + Ph * pc); x.lineTo(ix, iy); x.lineTo(ix + Pw * pc, iy); x.stroke();
       x.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-      x.beginPath(); x.moveTo(ix + comp.W * pc, iy); x.lineTo(ix + comp.W * pc, iy + comp.H * pc); x.lineTo(ix, iy + comp.H * pc); x.stroke();
+      x.beginPath(); x.moveTo(ix + Pw * pc, iy); x.lineTo(ix + Pw * pc, iy + Ph * pc); x.lineTo(ix, iy + Ph * pc); x.stroke();
     }
     // la lumière de la pièce sur l'œuvre : soleil, ombres des feuilles, teinte chaude du mur
     const lr = light.naturalWidth / S.w;
@@ -4628,14 +4680,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.restore();
     // la plante, devant le mur, passe devant l'œuvre
     if (plant) x.drawImage(plant, (S.plantAt[0] - sx) * q, (S.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
-    if (out) return true;
-    const name = framed && FRAME_KINDS[kind].name;
-    const matched = choice === 'auto';
-    $('scene-info').textContent = !framed
-      ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus ${S.over}.`
-      : mat
-        ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
-        : tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
     return true;
   }
   // Télécharger la mise en scène en JPEG, en 2000 px de large
@@ -4737,6 +4781,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   });
   // prise de photo dans l'atelier (appareil photo du téléphone, webcam) : les photos gardées sont
   // importées comme des fichiers
+  // écran tactile (téléphone, iPad, même en paysage, où l'atelier a sa mise en page d'ordinateur) : la
+  // prise de photo est proposée ; un ordinateur sans écran tactile n'a pas le bouton (voir style.css)
+  document.documentElement.classList.toggle('touch', navigator.maxTouchPoints > 0);
   if (window.Camera && Camera.supported()) {
     $('camera-open').hidden = false;
     $('empty-camera').hidden = false;
@@ -4748,6 +4795,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => {
     importUserFiles(Array.from(e.dataTransfer.files));
+  });
+  // les vignettes et les images de l'atelier ne se glissent pas : une vignette déposée sur l'œuvre
+  // était réimportée comme un nouveau dessin
+  document.addEventListener('dragstart', (e) => {
+    const t = e.target;
+    if (t instanceof Element && (t.tagName === 'IMG' || t.closest('.thumb, .thumb-wrap'))) e.preventDefault();
   });
   // on accepte aussi un dépôt n'importe où sur la page
   document.addEventListener('dragover', (e) => e.preventDefault());
@@ -6756,6 +6809,31 @@ Réponds uniquement avec ce JSON :
     } else fit.hidden = true;
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
+    requestAnimationFrame(drawCartScene);
+  }
+  /*
+   * La mise en scène de l'article choisi, à côté des options : le tableau imprimé à la taille choisie
+   * (encadré : couleur du cadre et passe-partout ; papier : la feuille seule), l'œuvre entière dans
+   * l'impression ; le fichier HD, le guide ou le kit : l'œuvre à sa taille, comme dans « Mettre en scène »
+   */
+  function cartSceneSpec() {
+    const { comp } = pending;
+    const land = comp.W >= comp.H, or = ([a, b]) => (land ? [Math.max(a, b), Math.min(a, b)] : [Math.min(a, b), Math.max(a, b)]);
+    if (choice.product === 'print' && printMode()) {
+      const f = PRINT_FRAMES.find((x) => x.key === choice.size) || PRINT_FRAMES[1];
+      const framed = choice.finish === 'cadre', mat = framed && !!choice.mat;
+      const [Pw, Ph] = or(mat ? f.mat : f.print);
+      const [Fw, Fh] = framed ? or([f.w, f.h]) : [Pw, Ph];
+      return { comp, framed, kind: framed ? choice.frame : null, mat, Fw, Fh, Pw, Ph, paper: !framed };
+    }
+    return { comp, framed: false, kind: null, mat: false, Fw: comp.W, Fh: comp.H, paper: printMode() };
+  }
+  function drawCartScene() {
+    const cv = $('cart-scene');
+    if (!pending || !cv || $('cart-add').hidden || !cv.clientWidth) return;
+    const room = sceneRoom();
+    if (!roomReady(room)) return; // (redessinée quand les images de la pièce sont là : scheduleScene)
+    paintRoom(cv, null, room, cartSceneSpec());
   }
   function openCartAdd(comp, title, styleName) {
     const n = loadCart().reduce((t, it) => t + it.qty, 0);

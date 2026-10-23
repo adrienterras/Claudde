@@ -82,8 +82,9 @@ cd collage && python3 -m http.server 8000
    fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
    dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
-   zone de dépôt, sur téléphone seulement — largeur ≤ 860 px — et quand le navigateur donne accès à
-   l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée et l'écran
+   zone de dépôt, sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,
+   iPad en paysage compris : la visée y reste en plein écran) ; pas sur un ordinateur sans écran
+   tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée et l'écran
    ne donne qu'**une consigne à la fois**, la plus importante (« Rapprochez-vous un peu », « Tenez le
    téléphone à plat, au-dessus du dessin »… ou « Prêt : prenez la photo ») — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
    sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
@@ -109,8 +110,11 @@ cd collage && python3 -m http.server 8000
    *Premier plan* les découpes, *Non utilisé* les ignorés et ceux retirés de l'œuvre (`retireIfUnused` :
    plus aucune de leurs découpes ni de leurs pages dessus, ils n'y reviennent pas en recomposant ;
    Défaire les remet ; remis en Découpe ou en Fond depuis leur fiche, ils reviennent sur l'œuvre
-   affichée sans la recomposer — `putBack` : sujets dans les places libres, page au centre — et
-   leurs vignettes restent en couleurs normales) — sans badge de rôle ; la fiche d'un dessin
+   affichée sans la recomposer — `putBack` : sujets dans les places libres, page au centre —, de
+   même par le bouton « + » de leur vignette (`addToArt` : dans le rôle d'avant leur retrait, sinon
+   celui de l'atelier ; un pas de Défaire), et
+   leurs vignettes restent en couleurs normales) — sans badge de rôle ; les vignettes et images de
+   l'atelier ne se glissent pas (déposée sur l'œuvre, une vignette était réimportée) ; la fiche d'un dessin
    change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
@@ -242,7 +246,11 @@ cd collage && python3 -m http.server 8000
      métal, celle de la mise en scène par défaut — et avec ou sans passe-partout, avec en clair la taille du
      cadre et celle de l'impression, `printSizeOf` ; fichier HD 14,90 €, impression papier / encadrée / toile en 21 × 30,
      30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (17 à 79 € selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office, le kit complet 50 × 70 à 89 € (`kitPrice`, options gardées avec l'article)),
-     et la quantité. La composition y est figée telle
+     et la quantité. À gauche des options (au-dessus sur téléphone), **la mise en scène de l'article
+     choisi** (`drawCartScene`, même dessin que « Mettre en scène » : `paintRoom`) : le tableau à la
+     taille d'impression choisie, encadré (couleur du cadre, passe-partout) ou sur papier, l'œuvre
+     entière dedans (marge blanche si ses proportions diffèrent) ; le fichier HD, le guide ou le kit :
+     l'œuvre à sa taille. Elle suit chaque changement d'option. La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
      brouillon ; la liste est dans localStorage et survit au rechargement. **Connecté, le panier est le
      même sur tous les appareils** : chaque article est une composition du compte marquée `meta.cart`

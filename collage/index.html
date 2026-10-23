@@ -478,8 +478,11 @@
   </section>
 
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">
-    <div class="acc-card cart-card">
+    <div class="acc-card cart-card cart-add-card">
       <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
+      <!-- la mise en scène de l'article choisi (taille, cadre, passe-partout) : à gauche, au-dessus sur téléphone -->
+      <div class="cart-scene"><canvas id="cart-scene" role="img" aria-label="Mise en scène de l’œuvre"></canvas></div>
+      <div class="cart-add-main">
       <h2 id="cart-add-title" class="acc-title">Ajouter au panier</h2>
       <button type="button" id="cart-add-view" class="link cart-add-view" hidden>Voir mon panier</button>
       <div class="cart-what"><img alt=""><p><b class="cart-what-name"></b><small class="cart-what-size"></small></p></div>
@@ -518,6 +521,7 @@
       <div class="cart-qty-row"><span>Quantité</span><span class="cart-qty"><button type="button" data-qty="-1" aria-label="Moins">−</button><output>1</output><button type="button" data-qty="1" aria-label="Plus">+</button></span></div>
       <p class="hint cart-fit" hidden></p>
       <button type="button" class="btn btn-primary btn-wide" id="cart-add-ok"><svg class="ico"><use href="#i-cart"/></svg><span>Ajouter au panier</span><b class="cart-add-total"></b></button>
+      </div>
     </div>
   </section>
 
