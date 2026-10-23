@@ -274,4 +274,47 @@ test.describe('Compositions', () => {
     expect(await left()).toBe(n);
     expect(await group()).toBe('cutout');
   });
+  test('un dessin de « Non utilisé » remis en Découpe ou en Fond revient sur l’œuvre, le reste ne bouge pas', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    const st = () => page.evaluate(() => { const S = AtelierGribouille.state; return { items: S.comp.items.map((L) => [S.drawings.indexOf(L.piece.drawing), +L.x.toFixed(3), +L.y.toFixed(3)]), pages: S.comp.bg.filter((L) => !L.paper).map((L) => S.drawings.indexOf(L.drawing || null)), style: S.comp.style }; });
+    const group = (k) => page.evaluate((k) => { const el = document.querySelector(`#drawings .thumb[data-i="${k}"]`); return el && el.closest('.drawings-group').classList[1]; }, k);
+    const retire = async (k) => {
+      for (let n = 0; n < 20; n++) {
+        const left = await page.evaluate((k) => { const S = AtelierGribouille.state, d = S.drawings[k]; const L = S.comp.items.find((q) => q.piece.drawing === d) || S.comp.bg.find((q) => !q.paper && q.drawing === d); S.selected = L || null; return !!L; }, k);
+        if (!left) break;
+        await page.keyboard.press('Delete');
+      }
+    };
+    // une découpe
+    const k = await page.evaluate(() => { const S = AtelierGribouille.state; return S.drawings.indexOf(S.comp.items[0].piece.drawing); });
+    await retire(k);
+    expect(await group(k)).toBe('off');
+    const before = await st();
+    await page.locator(`#drawings .thumb[data-i="${k}"]`).click();
+    await page.locator('#detail [data-role="cutout"]').click();
+    const after = await st();
+    expect(await group(k)).toBe('cutout');
+    expect(after.style).toBe(before.style);
+    expect(after.items.filter((x) => x[0] === k).length).toBeGreaterThan(0); // revenu sur l'œuvre
+    expect(after.items.filter((x) => x[0] !== k)).toEqual(before.items); // rien d'autre n'a bougé
+    expect(await page.evaluate((k) => { const S = AtelierGribouille.state; return !!S.selected && S.selected.piece.drawing === S.drawings[k]; }, k)).toBe(true);
+    // une page de fond
+    const t = await page.evaluate(() => { const S = AtelierGribouille.state; const L = S.comp.bg.find((q) => !q.paper && q.drawing); return L ? S.drawings.indexOf(L.drawing) : -1; });
+    expect(t).toBeGreaterThanOrEqual(0);
+    await retire(t);
+    expect(await group(t)).toBe('off');
+    const b2 = await st();
+    await page.locator(`#drawings .thumb[data-i="${t}"]`).click();
+    await page.locator('#detail [data-role="texture"]').click();
+    const a2 = await st();
+    expect(await group(t)).toBe('texture');
+    expect(a2.pages.filter((x) => x === t).length).toBe(1);
+    expect(a2.items).toEqual(b2.items);
+    // Défaire : le dessin repart dans « Non utilisé »
+    await page.evaluate(() => AtelierGribouille.undo());
+    expect(await group(t)).toBe('off');
+    expect((await st()).pages.filter((x) => x === t).length).toBe(0);
+  });
 });

@@ -1216,8 +1216,13 @@
     const repl = box.querySelector('[data-replace]');
     if (repl) repl.onclick = () => askReplace(d);
     box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
+      // un dessin de « Non utilisé » remis en Découpe ou en Fond revient sur l'œuvre affichée, telle
+      // quelle (rien d'autre ne bouge) ; les autres changements de rôle refont les propositions
+      const back = roleOf(d) === 'off' && b.dataset.role !== 'off' && state.comp;
+      if (back) commit();
       d.role = b.dataset.role;
       ensureMaterial(d);
+      if (back) { putBack(d); return; }
       state.pinned = null; // la composition rouverte ne correspond plus aux dessins
       refreshLists();
       regenerate();
@@ -3493,6 +3498,38 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       retireIfUnused(L.piece.drawing);
     }
     render();
+  }
+
+  // Un dessin remis depuis « Non utilisé » : ses sujets (le principal et les autres sujets du dessin)
+  // se posent dans les places libres de l'œuvre, ou sa page entière devant les autres pages, au centre
+  // (réduite si elle dépasse la toile) ; il est sélectionné pour qu'on le voie et le place.
+  function putBack(d) {
+    const comp = state.comp, role = roleOf(d), a = d.analysis;
+    touched();
+    let sel = null;
+    if (role === 'cutout' && a.pieces && a.pieces.length) {
+      curateDrawing(d);
+      const k = scale();
+      a.pieces.filter((p) => p.enabled).forEach((p) => {
+        sizePiece(p, k);
+        sel = Compose.addPiece(comp, p, ++state.seq);
+        p.placed = true;
+      });
+    } else if (role === 'texture' && a.texture) {
+      const t = a.texture, kb = printMode() ? state.bgScale || scale() : scale();
+      const c = cmPerPx(d) * kb, w = t.canvas.width * c, h = t.canvas.height * c;
+      const f = Math.min(1, comp.W / w, comp.H / h);
+      sel = { kind: 'bg', panel: true, whole: true, src: t.canvas, drawing: d, pageW: w, pageH: h, sx: 0, sy: 0, sw: t.canvas.width, sh: t.canvas.height, x: comp.W / 2, y: comp.H / 2, w: w * f, h: h * f, rot: 0, flip: false, clip: null, scale: f, manual: true };
+      comp.bg.push(sel);
+      state.bgCache = null;
+    }
+    state.selected = sel;
+    refreshLists();
+    refreshPieces();
+    render();
+    updateExportInfo();
+    updateLabel();
+    refreshActiveThumb();
   }
 
   // Un dessin retiré de l'œuvre (plus aucune de ses découpes ni de ses pages dessus) passe dans

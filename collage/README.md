@@ -104,7 +104,9 @@ cd collage && python3 -m http.server 8000
    sur téléphone ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés et ceux retirés de l'œuvre (`retireIfUnused` :
    plus aucune de leurs découpes ni de leurs pages dessus, ils n'y reviennent pas en recomposant ;
-   Défaire les remet, leur fiche aussi) — sans badge de rôle ; la fiche d'un dessin
+   Défaire les remet ; remis en Découpe ou en Fond depuis leur fiche, ils reviennent sur l'œuvre
+   affichée sans la recomposer — `putBack` : sujets dans les places libres, page au centre — et
+   leurs vignettes restent en couleurs normales) — sans badge de rôle ; la fiche d'un dessin
    change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
