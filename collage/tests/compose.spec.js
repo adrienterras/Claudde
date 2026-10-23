@@ -245,4 +245,31 @@ test.describe('Compositions', () => {
     await expect(page.locator('#drawings-section')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#detail')).toBeVisible();
   });
+  test('un dessin retiré de l’œuvre passe dans « Non utilisé », n’y revient pas en recomposant ; Défaire le remet', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    const i = await page.evaluate(() => { const st = AtelierGribouille.state; return st.drawings.indexOf(st.comp.items[0].piece.drawing); });
+    const group = (k) => page.evaluate((k) => { const el = document.querySelector(`#drawings .thumb[data-i="${k}"]`); return el && el.closest('.drawings-group').classList[1]; }, i);
+    expect(await group()).toBe('cutout');
+    // toutes ses découpes retirées, une à une (touche Suppr, comme le bouton Retirer)
+    const left = () => page.evaluate((k) => { const st = AtelierGribouille.state; return st.comp.items.filter((L) => L.piece.drawing === st.drawings[k]).length; }, i);
+    const n = await left();
+    for (let k = 0; k < n; k++) {
+      await page.evaluate((k) => { const st = AtelierGribouille.state; st.selected = st.comp.items.find((L) => L.piece.drawing === st.drawings[k]); }, i);
+      expect(await group()).toBe('cutout'); // (tant qu'une découpe reste sur l'œuvre, il reste au premier plan)
+      await page.keyboard.press('Delete');
+    }
+    expect(await left()).toBe(0);
+    expect(await group()).toBe('off');
+    await expect(page.locator('#drawings .drawings-group.off h4')).toContainText('Non utilisé');
+    // une recomposition (densité) ne le remet pas
+    await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.max; d.dispatchEvent(new Event('change')); });
+    await page.waitForTimeout(300);
+    expect(await left()).toBe(0);
+    // Défaire (jusqu'avant le retrait) : il revient sur l'œuvre et au premier plan
+    for (let k = 0; k < n + 1; k++) await page.evaluate(() => AtelierGribouille.undo());
+    expect(await left()).toBe(n);
+    expect(await group()).toBe('cutout');
+  });
 });

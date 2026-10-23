@@ -101,7 +101,9 @@ cd collage && python3 -m http.server 8000
 2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, Tailles — le choix de la toile ou du
    cadre se fait avant les propositions —, Propositions, Dessins, Exporter, et en tête, sans numéro, Mes œuvres ; mêmes onglets
    sur téléphone ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
-   *Premier plan* les découpes, *Non utilisé* les ignorés — sans badge de rôle ; la fiche d'un dessin
+   *Premier plan* les découpes, *Non utilisé* les ignorés et ceux retirés de l'œuvre (`retireIfUnused` :
+   plus aucune de leurs découpes ni de leurs pages dessus, ils n'y reviennent pas en recomposant ;
+   Défaire les remet, leur fiche aussi) — sans badge de rôle ; la fiche d'un dessin
    change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux

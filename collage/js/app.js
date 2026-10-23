@@ -3374,7 +3374,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     activePieces().forEach((p) => enabled.set(p, !!p.enabled));
     const pieces = new Map();
     comp.items.forEach((L) => { if (L.piece && !pieces.has(L.piece)) pieces.set(L.piece, pieceState(L.piece)); });
-    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces };
+    const roles = new Map(state.drawings.map((d) => [d, d.role]));
+    return { comp, active: state.active, items: comp.items.map((L) => Object.assign({}, L)), bg: comp.bg.map((L) => Object.assign({}, L)), reduced: comp.reduced, ground: comp.ground, groundName: comp.groundName, enabled, pieces, roles };
   }
   // tag : des actions répétées très vite (molette) ne font qu'un seul pas d'historique
   function commit(tag) {
@@ -3401,8 +3402,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     comp.bg = s.bg.map((L) => Object.assign({}, L));
     comp.reduced = s.reduced;
     if ('ground' in s) { comp.ground = s.ground; comp.groundName = s.groundName; }
+    // (un dessin retiré de l'œuvre, rangé dans « Non utilisé », reprend sa catégorie)
+    let rolesChanged = false;
+    if (s.roles) s.roles.forEach((r, d) => { if (d.role !== r) { d.role = r; rolesChanged = true; } });
     s.enabled.forEach((on, p) => { p.enabled = on; });
     activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
+    if (rolesChanged) refreshLists();
     state.comp = comp;
     if (state.proposals && state.proposals[s.active] && state.proposals[s.active].style.id === comp.style) { state.proposals[s.active].comp = comp; state.active = s.active; }
     state.selected = null;
@@ -3455,7 +3460,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (name === 'front') { comp.bg.splice(i, 1); comp.bg.push(L); }
       if (name === 'back') { comp.bg.splice(i, 1); comp.bg.splice(comp.bg.findIndex((q) => !q.paper), 0, L); }
       if (name === 'flip') { L.flip = !L.flip; L.manual = true; }
-      if (name === 'del') { comp.bg.splice(i, 1); state.selected = null; }
+      if (name === 'del') { comp.bg.splice(i, 1); state.selected = null; retireIfUnused(pageDrawing(L)); }
       state.bgCache = null;
       refreshActiveThumb();
       render();
@@ -3485,8 +3490,20 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       state.selected = null;
       if (!comp.items.some((q) => q.piece === L.piece)) { L.piece.placed = false; L.piece.enabled = false; }
       refreshPieces();
+      retireIfUnused(L.piece.drawing);
     }
     render();
+  }
+
+  // Un dessin retiré de l'œuvre (plus aucune de ses découpes ni de ses pages dessus) passe dans
+  // « Non utilisé » : il n'y revient pas aux recompositions suivantes ; sa fiche l'y remet (Découpe ou
+  // Fond), et Défaire le rend avec sa place.
+  function retireIfUnused(d) {
+    const c = state.comp;
+    if (!d || !c || roleOf(d) === 'off') return;
+    if (c.items.some((L) => L.piece && L.piece.drawing === d) || c.bg.some((L) => !L.paper && pageDrawing(L) === d)) return;
+    d.role = 'off';
+    refreshLists();
   }
 
   function updateToolbar() {
