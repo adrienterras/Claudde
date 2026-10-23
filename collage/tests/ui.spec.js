@@ -1319,6 +1319,11 @@ test.describe('Plein écran sur téléphone', () => {
     expect(Math.round(tabs.y + tabs.height)).toBe(844); // barre posée en bas de l'écran
     expect(panel.height).toBeLessThanOrEqual(tabs.height + 1); // rien d'autre du tiroir
     expect(canvas.y + canvas.height).toBeLessThanOrEqual(tabs.y + 1); // l'œuvre au-dessus de la barre
+    // le curseur « Nombre de dessins » reste, entre l'œuvre et la barre des sections
+    await expect(page.locator('#density-bar')).toBeVisible();
+    const dens = await page.locator('#density-bar').boundingBox();
+    expect(dens.y + dens.height).toBeLessThanOrEqual(tabs.y + 1);
+    expect(dens.y).toBeGreaterThanOrEqual(canvas.y + canvas.height - 1);
     await expect(page.locator('#sheet-tabs [data-tab="drawings-section"]')).toBeVisible();
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
     await expect(page.locator('body')).not.toHaveClass(/stage-full/);
