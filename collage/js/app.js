@@ -2414,6 +2414,12 @@
     $('ground-pop-title').textContent = label;
     $('ground-pop').setAttribute('aria-label', label);
     $('ground-open').setAttribute('aria-label', label);
+    // Pop art : les cases de couleur couvrent toute l'œuvre, le choix du fond n'aurait aucun effet
+    const pop = !!(comp && comp.style === 'popart');
+    $('ground-open').hidden = pop;
+    const field = document.querySelector('.ground-field');
+    if (field) field.hidden = pop;
+    if (pop) setGroundPop(false);
     syncSwatchVisibility();
     syncSwatches();
   }

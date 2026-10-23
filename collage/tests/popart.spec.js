@@ -32,6 +32,13 @@ test.describe('Pop art', () => {
     expect(ids).not.toContain('village'); // (le Village n'est plus proposé)
     await page.locator('#proposals .proposal').nth(ids.indexOf('popart')).click();
     await expect(page.locator('#label')).toContainText(/pop art/i);
+    // pas de choix de la couleur du fond (les cases couvrent tout) ; il revient sur une autre proposition
+    await expect(page.locator('#ground-open')).toBeHidden();
+    await expect(page.locator('.ground-field')).toBeHidden();
+    await page.evaluate(() => AtelierGribouille.selectProposal(0));
+    await expect(page.locator('#ground-open')).toBeVisible();
+    await page.locator('#proposals .proposal').nth(ids.indexOf('popart')).click();
+    await expect(page.locator('#ground-open')).toBeHidden();
     const v = await pop(page);
     expect(v).toMatchObject({ style: 'popart', tiles: 9, items: 9, drawings: 9, same: false, inCell: true });
     expect(v.cover).toBeCloseTo(1, 3);
