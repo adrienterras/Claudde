@@ -465,4 +465,27 @@ test.describe('Compositions', () => {
     expect(e.pages).toBe(1);
     expect(e.pieces).toBe(0);
   });
+
+  test('importer d’autres dessins après avoir retouché l’œuvre : elle reste telle quelle, les nouveaux y sont ajoutés', async ({ app }) => {
+    const { page } = app;
+    // (l'œuvre de départ : page-cutout, page-two, page-texture, photo-wood)
+    const st = () => page.evaluate(() => { const S = AtelierGribouille.state; return { style: S.comp.style, items: S.comp.items.map((L) => [L.piece.drawing.name, +L.x.toFixed(3), +L.y.toFixed(3), +L.w.toFixed(3)]), pages: S.comp.bg.filter((L) => !L.paper).map((L) => [+L.x.toFixed(3), +L.y.toFixed(3)]) }; });
+    // un dessin déplacé à la main
+    await page.focus('#canvas');
+    await page.keyboard.press('PageDown');
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.keyboard.press('Escape');
+    const before = await st();
+    expect(await page.evaluate(() => !!AtelierGribouille.state.comp.touched)).toBe(true);
+    await page.setInputFiles('#file', [require('./helpers').fixture('scan-150dpi.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 6 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForTimeout(300);
+    const after = await st();
+    expect(after.style).toBe(before.style);
+    // ce qui était posé n'a pas bougé
+    expect(after.items.filter((x) => x[0] !== 'scan-150dpi.png')).toEqual(before.items);
+    expect(after.pages).toEqual(before.pages);
+    // le nouveau dessin est sur l'œuvre
+    expect(after.items.filter((x) => x[0] === 'scan-150dpi.png').length).toBeGreaterThan(0);
+  });
 });

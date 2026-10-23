@@ -313,7 +313,11 @@
     let pages = [];
     const replacing = !!(opts && opts.replace); // (« importer une meilleure version » : voir replaceDrawing)
     if (!state.restoring && !(opts && opts.sample)) window.Atelier.track(replacing ? 'Remplacement' : 'Import', { fichiers: Math.min(files.length, 50) });
-    if (!replacing) { state.sceneLayout = null; state.pinned = null; }
+    // l'œuvre affichée retouchée à la main (ou rouverte) : elle reste telle quelle, les nouveaux
+    // dessins y sont ajoutés (voir plus bas) ; sinon les propositions sont refaites avec eux
+    const keep = !replacing && !state.restoring && !(opts && opts.sample) && state.comp && !onlySamples() && (state.comp.touched || state.pinned === state.comp) ? state.comp : null;
+    const had = new Set(state.drawings);
+    if (!replacing && !keep) { state.sceneLayout = null; state.pinned = null; }
     if (!state.drawings.length && !state.restoring) state.formatManual = false; // nouvelle œuvre : la toile est de nouveau conseillée (une œuvre rouverte garde la sienne si elle avait été choisie)
     if (!state.drawings.length && !state.restoring) setGround(undefined); // et la couleur du fond, automatique
     notice('');
@@ -422,7 +426,13 @@
     }
     if (!state.restoring) resetEditHint(); // (une réouverture le fait à la fin : voir restoreCompositionInner)
     refreshLists();
-    regenerate();
+    if (keep) {
+      // les nouveaux dessins posés sur l'œuvre gardée, dans ses places libres (comme le « + ») ; les
+      // autres propositions sont refaites avec eux
+      state.pinned = keep;
+      regenerate({ noCommit: true });
+      state.drawings.filter((d) => !had.has(d) && roleOf(d) !== 'off').forEach((d) => putBack(d));
+    } else regenerate();
     clearHistory(); // les dessins ont changé : les anciens instantanés ne valent plus
     if (!(opts && opts.quiet)) artDirect();
   }
