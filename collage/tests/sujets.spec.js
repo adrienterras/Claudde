@@ -86,4 +86,36 @@ test.describe('Une page, plusieurs sujets', () => {
     expect(await names()).toEqual(['page-cutout.png', 'page-cutout.png (copie)', 'page-texture.png', 'page-texture.png (copie)']);
     expect(await on('page-texture.png (copie)')).toBe(1);
   });
+
+  test('collage : la taille à vérifier est celle de la feuille d’origine, entière ; ses sujets suivent', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=toile');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // une ligne par feuille : page-cutout.png, et page-two.png entière (ses deux sujets)
+    const rows = page.locator('#sizes-check .sizes-row');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(1).locator('.sizes-name')).toContainText('Dessins 2, 3');
+    await expect(rows.nth(1).locator('.sizes-name')).toContainText('feuille entière');
+    const cm = () => page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.sizeCm));
+    const before = await cm();
+    // la feuille en A3 : ses deux sujets grandissent d'autant, l'autre dessin ne bouge pas
+    await rows.nth(1).locator('[data-cm="42"]').click();
+    const after = await cm();
+    expect(after[0]).toBe(before[0]);
+    const k = 42 / 29.7;
+    expect(after[1] / before[1]).toBeCloseTo(k, 1);
+    expect(after[2] / before[2]).toBeCloseTo(k, 1);
+    // la fiche d'un sujet règle aussi la feuille entière
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    await page.locator('#drawings .thumb[data-i="2"]').click();
+    await expect(page.locator('#detail')).toContainText('Taille de la feuille d’origine, entière');
+    await expect(page.locator('#detail [data-cm="42"]')).toHaveClass(/on/);
+    await page.locator('#detail [data-cm="21"]').click();
+    const a5 = await cm();
+    expect(a5[1] / before[1]).toBeCloseTo(21 / 29.7, 1);
+    expect(a5[2] / before[2]).toBeCloseTo(21 / 29.7, 1);
+  });
 });

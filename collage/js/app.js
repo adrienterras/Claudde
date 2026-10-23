@@ -443,7 +443,9 @@
     const ar = (p) => Math.min(p.src.w / p.src.h, p.src.h / p.src.w);
     const keep = ps.filter((p) => p.frac > 0.002 && p.colorful >= 0.04 && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.08 * long);
     if (keep.length < 2) return null;
-    const sheet = { origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
+    // (la feuille garde son nom et sa vignette : c'est elle dont on vérifie la taille, voir renderUncertain)
+    const sheet = { name: d.name, thumb: d.thumb, origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
+    loadSize(sheet);
     const paper = a.paper || [250, 250, 250];
     const base = d.name.replace(/\.[a-z0-9]+$/i, '');
     const out = [];
@@ -549,11 +551,21 @@
   // la taille n'a pas pu être lue d'abord ; une taille touchée (A5, A4, A3) ou saisie la confirme et la
   // feuille quitte la liste, qui disparaît quand tout est vérifié. Le bandeau de Propositions ne compte
   // que les tailles douteuses. Tableau imprimé : rien (dessins réduits au cadre).
+  // des numéros de dessins, les suites abrégées : « 1 à 9 », « 2, 4 à 6 »
+  function spans(ns) {
+    const out = [];
+    ns.slice().sort((x, y) => x - y).forEach((n) => { const last = out[out.length - 1]; if (last && n === last[1] + 1) last[1] = n; else out.push([n, n]); });
+    return out.map(([a, b]) => (a === b ? String(a) : b === a + 1 ? `${a}, ${b}` : tr`${a} à ${b}`)).join(', ');
+  }
   function renderUncertain() {
     const box = $('sizes-check');
     const unsure = (d) => d.uncertain && d.sizeMode === 'auto';
-    const toCheck = printMode() ? [] : state.drawings.filter(unsure);
-    const all = printMode() ? [] : toCheck.concat(state.drawings.filter((d) => !unsure(d) && d.sizeMode === 'auto'));
+    // les sujets d'une feuille découpée en plusieurs dessins : c'est la taille de la feuille d'origine,
+    // entière, qu'on vérifie (on ne peut pas mesurer un sujet déjà découpé) ; ses sujets suivent
+    const units = [];
+    state.drawings.forEach((d) => { const u = d.sheet || d; if (!units.includes(u)) units.push(u); });
+    const toCheck = printMode() ? [] : units.filter(unsure);
+    const all = printMode() ? [] : toCheck.concat(units.filter((d) => !unsure(d) && d.sizeMode === 'auto'));
     box.hidden = !all.length;
     const alert = $('sizes-alert');
     const list = toCheck;
@@ -569,18 +581,14 @@
     all.forEach((d) => {
       const row = document.createElement('label');
       row.className = `sizes-row${unsure(d) ? ' unsure' : ''}`;
-      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${tr`Dessin ${state.drawings.indexOf(d) + 1}`}<small>${unsure(d) ? (d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`) : d.physCm ? tr`lu dans le scan : ${fmt(d.sizeCm)} cm` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
+      const parts = state.drawings.filter((x) => x.sheet === d);
+      const label = parts.length ? tr`Dessins ${spans(parts.map((x) => state.drawings.indexOf(x) + 1))}` : tr`Dessin ${state.drawings.indexOf(d) + 1}`;
+      row.innerHTML = `<img src="${d.thumb}" alt=""><span class="sizes-name">${label}<small>${parts.length ? tr('feuille entière') + ' · ' : ''}${unsure(d) ? (d.photo ? tr`photo : ${fmt(d.sizeCm)} cm ?` : tr`estimé ${fmt(d.sizeCm)} cm`) : d.physCm ? tr`lu dans le scan : ${fmt(d.sizeCm)} cm` : tr`estimé ${fmt(d.sizeCm)} cm`}</small></span>
         <span class="sizes-input"><span class="sizes-chips">${SHEETS.slice(0, 3).map(([n, cm]) => `<button type="button" data-cm="${cm}" class="${Math.abs(cm - d.sizeCm) < 0.05 ? 'on' : ''}" title="${n} · ${fmt(cm)} cm">${n}</button>`).join('')}</span><input type="number" min="3" max="${MAX_CM}" step="0.1" placeholder="${fmt(d.sizeCm).replace(',', '.')}" aria-label="${tr('Plus grand côté en cm')}"><em>cm</em></span>`;
       const apply = (cm) => {
         if (!(cm > 0)) return;
-        cm = clampCm(cm);
-        input.value = String(cm);
-        resizeInPlace(() => {
-          d.sizeCm = cm;
-          d.sizeMode = 'manual';
-          saveSize(d);
-          estimateSizes();
-        });
+        input.value = String(clampCm(cm));
+        setRealSize(d, cm);
       };
       const input = row.querySelector('input');
       input.onchange = () => apply(Number(input.value));
@@ -588,6 +596,19 @@
       input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); apply(Number(input.value) || d.sizeCm); } }; // (champ vide : la taille affichée en gris)
       row.querySelectorAll('[data-cm]').forEach((b) => { b.onclick = (e) => { e.preventDefault(); apply(Number(b.dataset.cm)); }; });
       wrap.appendChild(row);
+    });
+  }
+
+  // Taille réelle saisie : celle d'un dessin, ou celle d'une feuille d'origine (sheet) dont chaque
+  // sujet, devenu un dessin, prend sa part (voir estimateSizes)
+  function setRealSize(o, cm) {
+    cm = clampCm(cm);
+    resizeInPlace(() => {
+      o.sizeCm = cm;
+      o.sizeMode = 'manual';
+      saveSize(o);
+      state.drawings.forEach((x) => { if (x.sheet === o) x.sizeMode = 'auto'; });
+      estimateSizes();
     });
   }
 
@@ -1457,7 +1478,9 @@
     const longOnArt = d.sizeCm * k;
     const [aw, ah] = ar >= 1 ? [longOnArt, longOnArt / ar] : [longOnArt * ar, longOnArt];
     const idx = state.drawings.indexOf(d), n = state.drawings.length;
-    const std = SHEETS.find(([, cm]) => Math.abs(cm - d.sizeCm) < 0.05);
+    // (un sujet d'une feuille découpée en plusieurs dessins : on règle la taille de la feuille entière)
+    const sz = d.sheet || d;
+    const std = SHEETS.find(([, cm]) => Math.abs(cm - sz.sizeCm) < 0.05);
     const main = mainPiece(d);
     // tableau imprimé : les dessins sont réduits pour tenir dans le cadre, leur taille réelle ne sert
     // à rien ; la fiche n'en propose pas le choix (ni la phrase sur la taille lue ou estimée)
@@ -1476,14 +1499,14 @@
         <!-- en tête de fiche : visible sans faire défiler, même dans le tiroir à mi-hauteur du téléphone -->
         ${main ? `<button type="button" class="btn btn-sm detail-edit" data-edit title="${tr('Découpe, lumière et couleurs')}"><svg class="ico"><use href="#i-scissors"/></svg><span>${tr('Retoucher le dessin')}</span></button>` : ''}
         ${role === 'texture' && d.analysis.texture ? `<button type="button" class="btn btn-sm detail-edit" data-crop title="${tr('Choisir la partie de la page posée sur l’œuvre')}"><svg class="ico"><use href="#i-crop"/></svg><span>${tr('Recadrer la page')}</span></button>` : ''}
-        ${print ? '' : `<div class="row stack">${tr('Taille réelle')}
+        ${print ? '' : `<div class="row stack">${d.sheet ? tr('Taille de la feuille d’origine, entière') : tr('Taille réelle')}
           <div class="chips" role="group" aria-label="${tr('Taille réelle')}">
             ${SHEETS.map(([nm, cm]) => `<button type="button" data-cm="${cm}" class="${std && std[1] === cm ? 'on' : ''}" title="${nm} · ${fmt(cm)} cm">${nm}</button>`).join('')}
             <button type="button" data-cm="custom" class="${std ? '' : 'on'}">${tr('Autre…')}</button>
           </div>
         </div>
         <label class="row" data-custom ${std ? 'hidden' : ''}>${tr('Plus grand côté (cm)')}
-          <input type="number" min="3" max="${MAX_CM}" step="0.1" value="${fmt(d.sizeCm).replace(',', '.')}">
+          <input type="number" min="3" max="${MAX_CM}" step="0.1" value="${fmt(sz.sizeCm).replace(',', '.')}">
         </label>`}
         ${main ? '' : `<div class="tone" role="group" aria-label="${tr('Luminosité, contraste et saturation')}">
           ${[['b', tr('Luminosité')], ['c', tr('Contraste')], ['s', tr('Saturation')]].map(([k, label]) => `<label class="row"><span>${label}</span>
@@ -1502,7 +1525,7 @@
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>
         ${qualityBlock(d)}
-        ${print ? '' : `<p class="hint">${d.sizeMode === 'auto' ? (d.physCm ? tr`Taille lue dans le scan (${d.physSource || 'PDF'}).` : d.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
+        ${print ? '' : `<p class="hint">${sz.sizeMode === 'auto' ? (sz.physCm ? tr`Taille lue dans le scan (${sz.physSource || 'PDF'}).` : sz.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>`}
       </div>`;
     box.querySelector('.detail-close').onclick = () => {
@@ -1560,16 +1583,7 @@
     const cropBtn = box.querySelector('[data-crop]');
     if (cropBtn) cropBtn.onclick = () => Crop.open(d.analysis.page, cropOf(d) || CROP0, { initial: CROP0, onApply: (r) => setCrop(d, r) });
     const custom = box.querySelector('[data-custom]');
-    const setSize = (cm) => {
-      if (!(cm > 0)) return;
-      cm = clampCm(cm);
-      resizeInPlace(() => {
-        d.sizeCm = cm;
-        d.sizeMode = 'manual';
-        saveSize(d);
-        estimateSizes();
-      });
-    };
+    const setSize = (cm) => { if (cm > 0) setRealSize(d.sheet || d, cm); };
     box.querySelectorAll('[data-cm]').forEach((b) => (b.onclick = () => {
       if (b.dataset.cm === 'custom') {
         box.querySelectorAll('[data-cm]').forEach((x) => x.classList.toggle('on', x === b));

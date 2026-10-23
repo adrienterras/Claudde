@@ -145,7 +145,10 @@ cd collage && python3 -m http.server 8000
      le reste de la feuille à la couleur du papier, nommé « nom — 1 », « nom — 2 »… La feuille
      entière n'est pas gardée. Les sujets gardent l'échelle de leur feuille : sa taille est estimée
      comme pour une page, chacun en prend sa part (`sheet`, `sheetK`) ; la clé du fichier d'origine
-     (`sheetKey`) fait reconnaître la feuille si on la réimporte. Les fragments (traits fins,
+     (`sheetKey`) fait reconnaître la feuille si on la réimporte. En collage, la taille à vérifier est
+     celle de la feuille d'origine, entière (une ligne « Dessins 1 à 9 · feuille entière » dans les
+     tailles, et dans la fiche de chacun de ses sujets) : on ne peut pas mesurer un sujet déjà découpé ;
+     ses sujets suivent (`setRealSize`). Les fragments (traits fins,
      miettes) ne deviennent pas des dessins. Une œuvre rouverte relit les dessins tels quels.
      Photographiée sur un mur ou une table de la couleur du papier (surface claire sans papier
      distinct), la feuille est traitée comme un scan : le retrait de surface ne garderait que l'encre
