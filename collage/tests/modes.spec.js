@@ -381,7 +381,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(sp.dx).toBeGreaterThan(0.45);
   });
 
-  test('Affiche : peu de dessins dans un grand cadre, jamais agrandis au-delà de leur taille réelle (sauf l’œuvre affichée, agrandie à l’identique)', async ({ page }) => {
+  test('Affiche : un plus grand cadre agrandit l’œuvre affichée à l’identique, et les nouvelles propositions dans la même proportion', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
@@ -393,19 +393,29 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.min; d.dispatchEvent(new Event('change')); });
     await page.waitForTimeout(300);
-    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, items: c.items.map((L) => [L.x / c.W, L.y / c.H, L.w / c.W]) }; });
+    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, k: AtelierGribouille.scale(), items: c.items.map((L) => [L.x / c.W, L.y / c.H, L.w / c.W]) }; });
+    expect(before.W * before.H).toBeCloseTo(1200, 0); // (le 30 × 40, cadre de départ)
     await page.evaluate(() => { const f = document.getElementById('format'); f.value = 'cadre:50x70'; f.dispatchEvent(new Event('change')); });
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => AtelierGribouille.scale())).toBeLessThanOrEqual(1.0001);
+    // les dessins grandissent avec le cadre (la racine du rapport des surfaces) : les propositions
+    // refaites ressemblent à celles du 30 × 40, en plus grand
+    const grow = Math.sqrt(3500 / 1200);
+    expect(await page.evaluate(() => AtelierGribouille.scale())).toBeCloseTo(before.k * grow, 3);
     // l'œuvre affichée est agrandie à l'identique (mêmes places et tailles relatives)
     const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, items: c.items.map((L) => [L.x / c.W, L.y / c.H, L.w / c.W]) }; });
     expect(after.W).toBe(70);
     expect(after.items.length).toBe(before.items.length);
     before.items.forEach(([x, y, w], i) => { expect(after.items[i][0]).toBeCloseTo(x, 3); expect(after.items[i][1]).toBeCloseTo(y, 3); expect(after.items[i][2]).toBeCloseTo((w * before.W * Math.sqrt((70 / before.W) * (50 / before.H))) / 70, 3); });
-    // les autres propositions, recomposées pour ce cadre, gardent leurs dessins à leur taille réelle au plus
+    // les autres propositions, recomposées pour ce cadre : au plus ce même agrandissement
     const over = await page.evaluate(() => { const S = AtelierGribouille.state; return S.proposals.filter((p) => p.comp !== S.comp).flatMap((p) => p.comp.items.map((L) => { const c = L.piece.drawing.sizeCm / L.piece.drawing.srcLong; return Math.max(L.w / (L.piece.canvas.width * c), L.h / (L.piece.canvas.height * c)); })); });
     expect(over.length).toBeGreaterThan(0);
-    for (const r of over) expect(r).toBeLessThanOrEqual(1.001);
+    for (const r of over) expect(r).toBeLessThanOrEqual(grow + 0.001);
+    // « Nouvelles propositions » : les dessins gardent la taille qu'ils ont sur l'œuvre agrandie
+    await page.locator('#generate').click();
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => AtelierGribouille.scale())).toBeCloseTo(before.k * grow, 3);
+    const rel = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return Math.max(...c.items.map((L) => L.w / c.W)); });
+    expect(rel).toBeGreaterThan(0.6 * Math.max(...before.items.map((it) => it[2])));
     await expect(page.locator('#scale-info')).toHaveText('Impression de 70 × 50 cm, à la taille du cadre.');
   });
 

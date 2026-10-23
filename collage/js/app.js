@@ -2218,7 +2218,11 @@
   // Affiche : facteur de réduction commun aux découpes, qui suit le curseur de densité : les sujets
   // retenus (les plus forts d'abord, autant que le curseur en demande, comme à la pose) doivent couvrir
   // la part de l'affiche que le curseur fixe ; plus on demande de dessins, plus ils sont réduits, et le
-  // nombre posé grandit pas à pas. Jamais agrandis (netteté du tirage).
+  // nombre posé grandit pas à pas. Jamais agrandis au-delà de printCap.
+  // Tableau imprimé : jusqu'au 30 × 40, les dessins ne dépassent pas leur taille réelle ; un cadre plus
+  // grand les laisse grandir d'autant (la racine du rapport des surfaces) : une proposition sur un
+  // 70 × 100 est celle d'un 30 × 40 en plus grand, comme l'œuvre agrandie par le choix du cadre
+  const printCap = () => (state.canvasSize ? Math.max(1, Math.sqrt((state.canvasSize.w * state.canvasSize.h) / 1200)) : 1);
   // Affiche : nombre de découpes posées pour une position du curseur. Le curseur est linéaire et
   // compte tous les dessins, pages de fond comprises (toujours posées) : à mi-course, la moitié des
   // dessins est sur l'œuvre, comme l'indique « N sur M » ; en bas, les pages et une découpe ; en
@@ -2259,21 +2263,22 @@
     const areaOf = (p) => { const c = cmPerPx(p.drawing); return p.canvas.width * c * p.canvas.height * c; };
     const t = densityT();
     // échelle pour une position du curseur : les sujets retenus (les plus forts d'abord, comme à la
-    // pose) demandent ensemble la surface fixée ; jamais au-delà de leur taille réelle
+    // pose) demandent ensemble la surface fixée ; au plus printCap
+    const cap = printCap();
     const raw = (tt) => {
       const area = printKeep(pieces, tt).reduce((a, p) => a + areaOf(p), 0);
-      return Math.min(1, Math.sqrt((printCover(tt) * w * h) / Math.max(1, area)));
+      return Math.min(cap, Math.sqrt((printCover(tt) * w * h) / Math.max(1, area)));
     };
     // en montant le curseur, les dessins ne regrandissent jamais : l'échelle est la plus petite
     // rencontrée depuis le bas du curseur jusqu'ici
     let k = raw(t);
     for (let tt = 0; tt < t; tt += 0.02) k = Math.min(k, raw(tt));
-    return clamp(k, 0.05, 1);
+    return clamp(k, 0.05, cap);
   }
   // Affiche : les pages de fond ont leur propre échelle, pour couvrir l'affiche en se chevauchant
   // (comme la toile calculée en atelier Toile) ; pas plus petites que 60 % de l'échelle des découpes,
   // ni plus de deux fois cette échelle (un collage de feuilles, pas un papier peint sous des timbres) ;
-  // la plus grande page tient toujours entière dans le cadre ; jamais au-delà de leur taille réelle
+  // la plus grande page tient toujours entière dans le cadre ; au plus printCap
   function computeBgScale() {
     if (!printMode() || !state.canvasSize) return 1;
     const { w, h } = state.canvasSize;
@@ -2283,7 +2288,7 @@
     let k = clamp(Math.sqrt((1.5 * w * h) / bgArea), 0.6 * kp, 2 * kp);
     const m = state.bgMin || { long: 0, short: 0 };
     if (m.long > 0) k = Math.min(k, Math.max(w, h) / m.long, Math.min(w, h) / m.short);
-    return clamp(k, 0.05, 1);
+    return clamp(k, 0.05, printCap());
   }
 
   // Tableau imprimé : la taille de l'impression dans le cadre choisi (sous le cadre, dans Tailles et dans la mise en scène)
@@ -2390,7 +2395,7 @@
       // nombre de sujets fixé par le curseur (affiche : à l'échelle qui va avec ; toile : à taille réelle,
       // sur une toile conseillée à leur mesure) ; tout au maximum
       count: printMode() ? printCount(pieces, densityT()) : allIn() ? 0 : Math.max(1, Math.round(pieces.length * toileKeep())),
-      maxGrow: printMode() ? 1 / Math.max(0.05, k) : 1, // affiche : agrandissement encore permis pour remplir le cadre, jusqu'à la taille réelle
+      maxGrow: printMode() ? printCap() / Math.max(0.05, k) : 1, // affiche : agrandissement encore permis pour remplir le cadre, jusqu'à printCap
       ground: state.ground && state.ground !== 'auto' ? state.ground : null,
       groundName: groundPaint() ? groundPaint()[0] : null,
       seed: state.seed,

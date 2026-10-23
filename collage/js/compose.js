@@ -1447,8 +1447,8 @@
     standing.forEach((p, i) => rows[Math.min(nRows - 1, Math.floor((i * nRows) / Math.max(1, n)))].push(p));
     // échelle commune, généreuse : les sujets sont grands, se chevauchent et s'entremêlent (chaque
     // rangée fait jusqu'à 1,7 fois la largeur, les sujets de devant montent devant ceux du fond) ; les
-    // plus grands restent dans la toile ; au plus la taille permise (o.maxGrow : jamais au-delà de la
-    // taille réelle en tableau imprimé)
+    // plus grands restent dans la toile ; au plus la taille permise (o.maxGrow : en tableau imprimé,
+    // la taille réelle, ou davantage sur un cadre plus grand que le 30 × 40)
     let g = o.maxGrow || 1;
     rows.forEach((row, r) => {
       const sumW = row.reduce((a, p) => a + p.wcm, 0);
