@@ -168,10 +168,13 @@
   // Seulement ce qu'il faut pour la liste (date, style, taille, nombre de dessins) : la fiche complète
   // de chaque œuvre ne transite qu'à sa réouverture.
   const ORDER_NAME = /^AG-\d{6}-[A-Z0-9]{4} · /;
-  async function cloudList() {
-    const { data, error } = await client.from('compositions')
+  // from, count : une page de la liste, des plus récentes aux plus anciennes (sans count : toute la liste)
+  async function cloudList(from, count) {
+    let q = client.from('compositions')
       .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format')
       .is('meta->>cart', null).order('created_at', { ascending: false });
+    if (count) q = q.range(from || 0, (from || 0) + count - 1);
+    const { data, error } = await q;
     err(error);
     return (data || []).map((row) => {
       const m = row.meta || {}, c = m.comp || {}; // (sans sélection de colonnes : la fiche entière)

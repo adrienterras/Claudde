@@ -322,13 +322,36 @@ test.describe('Comptes utilisateurs', () => {
     // le compte répond par une erreur : la liste reste, « Réessayer » relit le compte
     await page.evaluate(() => { window.Account.cloud.list = () => Promise.reject(new Error('Failed to fetch')); });
     await page.evaluate(() => AtelierGribouille.renderSaved({ refresh: true }).catch(() => {}));
-    // (la lecture bloquée d'avant tient la place jusqu'à 20 s : on attend son abandon)
-    await expect(page.locator('#saved-list .saved-cloud')).toContainText('n’ont pas pu être lues', { timeout: 30000 });
+    // (la lecture bloquée d'avant tient la place jusqu'à 25 s : on attend son abandon)
+    await expect(page.locator('#saved-list .saved-cloud')).toContainText('n’ont pas pu être lues', { timeout: 35000 });
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
     await page.evaluate(() => { window.Account.cloud.list = window.__list; });
     await page.locator('#saved-list .saved-cloud button').click();
     await expect(page.locator('#saved-list .saved-cloud')).toHaveCount(0);
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+  });
+
+  test('Mes œuvres : un compte aux nombreuses œuvres est lu par pages de 12, toutes affichées', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'beaucoup@example.org', 'Rouge-Soleil-42', 'Beaucoup');
+    // 27 œuvres dans le compte, et deux articles du panier (pas dans la liste)
+    await page.evaluate(() => {
+      const uid = window.__fake.db.session.user.id;
+      for (let i = 0; i < 29; i++) {
+        const date = new Date(Date.UTC(2026, 9, 1, 8, i)).toISOString();
+        const meta = { date, n: 2, work: true, comp: { style: 'nuage', W: 30, H: 40 }, settings: { mode: 'impression', format: 'cadre:30x40' } };
+        if (i >= 27) meta.cart = { product: 'hd', qty: 1 };
+        window.__fake.db.rows.push({ id: `w${i}`, user_id: uid, created_at: date, name: `Œuvre ${i}`, thumb: null, meta });
+      }
+      window.__fake.calls.length = 0;
+    });
+    await openStep(page, 'saved-section');
+    await page.evaluate(() => AtelierGribouille.renderSaved({ refresh: true }));
+    await expect(page.locator('#saved-list .saved')).toHaveCount(27);
+    await expect(page.locator('#saved-list .saved-cloud')).toHaveCount(0);
+    const pages = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'select' && c[1] === 'compositions').map((c) => c[2]));
+    expect(pages).toEqual(expect.arrayContaining(['0-11', '12-23', '24-35']));
+    expect(pages).not.toContain('all');
   });
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {

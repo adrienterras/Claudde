@@ -57,11 +57,13 @@
       if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }
       if (q.order) rows.sort((a, b) => (a[q.order] < b[q.order] ? 1 : -1));
       if (q.single) return rows.length ? ok(rows[0]) : ko('Row not found');
+      if (q.range) rows = rows.slice(q.range[0], q.range[1] + 1);
+      window.__fake.calls.push(['select', table, q.range ? q.range.join('-') : 'all']);
       return ok(rows);
     };
     const chain = {
       select() { return chain; }, insert(row) { q.op = 'insert'; q.row = row; return chain; }, delete() { q.op = 'delete'; return chain; }, update(row) { q.op = 'update'; q.row = row; return chain; },
-      eq(k, v) { q.filters.push([k, v]); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; },
+      eq(k, v) { q.filters.push([k, v]); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; }, range(a, b) { q.range = [a, b]; return chain; },
       then(res, rej) { return run().then(res, rej); },
     };
     return chain;

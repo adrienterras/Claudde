@@ -448,7 +448,9 @@ cd collage && python3 -m http.server 8000
      puce du compte (`#cloud-sync`, `workStatus` ; téléphone : onglets Importer et Compte) dit où
      l'œuvre est enregistrée (« ✓ Enregistrée dans votre compte (14:32) », « sur cet appareil »…).
      Le compte n'est lu qu'à l'arrivée et à la connexion (`checkWorks` : la liste, sans les fiches
-     complètes) et au retour sur la page après plus de 2 minutes d'absence (`checkCurrentWork` : la
+     complètes, par pages de 12 des plus récentes aux plus anciennes, chacune affichée dès qu'elle
+     arrive, 25 s au plus par page — `loadCloudWorks` : lue d'un seul coup, la liste d'un compte aux
+     nombreuses œuvres restait sans réponse sur réseau mobile ; en échec, les œuvres déjà lues restent) et au retour sur la page après plus de 2 minutes d'absence (`checkCurrentWork` : la
      seule date de l'œuvre affichée) ; à l'arrivée sur un appareil où rien n'est affiché (nouvel
      appareil, navigateur vidé), la plus récente se rouvre d'elle-même, sauf après « nouvelle œuvre »
      (`atelier.nouvelle`) ou une arrivée `?nouveau` / `?exemple`. Les œuvres faites ici avant de se

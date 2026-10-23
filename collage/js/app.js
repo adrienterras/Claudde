@@ -5945,16 +5945,33 @@ Réponds uniquement avec ce JSON :
   // Mes œuvres : celles de ce navigateur et, connecté, celles du compte (une seule entrée par œuvre,
   // la version la plus récente fait foi) ; l'œuvre affichée en tête
   // La liste s'affiche tout de suite avec ce qu'on a (ce navigateur, la dernière liste du compte), puis
-  // de nouveau quand le compte a répondu ; une lecture du compte à la fois, 20 s au plus (réseau mobile
-  // faible : une lecture restée sans réponse ne doit jamais laisser la liste vide) ; en échec, un mot
-  // le dit, avec « Réessayer »
+  // de nouveau quand le compte a répondu ; une lecture du compte à la fois, par pages de 12 œuvres (des
+  // plus récentes aux plus anciennes), chacune affichée dès qu'elle arrive, 25 s au plus par page
+  // (réseau mobile faible, compte aux nombreuses œuvres : une seule lecture de tout le compte restait
+  // sans réponse et laissait la liste vide) ; en échec, un mot le dit, avec « Réessayer », et les
+  // œuvres déjà lues restent
+  const CLOUD_PAGE = 12;
   let renderSeq = 0, cloudLoading = null, cloudError = '';
   function loadCloudWorks() {
     if (cloudLoading) return cloudLoading;
-    cloudLoading = Promise.race([window.Account.cloud.list(), wait(20000).then(() => { throw new Error(tr('pas de réponse')); })])
-      .then((l) => { cloudWorks = l; cloudError = ''; })
-      .catch((e) => { console.error(e); cloudError = (e && e.message) || String(e); })
-      .finally(() => { cloudLoading = null; });
+    const timed = (p) => Promise.race([p, wait(25000).then(() => { throw new Error(tr('pas de réponse')); })]);
+    cloudLoading = (async () => {
+      const got = [];
+      try {
+        for (let from = 0; ; from += CLOUD_PAGE) {
+          const page = await timed(window.Account.cloud.list(from, CLOUD_PAGE));
+          got.push(...page);
+          cloudWorks = got.slice();
+          cloudError = '';
+          if (page.length < CLOUD_PAGE) break;
+          drawSaved(await readLocals()); // (les premières œuvres, sans attendre les suivantes)
+        }
+      } catch (e) {
+        console.error(e);
+        cloudError = (e && e.message) || String(e);
+        if (got.length) cloudWorks = got.slice();
+      }
+    })().finally(() => { cloudLoading = null; });
     return cloudLoading;
   }
   const readLocals = async () => { try { return (await dbAll()).filter((r) => !r.cart && r.drawings && r.drawings.length); } catch (e) { console.error(e); return []; } };
