@@ -283,11 +283,14 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-finish]')].map((b) => b.dataset.finish))).toEqual(['papier', 'cadre']);
     // papier : la taille d'impression, sans cadre ni passe-partout
     await page.locator('#cart-add [data-finish="papier"]').click();
-    await expect(page.locator('#cart-add .cart-frame')).toBeHidden();
+    await expect(page.locator('#cart-add .cart-frame-field')).toBeHidden();
     await expect(page.locator('#cart-add .cart-dims')).toHaveText('Impression 21 × 29,7 cm sur papier d’art, sans cadre');
     // encadré : la couleur du cadre et le passe-partout (celui de l'œuvre par défaut), les deux tailles en clair
     await page.locator('#cart-add [data-finish="cadre"]').click();
-    await expect(page.locator('#cart-add .cart-frame')).toBeVisible();
+    await expect(page.locator('#cart-add .cart-frame-field')).toBeVisible();
+    // le choix du passe-partout vient juste sous Papier / Encadré
+    await expect(page.locator('#cart-add .cart-mat-field')).toBeVisible();
+    expect(await page.evaluate(() => document.querySelector('#cart-add .cart-finish').nextElementSibling.classList.contains('cart-mat-field'))).toBe(true);
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-frame-kind]')].map((b) => b.dataset.frameKind))).toEqual(['bois-clair', 'bois-fonce', 'bois-noir', 'bois-blanc', 'metal']);
     await expect(page.locator('#cart-add [data-frame-kind].on')).toHaveCount(1);
     await expect(page.locator('#cart-add [data-mat="1"]')).toHaveClass(/on/);

@@ -249,8 +249,11 @@ cd collage && python3 -m http.server 8000
      30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (17 à 79 € selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office, le kit complet 50 × 70 à 89 € (`kitPrice`, options gardées avec l'article)),
      et la quantité. À gauche des options (au-dessus sur téléphone), **la mise en scène de l'article
      choisi** (`drawCartScene`, même dessin que « Mettre en scène » : `paintRoom`) : le tableau à la
-     taille d'impression choisie, encadré (couleur du cadre, passe-partout) ou sur papier, l'œuvre
-     entière dedans (marge blanche si ses proportions diffèrent) ; le fichier HD, le guide ou le kit :
+     taille d'impression choisie, encadré (couleur du cadre, passe-partout) ou sur papier ; une
+     impression d'autres proportions que l'œuvre reçoit l'œuvre mise à ses proportions, à surface
+     égale (`printedComp` : `fitCompTo` sur une copie — dessins à leur taille, places en proportion,
+     pages de fond couvrantes ; ni marge blanche ni bord rogné ; c'est cette copie qui va au panier,
+     l'œuvre affichée ne change pas) ; le fichier HD, le guide ou le kit :
      l'œuvre à sa taille. Elle suit chaque changement d'option ; l'image prend toute la hauteur de
      la fenêtre (carrée sur téléphone), cadrée plus près du mur que « Mettre en scène » (`spec.fill`). La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le

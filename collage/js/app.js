@@ -6813,7 +6813,7 @@ Réponds uniquement avec ce JSON :
     });
     // encadré : couleur du cadre et passe-partout ; les tailles du cadre et de l'impression, en clair
     const framed = choice.product === 'print' && choice.finish === 'cadre';
-    box.querySelector('.cart-frame').hidden = !framed;
+    box.querySelectorAll('.cart-frame').forEach((el) => { el.hidden = !framed; });
     box.querySelectorAll('[data-frame-kind]').forEach((b) => {
       const on = b.dataset.frameKind === choice.frame;
       b.classList.toggle('on', on);
@@ -6832,17 +6832,15 @@ Réponds uniquement avec ce JSON :
     choice.qty = clamp(choice.qty, 1, maxQty(choice));
     box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
-    // proportions : l'œuvre est imprimée entière, centrée ; composée pour un passe-partout, elle est
-    // plus petite que son cadre (c'est voulu) ; sur une autre taille, une marge blanche la complète
-    // proportions : l'œuvre est imprimée entière ; si l'impression n'a pas exactement ses proportions,
-    // une marge blanche la complète (elle n'est jamais rognée)
+    // proportions : si l'impression n'a pas celles de l'œuvre, l'œuvre imprimée y est mise (printedComp :
+    // pas de marge blanche, rien de rogné) ; on le dit dès que la différence se voit
     const fit = box.querySelector('.cart-fit');
     if (choice.product === 'print') {
       const f = PRINT_FRAMES.find((x) => x.key === choice.size), [a, b] = framed && choice.mat ? f.mat : f.print;
       const pw = comp.W >= comp.H ? Math.max(a, b) : Math.min(a, b), ph = comp.W >= comp.H ? Math.min(a, b) : Math.max(a, b);
       const sameShape = Math.abs(pw / ph - comp.W / comp.H) < 0.02;
       fit.hidden = sameShape;
-      fit.textContent = tr`L’œuvre (${fmt(comp.W)} × ${fmt(comp.H)} cm) sera imprimée entière sur ${fmt(pw)} × ${fmt(ph)} cm, avec une fine marge blanche pour garder ses proportions.`;
+      fit.textContent = tr`L’œuvre est mise aux proportions de l’impression (${fmt(pw)} × ${fmt(ph)} cm) : les dessins gardent leur taille, leurs places s’ajustent, sans marge blanche.`;
     } else fit.hidden = true;
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
@@ -6853,8 +6851,31 @@ Réponds uniquement avec ce JSON :
    * (encadré : couleur du cadre et passe-partout ; papier : la feuille seule), l'œuvre entière dans
    * l'impression ; le fichier HD, le guide ou le kit : l'œuvre à sa taille, comme dans « Mettre en scène »
    */
+  /*
+   * L'œuvre telle qu'elle sera imprimée : aux proportions de l'impression choisie, à surface égale
+   * (fitCompTo, comme un changement de cadre dans Tailles : les dessins gardent leur taille, leurs
+   * places suivent, les pages de fond couvrent toujours tout) ; ni marge blanche, ni bord rogné. Une
+   * copie : l'œuvre affichée ne change pas.
+   */
+  function printedComp(comp) {
+    if (choice.product !== 'print' || !printMode()) return comp;
+    const f = PRINT_FRAMES.find((x) => x.key === choice.size) || PRINT_FRAMES[1];
+    const [a, b] = choice.finish === 'cadre' && choice.mat ? f.mat : f.print;
+    const r = comp.W >= comp.H ? Math.max(a, b) / Math.min(a, b) : Math.min(a, b) / Math.max(a, b);
+    if (Math.abs(r - comp.W / comp.H) < 0.002) return comp;
+    const layer = (L) => Object.assign({}, L, L.clip ? { clip: L.clip.map((q) => q.slice()) } : {});
+    const copy = Object.assign({}, comp, {
+      items: comp.items.map(layer), bg: comp.bg.map(layer),
+      frames: comp.frames && comp.frames.map((x) => Object.assign({}, x)),
+      tiles: comp.tiles && comp.tiles.map((x) => Object.assign({}, x)),
+      lines: comp.lines && comp.lines.map((x) => x.slice()),
+    });
+    const W = Math.sqrt(comp.W * comp.H * r);
+    fitCompTo(copy, W, W / r);
+    return copy;
+  }
   function cartSceneSpec() {
-    const { comp } = pending;
+    const comp = printedComp(pending.comp);
     const land = comp.W >= comp.H, or = ([a, b]) => (land ? [Math.max(a, b), Math.min(a, b)] : [Math.min(a, b), Math.max(a, b)]);
     if (choice.product === 'print' && printMode()) {
       const f = PRINT_FRAMES.find((x) => x.key === choice.size) || PRINT_FRAMES[1];
@@ -6909,11 +6930,12 @@ Réponds uniquement avec ce JSON :
     try {
       const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       // la composition est figée telle qu'elle est maintenant (images partagées, écrites une fois)
-      const rec = await snapshotComposition(pending.title, { refs: true, comp: pending.comp });
+      const comp = printedComp(pending.comp); // (aux proportions de l'impression choisie)
+      const rec = await snapshotComposition(pending.title, { refs: true, comp });
       rec.id = `panier-${id}`;
       rec.cart = true;
       await dbPut(rec);
-      const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: pending.thumb, W: pending.comp.W, H: pending.comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
+      const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
       if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
       it.unit = unitPrice(it);

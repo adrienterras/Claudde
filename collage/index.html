@@ -492,18 +492,21 @@
           <div class="seg cart-finish" role="group" aria-label="Finition">
             <button type="button" data-finish="papier">Papier</button><button type="button" data-finish="cadre">Encadré</button>
           </div>
-          <div class="chips cart-sizes" role="group" aria-label="Taille">
-            <button type="button" data-size="21x30">21 × 30</button><button type="button" data-size="30x40">30 × 40</button><button type="button" data-size="40x50">40 × 50</button><button type="button" data-size="50x70">50 × 70</button><button type="button" data-size="70x100">70 × 100</button>
-          </div>
-          <!-- encadré : la couleur du cadre et le passe-partout ; les tailles du cadre et de l'impression, en clair -->
-          <div class="cart-frame" hidden>
-            <p class="cart-label">Couleur du cadre <b class="cart-frame-name"></b></p>
-            <div class="cart-frame-colors" role="radiogroup" aria-label="Couleur du cadre">
-              <button type="button" role="radio" data-frame-kind="bois-clair" title="Bois clair" aria-label="Bois clair"></button><button type="button" role="radio" data-frame-kind="bois-fonce" title="Bois foncé" aria-label="Bois foncé"></button><button type="button" role="radio" data-frame-kind="bois-noir" title="Bois noir" aria-label="Bois noir"></button><button type="button" role="radio" data-frame-kind="bois-blanc" title="Bois blanc" aria-label="Bois blanc"></button><button type="button" role="radio" data-frame-kind="metal" title="Métal" aria-label="Métal"></button>
-            </div>
+          <!-- encadré : avec ou sans passe-partout, juste sous Papier / Encadré -->
+          <div class="cart-frame cart-mat-field" hidden>
             <p class="cart-label">Passe-partout</p>
             <div class="seg cart-mat" role="group" aria-label="Passe-partout">
               <button type="button" data-mat="0">Sans passe-partout</button><button type="button" data-mat="1">Avec passe-partout</button>
+            </div>
+          </div>
+          <div class="chips cart-sizes" role="group" aria-label="Taille">
+            <button type="button" data-size="21x30">21 × 30</button><button type="button" data-size="30x40">30 × 40</button><button type="button" data-size="40x50">40 × 50</button><button type="button" data-size="50x70">50 × 70</button><button type="button" data-size="70x100">70 × 100</button>
+          </div>
+          <!-- encadré : la couleur du cadre ; les tailles du cadre et de l'impression, en clair -->
+          <div class="cart-frame cart-frame-field" hidden>
+            <p class="cart-label">Couleur du cadre <b class="cart-frame-name"></b></p>
+            <div class="cart-frame-colors" role="radiogroup" aria-label="Couleur du cadre">
+              <button type="button" role="radio" data-frame-kind="bois-clair" title="Bois clair" aria-label="Bois clair"></button><button type="button" role="radio" data-frame-kind="bois-fonce" title="Bois foncé" aria-label="Bois foncé"></button><button type="button" role="radio" data-frame-kind="bois-noir" title="Bois noir" aria-label="Bois noir"></button><button type="button" role="radio" data-frame-kind="bois-blanc" title="Bois blanc" aria-label="Bois blanc"></button><button type="button" role="radio" data-frame-kind="metal" title="Métal" aria-label="Métal"></button>
             </div>
           </div>
           <p class="cart-dims"></p>

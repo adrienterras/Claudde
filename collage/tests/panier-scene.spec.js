@@ -54,4 +54,27 @@ test.describe('Ajouter au panier : mise en scène', () => {
     expect((await sceneSig(page)).lit).toBeGreaterThan(1000);
     await ctx.close();
   });
+  test('une impression d’autres proportions : l’œuvre y est mise (sans marge blanche), l’œuvre affichée ne change pas', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openCartAdd(page);
+    const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, x: c.items.map((L) => L.x), w: c.items.map((L) => L.w) }; });
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    // une taille d'une autre forme que l'œuvre
+    const size = await page.evaluate((r) => {
+      const sizes = { '21x30': [21, 29.7], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] };
+      return Object.keys(sizes).find((k) => { const [a, b] = sizes[k]; const q = r >= 1 ? b / a : a / b; return Math.abs(q - r) > 0.03; });
+    }, before.W / before.H);
+    await page.locator(`#cart-add [data-size="${size}"]`).click();
+    await expect(page.locator('.cart-fit')).toContainText('mise aux proportions de l’impression');
+    await page.locator('#cart-add-ok').click();
+    await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
+    const it = await page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /panier/.test(x)); return JSON.parse(localStorage.getItem(k)).slice(-1)[0]; });
+    const [a, b] = { '21x30': [21, 29.7], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] }[size];
+    const r = before.W >= before.H ? b / a : a / b;
+    expect(it.W / it.H).toBeCloseTo(r, 3); // les proportions de l'impression
+    expect(it.W * it.H).toBeCloseTo(before.W * before.H, 1); // à surface égale
+    // l'œuvre affichée est intacte
+    const after = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, x: c.items.map((L) => L.x), w: c.items.map((L) => L.w) }; });
+    expect(after).toEqual(before);
+  });
 });

@@ -882,7 +882,7 @@
     '<b>Cadre {0}</b> · impression <b>{1}</b>, entourée d’un passe-partout blanc': '<b>Frame {0}</b> · print <b>{1}</b>, surrounded by a white mount',
     '<b>Cadre {0}</b> · impression <b>{1}</b>, à la taille du cadre': '<b>Frame {0}</b> · print <b>{1}</b>, the size of the frame',
     'Impression <b>{0}</b> sur papier d’art, sans cadre': 'Print <b>{0}</b> on fine-art paper, unframed',
-    'L’œuvre ({0} × {1} cm) sera imprimée entière sur {2} × {3} cm, avec une fine marge blanche pour garder ses proportions.': 'The artwork ({0} × {1} cm) will be printed in full on {2} × {3} cm, with a thin white margin to keep its proportions.',
+    'L’œuvre est mise aux proportions de l’impression ({0} × {1} cm) : les dessins gardent leur taille, leurs places s’ajustent, sans marge blanche.': 'The artwork is fitted to the print’s proportions ({0} × {1} cm): the drawings keep their size, their places adjust, with no white margin.',
     'Couleur du cadre': 'Frame colour',
     'Bois clair': 'Light wood',
     'Bois foncé': 'Dark wood',
