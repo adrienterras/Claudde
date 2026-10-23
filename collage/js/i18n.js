@@ -302,7 +302,7 @@
     'Revenir à l’œuvre complète': 'Back to the whole artwork',
     'Nombre de dessins': 'Number of drawings',
     '16 dessins': '16 drawings',
-    'Les grands souvenirs commencent par un gribouillage.': 'Great memories start with a scribble.',
+    'Les grands souvenirs commencent par un gribouillage': 'Great memories start with a scribble',
     'Importez les dessins, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à huit propositions, à imprimer ou à réaliser avec les originaux.': 'Import the drawings, scanned or photographed: the studio cuts them out and composes up to eight proposals, to print or to make with the originals.',
     'Voir un exemple': 'See an example',
     'Votre œuvre': 'Your artwork',
