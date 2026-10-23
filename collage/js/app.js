@@ -1127,6 +1127,12 @@
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
       el.dataset.i = String(i);
       el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
+      // au clavier : un bouton (Entrée ou Espace ouvre sa fiche)
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', el.title);
+      el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
+      el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
       el.innerHTML = `<img src="${d.thumb}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
@@ -1336,6 +1342,14 @@
       el.title = !p.enabled ? tr('Retirée — cliquer pour l’ajouter') : unplaced ? tr('Pas de place à cette échelle — cliquer pour l’ajouter quand même') : tr('Dans l’œuvre — cliquer pour la retirer');
       el.innerHTML = tr`<img src="${p.thumb}" alt=""><button class="edit-piece" title="Retoucher la découpe" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg></button>`;
       el.querySelector('img').style.filter = toneFilter(p.drawing);
+      // au clavier : l'image est un bouton (retirer ou ajouter la pièce), à côté de celui de la retouche
+      const img = el.querySelector('img'), hit = document.createElement('button');
+      hit.type = 'button';
+      hit.className = 'thumb-hit';
+      hit.setAttribute('aria-pressed', p.enabled ? 'true' : 'false');
+      hit.setAttribute('aria-label', tr`Pièce de « ${p.drawing.name} » : ${el.title}`);
+      img.replaceWith(hit);
+      hit.appendChild(img);
       el.onclick = () => togglePiece(p);
       el.querySelector('.edit-piece').onclick = (e) => { e.stopPropagation(); editPiece(p); };
       pEl.appendChild(el);
@@ -3637,7 +3651,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   window.addEventListener('keydown', (e) => {
     if (window.Editor && Editor.isOpen()) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
-    if (e.key === 'Delete' || e.key === 'Backspace') act('del');
+    // (Retour arrière seulement quand l'œuvre a le focus : ailleurs, il ne supprime rien par mégarde)
+    if (e.key === 'Delete' || (e.key === 'Backspace' && e.target === canvas)) act('del');
     if (e.key === '+' || e.key === '=') act('bigger');
     if (e.key === '-') act('smaller');
     if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === 'y')) {
@@ -3651,6 +3666,69 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       render();
     }
   });
+
+  /*
+   * L'œuvre au clavier : elle se prend avec Tab ; Page suivante / Page précédente passent d'un dessin à
+   * l'autre (annoncé : « chat, 2 sur 9 »), les flèches le déplacent (Maj : plus loin), R et Maj+R le
+   * tournent, + et − (voir plus haut) changent sa taille, Entrée ouvre la retouche de sa découpe,
+   * Suppr ou Retour arrière le retirent, Échap le désélectionne.
+   */
+  canvas.tabIndex = 0;
+  canvas.setAttribute('role', 'application');
+  canvas.setAttribute('aria-roledescription', tr('œuvre'));
+  canvas.setAttribute('aria-label', tr('Œuvre. Page suivante et Page précédente : choisir un dessin ; flèches : le déplacer (Maj : plus loin) ; R : le tourner ; + et − : sa taille ; Entrée : retoucher sa découpe ; Suppr : le retirer ; Échap : désélectionner.'));
+  const kbLive = document.createElement('div');
+  kbLive.className = 'sr-only';
+  kbLive.setAttribute('aria-live', 'polite');
+  document.body.appendChild(kbLive);
+  const say = (t) => { kbLive.textContent = ''; setTimeout(() => { kbLive.textContent = t; }, 30); };
+  const kbLayers = () => {
+    const c = state.comp;
+    if (!c) return [];
+    // dans l'ordre de lecture : de haut en bas, puis de gauche à droite (par bandes de 4 cm)
+    const order = (a, b) => Math.round(a.y / 4) - Math.round(b.y / 4) || a.x - b.x;
+    return c.items.slice().sort(order).concat(c.bg.filter((L) => !L.paper).sort(order));
+  };
+  const layerName = (L) => {
+    const d = L.piece ? L.piece.drawing : pageDrawing(L);
+    const n = d ? (d.ai && d.ai.sujet) || d.name.replace(/\.[a-z0-9]+$/i, '') : tr('dessin');
+    return L.kind === 'bg' ? tr`page de fond « ${n} »` : n;
+  };
+  canvas.addEventListener('keydown', (e) => {
+    if (!state.comp || e.altKey || e.ctrlKey || e.metaKey) return;
+    const list = kbLayers();
+    if (!list.length) return;
+    let L = state.selected && list.includes(state.selected) ? state.selected : null;
+    const pick = (next) => {
+      state.selected = next;
+      render();
+      say(tr`${layerName(next)}, ${list.indexOf(next) + 1} sur ${list.length}`);
+    };
+    if (e.key === 'PageDown' || e.key === 'PageUp') {
+      e.preventDefault();
+      const i = L ? list.indexOf(L) : -1;
+      pick(list[(i + (e.key === 'PageDown' ? 1 : -1) + list.length + (i < 0 && e.key === 'PageUp' ? 1 : 0)) % list.length]);
+      return;
+    }
+    const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    if (arrows[e.key] || e.key === 'r' || e.key === 'R' || e.key === 'Enter') {
+      e.preventDefault();
+      if (!L) { pick(list[0]); return; } // (rien de choisi : la première touche choisit le premier dessin)
+      if (e.key === 'Enter') { if (L.kind !== 'bg') act('edit'); return; }
+      if (arrows[e.key]) {
+        const step = e.shiftKey ? 2 : 0.5;
+        commit('kb-move');
+        L.x += arrows[e.key][0] * step; L.y += arrows[e.key][1] * step;
+      } else {
+        commit('kb-turn');
+        L.rot += ((e.shiftKey || e.key === 'R' ? -1 : 1) * 5 * Math.PI) / 180;
+      }
+      if (L.kind === 'bg') L.manual = true;
+      touched();
+      render();
+    }
+  });
+  canvas.addEventListener('focus', () => { if (state.comp && !state.selected) say(tr('Œuvre : Page suivante pour choisir un dessin.')); });
 
   window.addEventListener('resize', render);
   // la zone de l'œuvre change aussi de taille sans que la fenêtre bouge (tiroir du téléphone agrandi ou réduit)
@@ -6445,6 +6523,39 @@ Réponds uniquement avec ce JSON :
   $('cart-add-view').onclick = () => { closeModal($('cart-add')); openCart(); };
 
   // fenêtres
+  // Fenêtres (role="dialog", aria-modal) : le focus y entre à l'ouverture, Tab et Maj+Tab bouclent à
+  // l'intérieur (Échap reste donc toujours reçu), et à la fermeture il revient là où il était avant.
+  (function dialogFocus() {
+    const dialogs = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')];
+    const shown = (el) => !el.hidden && getComputedStyle(el).display !== 'none';
+    const top = () => dialogs.filter(shown).sort((a, b) => (Number(getComputedStyle(b).zIndex) || 0) - (Number(getComputedStyle(a).zIndex) || 0))[0] || null;
+    const focusables = (el) => [...el.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')]
+      .filter((x) => x.getClientRects().length && !x.closest('[hidden]'));
+    let before = null;
+    document.addEventListener('focusin', (e) => { if (!dialogs.some((d) => shown(d) && d.contains(e.target))) before = e.target; });
+    // (sur window : la retouche arrête la propagation de ses touches, pas les autres écoutes de window)
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const d = top();
+      if (!d) return;
+      const f = focusables(d);
+      if (!f.length) return;
+      const i = f.indexOf(document.activeElement);
+      if (i < 0 || (e.shiftKey && i === 0) || (!e.shiftKey && i === f.length - 1)) {
+        e.preventDefault();
+        f[i < 0 ? 0 : e.shiftKey ? f.length - 1 : 0].focus();
+      }
+    }, true);
+    const watch = new MutationObserver((muts) => muts.forEach((m) => {
+      const d = m.target;
+      if (shown(d)) {
+        if (!d.contains(document.activeElement)) { const f = focusables(d); if (f.length) f[0].focus({ preventScroll: true }); }
+      } else if (!top() && before && before.isConnected && before.getClientRects().length && (document.activeElement === document.body || d.contains(document.activeElement))) {
+        before.focus({ preventScroll: true });
+      }
+    }));
+    dialogs.forEach((d) => watch.observe(d, { attributes: true, attributeFilter: ['hidden', 'class', 'style'] }));
+  })();
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
   const closeModal = (el) => { el.hidden = true; };
   ['cart-add', 'cart'].forEach((id) => {

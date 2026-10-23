@@ -600,6 +600,23 @@ n'est mémorisé).
      numérotés, une règle en cm sur les bords et les cotes de chaque morceau (taille, distance aux
      bords), à reporter sur l'original avant de découper.
 
+## Accessibilité au clavier
+
+- **L'œuvre** se prend avec Tab (`#canvas`, `role="application"`, mode d'emploi dans son nom
+  accessible) : Page suivante / Page précédente choisissent un dessin (dans l'ordre de lecture,
+  découpes puis pages de fond ; annoncé par une zone `aria-live` : « chat, 2 sur 9 »), les flèches
+  le déplacent de 0,5 cm (Maj : 2 cm), R / Maj+R le tournent de 5°, + et − changent sa taille de
+  10 %, Entrée ouvre la retouche de sa découpe, Suppr (ou Retour arrière, seulement quand l'œuvre a le
+  focus) le retire, Échap le désélectionne ; Ctrl+Z / Ctrl+Maj+Z (ou Ctrl+Y) défont et refont.
+- **Les vignettes** de la section Dessins sont des boutons (Entrée ou Espace ouvre la fiche,
+  `aria-pressed` pour celle ouverte) ; celles des pièces découpées ont un bouton qui retire ou remet la
+  pièce, à côté de celui de la retouche.
+- **Les fenêtres** (`role="dialog"`, `aria-modal`) : le focus y entre à l'ouverture, Tab et Maj+Tab
+  bouclent à l'intérieur (Échap y est donc toujours reçu) et, à la fermeture, le focus revient au
+  bouton qui l'avait ouverte (`dialogFocus`).
+- **La retouche** : E (gomme), R (restaurer), W (baguette), H (déplacer), [ et ] (taille du pinceau),
+  Espace maintenu (déplacer la vue), Entrée (valider), Échap (fermer).
+
 ## Qualité pour l’impression (`js/quality.js`)
 
 À l’import, chaque dessin est mesuré une fois, sans rien envoyer :
