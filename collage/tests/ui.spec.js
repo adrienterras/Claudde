@@ -1896,6 +1896,8 @@ test.describe('Barre d’outils sur iPad', () => {
     });
     let f = await fits();
     expect(f.inside && f.del && f.scroll === 0).toBe(true);
+    // (pas de bouton plein écran sur ordinateur ou tablette : il ne sert que sur téléphone)
+    await expect(page.locator('#zoom-full')).toBeHidden();
     await page.setViewportSize({ width: 1024, height: 1366 }); // iPad Pro en portrait
     await page.waitForTimeout(200);
     f = await fits();

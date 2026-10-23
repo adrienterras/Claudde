@@ -725,6 +725,9 @@ body.stage-full { overflow: hidden; }
 .density-bar input[type=range] { width: 130px; margin: 0; }
 .density-bar small { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
 body.stage-full .density-bar { display: none; }
+/* ordinateur : pas de bouton plein écran (l'œuvre a déjà toute la place à côté du carnet) ; il sert sur
+   téléphone, où il baisse le tiroir */
+@media (min-width: 861px) { #zoom-full { display: none; } }
 .label {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
   margin: 0; padding: 9px 18px;
