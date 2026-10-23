@@ -1401,6 +1401,7 @@
   }
 
   function refreshLists() {
+    syncImportStep();
     renderUncertain();
     renderAside();
     renderQuality();
@@ -5026,6 +5027,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   placeNewWork();
   mobileQuery.addEventListener('change', placeNewWork);
+  // Ordinateur et iPad : une œuvre sans dessin n'a pas d'étape Importer dans le menu — le type d'œuvre
+  // se choisit au milieu, puis le premier import s'y fait ; l'étape revient avec les premiers dessins
+  // (pour en ajouter), ou pour montrer un message (fichier illisible, œuvre en cours à reprendre)
+  function syncImportStep() {
+    const sec = $('import-section');
+    if (!sec) return;
+    sec.hidden = !mobileQuery.matches && !state.drawings.length && $('notice').hidden && $('draft-offer').hidden;
+  }
+  syncImportStep();
+  mobileQuery.addEventListener('change', syncImportStep);
+  if (window.MutationObserver) ['notice', 'draft-offer'].forEach((id) => new MutationObserver(syncImportStep).observe($(id), { attributes: true, attributeFilter: ['hidden'] }));
   // le choix de la taille, recopié de celui de la section Tailles
   function syncSceneFormat() {
     const f = $('format'), sf = $('scene-format');

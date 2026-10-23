@@ -112,12 +112,14 @@ test.describe('Comptes utilisateurs', () => {
 
   test('sans compte : l’exemple et l’import de fichiers sont libres ; seule la photo depuis l’atelier demande de se connecter', async ({ acc }) => {
     const { page } = acc;
-    await openStep(page, 'import-section'); // (l'étape Importer est repliée à l'arrivée)
-    await expect(page.locator('#import-account')).toBeVisible();
-    await expect(page.locator('#import-account')).toContainText('librement');
+    // (pas d'étape Importer avant le premier import : le type d'œuvre et le dépôt se font au centre)
+    await expect(page.locator('#import-section')).toBeHidden();
     // l'exemple : chargé et manipulé sans compte
     await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length > 0 && AtelierGribouille.state.drawings.every((d) => d.sample) && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await openStep(page, 'import-section'); // (l'étape Importer, venue avec les dessins, est repliée)
+    await expect(page.locator('#import-account')).toBeVisible();
+    await expect(page.locator('#import-account')).toContainText('librement');
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBeTruthy();
     await expect(page.locator('#account-section')).toBeHidden();

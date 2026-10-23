@@ -3,8 +3,9 @@ const { test, expect, openStep } = require('./helpers');
 test.describe('Interface', () => {
   test('première visite : toutes les sections repliées, rien de mémorisé ; l’import ouvre Tailles et Propositions', async ({ app }) => {
     const { page } = app;
-    await expect(page.locator('#import-section')).toBeVisible();
-    // toutes les étapes sont repliées (le dépôt se fait par le bouton au centre), les réglages avancés fermés
+    // pas d'étape Importer avant le premier import (le type d'œuvre et le dépôt se font au centre)
+    await expect(page.locator('#import-section')).toBeHidden();
+    // toutes les étapes sont repliées, les réglages avancés fermés
     for (const id of ['import-section', 'drawings-section', 'sizes-section', 'compose-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
     await expect(page.locator('#drop')).toBeHidden();
     expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(false);
@@ -12,15 +13,16 @@ test.describe('Interface', () => {
     // un titre ouvre son étape ; le choix n'est pas mémorisé
     await page.locator('#saved-section > h2').click();
     await expect(page.locator('#saved-section')).not.toHaveClass(/collapsed/);
-    await page.locator('#import-section > h2').click();
-    await expect(page.locator('#drop')).toBeVisible();
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
-    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
     expect(await page.evaluate(() => localStorage.getItem('atelier.collapsed'))).toBeNull();
-    // après un import : Tailles et Propositions ouvertes, Importer repliée, le reste replié
+    // après un import : Tailles et Propositions ouvertes, Importer (là pour en ajouter) repliée, le reste replié
     await app.import(['page-cutout.png']);
+    await expect(page.locator('#import-section')).toBeVisible();
+    await page.locator('#import-section > h2').click();
+    await expect(page.locator('#drop')).toBeVisible();
+    await page.locator('#import-section > h2').click();
     await expect(page.locator('#sizes-section')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#compose-section')).not.toHaveClass(/collapsed/);
     for (const id of ['import-section', 'drawings-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
@@ -51,8 +53,8 @@ test.describe('Interface', () => {
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved .saved-meta')).toContainText('1 dessins');
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
-    // pour la nouvelle œuvre, tout est replié comme à l'arrivée (le dépôt se fait au centre)
-    await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
+    // pour la nouvelle œuvre, tout est replié comme à l'arrivée, sans étape Importer (le dépôt se fait au centre)
+    await expect(page.locator('#import-section')).toBeHidden();
     await expect(page.locator('#saved-section')).toHaveClass(/collapsed/);
   });
 
