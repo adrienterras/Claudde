@@ -420,4 +420,46 @@ test.describe('Compositions', () => {
     expect(e.others).toEqual(a.others);
     expect(e.mine).toBe(b.mine);
   });
+  test('Découpe ↔ Fond (fiche du dessin) : le dessin change sur place, le reste de l’œuvre ne bouge pas ; Défaire', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    const k = await page.evaluate(() => { const S = AtelierGribouille.state; return S.drawings.indexOf(S.comp.items[0].piece.drawing); });
+    const st = () => page.evaluate((k) => {
+      const S = AtelierGribouille.state, d = S.drawings[k];
+      const own = (L) => (L.piece ? L.piece.drawing === d : L.drawing === d);
+      const sig = (L) => [+L.x.toFixed(3), +L.y.toFixed(3), +L.w.toFixed(3), +(L.rot || 0).toFixed(4)];
+      return {
+        style: S.comp.style, others: S.comp.items.filter((L) => !own(L)).map(sig).concat(S.comp.bg.filter((L) => !L.paper && !own(L)).map(sig)),
+        pieces: S.comp.items.filter(own).length, pages: S.comp.bg.filter((L) => !L.paper && own(L)).length,
+      };
+    }, k);
+    const a = await st();
+    expect(a.pieces).toBeGreaterThan(0);
+    await page.locator(`#drawings .thumb[data-i="${k}"]`).click();
+    // en Fond : sa page prend la place de ses découpes, rien d'autre ne bouge
+    await page.locator('#detail [data-role="texture"]').click();
+    const b = await st();
+    expect(b.style).toBe(a.style);
+    expect(b.others).toEqual(a.others);
+    expect(b.pieces).toBe(0);
+    expect(b.pages).toBe(1);
+    // de nouveau en Découpe
+    await page.locator('#detail [data-role="cutout"]').click();
+    const c = await st();
+    expect(c.others).toEqual(a.others);
+    expect(c.pieces).toBeGreaterThan(0);
+    expect(c.pages).toBe(0);
+    // Ignoré : il quitte l'œuvre, le reste ne bouge pas
+    await page.locator('#detail [data-role="off"]').click();
+    const o = await st();
+    expect(o.others).toEqual(a.others);
+    expect(o.pieces + o.pages).toBe(0);
+    // Défaire, deux fois : la page de fond revient, telle qu'elle était posée
+    await page.evaluate(() => { AtelierGribouille.undo(); AtelierGribouille.undo(); });
+    const e = await st();
+    expect(e.others).toEqual(a.others);
+    expect(e.pages).toBe(1);
+    expect(e.pieces).toBe(0);
+  });
 });

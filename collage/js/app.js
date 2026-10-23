@@ -707,6 +707,43 @@
     refreshLists();
     regenerate();
   }
+  // Rôle choisi dans la fiche. Sur l'œuvre affichée, rien d'autre ne bouge : le dessin y change sur
+  // place (ses découpes deviennent sa page de fond à la même place, ou l'inverse ; Ignoré le retire),
+  // un pas de Défaire ; un dessin de « Non utilisé » y revient. Sans œuvre, les propositions sont refaites.
+  function setRole(d, role) {
+    const comp = state.comp;
+    if (!comp) {
+      d.role = role;
+      ensureMaterial(d);
+      state.pinned = null;
+      refreshLists();
+      regenerate();
+      return;
+    }
+    if (role === roleOf(d)) { d.role = role; refreshLists(); return; }
+    commit();
+    touched();
+    const zone = drawingZone(comp, d);
+    if (zone) {
+      comp.items = comp.items.filter((L) => !(L.piece && L.piece.drawing === d));
+      comp.bg = comp.bg.filter((L) => L.paper || pageDrawing(L) !== d);
+      state.selected = null;
+      state.bgCache = null;
+    }
+    d.role = role;
+    ensureMaterial(d);
+    const pieces = d.analysis.pieces;
+    if (role === 'cutout' && pieces && !pieces.some((p) => p.enabled)) pieces.forEach((p) => { p.enabled = true; });
+    if (!zone) { if (role !== 'off') putBack(d); else refreshLists(); return; } // (de « Non utilisé », ou pas sur l'œuvre)
+    if (role !== 'off') swapInPlace(comp, d, zone);
+    state.pinned = comp;
+    refreshLists();
+    refreshPieces();
+    render();
+    updateExportInfo();
+    updateLabel();
+    regenerate({ noCommit: true });
+  }
   // La place d'un dessin sur l'œuvre : le rectangle qui contient tous ses calques, l'inclinaison et
   // la case (Galerie, Pop art) du plus grand
   function drawingZone(comp, d) {
@@ -1401,18 +1438,7 @@
     box.querySelectorAll('[data-photo]').forEach((b) => (b.onclick = () => setPhotoMode(d, b.dataset.photo, { inPlace: true })));
     const repl = box.querySelector('[data-replace]');
     if (repl) repl.onclick = () => askReplace(d);
-    box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => {
-      // un dessin de « Non utilisé » remis en Découpe ou en Fond revient sur l'œuvre affichée, telle
-      // quelle (rien d'autre ne bouge) ; les autres changements de rôle refont les propositions
-      const back = roleOf(d) === 'off' && b.dataset.role !== 'off' && state.comp;
-      if (back) commit();
-      d.role = b.dataset.role;
-      ensureMaterial(d);
-      if (back) { putBack(d); return; }
-      state.pinned = null; // la composition rouverte ne correspond plus aux dessins
-      refreshLists();
-      regenerate();
-    }));
+    box.querySelectorAll('[data-role]').forEach((b) => (b.onclick = () => setRole(d, b.dataset.role)));
     // (l'orientation de la feuille n'est plus proposée dans la fiche : elle reste automatique — effectiveOrient —
     // ou celle mémorisée d'une ancienne œuvre ; les boutons de la barre d'outils tournent la pièce sur l'œuvre)
     // dessin précédent / suivant, sans fermer la fiche
