@@ -202,6 +202,45 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(Math.max(...r.pieces.map((p) => p.area))).toBeLessThan(0.15);
   });
 
+  test('une planche en quatre cases (traits de partage pâles et décalés, collines) : les sujets de chaque case se détachent', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une feuille à l'italienne ; le trait vertical traverse la page, l'horizontal est fait de deux
+      // moitiés décalées et plus pâles ; dans chaque case, une ligne de collines relie deux sujets
+      const c = Extract.makeCanvas(1414, 1000), x = c.getContext('2d');
+      x.fillStyle = '#fbfaf6'; x.fillRect(0, 0, c.width, c.height);
+      x.strokeStyle = '#3a3a3a'; x.lineWidth = 4;
+      x.beginPath(); x.moveTo(700, 10); x.lineTo(712, 990); x.stroke();
+      x.strokeStyle = '#7a7a7a'; x.lineWidth = 3;
+      x.beginPath(); x.moveTo(10, 512); x.lineTo(700, 505); x.moveTo(712, 498); x.lineTo(1404, 492); x.stroke();
+      const cells = [[10, 10], [712, 10], [10, 512], [712, 512]];
+      const colors = ['#e2582b', '#2b6fe2', '#2fae4a', '#c03aa8', '#f0a91c', '#1aa6a0', '#8a4fd0', '#d23c3c'];
+      cells.forEach(([cx, cy], i) => {
+        x.strokeStyle = '#3a3a3a'; x.lineWidth = 3;
+        // les collines : un trait ondulé d'un bord à l'autre de la case, sous les sujets
+        x.beginPath(); x.moveTo(cx + 5, cy + 380);
+        x.bezierCurveTo(cx + 200, cy + 330, cx + 420, cy + 430, cx + 680, cy + 360); x.stroke();
+        x.fillStyle = colors[2 * i]; x.beginPath(); x.arc(cx + 180, cy + 250, 90, 0, Math.PI * 2); x.fill();
+        x.fillStyle = colors[2 * i + 1]; x.fillRect(cx + 430, cy + 150, 120, 220);
+      });
+      // et sous les collines de la première case, trois petits bonshommes au feutre, trop petits pour
+      // faire chacun une pièce
+      x.strokeStyle = '#d0307a'; x.lineWidth = 3;
+      [120, 300, 480].forEach((bx) => {
+        x.beginPath(); x.arc(bx, 430, 8, 0, Math.PI * 2);
+        x.moveTo(bx, 438); x.lineTo(bx, 462); x.moveTo(bx - 10, 446); x.lineTo(bx + 10, 446);
+        x.moveTo(bx, 462); x.lineTo(bx - 8, 476); x.moveTo(bx, 462); x.lineTo(bx + 8, 476); x.stroke();
+      });
+      const a = Extract.analyze(c, 0, {});
+      const n = c.width * c.height, k = 1414 / a.page.width;
+      return { kind: a.kind, pieces: (a.pieces || []).map((p) => ({ area: p.src.w * p.src.h / n, x0: p.src.x * k, y0: p.src.y * k, x1: (p.src.x + p.src.w) * k, y1: (p.src.y + p.src.h) * k })) };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.pieces.length).toBeGreaterThanOrEqual(9);
+    expect(Math.max(...r.pieces.map((p) => p.area))).toBeLessThan(0.12);
+    // les petits bonshommes ne sont pas perdus : ils restent ensemble, dans une pièce
+    [120, 300, 480].forEach((bx) => expect(r.pieces.some((p) => p.x0 <= bx && p.x1 >= bx && p.y0 <= 450 && p.y1 >= 450)).toBe(true));
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

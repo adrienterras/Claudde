@@ -438,7 +438,8 @@
     let strongT = Math.max(20, (strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST) * CUT.ink);
     const unit = Math.max(w, h);
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
-    const masks = (sT, wT, closeR, holeMax, drop) => {
+    // drop : pixels d'encre ignorés (traits de partage) ; cut : frontières que les sujets ne franchissent pas
+    const masks = (sT, wT, closeR, holeMax, drop, cut) => {
       const ink = inkMask(data, w, h, paper, sT, wT);
       if (drop) for (let p = 0; p < n; p++) if (drop[p]) ink[p] = 0;
       // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
@@ -453,6 +454,7 @@
       let mask = dilate(ink, w, h, unit * closeR);
       mask = fillHoles(mask, w, h, holeMax ? holeMax * n : 0);
       mask = erode(mask, w, h, unit * (closeR - CUT.margin));
+      if (cut) for (let p = 0; p < n; p++) if (cut[p]) mask[p] = 0;
       const { labels, comps } = components(mask, w, h);
       comps.sort((a, b) => b.area - a.area);
       return { ink, labels, comps };
@@ -482,16 +484,53 @@
     // autour) : ils relient tous les sujets en un seul bloc qui s'étend sur la feuille. On les retire de
     // l'encre avant de regrouper ; gardé seulement si les sujets se détachent vraiment
     const box = (c) => (c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1);
-    if (r.comps[0] && Math.max(...r.comps.map(box)) >= 0.6 * n) {
-      const lines = ruledLines(r.ink, w, h);
-      let any = false;
-      for (let p = 0; p < n && !any; p++) if (lines[p]) any = true;
-      if (any) {
-        const r2 = masks(strongT, weakT, r.closeR || CUT.close, r.holeMax || 0, lines);
-        if (r2.comps.length >= r.comps.length + 2 && Math.max(...r2.comps.map(box)) < 0.5 * n) {
-          r2.closeR = r.closeR; r2.holeMax = r.holeMax; r2.lines = lines;
-          r = r2;
+    const some = (m) => { for (let p = 0; p < n; p++) if (m[p]) return true; return false; };
+    const or = (a, b) => { const c = new Uint8Array(n); for (let p = 0; p < n; p++) c[p] = a[p] | b[p]; return c; };
+    if (r.comps[0] && Math.max(...r.comps.map(box)) >= 0.6 * n && some(ruledLines(r.ink, w, h))) {
+      // un grand trait de partage : la feuille est une planche ; ses traits de partage deviennent des
+      // frontières (boardLines), y compris là où un sujet est posé dessus
+      const bl = boardLines(r.ink, w, h);
+      const cr = r.closeR || CUT.close, hm = r.holeMax || 0;
+      let r2 = bl && masks(strongT, weakT, cr, hm, bl.drop, bl.cut);
+      if (r2 && r2.comps.length >= r.comps.length + 2 && Math.max(...r2.comps.map(box)) < 0.5 * n) {
+        // dans une case encore d'un seul tenant, les longs traits fins qui relient ses sujets
+        // (collines, sol, chemin tracés au trait) sont retirés aussi : chaque personnage, chaque
+        // objet se détache
+        let drop = bl.drop;
+        let extra = new Uint8Array(n);
+        r2.comps.filter((c) => box(c) >= 0.06 * n)
+          .forEach((c) => { extra = or(extra, longStrokes(r2.ink, w, h, c)); });
+        // et les sujets d'une case se séparent quand ils ne se touchent pas (fermeture trois fois moins loin)
+        const cr2 = Math.max(CUT.margin + 0.004, cr * 0.35);
+        let closeUsed = cr;
+        const r3 = masks(strongT, weakT, cr2, hm, or(drop, extra), bl.cut);
+        if (r3.comps.length > r2.comps.length) {
+          // les sujets trop petits pour faire une pièce seuls (bonshommes, sapins d'une case) restent
+          // ensemble, une pièce par case, au lieu d'être perdus
+          const cellOf = new Map(), groups = new Map();
+          for (let p = 0; p < n; p++) { const l = r3.labels[p]; if (l && !cellOf.has(l)) cellOf.set(l, r2.labels[p]); }
+          r3.comps.forEach((c) => {
+            const cell = cellOf.get(c.id);
+            if (c.area < 0.006 * n && cell) { if (!groups.has(cell)) groups.set(cell, []); groups.get(cell).push(c); }
+          });
+          const into = new Map();
+          groups.forEach((g) => {
+            if (g.length < 2) return;
+            const k = g[0];
+            k.group = true;
+            g.slice(1).forEach((c) => {
+              into.set(c.id, k.id); k.area += c.area;
+              k.x0 = Math.min(k.x0, c.x0); k.y0 = Math.min(k.y0, c.y0); k.x1 = Math.max(k.x1, c.x1); k.y1 = Math.max(k.y1, c.y1);
+            });
+          });
+          if (into.size) {
+            for (let p = 0; p < n; p++) { const t = into.get(r3.labels[p]); if (t) r3.labels[p] = t; }
+            r3.comps = r3.comps.filter((c) => !into.has(c.id)).sort((a, b) => b.area - a.area);
+          }
+          r2 = r3; drop = or(drop, extra); closeUsed = cr2;
         }
+        r2.closeR = closeUsed; r2.holeMax = r.holeMax; r2.lines = or(drop, bl.cut);
+        r = r2;
       }
     }
     // dessin très pâle (crayon léger sur papier blanc) : la première passe ne trouve que des miettes
@@ -514,17 +553,22 @@
    * dessus (on les suit à travers, sans retirer le sujet). Un trait plus court (jambe, tronc, mur
    * d'une maison) n'en est pas un. Rend les pixels de ces traits.
    */
-  function ruledLines(ink, w, h) {
+  // o (facultatif) : len, la longueur minimale (fraction de la feuille, ou de la zone box) ; drift,
+  // la pente permise d'un bout à l'autre ; box ({ x0, y0, x1, y1 }), la zone où chercher ; un long
+  // trait courbe (colline, sol) se suit aussi, tant qu'il ne monte pas plus qu'il n'avance
+  function ruledLines(ink, w, h, o) {
     const n = w * h, out = new Uint8Array(n);
+    const len0 = (o && o.len) || 0.6, drift = (o && o.drift) || 0.08, bx = (o && o.box) || { x0: 0, y0: 0, x1: w - 1, y1: h - 1 };
     const T = Math.max(2, Math.round(Math.max(w, h) * 0.008)); // épaisseur maximale
     const GAP = Math.max(3, T * 2); // interruption permise
     const scan = (horiz) => {
       const A = horiz ? w : h, B = horiz ? h : w; // le long du trait, et en travers
-      const L = Math.round(A * 0.6); // longueur minimale
+      const a0min = horiz ? bx.x0 : bx.y0, a0max = horiz ? bx.x1 : bx.y1, b0min = horiz ? bx.y0 : bx.x0, b0max = horiz ? bx.y1 : bx.x1;
+      const L = Math.round((a0max - a0min + 1) * len0); // longueur minimale
       const at = horiz ? (a, b) => b * w + a : (a, b) => a * w + b;
       // les pixels d'encre où le trait est fin, en travers
       const thin = new Uint8Array(n);
-      for (let a = 0; a < A; a++) {
+      for (let a = a0min; a <= a0max; a++) {
         let b = 0;
         while (b < B) {
           if (!ink[at(a, b)]) { b++; continue; }
@@ -534,28 +578,29 @@
           b = b1;
         }
       }
-      const seen = new Uint8Array(n);
-      for (let b0 = 0; b0 < B; b0++) {
-        for (let a0 = 0; a0 < A; a0++) {
+      // un suivi part de chaque début de trait (rien de fin juste avant lui) : un trait croisé ou
+      // longé par un autre est quand même suivi depuis son début
+      const startsAt = (a, b) => !(a > a0min && [-1, 0, 1].some((d) => b + d >= 0 && b + d < B && thin[at(a - 1, b + d)]));
+      for (let b0 = b0min; b0 <= b0max; b0++) {
+        for (let a0 = a0min; a0 <= a0max; a0++) {
           const p0 = at(a0, b0);
-          if (!thin[p0] || seen[p0]) continue;
+          if (!thin[p0] || !startsAt(a0, b0)) continue;
           // on suit le trait pas à pas, à un pixel près en travers ; sous un sujet (encre épaisse), on
           // continue tout droit ; un vrai blanc peut l'interrompre un peu
           const pts = [[a0, b0]];
           let a = a0, b = b0, miss = 0, end = a0;
-          while (a + 1 < A && miss <= GAP) {
+          while (a + 1 <= a0max && miss <= GAP) {
             a++;
             let nb = -1;
             for (const d of [0, -1, 1]) { const bb = b + d; if (bb >= 0 && bb < B && thin[at(a, bb)]) { nb = bb; break; } }
-            if (nb >= 0) { miss = 0; b = nb; pts.push([a, b]); end = a; continue; }
+            if (nb >= 0 && nb >= b0min && nb <= b0max) { miss = 0; b = nb; pts.push([a, b]); end = a; continue; }
             if (ink[at(a, b)]) { miss = 0; continue; }
             miss++;
           }
-          pts.forEach(([pa, pb]) => { seen[at(pa, pb)] = 1; });
           const len = end - a0;
           const eb = pts[pts.length - 1][1];
           // assez long, droit, et fin sur au moins la moitié de sa longueur
-          if (len < L || Math.abs(eb - b0) > len * 0.08 || pts.length < len * 0.5) continue;
+          if (len < L || Math.abs(eb - b0) > len * drift || pts.length < len * 0.5) continue;
           pts.forEach(([pa, pb]) => {
             for (let k = pb; k >= 0 && k > pb - T - 1 && ink[at(pa, k)]; k--) out[at(pa, k)] = 1;
             for (let k = pb + 1; k < B && k < pb + T + 1 && ink[at(pa, k)]; k++) out[at(pa, k)] = 1;
@@ -567,6 +612,158 @@
     scan(false);
     // avec le liseré pâle du trait (une passe aux seuils plus bas le verrait encore)
     return dilate(out, w, h, 2);
+  }
+
+  /*
+   * Les traits de partage d'une planche (cases), comme des droites un peu penchées : d'abord ceux qui
+   * traversent la feuille (au moins 55 % de leur longueur tracée au trait fin), puis, dans chaque
+   * partie qu'ils délimitent, ceux qui la traversent (au moins 45 %) — un trait de partage s'arrête
+   * souvent à un autre. Une droite est cherchée parmi les pentes de ±10 % (transformée de Hough
+   * réduite aux pixels fins). Rend cut (la bande de chaque droite, d'un bout à l'autre de sa partie :
+   * une frontière, même sous un sujet posé dessus) et drop (l'encre du trait), ou null.
+   */
+  function boardLines(ink, w, h) {
+    const n = w * h, T = Math.max(2, Math.round(Math.max(w, h) * 0.008));
+    const thinOf = (horiz) => {
+      const A = horiz ? w : h, B = horiz ? h : w, at = horiz ? (a, b) => b * w + a : (a, b) => a * w + b;
+      const t = new Uint8Array(n);
+      for (let a = 0; a < A; a++) {
+        let b = 0;
+        while (b < B) {
+          if (!ink[at(a, b)]) { b++; continue; }
+          let b1 = b;
+          while (b1 < B && ink[at(a, b1)]) b1++;
+          if (b1 - b <= T) for (let k = b; k < b1; k++) t[at(a, k)] = 1;
+          b = b1;
+        }
+      }
+      return t;
+    };
+    const thin = { true: thinOf(true), false: thinOf(false) };
+    const cut = new Uint8Array(n), drop = new Uint8Array(n);
+    // les droites d'une orientation dans une partie R ({ x0, y0, x1, y1 }) ; frac : part minimale tracée
+    const find = (horiz, R, frac, most) => {
+      const A0 = horiz ? R.x0 : R.y0, A1 = horiz ? R.x1 : R.y1, B0 = horiz ? R.y0 : R.x0, B1 = horiz ? R.y1 : R.x1;
+      const at = horiz ? (a, b) => b * w + a : (a, b) => a * w + b;
+      const t = thin[horiz].slice();
+      const span = A1 - A0 + 1, step = 2, out = [];
+      for (let k = 0; k < most; k++) {
+        let best = null;
+        for (let si = -17; si <= 17; si++) {
+          const sl = si * 0.006;
+          for (let b = B0; b <= B1; b++) {
+            let cnt = 0;
+            for (let a = A0; a <= A1; a += step) {
+              const bb = Math.round(b + sl * (a - A0));
+              if (bb < B0 || bb > B1) continue;
+              if (t[at(a, bb)] || (bb > B0 && t[at(a, bb - 1)]) || (bb < B1 && t[at(a, bb + 1)])) cnt++;
+            }
+            if (!best || cnt > best.cnt) best = { cnt, b, sl };
+          }
+        }
+        if (!best || best.cnt * step < frac * span) break;
+        const line = { horiz, A0, A1, B0, B1, b: best.b, sl: best.sl };
+        out.push(line);
+        // (la suivante est cherchée ailleurs)
+        for (let a = A0; a <= A1; a++) {
+          const bb = Math.round(line.b + line.sl * (a - A0));
+          for (let d = -3 * T; d <= 3 * T; d++) if (bb + d >= B0 && bb + d <= B1) t[at(a, bb + d)] = 0;
+        }
+      }
+      return out;
+    };
+    const mark = (line) => {
+      const at = line.horiz ? (a, b) => b * w + a : (a, b) => a * w + b, B = line.horiz ? h : w;
+      for (let a = line.A0; a <= line.A1; a++) {
+        const bb = Math.round(line.b + line.sl * (line.a0 === undefined ? a - line.A0 : a - line.A0));
+        for (let d = -T; d <= T; d++) { const q = bb + d; if (q >= 0 && q < B) cut[at(a, q)] = 1; }
+        for (let d = -T - 2; d <= T + 2; d++) { const q = bb + d; if (q >= 0 && q < B && ink[at(a, q)]) drop[at(a, q)] = 1; }
+      }
+    };
+    const page = { x0: 0, y0: 0, x1: w - 1, y1: h - 1 };
+    const big = { true: find(true, page, 0.55, 3), false: find(false, page, 0.55, 3) };
+    if (!big.true.length && !big.false.length) return null;
+    // les parties entre les grandes droites d'une orientation : on y cherche celles de l'autre
+    const parts = (lines, horiz) => {
+      // (horiz : droites horizontales, parties empilées de haut en bas ; sinon côte à côte)
+      const pos = lines.map((l) => [Math.min(l.b, l.b + l.sl * (l.A1 - l.A0)), Math.max(l.b, l.b + l.sl * (l.A1 - l.A0))]).sort((p, q) => p[0] - q[0]);
+      const out = [];
+      let from = 0;
+      const max = horiz ? h - 1 : w - 1;
+      pos.forEach(([lo, hi]) => { if (lo - T - from > 8) out.push([from, Math.floor(lo) - T]); from = Math.ceil(hi) + T; });
+      if (max - from > 8) out.push([from, max]);
+      return out.map(([u, v]) => (horiz ? { x0: 0, x1: w - 1, y0: u, y1: v } : { x0: u, x1: v, y0: 0, y1: h - 1 }));
+    };
+    const all = [...big.true, ...big.false];
+    // (une seule par partie : le trait souligné d'une étiquette n'est pas une frontière)
+    if (big.false.length) parts(big.false, false).forEach((R) => all.push(...find(true, R, 0.45, 1)));
+    if (big.true.length) parts(big.true, true).forEach((R) => all.push(...find(false, R, 0.45, 1)));
+    all.forEach(mark);
+    return { cut, drop: dilate(drop, w, h, 2) };
+  }
+
+  /*
+   * Longs tracés fins dans une zone (une case d'une planche) : collines, sol, chemin dessinés d'un
+   * trait, droits ou courbes, qui relient ses sujets. Ce sont les morceaux d'un seul tenant de l'encre
+   * fine (épaisse de quelques pixels dans un sens ou dans l'autre) qui s'étendent sur au moins 40 % de
+   * la zone, ou sur 22 % s'ils sont nettement allongés (une colline coupée par un sujet posé dessus) ;
+   * un contour de personnage ou un flocon, plus courts ou plus ronds, restent. Rend leurs pixels.
+   */
+  function longStrokes(ink, w, h, c) {
+    const n = w * h, T = Math.max(2, Math.round(Math.max(w, h) * 0.008));
+    const thin = new Uint8Array(n);
+    // fin en hauteur
+    for (let x = c.x0; x <= c.x1; x++) {
+      let y = c.y0;
+      while (y <= c.y1) {
+        if (!ink[y * w + x]) { y++; continue; }
+        let y1 = y;
+        while (y1 <= c.y1 && ink[y1 * w + x]) y1++;
+        if (y1 - y <= T) for (let k = y; k < y1; k++) thin[k * w + x] = 1;
+        y = y1;
+      }
+    }
+    // ou en largeur
+    for (let y = c.y0; y <= c.y1; y++) {
+      let x = c.x0;
+      while (x <= c.x1) {
+        if (!ink[y * w + x]) { x++; continue; }
+        let x1 = x;
+        while (x1 <= c.x1 && ink[y * w + x1]) x1++;
+        if (x1 - x <= T) for (let k = x; k < x1; k++) thin[y * w + k] = 1;
+        x = x1;
+      }
+    }
+    const out = new Uint8Array(n), seen = new Uint8Array(n);
+    const ext = 0.4 * Math.max(c.x1 - c.x0 + 1, c.y1 - c.y0 + 1);
+    for (let y = c.y0; y <= c.y1; y++) {
+      for (let x = c.x0; x <= c.x1; x++) {
+        const p0 = y * w + x;
+        if (!thin[p0] || seen[p0]) continue;
+        // un morceau d'un seul tenant (voisins en diagonale compris)
+        const st = [p0], part = [];
+        seen[p0] = 1;
+        let x0 = x, x1 = x, y0 = y, y1 = y;
+        while (st.length) {
+          const p = st.pop();
+          part.push(p);
+          const px = p % w, py = (p - px) / w;
+          if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const qx = px + dx, qy = py + dy;
+              if (qx < c.x0 || qx > c.x1 || qy < c.y0 || qy > c.y1) continue;
+              const q = qy * w + qx;
+              if (thin[q] && !seen[q]) { seen[q] = 1; st.push(q); }
+            }
+          }
+        }
+        // assez long ; ou, interrompu par un sujet posé dessus, un morceau nettement allongé
+        const big = Math.max(x1 - x0 + 1, y1 - y0 + 1), small = Math.min(x1 - x0 + 1, y1 - y0 + 1);
+        if (big >= ext || (big >= ext * 0.55 && small <= big * 0.3)) part.forEach((p) => { out[p] = 1; });
+      }
+    }
+    return dilate(out, w, h, 1.5);
   }
 
   /*
@@ -1016,16 +1213,19 @@
     const enhanced = enhance(page, seg.paper);
     const minArea = seg.w * seg.h * 0.006;
     return seg.comps
-      .filter((c) => c.area >= minArea && c.x1 - c.x0 > 10 && c.y1 - c.y0 > 10)
+      // (un groupe de petits sujets d'une case est gardé un peu plus petit)
+      .filter((c) => c.area >= (c.group ? minArea / 2 : minArea) && c.x1 - c.x0 > 10 && c.y1 - c.y0 > 10)
       // (une feuille partagée en cases en a davantage : chaque case a ses sujets)
       .slice(0, seg.lines ? 2 * MAX_PIECES_PER_PAGE : MAX_PIECES_PER_PAGE)
       .map((c) => {
         const piece = makePiece(enhanced, seg, c, page);
         piece.src.paper = seg.paper;
+        if (c.group) piece.group = true;
         return piece;
       })
-      // petite et terne : ombre d'un pli, bord de feuille, reste de table, pas un sujet
-      .filter((q) => { if (q.frac < 0.012 && q.colorful < 0.2) { release(q.canvas); return false; } return true; });
+      // petite et terne : ombre d'un pli, bord de feuille, reste de table, pas un sujet (des petits
+      // sujets au trait regroupés ont peu de couleur pour leur surface : un peu suffit)
+      .filter((q) => { if (q.frac < 0.012 && q.colorful < (q.group ? 0.05 : 0.2)) { release(q.canvas); return false; } return true; });
   }
 
   // Indicateurs d'une page comme fond (couleur, colorée, calme), calculés sur une petite copie :
