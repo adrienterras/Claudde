@@ -214,6 +214,11 @@ cd collage && python3 -m http.server 8000
    rouverte, elle attend encore. Toutes vérifiées, les propositions sont refaites à ces tailles (une
    œuvre déjà retouchée reste telle quelle) (`renderSizeGate`). Les tests automatiques passent
    l'attente, sauf `tailles.spec.js` (`window.__sizeGate`).
+   **Pages de fond non posées** : Nuage (fond uni, sujets espacés) et Pop art (des cases de
+   découpes) ne posent pas les pages de fond, et une Galerie à court de cases en laisse. La liste
+   des dessins le dit sous « Arrière-plan » (« Non posés dans la proposition affichée : … »), leurs
+   vignettes grisées ; la liste suit chaque changement de proposition (`refreshLists` dans
+   `selectProposal`).
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    de TOUS les dessins, et **à leur taille réelle** : rien n'est réduit ni agrandi, puisque l'œuvre
    sera réalisée avec les originaux. C'est la toile qui s'adapte :

@@ -229,6 +229,31 @@ test.describe('Compositions', () => {
     }
   });
 
+  test('Nuage et Pop art ne posent pas les pages de fond : la liste des dessins le dit, vignettes grisées', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    const group = page.locator('#drawings .drawings-group.texture');
+    await expect(group.locator('.thumb')).toHaveCount(1); // (page-texture.png en fond)
+    // Paysage pose la page : rien à dire
+    await app.select('paysage');
+    await expect(group.locator('.group-note')).toHaveCount(0);
+    await expect(group.locator('.thumb.unplaced')).toHaveCount(0);
+    // Nuage : fond uni, la page n'y est pas ; la liste le dit et la vignette est grisée
+    await app.select('nuage');
+    await expect(group.locator('.group-note')).toContainText('Non posés dans la proposition affichée : Nuage garde un fond uni');
+    await expect(group.locator('.thumb.unplaced')).toHaveCount(1);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => !L.paper).length)).toBe(0);
+    // Pop art (tableau imprimé) : des cases de découpes, pas de page non plus
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    await app.select('popart');
+    await expect(group.locator('.group-note')).toContainText('Pop art');
+    await expect(group.locator('.thumb.unplaced')).toHaveCount(1);
+    // retour à une proposition qui pose la page
+    await app.select('tournesol');
+    await expect(group.locator('.group-note')).toHaveCount(0);
+    await expect(group.locator('.thumb.unplaced')).toHaveCount(0);
+  });
+
   test('sélectionner une pièce sur la toile ouvre la fiche de son dessin', async ({ app }) => {
     const { page } = app;
     await page.evaluate(() => {

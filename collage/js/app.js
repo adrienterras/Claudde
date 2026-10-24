@@ -1492,22 +1492,32 @@
     dEl.innerHTML = '';
     // par type, dans l'ordre des plans : les fonds (arrière-plan), les découpes (premier plan), les ignorés
     const GROUPS = [['texture', tr('Arrière-plan')], ['cutout', tr('Premier plan')], ['off', tr('Non utilisé')]];
+    // les pages de fond que la proposition affichée ne pose pas (Nuage : fond uni ; Pop art : des cases
+    // de découpes ; ou une Galerie à court de cases) : la liste le dit, leurs vignettes sont grisées
+    const comp = state.comp;
+    const onArt = (d) => !comp || comp.bg.some((L) => !L.paper && pageDrawing(L) === d);
+    const notPosed = new Set(state.drawings.filter((d) => roleOf(d) === 'texture' && !onArt(d)));
     const grids = {};
     GROUPS.forEach(([role, name]) => {
       const n = state.drawings.filter((d) => roleOf(d) === role).length;
       if (!n) return;
       const g = document.createElement('div');
       g.className = `drawings-group ${role}`;
-      g.innerHTML = `<h3>${name} <small>(${n})</small></h3><div class="grid"></div>`;
+      let note = '';
+      if (role === 'texture' && notPosed.size) {
+        const why = comp.style === 'nuage' ? tr('Nuage garde un fond uni, sans page.') : comp.style === 'popart' ? tr('le Pop art n’a que des cases de découpes.') : '';
+        note = `<p class="group-note">${notPosed.size === n ? tr('Non posés dans la proposition affichée') : tr`${notPosed.size} sur ${n} non posés dans la proposition affichée`}${why ? ' : ' + why : '.'}</p>`;
+      }
+      g.innerHTML = `<h3>${name} <small>(${n})</small></h3>${note}<div class="grid"></div>`;
       dEl.appendChild(g);
       grids[role] = g.querySelector('.grid');
     });
     state.drawings.forEach((d, i) => {
       const role = roleOf(d);
       const el = document.createElement('div');
-      el.className = `thumb ${role}${state.current === d ? ' current' : ''}`;
+      el.className = `thumb ${role}${state.current === d ? ' current' : ''}${notPosed.has(d) ? ' unplaced' : ''}`;
       el.dataset.i = String(i);
-      el.title = d.ai ? `${d.ai.sujet} — ${d.name}` : d.name;
+      el.title = (d.ai ? `${d.ai.sujet} — ${d.name}` : d.name) + (notPosed.has(d) ? ` — ${tr('non posé dans la proposition affichée')}` : '');
       // au clavier : un bouton (Entrée ou Espace ouvre sa fiche)
       el.tabIndex = 0;
       el.setAttribute('role', 'button');
@@ -3069,6 +3079,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     syncFormatWith(state.comp);
     renderProposals();
     refreshPieces();
+    refreshLists(); // (les pages de fond que cette proposition ne pose pas sont dites dans la liste)
     updateToolbar();
     render();
     updateExportInfo();
@@ -3996,8 +4007,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (s.roles) s.roles.forEach((r, d) => { if (d.role !== r) { d.role = r; rolesChanged = true; } });
     s.enabled.forEach((on, p) => { p.enabled = on; });
     activePieces().forEach((p) => { p.placed = comp.items.some((L) => L.piece === p); });
-    if (rolesChanged || cropped || reanalysed) refreshLists();
     state.comp = comp;
+    refreshLists(); // (rôles, cadrages, dessins ajoutés, pages posées ou non : la liste suit)
     if (state.proposals && state.proposals[s.active] && state.proposals[s.active].style.id === comp.style) { state.proposals[s.active].comp = comp; state.active = s.active; }
     state.selected = null;
     state.bgCache = null;

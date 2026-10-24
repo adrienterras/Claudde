@@ -549,6 +549,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .drawings-groups { display: grid; gap: 12px; }
 .drawings-group h3 { margin: 0 0 6px; font-family: var(--f-body); line-height: 1.4; font-size: 0.72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .drawings-group h3 small { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.drawings-group .group-note { margin: -2px 0 8px; font-size: 0.78rem; line-height: 1.35; color: var(--muted); }
 .grid.pieces { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 
 .thumb {
