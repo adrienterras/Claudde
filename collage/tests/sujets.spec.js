@@ -61,6 +61,10 @@ test.describe('Une page, plusieurs sujets', () => {
     expect(again.map((d) => d.name)).toEqual(ds.map((d) => d.name));
     expect(again.every((d) => d.pieces === 1)).toBe(true);
     expect(Math.abs(again[1].cmPx / ds[1].cmPx - 1)).toBeLessThan(0.01);
+    // rouverts, les sujets d'une feuille partagent sa page et son image (une seule fois en mémoire)
+    expect(await page.evaluate(() => { const [, a, b] = AtelierGribouille.state.drawings; return a.analysis.page === b.analysis.page && (!a.original || a.original === b.original) && !!a.part && !!b.part; })).toBe(true);
+    // et chacun garde sa vignette à lui (pas la feuille entière)
+    expect(await page.evaluate(() => { const [, a, b] = AtelierGribouille.state.drawings; return a.thumb !== b.thumb; })).toBe(true);
     // la feuille réimportée est reconnue : elle n'est pas ajoutée une deuxième fois
     await page.setInputFiles('#file', [require('./helpers').fixture('page-two.png')]);
     await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');

@@ -242,11 +242,16 @@
     const meta = data.meta || {};
     const drawings = [];
     const total = (meta.drawings || []).length;
+    // (les sujets d'une même feuille partagent son image : téléchargée une fois)
+    const files = new Map();
     for (let i = 0; i < total; i++) {
       const d = meta.drawings[i];
-      const dl = await store.download(d.file);
-      err(dl.error);
-      const bytes = await dl.data.arrayBuffer();
+      if (!files.has(d.file)) {
+        const dl = await store.download(d.file);
+        err(dl.error);
+        files.set(d.file, await dl.data.arrayBuffer());
+      }
+      const bytes = files.get(d.file);
       const edits = [];
       for (const e of d.pieceEdits || []) {
         if (!e || !e.mask) { edits.push(null); continue; }

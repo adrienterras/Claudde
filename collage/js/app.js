@@ -346,6 +346,10 @@
     const longs = (opts && opts.longs) || [];
     // réouverture : la page et les découpes sauvegardées (saved), ou l'ancienne découpe automatique (legacy)
     const saved = (opts && opts.saved) || [], legacy = (opts && opts.legacy) || [];
+    // réouverture : les sujets d'une même feuille (splitSheet) ont le même fichier et la même page
+    // sauvegardée ; ils sont lus une seule fois et partagés (sinon autant de feuilles entières en
+    // mémoire que de sujets : l'iPad n'y suffit plus et les images deviennent noires)
+    const srcs = new Map(), pagesRead = new Map();
     for (let i = 0; i < pages.length; i++) {
       const sv = saved[pages[i].fileIndex] || null;
       setProgress(i, pages.length, sv ? tr`Lecture du dessin ${i + 1} / ${pages.length}…` : tr`Analyse du dessin ${i + 1} / ${pages.length}…`);
@@ -355,11 +359,17 @@
         // que l'appareil peut porter (une œuvre faite sur ordinateur, rouverte sur un téléphone)
         const want = longs[pages[i].fileIndex];
         const target = want > 0 ? (phone() ? Math.min(want, max) : want) : max;
-        const src = await pages[i].render(target);
-        // qualité mesurée sur l'image reçue, avant que l'analyse n'égalise l'éclairage (sur place)
-        const q = Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null });
+        const skey = state.restoring && pages[i].fileKey ? `${pages[i].fileKey}@${target}` : null;
+        let src = skey && srcs.get(skey);
+        if (!src) {
+          src = await pages[i].render(target);
+          // qualité mesurée sur l'image reçue, avant que l'analyse n'égalise l'éclairage (sur place)
+          src.q = Object.assign(window.Quality ? Quality.measure(src.canvas) : {}, { jpeg: src.jpegQ || null });
+          if (skey) srcs.set(skey, src);
+        }
+        const q = Object.assign({}, src.q);
         let X = Extract, analysis, photoDebug = null;
-        if (sv) analysis = await restoreAnalysis(sv, target);
+        if (sv) analysis = await restoreAnalysis(sv, target, pagesRead);
         else {
           if (legacy[pages[i].fileIndex]) X = await legacyExtract();
           // une image ou un scan de téléphone peut être une photo du dessin posé sur un sol ou une table
@@ -368,7 +378,7 @@
           photoDebug = X.removeSurface.debug;
         }
         const d = {
-          id: ++state.seq, name: pages[i].name, thumb: thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
+          id: ++state.seq, name: pages[i].name, thumb: sv && sv.part && analysis.pieces ? subjectThumb(analysis.page, analysis.pieces[0], analysis.paper) : thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
           cutPrefs: Extract.cutPrefs(), extract: X === Extract ? null : X,
           orient: 'auto', orientDeg: 0,
           // l'image de travail d'origine (réanalyse si l'on change de découpe ou de mode photo) ; sur
@@ -389,7 +399,8 @@
         if (sv && sv.pack && sv.page.data && analysis.page.width === sv.page.w && analysis.page.height === sv.page.h && (analysis.pieces || []).length === (sv.pieces || []).length && (sv.atlases || []).every((x) => x.data)) {
           d.savedPack = { sig: [analysis.page].concat((analysis.pieces || []).map((q) => q.canvas)), id: sv.pack, page: { w: sv.page.w, h: sv.page.h, data: sv.page.data }, atlases: sv.atlases.map((x) => ({ w: x.w, h: x.h, data: x.data })), at: sv.pieces.map((q) => q.at) };
         }
-        if (!d.original) Extract.release(src.canvas);
+        if (sv && sv.part) d.part = sv.part;
+        if (!d.original && !skey) Extract.release(src.canvas);
         // une page à plusieurs sujets devient un dessin par sujet (voir splitSheet)
         const parts = !sv && !replacing && !state.restoring && !(opts && opts.sample) ? await splitSheet(d) : null;
         (parts || [d]).forEach((x) => {
@@ -405,6 +416,7 @@
         notice(tr`Le dessin « ${pages[i].name} » n’a pas pu être analysé (image trop grande pour cet appareil ?).`);
       }
     }
+    srcs.forEach((x) => { if (!state.drawings.some((d) => d.original === x.canvas)) Extract.release(x.canvas); });
     releases.forEach((release) => { try { release(); } catch (e) { /* déjà libéré */ } });
     setProgress(1, 1);
     if (replacing) return; // (la suite — place dans la liste et sur l'œuvre — est dans replaceDrawing)
@@ -449,6 +461,23 @@
    * (sheet, estimée comme une page, voir estimateSizes). Les fragments (traits fins, miettes) ne
    * deviennent pas des dessins. null : la page reste entière.
    */
+  // la vignette d'un sujet : la zone de la feuille autour de sa découpe, le sujet seul sur la couleur du papier
+  function subjectThumb(page, p, paper) {
+    paper = paper || [250, 250, 250];
+    const long = Math.max(page.width, page.height), m = Math.round(0.015 * long);
+    const x0 = Math.max(0, Math.floor(p.src.x - m)), y0 = Math.max(0, Math.floor(p.src.y - m));
+    const w = Math.min(page.width, Math.ceil(p.src.x + p.src.w + m)) - x0, h = Math.min(page.height, Math.ceil(p.src.y + p.src.h + m)) - y0;
+    const img = Extract.makeCanvas(w, h), ix = img.getContext('2d');
+    ix.drawImage(page, x0, y0, w, h, 0, 0, w, h);
+    ix.globalCompositeOperation = 'destination-in';
+    ix.drawImage(p.canvas, p.src.x - x0, p.src.y - y0, p.src.w, p.src.h);
+    ix.globalCompositeOperation = 'destination-over';
+    ix.fillStyle = `rgb(${paper[0]}, ${paper[1]}, ${paper[2]})`;
+    ix.fillRect(0, 0, w, h);
+    const t = thumbOf(img);
+    Extract.release(img);
+    return t;
+  }
   async function splitSheet(d) {
     const a = d.analysis, ps = a.pieces || [];
     if (a.kind !== 'cutout' || ps.length < 2) return null;
@@ -469,16 +498,7 @@
       const x0 = Math.max(0, Math.floor(p.src.x - m)), y0 = Math.max(0, Math.floor(p.src.y - m));
       const x1 = Math.min(page.width, Math.ceil(p.src.x + p.src.w + m)), y1 = Math.min(page.height, Math.ceil(p.src.y + p.src.h + m));
       const w = x1 - x0, h = y1 - y0;
-      // la vignette : le sujet seul, sur la couleur du papier
-      const img = Extract.makeCanvas(w, h), ix = img.getContext('2d');
-      ix.drawImage(page, x0, y0, w, h, 0, 0, w, h);
-      ix.globalCompositeOperation = 'destination-in';
-      ix.drawImage(p.canvas, p.src.x - x0, p.src.y - y0, p.src.w, p.src.h);
-      ix.globalCompositeOperation = 'destination-over';
-      ix.fillStyle = `rgb(${paper[0]}, ${paper[1]}, ${paper[2]})`;
-      ix.fillRect(0, 0, w, h);
-      const thumb = thumbOf(img);
-      Extract.release(img);
+      const thumb = subjectThumb(page, p, paper);
       const part = { index: ps.indexOf(p), x: p.src.x / page.width, y: p.src.y / page.height, w: p.src.w / page.width, h: p.src.h / page.height };
       const na = Object.assign({}, a, { pieces: [p], texture: null });
       out.push(Object.assign({}, d, {
@@ -4542,6 +4562,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   async function hydrateHD(comp, s) {
     const need = hdNeeds(comp, s);
+    // les sujets d'une même feuille (splitSheet) : la feuille n'est relue et analysée qu'une fois, à la
+    // définition que le plus exigeant demande
+    const shared = new Map(), sharedTmp = [], groupR = new Map();
+    need.forEach((r, d) => { if (d.part && d.source) groupR.set(d.source, Math.max(groupR.get(d.source) || 0, r)); });
     let i = 0;
     for (const [d, r] of need) {
       i++;
@@ -4550,17 +4574,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // images intermédiaires, vidées dès ce dessin traité (Safari sur iPad les garde sinon longtemps)
       const tmp = [];
       try {
-        const want = Math.ceil(d.srcLong * r);
+        const group = d.part && d.source ? d.source : null;
+        const want = Math.ceil(d.srcLong * (group ? groupR.get(group) : r));
         const max = Math.min(HD_SOURCE_MAX(), want);
         if (max <= d.srcLong * 1.05) continue; // la source n'a rien de plus à donner
-        const src = await renderSource(d.source, max);
-        tmp.push(src.canvas);
-        const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
-        if (K0 <= 1.05) continue;
-        const mode = d.photoMode;
-        let a = withCut(d, () => EX(d).analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' }));
-        tmp.push(a);
-        if (d.orientDeg) { const b = withCut(d, () => EX(d).rotated(a, d.orientDeg)); b.kind = a.kind; a = b; tmp.push(a); }
+        let a = group && shared.get(group);
+        if (!a) {
+          const keep = group ? sharedTmp : tmp;
+          const src = await renderSource(d.source, max);
+          keep.push(src.canvas);
+          const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
+          if (K0 <= 1.05) continue;
+          const mode = d.photoMode;
+          a = withCut(d, () => EX(d).analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' }));
+          keep.push(a);
+          if (d.orientDeg) { const b = withCut(d, () => EX(d).rotated(a, d.orientDeg)); b.kind = a.kind; a = b; keep.push(a); }
+          if (group) shared.set(group, a);
+        }
         const page = d.analysis.page;
         const K = a.page.width / page.width;
         // la page retrouvée doit être la même (même recadrage) : sinon on garde la version de travail
@@ -4610,6 +4640,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         });
       }
     }
+    sharedTmp.forEach((x) => {
+      if (x instanceof HTMLCanvasElement) Extract.release(x);
+      else if (x) { Extract.release(x.page); (x.pieces || []).forEach((q) => Extract.release(q.canvas)); if (x.texture) Extract.release(x.texture.canvas); }
+    });
     if (need.size) saveStatus('');
   }
   // Netteté pour l'impression (exports à 150 et 300 dpi, pas l'image écran) : chaque découpe et chaque
@@ -6082,20 +6116,23 @@ Réponds uniquement avec ce JSON :
     return { atlases: canvases, at };
   }
   // la page et les planches d'un dessin, encodées une fois par état de ses pièces (brouillon fréquent)
+  const pageJpegs = new WeakMap();
   async function savedOf(d, refs) {
     const a = d.analysis, pieces = a.pieces || [];
     const sig = [a.page].concat(pieces.map((p) => p.canvas));
     const c = d.savedPack;
     if (!(c && c.sig.length === sig.length && c.sig.every((x, i) => x === sig[i]))) {
-      const page = await toBlob(a.page, 'image/jpeg', 0.92);
+      // (les sujets d'une même feuille ont la même page : encodée une fois, mêmes octets)
+      let pageData = pageJpegs.get(a.page);
+      if (!pageData) { pageData = await (await toBlob(a.page, 'image/jpeg', 0.92)).arrayBuffer(); pageJpegs.set(a.page, pageData); }
       const packed = packMasks(pieces);
       const atlases = [];
       for (const pc of packed.atlases) { const b = await toBlob(pc, 'image/png'); atlases.push({ w: pc.width, h: pc.height, data: await b.arrayBuffer() }); Extract.release(pc); }
-      d.savedPack = { sig, id: packId(), page: { w: a.page.width, h: a.page.height, data: await page.arrayBuffer() }, atlases, at: packed.at };
+      d.savedPack = { sig, id: packId(), page: { w: a.page.width, h: a.page.height, data: pageData }, atlases, at: packed.at };
     }
     const pk = d.savedPack;
     const meta = {
-      v: 1, pack: pk.id, deg: d.orientDeg || 0, kind: a.kind, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac,
+      v: 1, pack: pk.id, deg: d.orientDeg || 0, kind: a.kind, part: d.part || null, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac,
       photo: d.photo ? { kind: d.photo.kind || null, sheet: !!d.photo.sheet } : null,
       pieces: pieces.map((p, k) => ({
         at: pk.at[k], w: p.canvas.width, h: p.canvas.height,
@@ -6134,15 +6171,29 @@ Réponds uniquement avec ce JSON :
   // l'analyse d'un dessin rebâtie depuis sa sauvegarde : page, pièces (image de la page sous le masque).
   // maxLong : grand côté maximal pour cet appareil ; une page sauvegardée plus grande (faite sur
   // ordinateur) est réduite, et ses pièces, masques et repères avec elle (facteur k)
-  async function restoreAnalysis(sv, maxLong) {
-    let page = await canvasFrom(sv.page.data, 'image/jpeg');
-    let k = 1;
-    const long = Math.max(page.width, page.height);
-    if (maxLong > 0 && long > maxLong * 1.05) {
-      k = maxLong / long;
-      const small = Extract.scaleTo(page, maxLong);
-      Extract.release(page);
-      page = small;
+  // pagesRead : les pages déjà relues pendant cette réouverture (mêmes octets : une seule page)
+  async function restoreAnalysis(sv, maxLong, pagesRead) {
+    let key = null;
+    if (pagesRead && window.crypto && crypto.subtle) {
+      try {
+        const buf = sv.page.data.arrayBuffer ? await sv.page.data.arrayBuffer() : sv.page.data;
+        const h = await crypto.subtle.digest('SHA-1', buf);
+        key = `${buf.byteLength}:${Array.from(new Uint8Array(h), (b) => b.toString(16).padStart(2, '0')).join('')}@${maxLong}`;
+      } catch (e) { key = null; }
+    }
+    let page, k = 1;
+    const seen = key && pagesRead.get(key);
+    if (seen) ({ page, k } = seen);
+    else {
+      page = await canvasFrom(sv.page.data, 'image/jpeg');
+      const long = Math.max(page.width, page.height);
+      if (maxLong > 0 && long > maxLong * 1.05) {
+        k = maxLong / long;
+        const small = Extract.scaleTo(page, maxLong);
+        Extract.release(page);
+        page = small;
+      }
+      if (key) pagesRead.set(key, { page, k });
     }
     const atlases = [];
     for (const at of sv.atlases || []) atlases.push(await canvasFrom(at.data, 'image/png'));
@@ -6453,8 +6504,13 @@ Réponds uniquement avec ce JSON :
     if (rec && rec.name && id !== DRAFT_ID) $('busy-title').textContent = tr`Réouverture de « ${rec.name} »`;
     if (!rec) { savedStatus(fromCloud ? tr('Œuvre introuvable dans votre compte.') : tr('Œuvre introuvable dans ce navigateur.')); return null; }
     if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette œuvre ne contient aucun dessin.')); return null; }
+    const got = new Map(); // (les sujets d'une même feuille partagent son image : lue une fois)
     for (const sd of rec.drawings) {
-      if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
+      if (sd.ref && !sd.data) {
+        if (!got.has(sd.ref)) got.set(sd.ref, await filesGet(sd.ref).catch(() => null));
+        const f = got.get(sd.ref);
+        if (f) { sd.data = f.data; sd.type = f.type; }
+      }
       await loadSavedRef(sd); // découpes sauvegardées du brouillon : leurs octets, dans le magasin des images
     }
     const bytesOf = (d) => d.data || d.blob || null;
