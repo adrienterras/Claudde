@@ -1520,13 +1520,10 @@
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
         selectOnArt(state.current);
         refreshLists();
-        // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier
-        if (state.current && mobileQuery.matches) {
-          document.body.classList.remove('sheet-tall');
-          document.body.classList.add('sheet-detail');
-          const panel = document.querySelector('.panel'), box = $('detail');
-          if (panel && box) setTimeout(() => { panel.scrollTo({ top: Math.max(0, box.offsetTop - 12), behavior: 'smooth' }); }, 60);
-        }
+        // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier ;
+        // ordinateur : la fiche (au-dessus de la liste) remonte en haut du panneau, pour qu'on la voie
+        // même quand la vignette cliquée est loin dans la liste
+        if (state.current) showDetail();
       };
       // « Non utilisé » : un bouton « + » sur la vignette remet le dessin sur l'œuvre (à côté du bouton
       // de la vignette, pas dedans)
@@ -3103,7 +3100,21 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (sec && sec.classList.contains('collapsed')) sec.querySelector(':scope > h2').click();
     refreshLists();
     const box = $('detail');
-    if (box && !box.hidden && window.matchMedia('(min-width: 861px)').matches) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (box && !box.hidden && !mobileQuery.matches) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  // La fiche du dessin courant, mise en vue : sur téléphone, l'onglet Dessins, le tiroir remonté à
+  // mi-hauteur et la fiche en haut ; sur ordinateur, la fiche en haut du panneau
+  function showDetail() {
+    const box = $('detail');
+    if (!box || !state.current) return;
+    if (mobileQuery.matches) {
+      setStageFull(false);
+      selectTab('drawings-section');
+      document.body.classList.remove('sheet-tall');
+      document.body.classList.add('sheet-detail');
+      const panel = document.querySelector('.panel');
+      if (panel) setTimeout(() => { panel.scrollTo({ top: Math.max(0, box.offsetTop - 12), behavior: 'smooth' }); }, 60);
+    } else box.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   function refreshActiveThumb() {
@@ -3669,6 +3680,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12 || now - d.t > 350) { lastTap = null; return; }
     if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; onDouble(e); return; }
     lastTap = { t: now, x: e.clientX, y: e.clientY };
+    // téléphone : un dessin touché (pas glissé) sur l'œuvre ouvre l'onglet Dessins sur sa fiche
+    if (state.selected && mobileQuery.matches) showDetail();
   });
 
   $('zoom-in').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };

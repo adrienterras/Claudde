@@ -28,6 +28,24 @@ test.describe('Interface', () => {
     for (const id of ['import-section', 'drawings-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
   });
 
+  test('ordinateur : cliquer une vignette loin dans la liste met sa fiche en vue, en haut du panneau', async ({ app }) => {
+    const { page } = app;
+    await page.setViewportSize({ width: 1440, height: 600 }); // (peu de hauteur : le panneau défile)
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await openStep(page, 'drawings-section');
+    const panel = page.locator('.panel');
+    // le panneau défilé jusqu'en bas : la place de la fiche (au-dessus de la liste) est hors de vue
+    await panel.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    const last = page.locator('#drawings .thumb').last();
+    await last.scrollIntoViewIfNeeded();
+    await last.click();
+    await expect(page.locator('#detail')).toBeVisible();
+    await page.waitForTimeout(700); // (défilement doux)
+    const [db, pb] = await Promise.all([page.locator('#detail').boundingBox(), panel.boundingBox()]);
+    expect(db.y).toBeGreaterThanOrEqual(pb.y - 1);
+    expect(db.y).toBeLessThan(pb.y + 80);
+  });
+
   test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, sous l’invitation au compte sur téléphone ; l’œuvre est rangée dans Mes œuvres, sans confirmation', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#new-work')).toBeHidden();

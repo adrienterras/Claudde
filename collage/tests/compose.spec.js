@@ -489,3 +489,29 @@ test.describe('Compositions', () => {
     expect(after.items.filter((x) => x[0] === 'scan-150dpi.png').length).toBeGreaterThan(0);
   });
 });
+
+test.describe('Téléphone : un dessin touché sur l’œuvre', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('ouvre l’onglet Dessins sur sa fiche (tiroir à mi-hauteur)', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-texture.png']);
+    // l'onglet Propositions : le tiroir à sa hauteur normale, l'œuvre visible
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await page.waitForTimeout(400);
+    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
+    const pt = await page.evaluate(() => {
+      const A = AtelierGribouille, L = A.state.comp.items[0], v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+      return { x: r.left + (v.ox + L.x * v.s) / v.dpr, y: r.top + (v.oy + L.y * v.s) / v.dpr, name: L.piece.drawing.name };
+    });
+    await page.touchscreen.tap(pt.x, pt.y);
+    await page.waitForTimeout(500);
+    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'drawings-section');
+    await expect(page.locator('body')).toHaveClass(/sheet-detail/);
+    await expect(page.locator('#detail')).toBeVisible();
+    expect(await page.evaluate(() => AtelierGribouille.state.current && AtelierGribouille.state.current.name)).toBe(pt.name);
+    // la fiche est en vue dans le tiroir
+    const [db, pb] = await Promise.all([page.locator('#detail').boundingBox(), page.locator('.panel').boundingBox()]);
+    expect(db.y).toBeGreaterThanOrEqual(pb.y - 1);
+    expect(db.y).toBeLessThan(pb.y + pb.height / 2);
+  });
+});

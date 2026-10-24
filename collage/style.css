@@ -599,7 +599,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 
 .detail {
   /* dans le flux : entre la phrase de la section et les dessins, sans flotter au-dessus d'eux */
-  position: relative;
+  position: relative; scroll-margin-top: 12px;
   /* en-tête : vignette à gauche, nom et ‹ › à droite ; les réglages dessous, sur toute la largeur */
   display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 12px; row-gap: 10px; align-items: start;
   padding: 12px;
