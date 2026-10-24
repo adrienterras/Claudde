@@ -461,6 +461,16 @@
         </div>
       </div>
     </div>
+    <!-- collage : la taille des dessins se vérifie avant de voir l'œuvre (voir renderSizeGate) -->
+    <div id="size-gate" class="busy size-gate" hidden role="dialog" aria-labelledby="size-gate-title">
+      <div class="busy-card size-gate-card">
+        <p id="size-gate-title" class="busy-title">Vérifiez la taille des dessins</p>
+        <p class="busy-step">Dans un collage, chaque dessin garde sa taille réelle : vérifiez-la pour chaque feuille, l’œuvre s’affiche ensuite.</p>
+        <div id="size-gate-list"></div>
+        <!-- téléphone : la liste reste dans l'onglet Tailles -->
+        <button type="button" id="size-gate-go" class="btn btn-primary" hidden>Vérifier les tailles</button>
+      </div>
+    </div>
     <div id="busy" class="busy" hidden role="status" aria-live="polite">
       <div class="busy-card">
         <span class="spinner" aria-hidden="true"></span>

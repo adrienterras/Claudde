@@ -206,6 +206,14 @@ cd collage && python3 -m http.server 8000
    feuille douteuse, le titre est « Taille des dessins ». Ce bloc (et l'alerte de la section Propositions)
    n'existe qu'en collage avec les originaux : en tableau imprimé, les dessins sont réduits au cadre
    et seule leur taille relative compte (`renderUncertain`, relancé au changement de mode).
+   **L'œuvre attend les tailles** : en collage, tant qu'une feuille n'est pas vérifiée (taille touchée
+   ou saisie, lue dans le scan, ou déjà saisie pour ce fichier), l'œuvre ne s'affiche pas — au milieu
+   de l'atelier, la carte « Vérifiez la taille des dessins » montre la liste (sur téléphone, elle mène
+   à l'onglet Tailles) ; Propositions, Exporter et la mise en scène attendent aussi. L'attente est
+   gardée avec l'œuvre (taille à vérifier et feuille d'origine des sujets enregistrées) : rechargée ou
+   rouverte, elle attend encore. Toutes vérifiées, les propositions sont refaites à ces tailles (une
+   œuvre déjà retouchée reste telle quelle) (`renderSizeGate`). Les tests automatiques passent
+   l'attente, sauf `tailles.spec.js` (`window.__sizeGate`).
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    de TOUS les dessins, et **à leur taille réelle** : rien n'est réduit ni agrandi, puisque l'œuvre
    sera réalisée avec les originaux. C'est la toile qui s'adapte :

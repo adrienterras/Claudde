@@ -486,7 +486,7 @@
     const keep = ps.filter((p) => p.frac > 0.002 && p.colorful >= 0.04 && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.08 * long);
     if (keep.length < 2) return null;
     // (la feuille garde son nom et sa vignette : c'est elle dont on vérifie la taille, voir renderUncertain)
-    const sheet = { name: d.name, thumb: d.thumb, origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
+    const sheet = { id: packId(), name: d.name, thumb: d.thumb, origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
     loadSize(sheet);
     const paper = a.paper || [250, 250, 250];
     const base = d.name.replace(/\.[a-z0-9]+$/i, '');
@@ -627,13 +627,52 @@
   // sujet, devenu un dessin, prend sa part (voir estimateSizes)
   function setRealSize(o, cm) {
     cm = clampCm(cm);
-    resizeInPlace(() => {
+    const change = () => {
       o.sizeCm = cm;
       o.sizeMode = 'manual';
       saveSize(o);
       state.drawings.forEach((x) => { if (x.sheet === o) x.sizeMode = 'auto'; });
       estimateSizes();
+    };
+    // (l'œuvre en attente des tailles, pas encore retouchée : elle sera refaite à ces tailles, voir renderSizeGate)
+    if (state.sizeGated && state.comp && !state.comp.touched) { change(); refreshLists(); render(); return; }
+    resizeInPlace(change);
+  }
+
+  /*
+   * Collage : tant que la taille des dessins n'est pas vérifiée, l'œuvre ne s'affiche pas — le milieu de
+   * l'atelier montre la liste des tailles (celle de la section Tailles, déplacée là). Une feuille sort
+   * de l'attente quand sa taille est touchée ou saisie (ou lue dans le scan, ou déjà saisie pour ce
+   * fichier). L'attente est gardée avec l'œuvre : rouverte, elle attend encore. Toutes vérifiées, les
+   * propositions sont refaites à ces tailles (une œuvre déjà retouchée reste telle quelle).
+   */
+  const sizeGateOn = () => !navigator.webdriver || window.__sizeGate === true; // (les tests automatiques s'en passent, sauf ceux de l'attente)
+  $('size-gate-go').addEventListener('click', () => { if (mobileQuery.matches) setStageFull(false); selectTab('sizes-section'); });
+  mobileQuery.addEventListener('change', () => renderSizeGate());
+  function sizesPending() {
+    if (printMode() || !sizeGateOn()) return [];
+    const out = [];
+    state.drawings.forEach((d) => {
+      if (d.sample || roleOf(d) === 'off') return;
+      const u = d.sheet || d;
+      if (!out.includes(u) && u.sizeMode === 'auto' && !u.physCm) out.push(u);
     });
+    return out;
+  }
+  function renderSizeGate() {
+    const gate = $('size-gate'), list = $('sizes-check'), slot = $('size-gate-list');
+    if (!gate || !list || !slot) return;
+    const on = !!state.comp && sizesPending().length > 0;
+    gate.hidden = !on;
+    document.body.classList.toggle('size-gate-on', on);
+    // (sur téléphone, la liste reste dans l'onglet Tailles : la carte y mène)
+    const here = on && !mobileQuery.matches;
+    if (here && list.parentElement !== slot) slot.appendChild(list);
+    if (!here && list.parentElement === slot) $('sizes-hint').after(list);
+    $('size-gate-go').hidden = here;
+    const was = state.sizeGated;
+    state.sizeGated = on;
+    if (was && !on && state.comp && !state.comp.touched) { state.pinned = null; regenerate(); }
   }
 
   const cmPerPx = (d) => d.sizeCm / d.srcLong;
@@ -1446,6 +1485,7 @@
   function refreshLists() {
     syncImportStep();
     renderUncertain();
+    renderSizeGate();
     renderAside();
     renderQuality();
     const dEl = $('drawings');
@@ -2758,6 +2798,7 @@
     render();
     updateExportInfo();
     updateLabel();
+    renderSizeGate();
   }
 
   // Les réponses de Claude arrivent après coup (plusieurs secondes, voire une minute) : si la composition
@@ -3965,6 +4006,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   function act(name) {
+    if (state.sizeGated) return; // (l'œuvre attend la taille des dessins)
     if (name === 'undo') { undo(); return; }
     if (name === 'redo') { redo(); return; }
     const comp = state.comp, L = state.selected;
@@ -5562,7 +5604,8 @@ Réponds uniquement avec ce JSON :
   const workTitle = () => (state.comp && state.titles && state.titles[state.comp.style]) || state.title || state.workName || defaultWorkName();
   // empreinte d'un instantané (sans date ni vignette) : un enregistrement identique n'est ni réécrit ni renvoyé
   function printOf(rec) {
-    const s = JSON.stringify([rec.name, rec.settings, rec.comp, rec.drawings.map((x) => [x.ref, savedRef(x), x.name, x.role, x.sizeCm, x.orient, x.photoMode, x.tone, x.enabled, x.ai, x.pieceAi, x.cut])]);
+    // (une taille encore à vérifier compte aussi : la vérifier, même sans la changer, s'enregistre)
+    const s = JSON.stringify([rec.name, rec.settings, rec.comp, rec.drawings.map((x) => [x.ref, savedRef(x), x.name, x.role, x.sizeCm, x.orient, x.photoMode, x.tone, x.enabled, x.ai, x.pieceAi, x.cut].concat(x.sizeMode === 'auto' ? ['taille à vérifier'] : []))]);
     let h = 5381;
     for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
     return `${s.length}:${h >>> 0}`;
@@ -6267,6 +6310,9 @@ Réponds uniquement avec ce JSON :
         crop: d.crop || null,
         sheetKey: d.sheetKey || null,
         part: d.part || null,
+        // taille pas encore vérifiée (voir renderSizeGate) ; la feuille d'origine des sujets d'une page découpée
+        sizeMode: d.sizeMode === 'auto' ? 'auto' : 'manual', uncertain: !!d.uncertain,
+        sheet: d.sheet ? { id: d.sheet.id || (d.sheet.id = packId()), name: d.sheet.name, sizeCm: d.sheet.sizeCm, sizeMode: d.sheet.sizeMode, uncertain: !!d.sheet.uncertain, origLong: d.sheet.origLong, origShort: d.sheet.origShort, physCm: d.sheet.physCm || null, physSource: d.sheet.physSource || null } : null,
       });
     }
     const idx = (d) => state.drawings.indexOf(d);
@@ -6553,6 +6599,7 @@ Réponds uniquement avec ce JSON :
     try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0), saved: rec.drawings.map((sd) => sd.saved || null), legacy }); } finally { state.restoring = false; }
     if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu.')); return null; }
     // réglages par dessin
+    const sheetsBack = new Map();
     for (let i = 0; i < rec.drawings.length; i++) {
       const sd = rec.drawings[i];
       const d = state.drawings[i];
@@ -6560,6 +6607,15 @@ Réponds uniquement avec ce JSON :
       d.ai = sd.ai || null;
       d.sheetKey = sd.sheetKey || null;
       if (sd.part) d.part = sd.part;
+      // une taille pas encore vérifiée le reste (l'œuvre attend, voir renderSizeGate) ; les sujets d'une
+      // page découpée retrouvent leur feuille commune
+      if (sd.sizeMode === 'auto') { d.sizeMode = 'auto'; d.uncertain = !!sd.uncertain; }
+      if (sd.sheet && sd.sheet.id) {
+        let sh = sheetsBack.get(sd.sheet.id);
+        if (!sh) { sh = Object.assign({}, sd.sheet, { thumb: thumbOf(d.analysis.page) }); sheetsBack.set(sd.sheet.id, sh); }
+        d.sheet = sh;
+        d.sheetK = 1;
+      }
       // la découpe apprise au moment de la sauvegarde : le dessin est réanalysé avec, pour retrouver
       // les mêmes pièces (les retouches y sont rejouées par rang)
       if (sd.saved) {
