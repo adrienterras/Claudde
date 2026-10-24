@@ -59,21 +59,6 @@ test.describe('Clavier', () => {
     await page.keyboard.press('Enter');
     await expect(page.locator('#detail')).toBeVisible();
     await expect(page.locator('#drawings .thumb').first()).toHaveAttribute('aria-pressed', 'true');
-    // un dessin à plusieurs pièces (la page pâle, mise en découpe) : ses pièces dans sa fiche, au clavier
-    await page.setInputFiles('#file', [require('./helpers').fixture('page-pale.png')]);
-    await page.waitForFunction((n) => AtelierGribouille.state.drawings.length === n + 1 && document.getElementById('progress').hidden, 3, { timeout: 120000 });
-    const k = await page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /page-pale/.test(d.name)));
-    await page.locator(`#drawings .thumb[data-i="${k}"]`).click();
-    await page.locator('#detail [data-role="cutout"]').click();
-    const hit = () => page.locator('#detail-pieces .thumb-hit').first();
-    await expect(hit()).toBeVisible();
-    const was = await hit().getAttribute('aria-pressed');
-    await hit().focus();
-    await page.keyboard.press(' ');
-    await expect(hit()).toHaveAttribute('aria-pressed', was === 'true' ? 'false' : 'true');
-    await hit().focus();
-    await page.keyboard.press(' ');
-    await expect(hit()).toHaveAttribute('aria-pressed', was);
   });
 
   test('fenêtres : le focus y entre, Tab reste dedans, Échap ferme et le focus revient au bouton d’origine', async ({ page }) => {

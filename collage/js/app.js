@@ -858,7 +858,6 @@
       if (zone) swapInPlace(comp, d, zone); else if (roleOf(d) !== 'off') putBack(d);
       state.pinned = comp;
       refreshLists();
-      refreshPieces();
       regenerate({ noCommit: true });
       return;
     }
@@ -898,7 +897,6 @@
     if (role !== 'off') swapInPlace(comp, d, zone);
     state.pinned = comp;
     refreshLists();
-    refreshPieces();
     render();
     updateExportInfo();
     updateLabel();
@@ -1556,7 +1554,6 @@
     });
     $('drawings-count').textContent = `(${state.drawings.length})`;
     renderDetail();
-    refreshPieces();
   }
 
   function renderDetail() {
@@ -1616,12 +1613,10 @@
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>`}
-        ${role === 'cutout' && (d.analysis.pieces || []).length > 1 ? `<div class="detail-pieces"><p class="hint">${tr('Ce dessin a plusieurs pièces : touchez une pièce pour la retirer ou l’ajouter.')}</p><div id="detail-pieces" class="grid pieces"></div></div>` : ''}
         ${qualityBlock(d)}
         ${print ? '' : `<p class="hint">${sz.sizeMode === 'auto' ? (sz.physCm ? tr`Taille lue dans le scan (${sz.physSource || 'PDF'}).` : sz.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>`}
       </div>`;
-    refreshPieces();
     box.querySelector('.detail-close').onclick = () => {
       state.current = null;
       refreshLists();
@@ -1657,7 +1652,7 @@
         state.bgCache = null;
         render();
       };
-      const toneDone = () => { saveTone(d); refreshPieces(); refreshActiveThumb(); };
+      const toneDone = () => { saveTone(d); refreshActiveThumb(); };
       box.querySelectorAll('[data-tone]').forEach((r) => {
         r.oninput = () => { d.tone = Object.assign({ b: 0, c: 0, s: 0 }, d.tone, { [r.dataset.tone]: Number(r.value) }); toneMsg(''); applyTone(); };
         r.onchange = toneDone;
@@ -1721,56 +1716,6 @@
   function mainPiece(d) {
     if (roleOf(d) !== 'cutout') return null;
     return (d.analysis.pieces || []).reduce((a, b) => (!a || b.canvas.width * b.canvas.height > a.canvas.width * a.canvas.height ? b : a), null);
-  }
-
-  // Les pièces d'un dessin qui en a plusieurs (feuille gardée entière : un sujet et des fragments ;
-  // œuvre d'avant « un dessin par sujet »), dans sa fiche : chacune se retire ou se remet, et se
-  // retouche. (L'ancienne section « Pièces découpées » n'a plus lieu d'être : un dessin par sujet.)
-  function refreshPieces() {
-    const pEl = $('detail-pieces');
-    if (!pEl || !state.current) return;
-    pEl.innerHTML = '';
-    const pieces = roleOf(state.current) === 'cutout' ? state.current.analysis.pieces || [] : [];
-    pieces.forEach((p) => {
-      const el = document.createElement('div');
-      const unplaced = p.enabled && state.comp && !p.placed;
-      el.className = `thumb${p.enabled ? '' : ' off'}${unplaced ? ' unplaced' : ''}`;
-      el.title = !p.enabled ? tr('Retirée — cliquer pour l’ajouter') : unplaced ? tr('Pas de place à cette échelle — cliquer pour l’ajouter quand même') : tr('Dans l’œuvre — cliquer pour la retirer');
-      el.innerHTML = tr`<img src="${p.thumb}" alt=""><button class="edit-piece" title="Retoucher la découpe" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg></button>`;
-      el.querySelector('img').style.filter = toneFilter(p.drawing);
-      // au clavier : l'image est un bouton (retirer ou ajouter la pièce), à côté de celui de la retouche
-      const img = el.querySelector('img'), hit = document.createElement('button');
-      hit.type = 'button';
-      hit.className = 'thumb-hit';
-      hit.setAttribute('aria-pressed', p.enabled ? 'true' : 'false');
-      hit.setAttribute('aria-label', tr`Pièce de « ${p.drawing.name} » : ${el.title}`);
-      img.replaceWith(hit);
-      hit.appendChild(img);
-      el.onclick = () => togglePiece(p);
-      el.querySelector('.edit-piece').onclick = (e) => { e.stopPropagation(); editPiece(p); };
-      pEl.appendChild(el);
-    });
-  }
-
-  function togglePiece(p) {
-    if (!state.comp) return;
-    commit();
-    touched();
-    const inArt = state.comp.items.some((L) => L.piece === p);
-    if (inArt) {
-      const L = state.comp.items.find((x) => x.piece === p);
-      if (L && L.frame !== undefined) p.lastFrame = L.frame; // Galerie : pour remettre la pièce dans son cadre
-      state.comp.items = state.comp.items.filter((L) => L.piece !== p);
-      p.enabled = false;
-      p.placed = false;
-      if (state.selected && state.selected.piece === p) state.selected = null;
-    } else {
-      p.enabled = true;
-      sizePiece(p, scale());
-      state.selected = Compose.addPiece(state.comp, p, ++state.seq);
-    }
-    refreshPieces();
-    render();
   }
 
   // ---------- Échelle ----------
@@ -2806,7 +2751,6 @@
     renderProposals();
     state.selected = null;
     state.bgCache = null;
-    refreshPieces();
     renderDetail();
     render();
     updateExportInfo();
@@ -3084,7 +3028,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     state.bgCache = null;
     syncFormatWith(state.comp);
     renderProposals();
-    refreshPieces();
     refreshLists(); // (les pages de fond que cette proposition ne pose pas sont dites dans la liste)
     updateToolbar();
     render();
@@ -3787,7 +3730,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     state.selected = c;
     refreshLists();
-    refreshPieces();
     refreshActiveThumb();
     render();
     updateExportInfo();
@@ -3835,7 +3777,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     p.edited = true; // la retouche est sauvegardée avec la composition et rejouée à la réouverture
     p.thumb = thumbOf(p.canvas, 120, true);
     delete p.hd;
-    refreshPieces();
     renderProposals();
     render();
     learnFromEdit(p, before, oldSrc);
@@ -4019,7 +3960,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     state.selected = null;
     state.bgCache = null;
     renderProposals();
-    refreshPieces();
     updateToolbar();
     render();
     updateExportInfo();
@@ -4097,7 +4037,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       comp.items.splice(i, 1);
       state.selected = null;
       if (!comp.items.some((q) => q.piece === L.piece)) { L.piece.placed = false; L.piece.enabled = false; }
-      refreshPieces();
       retireIfUnused(L.piece.drawing);
     }
     render();
@@ -4131,7 +4070,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     state.selected = sel;
     refreshLists();
-    refreshPieces();
     render();
     updateExportInfo();
     updateLabel();

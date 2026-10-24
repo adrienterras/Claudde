@@ -220,10 +220,11 @@ cd collage && python3 -m http.server 8000
    vignettes grisées ; la liste suit chaque changement de proposition (`refreshLists` dans
    `selectProposal`). Jamais, même un dessin remis en fond depuis sa fiche : dans ces propositions il
    reste « non posé » (`takesPages`, dans `putBack` et `swapInPlace`).
-   **Plus de section « Pièces découpées »** (un dessin par sujet : retirer, remettre et retoucher se
-   font par la vignette, la poubelle, le « + » et la fiche) ; un dessin qui garde plusieurs pièces
-   (feuille entière : un sujet et des fragments ; œuvre d'avant) les montre dans sa fiche, chacune à
-   retirer, remettre ou retoucher (`refreshPieces`, dans `#detail-pieces`).
+   **Plus de liste de pièces** (ni section « Pièces découpées », ni bloc dans la fiche) : un dessin par
+   sujet, retirer, remettre et retoucher se font par la vignette, la poubelle, le « + » et la fiche.
+   Un dessin qui garde plusieurs pièces (feuille entière : un sujet et des fragments ; œuvre d'avant)
+   se retouche par sa pièce principale ; une pièce retirée à la poubelle revient avec le « + » du
+   dessin (qui remet toutes ses pièces).
    **Passe-partout par défaut** (tableau imprimé) : sans choix mémorisé, l'œuvre, la mise en scène et
    la commande partent « avec passe-partout » (`printMat`) ; le choix fait est mémorisé
    (`atelier.passe-partout`). Les tests partent du choix « sans » (storageState de
