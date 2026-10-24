@@ -1524,7 +1524,8 @@
       el.setAttribute('aria-label', el.title);
       el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
       el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
-      el.innerHTML = `<img src="${thumbFor(d)}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>${qualityBadge(d)}`;
+      // (la taille réelle sur la vignette : en collage seulement ; en tableau imprimé, les dessins sont mis au cadre)
+      el.innerHTML = `<img src="${thumbFor(d)}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' ? (d.photo.sheet ? tr('<b class="tag photo" title="Photo d’une feuille : redressée et recadrée">redressé</b>') : tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>')) : ''}${printMode() ? '' : `<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`}${qualityBadge(d)}`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)

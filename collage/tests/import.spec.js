@@ -19,6 +19,8 @@ test.describe('Import des scans', () => {
     await expect(app.page.locator('#compose-section')).toBeVisible();
     await expect(app.page.locator('#export-section')).toBeVisible();
     await expect(app.page.locator('#drawings-count')).toContainText('6');
+    // collage : la taille réelle sur chaque vignette
+    await expect(app.page.locator('#drawings .thumb .size')).toHaveCount(6);
   });
 
   test('PDF : une page par dessin, nommée d’après le fichier', async ({ app }) => {
