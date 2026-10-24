@@ -3408,7 +3408,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (L.kind === 'bg') { if (!L.pageW) { L.pageW = bw; L.pageH = bh; } state.bgCache = null; }
     comp.reduced = comp.items.some((q) => (q.scale || 1) !== 1) || comp.bg.some((q) => (q.scale || 1) !== 1);
   }
-  // Les pages de fond retouchées à la main gardent leur place, leur rotation et leur taille quand la
+  // Les pages de fond retouchées à la main gardent leur place, leur rotation et leur taille (et les
+  // découpes redimensionnées à la main, leur taille) quand la
   // composition est refaite (curseur de densité, format, nouveau dessin) : sans cela, la proposition
   // refaite les remettait telles quelles et la page qu'on venait d'agrandir reprenait sa taille d'avant.
   // Les autres pages suivent la nouvelle proposition. La taille n'est gardée que là où elle se règle
@@ -3428,6 +3429,20 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       }
       if (o.manual) { n.x = o.x * kx; n.y = o.y * ky; n.rot = o.rot; n.flip = o.flip; n.manual = true; }
     });
+    // les découpes dont la taille a été choisie à la main (poignée carrée, touches + et −) gardent cette
+    // taille dans la proposition refaite, à leur nouvelle place (pas dans les cases de la Galerie ni
+    // du Pop art, où chaque case fixe la taille)
+    if (sizable && !to.frames && !to.tiles) {
+      from.items.forEach((o) => {
+        if (!o.sized) return;
+        const n = to.items.find((L) => L.piece === o.piece && !L.sized);
+        if (!n) return;
+        setLayerScale(n, o.scale || 1, to);
+        // (reste dans la toile)
+        n.x = clamp(n.x, Math.min(n.w / 2, to.W / 2), Math.max(to.W - n.w / 2, to.W / 2));
+        n.y = clamp(n.y, Math.min(n.h / 2, to.H / 2), Math.max(to.H - n.h / 2, to.H / 2));
+      });
+    }
     to.bg.forEach((L) => { if (L.sized) to.reduced = true; });
   }
 

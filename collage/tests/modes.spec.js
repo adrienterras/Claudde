@@ -383,6 +383,37 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(sp.dx).toBeGreaterThan(0.45);
   });
 
+  test('Impression : « Nouvelles propositions » garde la taille des découpes agrandies ou réduites à la main', async ({ page }) => {
+    test.setTimeout(180000);
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'photo-wood.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // une découpe agrandie de 21 % (deux fois +), une autre réduite ; une troisième laissée telle quelle
+    const pick = (i) => page.evaluate((i) => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[i]; A.render(); return { w: A.state.selected.w, id: A.state.selected.piece.id }; }, i);
+    const a0 = await pick(0);
+    await page.keyboard.press('='); await page.keyboard.press('=');
+    const b0 = await pick(1);
+    await page.keyboard.press('-');
+    const c0 = await pick(2);
+    const before = await page.evaluate(() => AtelierGribouille.state.comp.items.map((L) => [L.piece.id, L.w, L.x, L.y]));
+    await page.locator('#generate').click();
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, items: AtelierGribouille.state.comp.items.map((L) => [L.piece.id, L.w, L.x, L.y, !!L.sized]) }));
+    const wOf = (list, id) => list.find((x) => x[0] === id);
+    // les deux tailles choisies sont gardées, la troisième suit la nouvelle proposition
+    expect(wOf(after.items, a0.id)[1]).toBeCloseTo(a0.w * 1.21, 3);
+    expect(wOf(after.items, b0.id)[1]).toBeCloseTo(b0.w / 1.1, 3);
+    expect(wOf(after.items, a0.id)[4]).toBe(true);
+    expect(wOf(after.items, c0.id)[4]).toBe(false);
+    // et c'est bien une nouvelle mise en place
+    expect(after.items.map((x) => [x[2], x[3]])).not.toEqual(before.map((x) => [x[2], x[3]]));
+    // les découpes redimensionnées restent dans le cadre
+    const out = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return c.items.filter((L) => L.sized && !(L.x - L.w / 2 >= -0.01 && L.x + L.w / 2 <= c.W + 0.01 && L.y - L.h / 2 >= -0.01 && L.y + L.h / 2 <= c.H + 0.01)).map((L) => [L.piece.id, L.x, L.y, L.w, L.h, c.W, c.H]); });
+    expect(out).toEqual([]);
+  });
+
   test('Affiche : un plus grand cadre agrandit l’œuvre affichée à l’identique, et les nouvelles propositions dans la même proportion', async ({ page }) => {
     test.setTimeout(180000);
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
