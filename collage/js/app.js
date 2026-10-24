@@ -946,7 +946,7 @@
         comp.items.push(L);
         p.placed = true;
       });
-    } else if (role === 'texture' && a.texture) {
+    } else if (role === 'texture' && a.texture && takesPages(comp)) {
       const t = a.texture, at = fitIn([{ x: 0, y: 0, w: t.canvas.width, h: t.canvas.height }]);
       const g = at({ x: 0, y: 0, w: t.canvas.width, h: t.canvas.height });
       const c = cmPerPx(d) * (printMode() ? state.bgScale || k : k), pw = t.canvas.width * c, ph = t.canvas.height * c;
@@ -1615,10 +1615,12 @@
           : d.photoMode === 'keep'
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>`}
+        ${role === 'cutout' && (d.analysis.pieces || []).length > 1 ? `<div class="detail-pieces"><p class="hint">${tr('Ce dessin a plusieurs pièces : touchez une pièce pour la retirer ou l’ajouter.')}</p><div id="detail-pieces" class="grid pieces"></div></div>` : ''}
         ${qualityBlock(d)}
         ${print ? '' : `<p class="hint">${sz.sizeMode === 'auto' ? (sz.physCm ? tr`Taille lue dans le scan (${sz.physSource || 'PDF'}).` : sz.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>`}
       </div>`;
+    refreshPieces();
     box.querySelector('.detail-close').onclick = () => {
       state.current = null;
       refreshLists();
@@ -1720,10 +1722,14 @@
     return (d.analysis.pieces || []).reduce((a, b) => (!a || b.canvas.width * b.canvas.height > a.canvas.width * a.canvas.height ? b : a), null);
   }
 
+  // Les pièces d'un dessin qui en a plusieurs (feuille gardée entière : un sujet et des fragments ;
+  // œuvre d'avant « un dessin par sujet »), dans sa fiche : chacune se retire ou se remet, et se
+  // retouche. (L'ancienne section « Pièces découpées » n'a plus lieu d'être : un dessin par sujet.)
   function refreshPieces() {
-    const pEl = $('pieces');
+    const pEl = $('detail-pieces');
+    if (!pEl || !state.current) return;
     pEl.innerHTML = '';
-    const pieces = activePieces();
+    const pieces = roleOf(state.current) === 'cutout' ? state.current.analysis.pieces || [] : [];
     pieces.forEach((p) => {
       const el = document.createElement('div');
       const unplaced = p.enabled && state.comp && !p.placed;
@@ -1743,8 +1749,6 @@
       el.querySelector('.edit-piece').onclick = (e) => { e.stopPropagation(); editPiece(p); };
       pEl.appendChild(el);
     });
-    const inArt = state.comp ? state.comp.items.length : 0;
-    $('pieces-count').textContent = tr`(${inArt} dans l’œuvre / ${pieces.length})`;
   }
 
   function togglePiece(p) {
@@ -2186,7 +2190,8 @@
     return `cadre:${PRINT_FRAMES.reduce((b, f) => (Math.abs(f.w * f.h - a) < Math.abs(b.w * b.h - a) ? f : b)).key}`;
   }
   // passe-partout (atelier Impression), mémorisé ; même choix dans Tailles et dans la mise en scène
-  const printMat = () => { try { return localStorage.getItem('atelier.passe-partout') === '1'; } catch (e) { return false; } };
+  // avec passe-partout par défaut (mise en scène et commande) ; le choix fait est mémorisé
+  const printMat = () => { try { const v = localStorage.getItem('atelier.passe-partout'); return v === null ? true : v === '1'; } catch (e) { return true; } };
   function syncMatButtons() {
     const on = printMat();
     document.querySelectorAll('#print-mat button, #scene-mat button').forEach((b) => {
@@ -4087,6 +4092,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (name === 'dup') { duplicateDrawing(L); return; }
     refreshActiveThumb();
     if (name === 'del') {
+      if (L.frame !== undefined) L.piece.lastFrame = L.frame; // Galerie : le « + » la remet dans sa case
       comp.items.splice(i, 1);
       state.selected = null;
       if (!comp.items.some((q) => q.piece === L.piece)) { L.piece.placed = false; L.piece.enabled = false; }
@@ -4099,6 +4105,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Un dessin remis depuis « Non utilisé » : ses sujets (le principal et les autres sujets du dessin)
   // se posent dans les places libres de l'œuvre, ou sa page entière devant les autres pages, au centre
   // (réduite si elle dépasse la toile) ; il est sélectionné pour qu'on le voie et le place.
+  // Nuage (fond uni) et Pop art (cases de découpes) ne posent pas les pages de fond — jamais, même un
+  // dessin remis en fond depuis sa fiche : il reste « non posé », la liste le dit
+  const takesPages = (comp) => !!comp && comp.style !== 'nuage' && comp.style !== 'popart';
   function putBack(d) {
     const comp = state.comp, role = roleOf(d), a = d.analysis;
     touched();
@@ -4111,7 +4120,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         sel = Compose.addPiece(comp, p, ++state.seq);
         p.placed = true;
       });
-    } else if (role === 'texture' && a.texture) {
+    } else if (role === 'texture' && a.texture && takesPages(comp)) {
       const t = a.texture, kb = printMode() ? state.bgScale || scale() : scale();
       const c = cmPerPx(d) * kb, w = t.canvas.width * c, h = t.canvas.height * c;
       const f = Math.min(1, comp.W / w, comp.H / h);

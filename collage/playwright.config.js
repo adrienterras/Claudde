@@ -18,6 +18,9 @@ module.exports = defineConfig({
     locale: 'fr-FR', // l'interface est testée en français ; tests/i18n.spec.js couvre l'anglais
     launchOptions,
     trace: 'retain-on-failure',
+    // le passe-partout est proposé par défaut (mise en scène, commande) ; les tests écrits sans partent
+    // du choix « sans » mémorisé — passe-partout.spec.js couvre le défaut
+    storageState: { cookies: [], origins: [{ origin: `http://localhost:${port}`, localStorage: [{ name: 'atelier.passe-partout', value: '0' }] }] },
   },
   webServer: {
     command: `node tests/serve.js ${port}`,

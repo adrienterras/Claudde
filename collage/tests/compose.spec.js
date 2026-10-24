@@ -110,12 +110,12 @@ test.describe('Compositions', () => {
     await page.locator('#drawings-section > h2').click();
     const before = await page.evaluate(() => { const L = AtelierGribouille.state.comp.items[0]; return { id: L.piece.id, x: L.x, y: L.y, w: L.w, frame: L.frame }; });
     expect(before.frame).toBeDefined();
-    const thumb = page.locator('#pieces .thumb').nth(await page.evaluate((id) => AtelierGribouille.state.drawings.flatMap((d) => d.analysis.pieces || []).findIndex((p) => p.id === id), before.id));
-    // on retire la pièce, puis on la remet
-    await thumb.click();
+    // on retire la pièce (poubelle), puis on la remet (le « + » de son dessin, dans « Non utilisé »)
+    const k = await page.evaluate((id) => { const S = AtelierGribouille.state; return S.drawings.indexOf(S.comp.items.find((L) => L.piece.id === id).piece.drawing); }, before.id);
+    await page.evaluate((id) => { const S = AtelierGribouille.state; S.selected = S.comp.items.find((L) => L.piece.id === id); AtelierGribouille.act('del'); }, before.id);
     await page.waitForTimeout(200);
     expect(await page.evaluate((id) => AtelierGribouille.state.comp.items.some((L) => L.piece.id === id), before.id)).toBe(false);
-    await thumb.click();
+    await page.locator(`#drawings .thumb[data-i="${k}"] + .thumb-add`).click();
     await page.waitForTimeout(200);
     const after = await page.evaluate((id) => { const L = AtelierGribouille.state.comp.items.find((x) => x.piece.id === id); return L && { x: L.x, y: L.y, w: L.w, frame: L.frame }; }, before.id);
     expect(after).not.toBeNull();
@@ -243,6 +243,17 @@ test.describe('Compositions', () => {
     await expect(group.locator('.group-note')).toContainText('Non posés dans la proposition affichée : Nuage garde un fond uni');
     await expect(group.locator('.thumb.unplaced')).toHaveCount(1);
     expect(await page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => !L.paper).length)).toBe(0);
+    // remis en découpe puis en fond depuis sa fiche : Nuage ne le pose toujours pas (il reste « non posé »)
+    const k = await page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /page-texture/.test(d.name)));
+    await page.locator(`#drawings .thumb[data-i="${k}"]`).click();
+    await page.locator('#detail [data-role="cutout"]').click();
+    expect(await page.evaluate((k) => AtelierGribouille.state.comp.items.some((L) => L.piece.drawing === AtelierGribouille.state.drawings[k]), k)).toBe(true);
+    await page.locator('#detail [data-role="texture"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => !L.paper).length)).toBe(0);
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe('nuage');
+    await expect(group.locator('.thumb.unplaced')).toHaveCount(1);
+    await expect(group.locator('.group-note')).toContainText('Nuage');
+    await page.locator('#detail .detail-close').click();
     // Pop art (tableau imprimé) : des cases de découpes, pas de page non plus
     await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.select('popart');

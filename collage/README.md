@@ -218,7 +218,16 @@ cd collage && python3 -m http.server 8000
    découpes) ne posent pas les pages de fond, et une Galerie à court de cases en laisse. La liste
    des dessins le dit sous « Arrière-plan » (« Non posés dans la proposition affichée : … »), leurs
    vignettes grisées ; la liste suit chaque changement de proposition (`refreshLists` dans
-   `selectProposal`).
+   `selectProposal`). Jamais, même un dessin remis en fond depuis sa fiche : dans ces propositions il
+   reste « non posé » (`takesPages`, dans `putBack` et `swapInPlace`).
+   **Plus de section « Pièces découpées »** (un dessin par sujet : retirer, remettre et retoucher se
+   font par la vignette, la poubelle, le « + » et la fiche) ; un dessin qui garde plusieurs pièces
+   (feuille entière : un sujet et des fragments ; œuvre d'avant) les montre dans sa fiche, chacune à
+   retirer, remettre ou retoucher (`refreshPieces`, dans `#detail-pieces`).
+   **Passe-partout par défaut** (tableau imprimé) : sans choix mémorisé, l'œuvre, la mise en scène et
+   la commande partent « avec passe-partout » (`printMat`) ; le choix fait est mémorisé
+   (`atelier.passe-partout`). Les tests partent du choix « sans » (storageState de
+   playwright.config.js), `passe-partout.spec.js` couvre le défaut.
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    de TOUS les dessins, et **à leur taille réelle** : rien n'est réduit ni agrandi, puisque l'œuvre
    sera réalisée avec les originaux. C'est la toile qui s'adapte :
