@@ -178,6 +178,12 @@ cd collage && python3 -m http.server 8000
    et se réchauffe ; une feutrine bleue, un lavis gris foncé ou un aplat pâle ne sont pas du papier) ;
    rien n'est corrigé sur une page sans papier blanc visible (≥ 30 % des cases). Un gris neutre resté
    à moins de 30 du papier n'est pas un trait (les traits de couleur pâle gardent leurs seuils).
+   Sur une **feuille de couleur** (papier vert, bleu, jaune… : couleur du papier franchement
+   saturée), l'ombre d'un pli est la même couleur en plus sombre : chaque pixel est ramené à la
+   clarté du papier avant d'être comparé à lui (`paperDist2`, entre 50 % et 120 % de sa clarté), si
+   bien que les plis d'une feuille gondolée par la peinture restent du papier, tandis qu'une autre
+   couleur (une carotte orange) ou un trait bien plus sombre (crayon noir) restent de l'encre ; la
+   découpe suit alors le sujet au lieu d'englober les ombres. Le papier blanc n'est pas concerné.
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **luminosité, contraste et
    saturation** (−50 à +50,
    réglés dans la fenêtre de retouche pour une découpe, dans la fiche pour une page de fond ;

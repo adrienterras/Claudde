@@ -241,6 +241,42 @@ test.describe('Analyse des pages (Extract)', () => {
     [120, 300, 480].forEach((bx) => expect(r.pieces.some((p) => p.x0 <= bx && p.x1 >= bx && p.y0 <= 450 && p.y1 >= 450)).toBe(true));
   });
 
+  test('une feuille de couleur froissée (carotte peinte sur papier vert) : les ombres des plis restent du papier, la découpe suit le sujet', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une feuille vert anis photographiée, gondolée par la peinture : des ombres de plis (le même
+      // vert, plus sombre), une carotte orange peinte, des feuilles au crayon noir, une étiquette blanche
+      const c = Extract.makeCanvas(1414, 1000), x = c.getContext('2d');
+      x.fillStyle = 'rgb(196, 226, 74)'; x.fillRect(0, 0, c.width, c.height);
+      // les plis : larges bandes en dégradé, jusqu'à 30 % plus sombres
+      [[150, 0, 420, 1000], [700, 0, 980, 1000], [0, 620, 1414, 760]].forEach(([x0, y0, x1, y1]) => {
+        const g = x0 === 0 && x1 === 1414 ? x.createLinearGradient(0, y0, 0, y1) : x.createLinearGradient(x0, 0, x1, 0);
+        g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.5, 'rgba(0,0,0,0.3)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        x.fillStyle = g; x.fillRect(x0, y0, x1 - x0, y1 - y0);
+      });
+      // la carotte : un fuseau orange en diagonale, des feuilles noires au bout
+      x.save(); x.translate(760, 480); x.rotate(-0.55);
+      x.fillStyle = 'rgb(236, 108, 38)'; x.beginPath(); x.ellipse(0, 0, 330, 70, 0, 0, Math.PI * 2); x.fill();
+      x.strokeStyle = '#222'; x.lineWidth = 9; x.lineCap = 'round';
+      for (let k = -2; k <= 2; k++) { x.beginPath(); x.moveTo(-330, 0); x.quadraticCurveTo(-420, k * 30, -470, k * 55); x.stroke(); }
+      x.restore();
+      // l'étiquette, loin de la carotte
+      x.fillStyle = '#fff'; x.fillRect(80, 120, 60, 170);
+      const a = Extract.analyze(c, 0, {});
+      const n = c.width * c.height;
+      const ps = (a.pieces || []).map((p) => ({ area: p.src.w * p.src.h / n, x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h, frac: p.frac }));
+      return { kind: a.kind, ps, main: ps.slice().sort((u, v) => v.frac - u.frac)[0] };
+    });
+    expect(r.kind).toBe('cutout');
+    // la pièce principale suit la carotte et ses feuilles, sans les ombres des plis ni l'étiquette
+    // (la carotte et ses feuilles tiennent dans 700 × 500 px environ, plus la marge de découpe)
+    expect(r.main.w).toBeLessThan(960);
+    expect(r.main.h).toBeLessThan(720);
+    expect(r.main.x).toBeGreaterThan(150);
+    expect(r.main.x + r.main.w).toBeLessThan(1200);
+    expect(r.main.area).toBeLessThan(0.5);
+    // (sans cette tolérance aux ombres, la feuille entière partait d'un bloc : 100 % de la page)
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

@@ -418,12 +418,13 @@
     const work = scaleTo(page, WORK_MAX);
     const w = work.width, h = work.height, n = w * h;
     const data = ctx2d(work).getImageData(0, 0, w, h).data;
-    const paper = estimatePaper(data, w, h);
-    let paperCount = 0;
+    const paper = estimatePaper(data, w, h), tint = paperTint(paper);
+    let paperCount = 0, rawCount = 0;
     const U2 = PAPER_DIST * PAPER_DIST;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const dr = data[i] - paper[0], dg = data[i + 1] - paper[1], db = data[i + 2] - paper[2];
-      if (dr * dr + dg * dg + db * db < U2) paperCount++;
+      const raw = dr * dr + dg * dg + db * db;
+      if (raw < U2) { paperCount++; rawCount++; } else if (tint && paperDist2(data[i], data[i + 1], data[i + 2], paper, tint) < U2) paperCount++;
     }
     let weakT = Math.max(10, weakThreshold(data, w, h, paper) * CUT.ink);
     // dessin pâle (crayon léger, feutre pastel) : presque rien ne dépasse le seuil franc alors que
@@ -431,8 +432,7 @@
     let strong = 0, faint = 0;
     const S2 = INK_DIST * INK_DIST, W2 = weakT * weakT;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
-      const dr = data[i] - paper[0], dg = data[i + 1] - paper[1], db = data[i + 2] - paper[2];
-      const q = dr * dr + dg * dg + db * db;
+      const q = paperDist2(data[i], data[i + 1], data[i + 2], paper, tint);
       if (q > S2) strong++; else if (q > W2) faint++;
     }
     let strongT = Math.max(20, (strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST) * CUT.ink);
@@ -543,7 +543,7 @@
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
       if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r2.lines = r.lines; r = r2; weakT = wT2; strongT = sT2; }
     }
-    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, paperFrac: paperCount / n, labels: r.labels, comps: r.comps };
+    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, paperFrac: paperCount / n, rawPaperFrac: rawCount / n, labels: r.labels, comps: r.comps };
   }
 
   /*
@@ -771,11 +771,28 @@
    * seulement un peu différent (couleur pâle, crayon léger, dégradé) l'est aussi s'il touche, de
    * proche en proche, un pixel franc. Le bruit du papier, isolé, ne passe pas.
    */
+  // Écart d'un pixel au papier. Papier coloré (feuille verte, bleue, jaune…) : l'ombre d'un pli, c'est la
+  // même couleur en plus sombre ; le pixel est ramené à la clarté du papier avant la comparaison, pour
+  // que l'ombre reste du papier (un trait noir, bien plus sombre, ou une autre couleur restent de l'encre).
+  function paperTint(paper) {
+    const mx = Math.max(paper[0], paper[1], paper[2]), mn = Math.min(paper[0], paper[1], paper[2]);
+    return mx > 0 && (mx - mn) / mx > 0.18 && lum(paper) > 80 ? lum(paper) : 0;
+  }
+  function paperDist2(R, G, B, paper, tint) {
+    const dr = R - paper[0], dg = G - paper[1], db = B - paper[2];
+    const q = dr * dr + dg * dg + db * db;
+    if (!tint) return q;
+    const k = (0.299 * R + 0.587 * G + 0.114 * B) / tint;
+    if (k <= 0.5 || k >= 1.2) return q;
+    const f = 1 / k, er = R * f - paper[0], eg = G * f - paper[1], eb = B * f - paper[2];
+    return Math.min(q, er * er + eg * eg + eb * eb);
+  }
   function weakThreshold(d, w, h, paper) {
     // écart typique du papier lui-même (grain, ombres légères), mesuré sur la bordure
     const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
     const dist = [];
-    forEachBorder(w, h, band, (p) => { const i = p * 4; dist.push(Math.hypot(d[i] - paper[0], d[i + 1] - paper[1], d[i + 2] - paper[2])); });
+    const tint = paperTint(paper);
+    forEachBorder(w, h, band, (p) => { const i = p * 4; dist.push(Math.sqrt(paperDist2(d[i], d[i + 1], d[i + 2], paper, tint))); });
     dist.sort((a, b) => a - b);
     const q90 = dist[Math.min(dist.length - 1, Math.floor(dist.length * 0.9))] || 0;
     // (un scan propre descend bas : un crayon pâle y est encore séparé du grain du papier)
@@ -787,12 +804,11 @@
     const ink = new Uint8Array(n);
     const stack = [];
     const S2 = strongT * strongT, W2 = weakT * weakT;
-    const pl = lum(paper);
+    const pl = lum(paper), tint = paperTint(paper);
     const gStrong = Math.round(strongT * 0.82), gWeak = Math.min(30, gStrong - 6);
     for (let p = 0, i = 0; p < n; p++, i += 4) {
-      const dr = d[i] - paper[0], dg = d[i + 1] - paper[1], db = d[i + 2] - paper[2];
-      const q = dr * dr + dg * dg + db * db;
       const R = d[i], G = d[i + 1], B = d[i + 2];
+      const q = paperDist2(R, G, B, paper, tint);
       const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
       if (mx - mn < 0.15 * mx) {
         // gris neutre : un reste d'ombre (pli, bord) reste à moins de ≈ 30 du papier ; un trait de
@@ -2360,24 +2376,28 @@
       }
     }
     const result = { page: src, paper: seg.paper, texture: null, pieces: null, kind: 'cutout', paperFrac: seg.paperFrac };
-    if (seg.paperFrac < TEXTURE_MAX_PAPER) {
+    // (page peinte sur feuille de couleur : la part peinte se mesure sans la tolérance aux ombres,
+    // ses coups de pinceau plus clairs ou plus sombres sont de la peinture, pas du papier)
+    const asTexture = () => {
       result.kind = 'texture';
       result.texture = textureFrom(src);
       result.seg = seg;
+      if (paperTint(seg.paper) && seg.rawPaperFrac !== undefined) result.paperFrac = seg.rawPaperFrac;
       return result;
-    }
+    };
+    if (seg.paperFrac < TEXTURE_MAX_PAPER) return asTexture();
     result.pieces = cutPieces(src, seg);
     result.cut = { paper: seg.paper, weakT: seg.weakT, strongT: seg.strongT };
     // page peinte (aquarelle, gouache, gribouillage qui couvre la feuille) : la découpe principale
     // engloberait presque toute la page, bords déchiquetés ; c'est un fond, pas une découpe. Une
     // feuille au fond majoritairement blanc reste une découpe : ses sujets sont faits pour être posés.
+    // Sur une feuille de couleur (ses ombres comptées comme papier), une pièce qui couvre plus de la
+    // moitié de la page est un lavis qui la remplit (un ciel peint), pas un sujet : un fond.
     const bigFrac = result.pieces.reduce((m, q) => Math.max(m, q.frac), 0);
-    if (!result.pieces.length || (bigFrac > 0.55 && seg.paperFrac < 0.5)) {
+    if (!result.pieces.length || (bigFrac > 0.55 && (seg.paperFrac < 0.5 || paperTint(seg.paper)))) {
       result.pieces.forEach((q) => release(q.canvas));
       result.pieces = null;
-      result.kind = 'texture';
-      result.texture = textureFrom(src);
-      result.seg = seg;
+      return asTexture();
     }
     return result;
   }
