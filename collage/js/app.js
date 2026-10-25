@@ -1495,9 +1495,14 @@
     const comp = state.comp;
     const onArt = (d) => !comp || comp.bg.some((L) => !L.paper && pageDrawing(L) === d);
     const notPosed = new Set(state.drawings.filter((d) => roleOf(d) === 'texture' && !onArt(d)));
+    // les découpes que la proposition affichée ne pose pas (curseur « Nombre de dessins » baissé, style
+    // qui ne retient qu'une sélection) sont listées sous « Non utilisé », avec leur « + » ; leur rôle
+    // ne change pas : le curseur remonté les repose
+    const placed = (d) => !comp || comp.items.some((L) => L.piece.drawing === d) || onArt(d);
+    const shownRole = (d) => { const r = roleOf(d); return r === 'cutout' && !placed(d) ? 'off' : r; };
     const grids = {};
     GROUPS.forEach(([role, name]) => {
-      const n = state.drawings.filter((d) => roleOf(d) === role).length;
+      const n = state.drawings.filter((d) => shownRole(d) === role).length;
       if (!n) return;
       const g = document.createElement('div');
       g.className = `drawings-group ${role}`;
@@ -1511,7 +1516,7 @@
       grids[role] = g.querySelector('.grid');
     });
     state.drawings.forEach((d, i) => {
-      const role = roleOf(d);
+      const role = shownRole(d);
       const el = document.createElement('div');
       el.className = `thumb ${role}${state.current === d ? ' current' : ''}${notPosed.has(d) ? ' unplaced' : ''}`;
       el.dataset.i = String(i);
@@ -2777,6 +2782,7 @@
     updateExportInfo();
     updateLabel();
     renderSizeGate();
+    refreshLists(); // (les découpes que la proposition ne pose pas passent sous « Non utilisé »)
   }
 
   // Les réponses de Claude arrivent après coup (plusieurs secondes, voire une minute) : si la composition
@@ -2873,8 +2879,8 @@
         const gallery = c.style === 'galerie';
         $('partial-add').hidden = !(gallery && Number($('density').value) < Number($('density').max));
         partial.querySelector('span').textContent = left.length === 1
-          ? tr`Ce style met en valeur une sélection : 1 dessin n’est pas retenu${gallery ? '' : tr(' (plus de place sur les étagères)')}. Il reste disponible dans Dessins.`
-          : tr`Ce style met en valeur une sélection : ${left.length} dessins ne sont pas retenus${gallery ? '' : tr(' (plus de place sur les étagères)')}. Ils restent disponibles dans Dessins.`;
+          ? tr`Ce style met en valeur une sélection : 1 dessin n’est pas retenu${gallery ? '' : tr(' (plus de place sur les étagères)')}. Il est dans Dessins, sous « Non utilisé ».`
+          : tr`Ce style met en valeur une sélection : ${left.length} dessins ne sont pas retenus${gallery ? '' : tr(' (plus de place sur les étagères)')}. Ils sont dans Dessins, sous « Non utilisé ».`;
       }
     }
     if (!state.comp) { el.hidden = true; return; }
