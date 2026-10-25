@@ -108,7 +108,10 @@ cd collage && python3 -m http.server 8000
 2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, Tailles — le choix de la toile ou du
    cadre se fait avant les propositions —, Propositions, Dessins, Exporter, et en tête, sans numéro, Mes œuvres ; mêmes onglets
    sur téléphone ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
-   *Premier plan* les découpes, *Non utilisé* les ignorés et ceux retirés de l'œuvre (`retireIfUnused` :
+   *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
+   pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là
+   avec leur « + », sans changer de rôle — le curseur remonté les repose ; `shownRole` dans
+   `refreshLists`) et ceux retirés de l'œuvre (`retireIfUnused` :
    plus aucune de leurs découpes ni de leurs pages dessus, ils n'y reviennent pas en recomposant ;
    Défaire les remet ; remis en Découpe ou en Fond depuis leur fiche, ils reviennent sur l'œuvre
    affichée sans la recomposer — `putBack` : sujets dans les places libres, page au centre —, de
@@ -301,7 +304,14 @@ cd collage && python3 -m http.server 8000
      impression d'autres proportions que l'œuvre reçoit l'œuvre mise à ses proportions, à surface
      égale (`printedComp` : `fitCompTo` sur une copie — dessins à leur taille, places en proportion,
      pages de fond couvrantes ; ni marge blanche ni bord rogné ; c'est cette copie qui va au panier,
-     l'œuvre affichée ne change pas) ; le fichier HD, le guide ou le kit :
+     l'œuvre affichée ne change pas). **Sur papier (affiche seule), avec ou sans marge** : « Marge
+     blanche » sous Papier / Encadré, « Sans marge » ou « Avec marge de 3 cm » (`MARGIN_CM`) ; avec,
+     l'affiche garde la taille choisie et l'œuvre y est réduite d'un même facteur pour laisser 3 cm de
+     blanc autour (`printAreaOf`, zone imprimée = impression moins la marge ; la copie est mise aux
+     proportions de cette zone), le texte le dit (« Affiche 30 × 40 cm, sans cadre, avec une marge
+     blanche de 3 cm : l'œuvre imprimée en 24 × 34 cm »), l'article porte `margin` (dans `meta.cart`
+     aussi) et le panier l'annonce. La finition (papier ou encadré) et la marge sont celles de la
+     mise en scène (`atelier.finition`, `atelier.marge`), et un choix fait ici y est repris ; le fichier HD, le guide ou le kit :
      l'œuvre à sa taille. Elle suit chaque changement d'option ; l'image prend toute la hauteur de
      la fenêtre (carrée sur téléphone), cadrée plus près du mur que « Mettre en scène » (`spec.fill`). La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
@@ -459,7 +469,11 @@ cd collage && python3 -m http.server 8000
      par cm sur le mur ; l'œuvre est accrochée au-dessus de l'étagère, sous la suspension, avec la carte
      de lumière `assets/chambre-lumiere.webp`). Dans le salon, l'œuvre active est accrochée dans un
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
-     collage avec les originaux, tableau encadré pour une impression (baguette fine et plate, comme un
+     collage avec les originaux, tableau encadré pour une impression (ou, par le choix « Finition »
+     en tête des réglages, l'affiche seule : la feuille à la taille d'impression du format, sans cadre
+     ni passe-partout, « Sans marge » ou « Avec marge de 3 cm » — l'œuvre réduite d'un même facteur
+     dans la feuille, 3 cm de blanc autour, le texte donnant la taille imprimée ; même choix qu'à la
+     commande, mémorisé) (baguette fine et plate, comme un
      cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; pas de reflet). Le passe-partout est un carton
      blanc chaud en relief : son ouverture est coupée en biseau à 45°, à l'âme blanche visible tout
      autour (3 mm), éclairée en bas et à droite, dans l'ombre en haut et à gauche (la lumière vient de

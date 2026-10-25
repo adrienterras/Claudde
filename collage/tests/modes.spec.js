@@ -292,7 +292,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add .cart-frame-field')).toBeHidden();
     await expect(page.locator('#cart-add [data-size="21x30"]')).toBeVisible(); // (sur papier, le 21 × 30 revient)
     await page.locator('#cart-add [data-size="21x30"]').click();
-    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Poster 21 × 29,7 cm, sans cadre');
+    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Affiche 21 × 29,7 cm, sans cadre');
     // encadré : la couleur du cadre et le passe-partout (celui de l'œuvre par défaut), les deux tailles en clair
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await expect(page.locator('#cart-add .cart-frame-field')).toBeVisible();

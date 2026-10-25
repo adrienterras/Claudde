@@ -1837,7 +1837,7 @@ test.describe('Mettre en scène', () => {
         // un cadre assorti aux couleurs de l'œuvre, à la taille du cadre choisi
         await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm, assorti`));
         // la pièce en premier ; la taille d'impression sous le choix de la taille ; un titre au-dessus du passe-partout
-        expect(await page.evaluate(() => [...document.querySelectorAll('.scene-controls > *')].map((el) => el.id || el.className).slice(0, 5))).toEqual(['scene-room', 'field scene-size', 'scene-size-info', 'scene-mat-field', 'field scene-size']);
+        expect(await page.evaluate(() => [...document.querySelectorAll('.scene-controls > *')].map((el) => el.id || el.className).slice(0, 7))).toEqual(['scene-room', 'scene-finish-field', 'field scene-size', 'scene-size-info', 'scene-margin-field', 'scene-mat-field', 'field scene-size']);
         await expect(page.locator('#scene-size-info')).toHaveText(`Impression de ${fmt(W)} × ${fmt(H)} cm, à la taille du cadre.`);
         expect((await page.locator('#scene-mat-field').textContent()).trim().startsWith('Passe-partout')).toBe(true);
         // le cadre se choisit aussi à la main (mémorisé) ; « Auto » revient au cadre assorti

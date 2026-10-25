@@ -878,6 +878,8 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
 .scene-frame { position: relative; border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
 .scene-canvas { width: 100%; height: 100%; display: block; }
 .scene-mat { margin-bottom: 6px; }
+.scene-finish, .scene-margin { margin: 0; }
+.scene-finish button, .scene-margin button { padding: 7px 4px; font-size: 0.8rem; }
 /* nuancier des cadres : le bois en dégradé veiné, le métal brossé ; « Auto » en toutes lettres */
 .swatches.frames button { width: 28px; height: 28px; }
 .swatches.frames button.auto { width: auto; padding: 0 10px; border-radius: 999px; }

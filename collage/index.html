@@ -194,8 +194,22 @@
               <button type="button" data-room="chambre" class="on ink">Chambre d’enfant</button>
               <button type="button" data-room="hall">Entrée</button>
             </div>
+            <!-- impression : poster seul (papier) ou tableau encadré ; le même choix qu'à la commande -->
+            <div class="field scene-finish-field" id="scene-finish-field" hidden>Finition
+              <div class="seg scene-finish" id="scene-finish" role="group" aria-label="Finition">
+                <button type="button" data-finish="papier">Papier</button>
+                <button type="button" data-finish="cadre" class="on ink">Encadré</button>
+              </div>
+            </div>
             <label class="field scene-size"><span>Taille de l’œuvre</span><select id="scene-format"></select></label>
             <p id="scene-size-info" class="hint mono-note scene-size"></p>
+            <!-- papier : avec ou sans marge blanche de 3 cm autour de l'œuvre -->
+            <div class="field scene-margin-field" id="scene-margin-field" hidden>Marge blanche
+              <div class="seg scene-margin" id="scene-margin" role="group" aria-label="Marge blanche">
+                <button type="button" data-margin="0" class="on ink">Sans marge</button>
+                <button type="button" data-margin="1">Avec marge de 3 cm</button>
+              </div>
+            </div>
             <div class="field scene-mat-field" id="scene-mat-field" hidden>Passe-partout
               <div class="seg scene-mat" id="scene-mat" role="group" aria-label="Passe-partout">
                 <button type="button" data-mat="0" class="on ink">Sans passe-partout</button>
@@ -444,7 +458,7 @@
         <p id="empty-resume" class="empty-loading" hidden>Réouverture de votre œuvre…</p>
         <div id="mode-pick" class="mode-pick">
           <p class="mode-pick-title">Que voulez-vous créer ?</p>
-          <button type="button" data-mode="impression"><b>Création imprimée à partir de vos dessins</b><small>Poster ou encadré, aux tailles de cadres standard. Dès 14,90 € en fichier HD.</small></button>
+          <button type="button" data-mode="impression"><b>Création imprimée à partir de vos dessins</b><small>Affiche ou tableau encadré, aux tailles de cadres standard. Dès 14,90 € en fichier HD.</small></button>
           <button type="button" data-mode="toile"><b>Collage avec les dessins originaux</b><small>Les dessins originaux, découpés et collés par vous : guide pas à pas ou kit DIY.</small></button>
         </div>
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Voir un exemple</span></button>
@@ -496,7 +510,7 @@
       <button type="button" id="cart-add-view" class="link cart-add-view" hidden>Voir mon panier</button>
       <div class="cart-what"><img alt=""><p><b class="cart-what-name"></b><small class="cart-what-size"></small></p></div>
       <div class="cart-products" role="radiogroup" aria-label="Produit">
-        <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="print" checked><span><b>Tableau imprimé livré</b><small>Poster premium ou encadré · fichier HD offert</small></span><em data-price="print"></em></label>
+        <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="print" checked><span><b>Tableau imprimé livré</b><small>Affiche premium ou tableau encadré · fichier HD offert</small></span><em data-price="print"></em></label>
         <div class="cart-print" data-mode="impression">
           <div class="seg cart-finish" role="group" aria-label="Finition">
             <button type="button" data-finish="papier">Papier</button><button type="button" data-finish="cadre">Encadré</button>
@@ -506,6 +520,13 @@
             <p class="cart-label">Passe-partout</p>
             <div class="seg cart-mat" role="group" aria-label="Passe-partout">
               <button type="button" data-mat="0">Sans passe-partout</button><button type="button" data-mat="1">Avec passe-partout</button>
+            </div>
+          </div>
+          <!-- papier : avec ou sans marge blanche de 3 cm autour de l'œuvre -->
+          <div class="cart-frame cart-margin-field" hidden>
+            <p class="cart-label">Marge blanche</p>
+            <div class="seg cart-mat cart-margin" role="group" aria-label="Marge blanche">
+              <button type="button" data-margin="0">Sans marge</button><button type="button" data-margin="1">Avec marge de 3 cm</button>
             </div>
           </div>
           <div class="chips cart-sizes" role="group" aria-label="Taille">

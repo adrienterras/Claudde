@@ -162,7 +162,7 @@
     "À accrocher · dès 59 €": "To hang · from €59",
     "Tableau encadré 50 × 70": "Framed print 50 × 70",
     "129 €": "€129",
-    "Poster premium encadré, prêt à accrocher": "Premium poster, framed, ready to hang",
+    "Affiche premium encadrée, prête à accrocher": "Premium poster, framed, ready to hang",
     "Livraison standard incluse en France métropolitaine": "Standard delivery included in mainland France",
     "Le fichier HD offert avec chaque commande": "The HD file included with every order",
     "Aussi en 21 × 30, 30 × 40, 40 × 50 et 70 × 100, sur papier seul ou encadré : grille ci-dessous.": "Also in 21 × 30, 30 × 40, 40 × 50 and 70 × 100, on paper alone or framed: see the table below.",
