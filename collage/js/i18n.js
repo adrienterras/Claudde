@@ -183,7 +183,7 @@
     'Poster premium ou encadré · fichier HD offert': 'Premium poster or framed · HD file included',
     'Papier': 'Paper',
     'Encadré': 'Framed',
-    '300 dpi, JPEG, PNG ou PDF à l’échelle, à imprimer où vous voulez': '300 dpi, JPEG, PNG or to-scale PDF, to print wherever you like',
+    '300 dpi, JPEG, PNG et PDF à l’échelle, à imprimer où vous voulez': '300 dpi, JPEG, PNG and to-scale PDF, to print wherever you like',
     'Le guide de découpe et de collage à l’échelle, en PDF, pour réaliser l’œuvre avec les originaux': 'The to-scale cutting and gluing guide, as a PDF, to make the artwork with the originals',
     'Quantité': 'Quantity',
     'Votre panier': 'Your cart',
