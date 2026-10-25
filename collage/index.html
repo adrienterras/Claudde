@@ -203,11 +203,11 @@
             </div>
             <label class="field scene-size"><span>Taille de l’œuvre</span><select id="scene-format"></select></label>
             <p id="scene-size-info" class="hint mono-note scene-size"></p>
-            <!-- papier : avec ou sans marge blanche de 3 cm autour de l'œuvre -->
-            <div class="field scene-margin-field" id="scene-margin-field" hidden>Marge blanche
-              <div class="seg scene-margin" id="scene-margin" role="group" aria-label="Marge blanche">
-                <button type="button" data-margin="0" class="on ink">Sans marge</button>
-                <button type="button" data-margin="1">Avec marge de 3 cm</button>
+            <!-- papier, ou encadré sans passe-partout : avec ou sans bordure blanche de 3 cm autour de l'œuvre -->
+            <div class="field scene-margin-field" id="scene-margin-field" hidden>Bordure blanche
+              <div class="seg scene-margin" id="scene-margin" role="group" aria-label="Bordure blanche">
+                <button type="button" data-margin="0" class="on ink">Sans bordure</button>
+                <button type="button" data-margin="1">Avec bordure blanche</button>
               </div>
             </div>
             <div class="field scene-mat-field" id="scene-mat-field" hidden>Passe-partout
@@ -522,11 +522,11 @@
               <button type="button" data-mat="0">Sans passe-partout</button><button type="button" data-mat="1">Avec passe-partout</button>
             </div>
           </div>
-          <!-- papier : avec ou sans marge blanche de 3 cm autour de l'œuvre -->
+          <!-- papier, ou encadré sans passe-partout : avec ou sans bordure blanche de 3 cm autour de l'œuvre -->
           <div class="cart-frame cart-margin-field" hidden>
-            <p class="cart-label">Marge blanche</p>
-            <div class="seg cart-mat cart-margin" role="group" aria-label="Marge blanche">
-              <button type="button" data-margin="0">Sans marge</button><button type="button" data-margin="1">Avec marge de 3 cm</button>
+            <p class="cart-label">Bordure blanche</p>
+            <div class="seg cart-mat cart-margin" role="group" aria-label="Bordure blanche">
+              <button type="button" data-margin="0">Sans bordure</button><button type="button" data-margin="1">Avec bordure blanche</button>
             </div>
           </div>
           <div class="chips cart-sizes" role="group" aria-label="Taille">

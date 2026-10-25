@@ -1,5 +1,5 @@
-// Tableau imprimé sur papier (poster seul) : avec ou sans marge blanche de 3 cm autour de l'œuvre,
-// dans la mise en scène comme à la commande ; le même choix des deux côtés, mémorisé.
+// Tableau imprimé : avec ou sans bordure blanche de 3 cm autour de l'œuvre (affiche seule, ou encadré
+// sans passe-partout), dans la mise en scène comme à la commande ; le même choix des deux côtés, mémorisé.
 const { test, expect, fixture } = require('./helpers');
 
 async function start(page) {
@@ -21,19 +21,29 @@ async function sig(page, id) {
   }, id);
 }
 
-test.describe('Poster : marge blanche', () => {
-  test('mise en scène : Papier montre le poster seul, avec ou sans marge de 3 cm ; la commande reprend le choix', async ({ page }) => {
+test.describe('Bordure blanche', () => {
+  test('mise en scène : Papier montre l’affiche seule, avec ou sans bordure de 3 cm ; encadré sans passe-partout aussi ; la commande reprend le choix', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await start(page);
     const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
     const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
     await page.locator('#scene-open').click();
     await expect(page.locator('#scene-modal')).toBeVisible();
-    // encadré par défaut : la finition se choisit en premier, après la pièce ; la marge n'apparaît qu'en papier
+    // encadré par défaut : la finition se choisit en premier, après la pièce ; sans passe-partout (le
+    // choix mémorisé des tests), la bordure se propose aussi pour l'encadré
     await expect(page.locator('#scene-finish [data-finish="cadre"]')).toHaveClass(/on/);
-    await expect(page.locator('#scene-margin-field')).toBeHidden();
+    await expect(page.locator('#scene-margin-field')).toBeVisible();
+    await expect(page.locator('#scene-margin [data-margin="0"]')).toHaveClass(/on/);
     await expect(page.locator('#scene-frame-pick')).toBeVisible();
     const framedSig = await sig(page, 'scene-canvas');
+    const a = Math.min((W - 6) / W, (H - 6) / H);
+    await page.locator('#scene-margin [data-margin="1"]').click();
+    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm, assorti aux couleurs de l’œuvre, avec une bordure blanche de 3 cm \\(l’œuvre imprimée en ${fmt(W * a)} × ${fmt(H * a)} cm\\), au-dessus`));
+    const borderSig = await sig(page, 'scene-canvas');
+    expect(borderSig).not.toBe(framedSig);
+    await page.locator('#scene-margin [data-margin="0"]').click();
+    await expect(page.locator('#scene-info')).not.toContainText('bordure');
+    expect(await sig(page, 'scene-canvas')).not.toBe(borderSig);
     // papier : plus de cadre ni de passe-partout ; le poster a la taille d'impression du format
     await page.locator('#scene-finish [data-finish="papier"]').click();
     await expect(page.locator('#scene-frame-pick')).toBeHidden();
@@ -44,32 +54,37 @@ test.describe('Poster : marge blanche', () => {
     await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm, sans cadre, au-dessus`));
     const paperSig = await sig(page, 'scene-canvas');
     expect(paperSig).not.toBe(framedSig);
-    // avec marge : l'œuvre réduite d'un même facteur dans le poster, 3 cm de blanc autour
+    // avec bordure : l'œuvre réduite d'un même facteur dans l'affiche, 3 cm de blanc autour
     await page.locator('#scene-margin [data-margin="1"]').click();
-    const a = Math.min((W - 6) / W, (H - 6) / H);
-    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm avec une marge blanche de 3 cm : l’œuvre imprimée en ${fmt(W * a)} × ${fmt(H * a)} cm, au-dessus`));
+    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm avec une bordure blanche de 3 cm : l’œuvre imprimée en ${fmt(W * a)} × ${fmt(H * a)} cm, au-dessus`));
     expect(await sig(page, 'scene-canvas')).not.toBe(paperSig);
     expect(await page.evaluate(() => [localStorage.getItem('atelier.finition'), localStorage.getItem('atelier.marge')])).toEqual(['papier', '1']);
-    // la commande reprend papier + marge, et le texte le dit
+    // la commande reprend papier + bordure, et le texte le dit
     await page.locator('#scene-order').click();
     await expect(page.locator('#cart-add')).toBeVisible();
     await expect(page.locator('#cart-add [data-finish="papier"]')).toHaveClass(/on/);
     await expect(page.locator('#cart-add .cart-margin-field')).toBeVisible();
     await expect(page.locator('#cart-add [data-margin="1"]')).toHaveClass(/on/);
-    await expect(page.locator('#cart-add .cart-dims')).toContainText('avec une marge blanche de 3 cm');
+    await expect(page.locator('#cart-add .cart-dims')).toContainText('avec une bordure blanche de 3 cm');
     await expect(page.locator('#cart-add .cart-dims')).toContainText('l’œuvre imprimée en');
-    // encadré : la marge disparaît, le passe-partout revient
+    // encadré sans passe-partout : la bordure reste proposée ; avec passe-partout, elle disparaît
     await page.locator('#cart-add [data-finish="cadre"]').click();
-    await expect(page.locator('#cart-add .cart-margin-field')).toBeHidden();
     await expect(page.locator('#cart-add .cart-mat-field')).toBeVisible();
+    await expect(page.locator('#cart-add [data-mat="0"]')).toHaveClass(/on/);
+    await expect(page.locator('#cart-add .cart-margin-field')).toBeVisible();
+    await expect(page.locator('#cart-add .cart-dims')).toContainText('à la taille du cadre, avec une bordure blanche de 3 cm');
+    await page.locator('#cart-add [data-mat="1"]').click();
+    await expect(page.locator('#cart-add .cart-margin-field')).toBeHidden();
+    await expect(page.locator('#cart-add .cart-dims')).not.toContainText('bordure');
+    await page.locator('#cart-add [data-mat="0"]').click();
     await page.locator('#cart-add [data-finish="papier"]').click();
-    // « sans marge » : le texte redevient « sans cadre », et la mise en scène change
+    // « sans bordure » : le texte redevient « sans cadre », et la mise en scène change
     const withSig = await sig(page, 'cart-scene');
     await page.locator('#cart-add [data-margin="0"]').click();
-    await expect(page.locator('#cart-add .cart-dims')).not.toContainText('marge');
+    await expect(page.locator('#cart-add .cart-dims')).not.toContainText('bordure');
     expect(await sig(page, 'cart-scene')).not.toBe(withSig);
     await page.locator('#cart-add [data-margin="1"]').click();
-    // l'article garde la marge ; le panier la dit
+    // l'article garde la bordure ; le panier la dit
     await page.locator('#cart-add-ok').click();
     await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
     const it = await page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /panier/.test(x)); return JSON.parse(localStorage.getItem(k)).slice(-1)[0]; });
@@ -77,10 +92,10 @@ test.describe('Poster : marge blanche', () => {
     expect(it.margin).toBe(true);
     expect(it.frame).toBeUndefined();
     await page.evaluate(() => document.getElementById('cart-add-view').click());
-    await expect(page.locator('#cart')).toContainText('avec une marge blanche de 3 cm');
+    await expect(page.locator('#cart')).toContainText('avec une bordure blanche de 3 cm');
   });
 
-  test('un article encadré n’a pas de marge ; le choix « sans » est mémorisé', async ({ page }) => {
+  test('encadré avec passe-partout : pas de bordure ; sans passe-partout, l’article la porte ; le choix « sans » est mémorisé', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await start(page);
     await page.evaluate(() => { localStorage.setItem('atelier.finition', 'papier'); localStorage.setItem('atelier.marge', '1'); });
@@ -89,12 +104,31 @@ test.describe('Poster : marge blanche', () => {
     await expect(page.locator('#cart-add [data-margin="1"]')).toHaveClass(/on/);
     await page.locator('#cart-add [data-margin="0"]').click();
     expect(await page.evaluate(() => localStorage.getItem('atelier.marge'))).toBe('0');
+    // encadré avec passe-partout : l'article n'a pas de bordure
     await page.locator('#cart-add [data-finish="cadre"]').click();
+    await page.locator('#cart-add [data-mat="1"]').click();
     await page.locator('#cart-add-ok').click();
     await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
-    const it = await page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /panier/.test(x)); return JSON.parse(localStorage.getItem(k)).slice(-1)[0]; });
+    const last = () => page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /panier/.test(x)); return JSON.parse(localStorage.getItem(k)).slice(-1)[0]; });
+    const it = await last();
     expect(it.finish).toBe('cadre');
+    expect(it.mat).toBe(true);
     expect(it.margin).toBeUndefined();
+    // encadré sans passe-partout, avec bordure : l'article la porte, le panier la dit
+    await page.evaluate(() => document.querySelectorAll('.account-modal:not([hidden]) [data-close]').forEach((b) => b.click()));
+    await page.evaluate(() => document.getElementById('add-cart').click());
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await page.locator('#cart-add [data-finish="cadre"]').click();
+    await page.locator('#cart-add [data-mat="0"]').click();
+    await page.locator('#cart-add [data-margin="1"]').click();
+    await page.locator('#cart-add-ok').click();
+    await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
+    const it2 = await last();
+    expect(it2.finish).toBe('cadre');
+    expect(it2.mat).toBe(false);
+    expect(it2.margin).toBe(true);
+    await page.evaluate(() => document.getElementById('cart-add-view').click());
+    await expect(page.locator('#cart')).toContainText('sans passe-partout, avec une bordure blanche de 3 cm');
     // la mise en scène rouverte : encadré, comme choisi à la commande
     await page.evaluate(() => document.querySelectorAll('.account-modal:not([hidden]) [data-close]').forEach((b) => b.click()));
     await page.evaluate(() => document.getElementById('scene-open').click());

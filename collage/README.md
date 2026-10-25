@@ -304,14 +304,17 @@ cd collage && python3 -m http.server 8000
      impression d'autres proportions que l'œuvre reçoit l'œuvre mise à ses proportions, à surface
      égale (`printedComp` : `fitCompTo` sur une copie — dessins à leur taille, places en proportion,
      pages de fond couvrantes ; ni marge blanche ni bord rogné ; c'est cette copie qui va au panier,
-     l'œuvre affichée ne change pas). **Sur papier (affiche seule), avec ou sans marge** : « Marge
-     blanche » sous Papier / Encadré, « Sans marge » ou « Avec marge de 3 cm » (`MARGIN_CM`) ; avec,
-     l'affiche garde la taille choisie et l'œuvre y est réduite d'un même facteur pour laisser 3 cm de
-     blanc autour (`printAreaOf`, zone imprimée = impression moins la marge ; la copie est mise aux
-     proportions de cette zone), le texte le dit (« Affiche 30 × 40 cm, sans cadre, avec une marge
-     blanche de 3 cm : l'œuvre imprimée en 24 × 34 cm »), l'article porte `margin` (dans `meta.cart`
-     aussi) et le panier l'annonce. La finition (papier ou encadré) et la marge sont celles de la
-     mise en scène (`atelier.finition`, `atelier.marge`), et un choix fait ici y est repris ; le fichier HD, le guide ou le kit :
+     l'œuvre affichée ne change pas). **Bordure blanche** (sur papier, ou encadré sans passe-partout) :
+     « Bordure blanche » sous Papier / Encadré (et sous le passe-partout), « Sans bordure » ou « Avec
+     bordure blanche » (3 cm, `MARGIN_CM`) ; avec, l'impression garde la taille choisie et l'œuvre y
+     est réduite d'un même facteur pour laisser 3 cm de blanc autour (`printAreaOf`, zone imprimée =
+     impression moins la bordure ; la copie est mise aux proportions de cette zone), le texte le dit
+     (« Affiche 30 × 40 cm, sans cadre, avec une bordure blanche de 3 cm : l'œuvre imprimée en
+     24 × 34 cm » ; « Cadre 30 × 40 cm · impression 30 × 40 cm, à la taille du cadre, avec une bordure
+     blanche de 3 cm : … »), l'article porte `margin` (dans `meta.cart` aussi) et le panier l'annonce ;
+     avec passe-partout, pas de bordure (le passe-partout en tient lieu). La finition (papier ou
+     encadré) et la bordure sont celles de la mise en scène (`atelier.finition`, `atelier.marge`), et
+     un choix fait ici y est repris ; le fichier HD, le guide ou le kit :
      l'œuvre à sa taille. Elle suit chaque changement d'option ; l'image prend toute la hauteur de
      la fenêtre (carrée sur téléphone), cadrée plus près du mur que « Mettre en scène » (`spec.fill`). La composition y est figée telle
      quelle (mise en place, retouches, réglages) dans IndexedDB, ses images partagées avec le
@@ -471,9 +474,10 @@ cd collage && python3 -m http.server 8000
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
      collage avec les originaux, tableau encadré pour une impression (ou, par le choix « Finition »
      en tête des réglages, l'affiche seule : la feuille à la taille d'impression du format, sans cadre
-     ni passe-partout, « Sans marge » ou « Avec marge de 3 cm » — l'œuvre réduite d'un même facteur
-     dans la feuille, 3 cm de blanc autour, le texte donnant la taille imprimée ; même choix qu'à la
-     commande, mémorisé) (baguette fine et plate, comme un
+     ni passe-partout) et, sans passe-partout (affiche ou encadré), « Bordure blanche » : « Sans
+     bordure » ou « Avec bordure blanche » — l'œuvre réduite d'un même facteur dans l'impression, 3 cm
+     de blanc autour, le texte donnant la taille imprimée ; même choix qu'à la commande, mémorisé)
+     (baguette fine et plate, comme un
      cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; pas de reflet). Le passe-partout est un carton
      blanc chaud en relief : son ouverture est coupée en biseau à 45°, à l'âme blanche visible tout
      autour (3 mm), éclairée en bas et à droite, dans l'ombre en haut et à gauche (la lumière vient de

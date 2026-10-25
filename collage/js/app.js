@@ -2151,8 +2151,8 @@
       b.setAttribute('aria-pressed', sel ? 'true' : 'false');
     });
   }
-  // Impression : affiche seule (papier) ou tableau encadré, et pour l'affiche une marge blanche de
-  // 3 cm autour de l'œuvre ; le même choix dans la mise en scène et à la commande, mémorisé
+  // Impression : affiche seule (papier) ou tableau encadré, et, sans passe-partout, une bordure blanche
+  // de 3 cm autour de l'œuvre ; le même choix dans la mise en scène et à la commande, mémorisé
   const MARGIN_CM = 3;
   const sceneFinish = () => { try { return localStorage.getItem('atelier.finition') === 'papier' ? 'papier' : 'cadre'; } catch (e) { return 'cadre'; } };
   const printMargin = () => { try { return localStorage.getItem('atelier.marge') === '1'; } catch (e) { return false; } };
@@ -4953,14 +4953,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       b.classList.toggle('ink', on);
     });
     if (!roomReady(room)) return false;
-    // impression : tableau encadré, ou affiche seule (papier, avec ou sans marge blanche)
+    // impression : tableau encadré, ou affiche seule (papier) ; sans passe-partout, avec ou sans
+    // bordure blanche
     const print = printMode(), paper = print && sceneFinish() === 'papier', framed = print && !paper;
-    const margin = paper && printMargin() ? MARGIN_CM : 0;
     const fc = print ? formatCm() : null;
     const [Pw, Ph] = paper ? posterCm(fc) : [comp.W, comp.H];
     if (!out) {
       $('scene-finish-field').hidden = !print;
-      $('scene-margin-field').hidden = !paper;
       $('scene-mat-field').hidden = !framed;
       $('scene-size-info').textContent = framed ? printSizeText(fc) : paper ? tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm, sans cadre.` : '';
       syncSceneFormat(); syncMatButtons(); syncFinishButtons();
@@ -4970,10 +4969,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // le passe-partout se voit dès que l'ouverture dépasse l'œuvre
     const [Fw, Fh] = paper ? [Pw, Ph] : !framed ? [comp.W, comp.H] : fc.frameW >= comp.W - 0.01 && fc.frameH >= comp.H - 0.01 ? [fc.frameW, fc.frameH] : frameAround(comp.W, comp.H);
     const mat = framed && (Fw > comp.W + 0.3 || Fh > comp.H + 0.3);
+    const margin = (paper || (framed && !mat)) && printMargin() ? MARGIN_CM : 0;
     const choice = sceneFrameChoice();
     const auto = framed ? pickFrameKind(artTone(comp), mat) : null;
     const kind = framed ? (choice === 'auto' ? auto : choice) : null;
     if (!out) {
+      $('scene-margin-field').hidden = !(paper || (framed && !mat));
       $('scene-frame-pick').hidden = !framed;
       $('scene-frame-pick').querySelectorAll('button').forEach((b) => {
         b.classList.toggle('on', b.dataset.frame === choice);
@@ -4987,13 +4988,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const [aw, ah] = printedIn(comp, Pw, Ph, margin);
     $('scene-info').textContent = paper
       ? (margin
-        ? tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm avec une marge blanche de ${fmt(margin)} cm : l’œuvre imprimée en ${fmt(aw)} × ${fmt(ah)} cm, au-dessus ${S.over}.`
+        ? tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm avec une bordure blanche de ${fmt(margin)} cm : l’œuvre imprimée en ${fmt(aw)} × ${fmt(ah)} cm, au-dessus ${S.over}.`
         : tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm, sans cadre, au-dessus ${S.over}.`)
       : !framed
         ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus ${S.over}.`
         : mat
           ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
-          : tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
+          : margin
+            ? tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, avec une bordure blanche de ${fmt(margin)} cm (l’œuvre imprimée en ${fmt(aw)} × ${fmt(ah)} cm), au-dessus ${S.over}.`
+            : tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
     return true;
   }
   // La pièce et l'œuvre accrochée, sur le canevas cv (out : le téléchargement). spec : { comp, framed,
@@ -5069,7 +5072,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.strokeRect(ix - 0.5, iy - 0.5, aw + 1, ah + 1);
     }
     // l'impression : l'œuvre entière, centrée, avec une marge blanche si ses proportions diffèrent ;
-    // affiche avec marge : l'œuvre réduite d'un même facteur pour laisser spec.margin cm de blanc autour
+    // bordure blanche : l'œuvre réduite d'un même facteur pour laisser spec.margin cm de blanc autour
     const m = spec.margin || 0;
     const a = Math.min((Pw - 2 * m) / comp.W, (Ph - 2 * m) / comp.H), ac = a * pc;
     if (Pw - comp.W * a > 0.05 || Ph - comp.H * a > 0.05) { x.fillStyle = '#fff'; x.fillRect(ix, iy, Pw * pc, Ph * pc); }
@@ -7131,11 +7134,12 @@ Réponds uniquement avec ce JSON :
     const [a, b] = it.finish === 'cadre' && it.mat ? f.mat : f.print;
     return it.W >= it.H ? `${fmt(Math.max(a, b))} × ${fmt(Math.min(a, b))} cm` : `${fmt(Math.min(a, b))} × ${fmt(Math.max(a, b))} cm`;
   }
-  // la zone où l'œuvre s'imprime : toute l'impression, moins la marge blanche d'une affiche avec marge
+  // la zone où l'œuvre s'imprime : toute l'impression, moins la bordure blanche (affiche, ou encadré
+  // sans passe-partout, avec bordure)
   function printAreaOf(it) {
     const f = PRINT_FRAMES.find((x) => x.key === it.size) || PRINT_FRAMES[1];
     const [a, b] = it.finish === 'cadre' && it.mat ? f.mat : f.print;
-    const m = it.finish !== 'cadre' && it.margin ? MARGIN_CM : 0;
+    const m = it.margin && !(it.finish === 'cadre' && it.mat) ? MARGIN_CM : 0;
     const pw = it.W >= it.H ? Math.max(a, b) : Math.min(a, b), ph = it.W >= it.H ? Math.min(a, b) : Math.max(a, b);
     return [pw - 2 * m, ph - 2 * m];
   }
@@ -7149,9 +7153,11 @@ Réponds uniquement avec ce JSON :
     if (it.product === 'print' && it.finish === 'cadre') {
       return it.mat
         ? tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, avec passe-partout, impression ${printSizeOf(it)}`
-        : tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, sans passe-partout, impression ${printSizeOf(it)}`;
+        : it.margin
+          ? tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, sans passe-partout, avec une bordure blanche de ${fmt(MARGIN_CM)} cm, impression ${printSizeOf(it)}`
+          : tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, sans passe-partout, impression ${printSizeOf(it)}`;
     }
-    if (it.product === 'print') return it.margin ? tr`Affiche ${sizeLabel(it.size, it.W, it.H)}, avec une marge blanche de ${fmt(MARGIN_CM)} cm` : tr`Affiche ${sizeLabel(it.size, it.W, it.H)}`;
+    if (it.product === 'print') return it.margin ? tr`Affiche ${sizeLabel(it.size, it.W, it.H)}, avec une bordure blanche de ${fmt(MARGIN_CM)} cm` : tr`Affiche ${sizeLabel(it.size, it.W, it.H)}`;
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
     if (it.product === 'kit') {
@@ -7298,8 +7304,10 @@ Réponds uniquement avec ce JSON :
       b.classList.toggle('on', b.dataset.size === choice.size);
       b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
     });
+    // la bordure blanche : sur papier, ou encadré sans passe-partout
     const paper = choice.product === 'print' && choice.finish === 'papier';
-    box.querySelectorAll('.cart-frame').forEach((el) => { el.hidden = el.classList.contains('cart-margin-field') ? !paper : !framed; });
+    const border = paper || (framed && !choice.mat);
+    box.querySelectorAll('.cart-frame').forEach((el) => { el.hidden = el.classList.contains('cart-margin-field') ? !border : !framed; });
     box.querySelectorAll('[data-margin]').forEach((b) => b.classList.toggle('on', (b.dataset.margin === '1') === !!choice.margin));
     box.querySelectorAll('[data-frame-kind]').forEach((b) => {
       const on = b.dataset.frameKind === choice.frame;
@@ -7314,9 +7322,11 @@ Réponds uniquement avec ce JSON :
     dims.innerHTML = framed
       ? (choice.mat
         ? tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, entourée d’un passe-partout blanc`
-        : tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, à la taille du cadre`)
+        : choice.margin
+          ? tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, à la taille du cadre, avec une bordure blanche de ${fmt(MARGIN_CM)} cm : l’œuvre imprimée en <b>${printedSizeOf(cur)}</b>`
+          : tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, à la taille du cadre`)
       : choice.margin
-        ? tr`Affiche <b>${printSizeOf(cur)}</b>, sans cadre, avec une marge blanche de ${fmt(MARGIN_CM)} cm : l’œuvre imprimée en <b>${printedSizeOf(cur)}</b>`
+        ? tr`Affiche <b>${printSizeOf(cur)}</b>, sans cadre, avec une bordure blanche de ${fmt(MARGIN_CM)} cm : l’œuvre imprimée en <b>${printedSizeOf(cur)}</b>`
         : tr`Affiche <b>${printSizeOf(cur)}</b>, sans cadre`;
     choice.qty = clamp(choice.qty, 1, maxQty(choice));
     box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
@@ -7328,9 +7338,9 @@ Réponds uniquement avec ce JSON :
       const [pw, ph] = printAreaOf(Object.assign({ W: comp.W, H: comp.H }, choice));
       const sameShape = Math.abs(pw / ph - comp.W / comp.H) < 0.02;
       fit.hidden = sameShape;
-      fit.textContent = choice.margin && !framed
-        ? tr`L’œuvre est mise aux proportions de la zone imprimée (${fmt(pw)} × ${fmt(ph)} cm, dans la marge) : les dessins gardent leur taille, leurs places s’ajustent.`
-        : tr`L’œuvre est mise aux proportions de l’impression (${fmt(pw)} × ${fmt(ph)} cm) : les dessins gardent leur taille, leurs places s’ajustent, sans marge blanche.`;
+      fit.textContent = choice.margin && border
+        ? tr`L’œuvre est mise aux proportions de la zone imprimée (${fmt(pw)} × ${fmt(ph)} cm, dans la bordure) : les dessins gardent leur taille, leurs places s’ajustent.`
+        : tr`L’œuvre est mise aux proportions de l’impression (${fmt(pw)} × ${fmt(ph)} cm) : les dessins gardent leur taille, leurs places s’ajustent, sans bordure blanche.`;
     } else fit.hidden = true;
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
@@ -7371,7 +7381,7 @@ Réponds uniquement avec ce JSON :
       const framed = choice.finish === 'cadre', mat = framed && !!choice.mat;
       const [Pw, Ph] = or(mat ? f.mat : f.print);
       const [Fw, Fh] = framed ? or([f.w, f.h]) : [Pw, Ph];
-      return { comp, framed, kind: framed ? choice.frame : null, mat, Fw, Fh, Pw, Ph, paper: !framed, margin: !framed && choice.margin ? MARGIN_CM : 0, fill: true };
+      return { comp, framed, kind: framed ? choice.frame : null, mat, Fw, Fh, Pw, Ph, paper: !framed, margin: !mat && choice.margin ? MARGIN_CM : 0, fill: true };
     }
     return { comp, framed: false, kind: null, mat: false, Fw: comp.W, Fh: comp.H, paper: printMode(), fill: true };
   }
@@ -7393,7 +7403,7 @@ Réponds uniquement avec ce JSON :
     // par défaut : le passe-partout de la composition, et le cadre de la mise en scène (« auto » :
     // assorti aux couleurs de l'œuvre)
     choice.mat = comp.frameKey ? !!comp.mat : printMat();
-    // la finition (papier ou encadré) et la marge de l'affiche : celles de la mise en scène
+    // la finition (papier ou encadré) et la bordure blanche : celles de la mise en scène
     choice.finish = sceneFinish();
     choice.margin = printMargin();
     const kind = sceneFrameChoice();
@@ -7431,7 +7441,7 @@ Réponds uniquement avec ce JSON :
       const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
       if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
-      if (it.product === 'print' && it.finish === 'papier') it.margin = !!choice.margin; else delete it.margin;
+      if (it.product === 'print' && !(it.finish === 'cadre' && it.mat)) it.margin = !!choice.margin; else delete it.margin;
       it.unit = unitPrice(it);
       const items = loadCart();
       items.push(it);
@@ -7511,7 +7521,7 @@ Réponds uniquement avec ce JSON :
    */
   const cloudCartOn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
   const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
-  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: it.product === 'print' && it.finish === 'papier' ? !!it.margin : undefined });
+  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: it.product === 'print' && !(it.finish === 'cadre' && it.mat) ? !!it.margin : undefined });
   // la composition locale d'un article, images comprises, prête à partir dans le compte
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);
