@@ -1968,7 +1968,7 @@
 
   /*
    * Deux ateliers. « Impression » : l'œuvre est composée à la taille d'un cadre standard du marché,
-   * les dessins réduits pour y tenir, puis imprimée (papier d'art ou encadrée) ou
+   * les dessins réduits pour y tenir, puis imprimée (poster ou encadrée) ou
    * livrée en fichier HD. « Toile » : les dessins à leur taille réelle sur une toile du commerce ou
    * adaptée à eux, à réaliser soi-même avec les originaux (guide, kit).
    * Choix au départ : depuis l'accueil (?mode=), ou par les cartes au milieu de l'atelier vide (première
@@ -7042,7 +7042,6 @@ Réponds uniquement avec ce JSON :
       // (pas d'impression sur toile pour l'instant : un ancien article « toile » du panier n'est plus valable)
     },
   };
-  const FINISH_LABEL = { papier: tr('papier d’art'), cadre: tr('encadrée') };
   /*
    * Kit DIY : une base (guide personnalisé imprimé et gabarits de découpe à l'échelle, livrés) et des
    * options à cocher, chacune avec sa marge. Coûts estimés (achat, TTC) → prix de vente :
@@ -7083,7 +7082,7 @@ Réponds uniquement avec ce JSON :
         ? tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, avec passe-partout, impression ${printSizeOf(it)}`
         : tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, sans passe-partout, impression ${printSizeOf(it)}`;
     }
-    if (it.product === 'print') return tr`Tableau imprimé ${FINISH_LABEL[it.finish]} ${sizeLabel(it.size, it.W, it.H)}`;
+    if (it.product === 'print') return tr`Poster ${sizeLabel(it.size, it.W, it.H)}`;
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
     if (it.product === 'kit') {
@@ -7245,7 +7244,7 @@ Réponds uniquement avec ce JSON :
       ? (choice.mat
         ? tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, entourée d’un passe-partout blanc`
         : tr`<b>Cadre ${sizeLabel(choice.size, comp.W, comp.H)}</b> · impression <b>${printSizeOf(cur)}</b>, à la taille du cadre`)
-      : tr`Impression <b>${printSizeOf(cur)}</b> sur papier d’art, sans cadre`;
+      : tr`Poster <b>${printSizeOf(cur)}</b>, sans cadre`;
     choice.qty = clamp(choice.qty, 1, maxQty(choice));
     box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);

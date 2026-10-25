@@ -284,7 +284,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // encadré avec passe-partout : pas de 21 × 30 à la commande, le 30 × 40 le remplace
     await expect(page.locator('#cart-add [data-size="21x30"]')).toBeHidden();
     await expect(page.locator('#cart-add [data-size="30x40"]')).toHaveClass(/on/);
-    // papier d'art ou encadré : pas d'impression sur toile
+    // poster ou encadré : pas d'impression sur toile
     await expect(page.locator('#cart-add [data-finish="toile"]')).toHaveCount(0);
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-finish]')].map((b) => b.dataset.finish))).toEqual(['papier', 'cadre']);
     // papier : la taille d'impression, sans cadre ni passe-partout
@@ -292,7 +292,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add .cart-frame-field')).toBeHidden();
     await expect(page.locator('#cart-add [data-size="21x30"]')).toBeVisible(); // (sur papier, le 21 × 30 revient)
     await page.locator('#cart-add [data-size="21x30"]').click();
-    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Impression 21 × 29,7 cm sur papier d’art, sans cadre');
+    await expect(page.locator('#cart-add .cart-dims')).toHaveText('Poster 21 × 29,7 cm, sans cadre');
     // encadré : la couleur du cadre et le passe-partout (celui de l'œuvre par défaut), les deux tailles en clair
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await expect(page.locator('#cart-add .cart-frame-field')).toBeVisible();
