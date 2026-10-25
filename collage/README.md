@@ -460,8 +460,11 @@ cd collage && python3 -m http.server 8000
      de lumière `assets/chambre-lumiere.webp`). Dans le salon, l'œuvre active est accrochée dans un
      salon (photo de face `assets/salon.webp`), à sa taille réelle au-dessus d'un buffet : toile pour un
      collage avec les originaux, tableau encadré pour une impression (baguette fine et plate, comme un
-     cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; passe-partout blanc chaud à biseau blanc ;
-     pas de reflet). Le cadre (bois clair, bois foncé,
+     cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; pas de reflet). Le passe-partout est un carton
+     blanc chaud en relief : son ouverture est coupée en biseau à 45°, à l'âme blanche visible tout
+     autour (3 mm), éclairée en bas et à droite, dans l'ombre en haut et à gauche (la lumière vient de
+     la fenêtre), avec l'arête de la coupe en trait fin ; l'œuvre, en retrait sous l'épaisseur du
+     carton, reçoit son ombre portée en haut et à gauche. Le cadre (bois clair, bois foncé,
      bois noir, bois blanc ou métal) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
      il est assorti aux couleurs de l'œuvre : sombre → bois blanc (bois noir avec passe-partout),
      dominante froide → métal, claire → bois foncé, sinon bois clair. Le cadre montré est celui choisi

@@ -5012,14 +5012,24 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const ix = fx + ((Fw - Pw) / 2) * pc, iy = fy + ((Fh - Ph) / 2) * pc; // l'impression
     if (framed && !mat) { x.fillStyle = '#fff'; x.fillRect(fx, fy, Fw * pc, Fh * pc); }
     if (mat) {
-      // passe-partout blanc chaud, biseau blanc tout autour de l'ouverture, un trait d'ombre en haut
-      const b = Math.max(1, 0.3 * pc), aw = Pw * pc, ah = Ph * pc;
+      // passe-partout blanc chaud, carton épais : l'ouverture est coupée en biseau à 45°, dont l'âme
+      // blanche se voit tout autour. La lumière vient de la fenêtre, à gauche et en haut : les biseaux
+      // du haut et de gauche (tournés vers le bas et vers la droite) sont dans l'ombre, ceux du bas et
+      // de droite prennent la lumière ; l'arête de la coupe fait un trait fin sur le carton.
+      const b = Math.max(2, 0.3 * pc), aw = Pw * pc, ah = Ph * pc;
       x.fillStyle = '#f4f1ea';
       x.fillRect(fx, fy, Fw * pc, Fh * pc);
-      x.fillStyle = '#fbfaf7';
-      x.fillRect(ix - b, iy - b, aw + 2 * b, ah + 2 * b);
-      x.strokeStyle = 'rgba(0, 0, 0, 0.08)'; x.lineWidth = 1;
-      x.strokeRect(ix - b + 0.5, iy - b + 0.5, aw + 2 * b - 1, ah + 2 * b - 1);
+      const X0 = ix - b, Y0 = iy - b, X1 = ix + aw + b, Y1 = iy + ah + b;
+      const side = (pts, col) => { x.fillStyle = col; x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath(); x.fill(); };
+      side([[X0, Y0], [X1, Y0], [ix + aw, iy], [ix, iy]], '#d6d2c7'); // haut : à l'ombre
+      side([[X0, Y0], [ix, iy], [ix, iy + ah], [X0, Y1]], '#e5e1d7'); // gauche : demi-ombre
+      side([[X1, Y0], [X1, Y1], [ix + aw, iy + ah], [ix + aw, iy]], '#fdfcf9'); // droite : éclairé
+      side([[X0, Y1], [ix, iy + ah], [ix + aw, iy + ah], [X1, Y1]], '#ffffff'); // bas : en pleine lumière
+      x.lineWidth = 1;
+      x.strokeStyle = 'rgba(0, 0, 0, 0.14)'; // l'arête de la coupe, sur le carton
+      x.strokeRect(X0 + 0.5, Y0 + 0.5, X1 - X0 - 1, Y1 - Y0 - 1);
+      x.strokeStyle = 'rgba(0, 0, 0, 0.10)'; // le fond du biseau, où il rejoint l'œuvre
+      x.strokeRect(ix - 0.5, iy - 0.5, aw + 1, ah + 1);
     }
     // l'impression : l'œuvre entière, centrée, avec une marge blanche si ses proportions diffèrent
     const a = Math.min(Pw / comp.W, Ph / comp.H), ac = a * pc;
@@ -5032,10 +5042,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     x.restore();
     if (framed) {
       if (mat) {
-        // l'œuvre en retrait du passe-partout : un fin trait d'ombre en haut
-        const g = x.createLinearGradient(ix, iy, ix, iy + 0.25 * pc);
-        g.addColorStop(0, 'rgba(0, 0, 0, 0.14)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        x.fillStyle = g; x.fillRect(ix, iy, Pw * pc, 0.25 * pc);
+        // l'œuvre en retrait, sous l'épaisseur du carton : le passe-partout porte son ombre dessus, en
+        // haut et à gauche (la lumière vient d'en haut à gauche), douce et un peu plus large en haut
+        const g = x.createLinearGradient(ix, iy, ix, iy + 0.55 * pc);
+        g.addColorStop(0, 'rgba(0, 0, 0, 0.26)'); g.addColorStop(0.4, 'rgba(0, 0, 0, 0.08)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        x.fillStyle = g; x.fillRect(ix, iy, Pw * pc, 0.55 * pc);
+        const gl = x.createLinearGradient(ix, iy, ix + 0.35 * pc, iy);
+        gl.addColorStop(0, 'rgba(0, 0, 0, 0.16)'); gl.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        x.fillStyle = gl; x.fillRect(ix, iy, 0.35 * pc, Ph * pc);
       }
       // ombre légère de la baguette dans l'ouverture, en haut et à gauche ; pas de reflet
       const g = x.createLinearGradient(fx, fy, fx, fy + 0.6 * pc);
