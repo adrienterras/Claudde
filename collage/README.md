@@ -187,6 +187,21 @@ cd collage && python3 -m http.server 8000
    bien que les plis d'une feuille gondolée par la peinture restent du papier, tandis qu'une autre
    couleur (une carotte orange) ou un trait bien plus sombre (crayon noir) restent de l'encre ; la
    découpe suit alors le sujet au lieu d'englober les ombres. Le papier blanc n'est pas concerné.
+   **Découpe assistée par IA** (`js/ai-cut.js`) : sur une feuille franchement colorée (`Extract.wantsAI`),
+   un modèle de segmentation (BiRefNet lite, ONNX, ≈ 214 Mo) tourne dans le navigateur (onnxruntime-web
+   `vendor/ort/`, WebGPU ; sans WebGPU, le réglage est « non disponible ») et dit où est le sujet ; la page
+   est réanalysée avec ce sujet (`opts.aiMask`, `segment(page, gate)`) : hors de son voisinage (3 mm),
+   l'encre faible n'est gardée que si c'est un vrai trait (`strokeLike` : nettement plus sombre que le
+   papier, ou d'une autre teinte ; l'ombre d'un pli, de la même teinte, non). La découpe garde ainsi sa
+   marge « ciseaux » et tous les traits, sans les plis ni le dégradé du papier (banc d'essai sur 34 pages :
+   équivalent sur papier blanc, nettement mieux sur feuille de couleur, le modèle seul perdant 12 % des
+   traits). Le sujet vu (`d.aiGate`, PNG de 256 px dans la sauvegarde) suit le dessin : photo, haute
+   définition, réouverture et « Découpe automatique » refont la même découpe. Réglage dans Importer
+   (« Découpe assistée par IA », `atelier.ia-decoupe` : coché par défaut sur ordinateur avec WebGPU, non sur
+   téléphone) ; dans la retouche, « Affiner avec l'IA » refait la découpe de la pièce avec le sujet vu, pour
+   n'importe quelle page. Le modèle est téléchargé une fois (Cache Storage) depuis `ATELIER_CONFIG.aiModelUrl`
+   (une adresse ou des morceaux à concaténer ; par défaut `modeles/birefnet-lite.onnx.part0..2`, à côté de
+   l'app — dossier hors dépôt, voir « Mise en ligne ») ; rien ne sort de l'appareil.
    Un clic sur un dessin ouvre son détail : rôle (découpe / fond / ignoré), **luminosité, contraste et
    saturation** (−50 à +50,
    réglés dans la fenêtre de retouche pour une découpe, dans la fiche pour une page de fond ;

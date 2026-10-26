@@ -414,7 +414,10 @@
   }
 
   // Segmentation d'une page : papier, pixels dessinés, zones découpables.
-  function segment(page) {
+  // gate (découpe assistée par IA, js/ai-cut.js) : { data: Uint8Array 0/1, w, h }, le sujet vu par le modèle
+  // de segmentation, à n'importe quelle résolution ; l'encre faible (ombre, pli, grain) hors de son
+  // voisinage (3 mm) n'est plus prise pour du dessin — un trait franc l'est toujours, où qu'il soit
+  function segment(page, gate) {
     const work = scaleTo(page, WORK_MAX);
     const w = work.width, h = work.height, n = w * h;
     const data = ctx2d(work).getImageData(0, 0, w, h).data;
@@ -438,9 +441,21 @@
     let strongT = Math.max(20, (strong < n * 0.02 && faint > strong * 1.5 && faint > n * 0.008 ? Math.max(28, weakT + 6) : INK_DIST) * CUT.ink);
     const unit = Math.max(w, h);
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
+    // le sujet vu par l'IA, à la taille de travail, élargi de 3 mm (sur un A4)
+    let gateDil = null;
+    if (gate && gate.data && gate.w > 0 && gate.h > 0) {
+      const g = new Uint8Array(n);
+      for (let y = 0; y < h; y++) { const gy = Math.min(gate.h - 1, Math.floor((y + 0.5) * gate.h / h)) * gate.w; for (let x = 0; x < w; x++) g[y * w + x] = gate.data[gy + Math.min(gate.w - 1, Math.floor((x + 0.5) * gate.w / w))] ? 1 : 0; }
+      gateDil = dilate(g, w, h, unit * 0.0101);
+    }
     // drop : pixels d'encre ignorés (traits de partage) ; cut : frontières que les sujets ne franchissent pas
     const masks = (sT, wT, closeR, holeMax, drop, cut) => {
       const ink = inkMask(data, w, h, paper, sT, wT);
+      if (gateDil) {
+        // hors du sujet vu par l'IA : seul un vrai trait reste (sombre, ou d'une autre teinte que le
+        // papier) ; l'ombre d'un pli ou le dégradé d'une feuille de couleur, de la même teinte, non
+        for (let p = 0, i = 0; p < n; p++, i += 4) if (ink[p] && !gateDil[p] && !strokeLike(data[i], data[i + 1], data[i + 2], paper)) ink[p] = 0;
+      }
       if (drop) for (let p = 0; p < n; p++) if (drop[p]) ink[p] = 0;
       // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
       for (let y = 0; y < h; y++) {
@@ -543,7 +558,7 @@
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
       if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r2.lines = r.lines; r = r2; weakT = wT2; strongT = sT2; }
     }
-    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, paperFrac: paperCount / n, rawPaperFrac: rawCount / n, labels: r.labels, comps: r.comps };
+    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, paperFrac: paperCount / n, rawPaperFrac: rawCount / n, gate: gate || null, labels: r.labels, comps: r.comps };
   }
 
   /*
@@ -786,6 +801,25 @@
     if (k <= 0.5 || k >= 1.2) return q;
     const f = 1 / k, er = R * f - paper[0], eg = G * f - paper[1], eb = B * f - paper[2];
     return Math.min(q, er * er + eg * eg + eb * eb);
+  }
+  // Un trait, et non une ombre du papier : nettement plus sombre que le papier, ou d'une autre teinte
+  // (une ombre garde la teinte du papier ; un feutre, une peinture en changent)
+  function hueOf(R, G, B) {
+    const mx = Math.max(R, G, B), mn = Math.min(R, G, B), d = mx - mn;
+    if (d <= 0) return 0;
+    const hh = mx === R ? ((G - B) / d) % 6 : mx === G ? (B - R) / d + 2 : (R - G) / d + 4;
+    return (hh * 60 + 360) % 360;
+  }
+  function strokeLike(R, G, B, paper) {
+    const pl = lum(paper), l = 0.299 * R + 0.587 * G + 0.114 * B;
+    if (l < 0.45 * pl) return true; // très sombre : un trait, quelle que soit sa teinte
+    const mx = Math.max(R, G, B), mn = Math.min(R, G, B), c = mx > 0 ? (mx - mn) / mx : 0;
+    const pm = Math.max(paper[0], paper[1], paper[2]), pc = pm > 0 ? (pm - Math.min(paper[0], paper[1], paper[2])) / pm : 0;
+    if (pc < 0.18) return c > 0.25 || l < 0.72 * pl; // papier blanc ou gris : une couleur, ou un gris net
+    // papier de couleur : une autre teinte est un trait ; la même teinte, même plus sombre, est une ombre
+    if (c < 0.18) return l < 0.72 * pl; // gris sur papier coloré : un trait s'il est net
+    const dh = Math.abs(hueOf(R, G, B) - hueOf(paper[0], paper[1], paper[2]));
+    return Math.min(dh, 360 - dh) > 30;
   }
   function weakThreshold(d, w, h, paper) {
     // écart typique du papier lui-même (grain, ombres légères), mesuré sur la bordure
@@ -1224,6 +1258,14 @@
     };
   }
 
+  // le sujet vu par l'IA, recadré (fractions de la page : x, y, largeur, hauteur) pour une analyse de la feuille seule
+  function cropGate(gate, fx, fy, fw, fh) {
+    const x0 = Math.max(0, Math.round(fx * gate.w)), y0 = Math.max(0, Math.round(fy * gate.h));
+    const w = Math.max(1, Math.min(gate.w - x0, Math.round(fw * gate.w))), h = Math.max(1, Math.min(gate.h - y0, Math.round(fh * gate.h)));
+    const data = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) data.set(gate.data.subarray((y0 + y) * gate.w + x0, (y0 + y) * gate.w + x0 + w), y * w);
+    return { data, w, h };
+  }
   function cutPieces(page, seg) {
     seg = seg || segment(page);
     const enhanced = enhance(page, seg.paper);
@@ -1584,9 +1626,16 @@
     return changes.length ? { prefs, changes } : null;
   }
 
-  function recut(a) {
+  function recut(a, gate) {
     if (a.objectAlpha) return objectPieces(a.page, a.objectAlpha.alpha, a.objectAlpha.W, a.objectAlpha.H);
-    return cutPieces(a.page, a.seg);
+    // (avec un sujet vu par l'IA différent de celui de l'analyse, la page est resegmentée avec lui)
+    const same = a.seg && ((a.seg.gate || null) === (gate || null));
+    return cutPieces(a.page, same ? a.seg : segment(a.page, gate || (a.seg && a.seg.gate) || null));
+  }
+  // La découpe assistée par IA vaut la peine : une feuille de couleur (papier franchement coloré : ses plis
+  // et ses ombres passent facilement pour du dessin) découpée en pièces
+  function wantsAI(a) {
+    return !!(a && a.kind === 'cutout' && a.pieces && !a.objectAlpha && a.paper && paperTint(a.paper) > 0);
   }
 
   /*
@@ -2362,7 +2411,8 @@
     }
     // éclairage égalisé : le papier est blanc partout avant de chercher le dessin
     if (!opts.flat) { src = flatten(src, true); opts = Object.assign({}, opts, { flat: true }); }
-    const seg = segment(src);
+    const gate = opts.aiMask || null;
+    const seg = segment(src, gate);
     const big = seg.comps[0];
     if (depth === 0 && big) {
       // Feuille plus petite que la vitre du scanner : on recadre sur la feuille.
@@ -2370,6 +2420,7 @@
       const n = seg.w * seg.h;
       if (big.area > 0.3 * n && big.area / (bw * bh) > 0.85 && bw * bh < 0.9 * n) {
         const k = src.width / seg.w;
+        if (gate) { const ins = 0.012 * Math.max(bw, bh); opts = Object.assign({}, opts, { aiMask: cropGate(gate, (big.x0 + ins) / seg.w, (big.y0 + ins) / seg.h, (bw - 2 * ins) / seg.w, (bh - 2 * ins) / seg.h) }); }
         const inset = 0.012 * Math.max(bw, bh);
         const sheet = crop(src, (big.x0 + inset) * k, (big.y0 + inset) * k, (bw - 2 * inset) * k, (bh - 2 * inset) * k);
         return analyze(sheet, 1, opts);
@@ -2402,5 +2453,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, rotated, rotateCanvas, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, wantsAI, paperTint, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, rotated, rotateCanvas, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();
