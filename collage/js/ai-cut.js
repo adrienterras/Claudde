@@ -21,7 +21,11 @@
   const modelUrls = () => { const m = cfg().aiModelUrl; return Array.isArray(m) ? m : m ? [m] : ['modeles/birefnet-lite.onnx.part0', 'modeles/birefnet-lite.onnx.part1', 'modeles/birefnet-lite.onnx.part2']; };
   const phone = () => /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900);
   let broken = null; // le modèle n'a pas pu être chargé (fichier absent, mémoire…) : plus proposé jusqu'au rechargement
-  const available = () => !broken && !!(navigator.gpu && window.WebAssembly);
+  // iPhone et iPad : Safari n'a pas la mémoire du modèle (l'onglet se recharge) ; la découpe assistée n'y est
+  // pas proposée du tout (l'iPad se présente comme un Mac tactile)
+  const ios = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const supported = () => !ios();
+  const available = () => supported() && !broken && !!(navigator.gpu && window.WebAssembly);
   const problem = () => broken;
   function enabled() {
     let v = null;
@@ -180,5 +184,5 @@
     if (ev.stage === 'run' || ev.stage === 'cache') return tr('Découpe assistée par IA…');
     return '';
   }
-  window.AICut = { available, enabled, setEnabled, problem, mask, toDataURL, fromDataURL, progressText, modelUrls, KEY };
+  window.AICut = { available, supported, enabled, setEnabled, problem, mask, toDataURL, fromDataURL, progressText, modelUrls, KEY };
 })();

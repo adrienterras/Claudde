@@ -806,7 +806,7 @@
   function syncAiOption() {
     const opt = $('ai-cut-opt'), box = $('ai-cut-on'), info = $('ai-cut-info');
     if (!opt || !window.AICut) return;
-    opt.hidden = false;
+    opt.hidden = !AICut.supported(); // (iPhone, iPad : rien n'est proposé)
     const ok = AICut.available();
     box.disabled = !ok;
     box.checked = ok && AICut.enabled();
