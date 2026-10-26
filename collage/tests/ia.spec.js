@@ -47,21 +47,6 @@ async function importSheet(page) {
   return page.evaluate(() => { const d = AtelierGribouille.state.drawings[0], ps = d.analysis.pieces || []; const m = ps.reduce((a, q) => (!a || q.frac > a.frac ? q : a), null); return { n: AtelierGribouille.state.drawings.length, kind: d.analysis.kind, pieces: ps.length, w: m ? m.src.w / d.analysis.page.width : 0, h: m ? m.src.h / d.analysis.page.height : 0, gate: d.aiGate ? [d.aiGate.w, d.aiGate.h] : null, wants: Extract.wantsAI(d.analysis) }; });
 }
 
-test.describe('Découpe assistée par IA — iPhone et iPad', () => {
-  test.use({ userAgent: 'Mozilla/5.0 (iPad; CPU OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1' });
-  test('rien n’est proposé : ni le réglage dans Importer, ni « Affiner avec l’IA »', async ({ page }) => {
-    await start(page, true);
-    await page.setInputFiles('#file', [require('./helpers').fixture('page-cutout.png')]);
-    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await require('./helpers').openStep(page, 'import-section');
-    await expect(page.locator('#ai-cut-opt')).toBeHidden();
-    expect(await page.evaluate(() => [AICut.supported(), AICut.available(), AICut.enabled()])).toEqual([false, false, false]);
-    await page.evaluate(() => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[0]));
-    await expect(page.locator('#editor')).toBeVisible();
-    await expect(page.locator('#ed-ai')).toBeHidden();
-  });
-});
-
 test.describe('Découpe assistée par IA', () => {
   test('le réglage dans Importer : « non disponible » sans WebGPU ; avec, coché par défaut sur ordinateur, mémorisé', async ({ page }) => {
     await start(page, false);
