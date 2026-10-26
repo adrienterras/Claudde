@@ -28,9 +28,7 @@ test.describe('Politique de sécurité du contenu', () => {
       // Umami Cloud : script sur cloud.umami.is, données envoyées à gateway.umami.is (docs Umami, « Sending stats »)
       expect(scripts, p).toContain('https://cloud.umami.is');
       expect(directive(csp, 'connect-src'), p).toEqual(expect.arrayContaining(['https://cloud.umami.is', 'https://gateway.umami.is']));
-      // (seul 'wasm-unsafe-eval' est admis, dans l'atelier : le modèle de découpe est un module WebAssembly ;
-      // ce n'est pas un eval JavaScript)
-      expect(scripts.filter((s) => /unsafe/.test(s) && s !== "'wasm-unsafe-eval'"), p).toEqual([]);
+      expect(scripts.filter((s) => /unsafe/.test(s)), p).toEqual([]);
       // chaque script inline (hors données JSON-LD) doit avoir son empreinte dans la politique
       for (const [, attrs, body] of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
         if (/src=|application\/ld\+json/.test(attrs)) continue;

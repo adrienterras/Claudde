@@ -369,7 +369,6 @@
         }
         const q = Object.assign({}, src.q);
         let X = Extract, analysis, photoDebug = null;
-        let aiGate = sv && sv.aiGate && window.AICut ? await AICut.fromDataURL(sv.aiGate) : null;
         if (sv) analysis = await restoreAnalysis(sv, target, pagesRead);
         else {
           if (legacy[pages[i].fileIndex]) X = await legacyExtract();
@@ -377,11 +376,6 @@
           X.removeSurface.debug = null;
           analysis = X.analyze(src.canvas, 0, { photo: true });
           photoDebug = X.removeSurface.debug;
-          // feuille de couleur : le sujet vu par l'IA, et la découpe refaite avec lui
-          if (X === Extract) {
-            const gate = await aiGateFor(src.canvas, analysis, (ev) => setProgress(i, pages.length, AICut.progressText(ev) || tr`Analyse du dessin ${i + 1} / ${pages.length}…`));
-            if (gate) { aiGate = gate; X.removeSurface.debug = null; analysis = X.analyze(src.canvas, 0, { photo: true, aiMask: gate }); photoDebug = X.removeSurface.debug; }
-          }
         }
         const d = {
           id: ++state.seq, name: pages[i].name, thumb: sv && sv.part && analysis.pieces ? subjectThumb(analysis.page, analysis.pieces[0], analysis.paper) : thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
@@ -389,7 +383,7 @@
           orient: 'auto', orientDeg: 0,
           // l'image de travail d'origine (réanalyse si l'on change de découpe ou de mode photo) ; sur
           // téléphone, une page rouverte ne la garde pas en mémoire : elle est relue du fichier au besoin (originalOf)
-          original: sv && phone() && analysis.page !== src.canvas ? null : src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug, aiGate,
+          original: sv && phone() && analysis.page !== src.canvas ? null : src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
           source: pages[i].source || null, // fichier d'origine : relu en haute définition à l'export
           fileKey: pages[i].fileKey || null,
           srcLong: Math.max(src.canvas.width, src.canvas.height), origLong: src.origLong, origShort: src.origShort || 1, physCm: src.physCm, physSource: src.physSource || (src.physCm ? 'PDF' : null),
@@ -788,33 +782,6 @@
   // à la demande) pour un dessin relu d'une composition sauvegardée avant les découpes autonomes
   // (voir savedOf) : ses pièces, retrouvées par leur rang, ne pourraient venir que de cette découpe-là.
   const EX = (d) => (d && d.extract) || Extract;
-  // Découpe assistée par IA (js/ai-cut.js) : sur une feuille de couleur, le modèle dit où est le sujet et la
-  // découpe de l'atelier ne garde plus ses plis ni ses ombres (Extract, opts.aiMask). Le sujet vu (d.aiGate)
-  // est gardé avec le dessin : toute réanalyse (photo, haute définition, réouverture) refait la même découpe.
-  const aiOn = () => !!(window.AICut && AICut.enabled());
-  const aiOpts = (d, o) => (d && d.aiGate ? Object.assign({ aiMask: d.aiGate }, o) : o);
-  async function aiGateFor(page, a, onProgress) {
-    if (!aiOn() || !Extract.wantsAI(a)) return null;
-    try { return await AICut.mask(page, onProgress); } catch (e) {
-      console.error(e);
-      notice(tr('La découpe assistée par IA n’a pas pu tourner sur cet appareil : la découpe de l’atelier est gardée.'));
-      syncAiOption(); // (modèle introuvable ou trop lourd : le réglage le dit, et l'IA n'est plus tentée)
-      return null;
-    }
-  }
-  // le réglage, dans Importer : coché ou non (mémorisé), ou « non disponible » sans WebGPU
-  function syncAiOption() {
-    const opt = $('ai-cut-opt'), box = $('ai-cut-on'), info = $('ai-cut-info');
-    if (!opt || !window.AICut) return;
-    opt.hidden = false;
-    const ok = AICut.available();
-    box.disabled = !ok;
-    box.checked = ok && AICut.enabled();
-    opt.classList.toggle('off', !ok);
-    info.textContent = ok ? tr('Pour les feuilles de couleur : un modèle de découpe (214 Mo, téléchargé une fois) tourne dans le navigateur ; rien ne sort de l’appareil.') : AICut.problem() ? tr('Le modèle de découpe n’a pas pu être chargé sur cet appareil ; la découpe de l’atelier seule est utilisée.') : tr('Non disponible sur cet appareil (WebGPU requis : Chrome, Edge ou Safari récents).');
-  }
-  if ($('ai-cut-on')) $('ai-cut-on').addEventListener('change', () => { AICut.setEnabled($('ai-cut-on').checked); syncAiOption(); });
-  syncAiOption();
   let legacyLoading = null;
   function legacyExtract() {
     if (window.ExtractLegacy) return Promise.resolve(window.ExtractLegacy);
@@ -864,7 +831,7 @@
     if (d.photoMode === mode) return;
     const orig = await originalOf(d);
     if (!orig) return;
-    const a = withCut(d, () => EX(d).analyze(orig, 0, aiOpts(d, { photo: mode !== 'keep', force: mode === 'force' })));
+    const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: mode !== 'keep', force: mode === 'force' }));
     if (mode !== 'keep' && !a.photo) { notice(tr('Impossible de séparer un dessin de cette image : le dessin doit occuper une partie seulement de la photo, le reste montrant la surface.')); d.photoDebug = Extract.removeSurface.debug; refreshLists(); return; }
     const comp = opts && opts.inPlace && state.comp ? state.comp : null;
     const before = roleOf(d);
@@ -3807,16 +3774,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // la découpe d'office de cette pièce, recalculée sur la page (même ordre que les pièces du dessin)
       autoPiece: () => {
         const k = pieceIndex(d, p);
-        return k >= 0 ? withCut(d, () => EX(d).recut(d.analysis, d.aiGate))[k] || null : null;
+        return k >= 0 ? withCut(d, () => EX(d).recut(d.analysis))[k] || null : null;
       },
-      // « Affiner avec l'IA » : le sujet vu par le modèle (gardé avec le dessin), la découpe refaite avec lui
-      aiPiece: window.AICut && AICut.available() && !d.extract ? async (progress) => {
-        const gate = await AICut.mask(d.analysis.page, (ev) => progress && progress(AICut.progressText(ev)));
-        if (!gate) return null;
-        d.aiGate = gate;
-        const k = pieceIndex(d, p);
-        return k >= 0 ? withCut(d, () => EX(d).recut(d.analysis, gate))[k] || null : null;
-      } : null,
       onTone: (t) => {
         if (t && (t.b || t.c || t.s)) d.tone = t; else delete d.tone;
         saveTone(d);
@@ -3900,7 +3859,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const a = d.analysis, old = a.pieces || [];
       d.cutPrefs = Extract.cutPrefs();
       d.extract = null; // découpe refaite : celle d'aujourd'hui
-      a.pieces = Extract.recut(a, d.aiGate);
+      a.pieces = Extract.recut(a);
       preparePieces(a.pieces, d);
       old.forEach((q) => Extract.release(q.canvas));
     });
@@ -4683,7 +4642,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
           const K0 = Math.max(src.canvas.width, src.canvas.height) / d.srcLong;
           if (K0 <= 1.05) continue;
           const mode = d.photoMode;
-          a = withCut(d, () => EX(d).analyze(src.canvas, 0, aiOpts(d, { photo: mode !== 'keep', force: mode === 'force' })));
+          a = withCut(d, () => EX(d).analyze(src.canvas, 0, { photo: mode !== 'keep', force: mode === 'force' }));
           keep.push(a);
           if (d.orientDeg) { const b = withCut(d, () => EX(d).rotated(a, d.orientDeg)); b.kind = a.kind; a = b; keep.push(a); }
           if (group) shared.set(group, a);
@@ -4694,7 +4653,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (K < 1.05 || Math.abs(a.page.width / a.page.height - page.width / page.height) > 0.03) continue;
         const pieces = comp.items.filter((L) => L.piece && L.piece.drawing === d);
         if (pieces.length) {
-          if (!a.pieces) a.pieces = withCut(d, () => EX(d).recut(a, d.aiGate));
+          if (!a.pieces) a.pieces = withCut(d, () => EX(d).recut(a));
           pieces.forEach((L) => {
             const p = L.piece;
             const needLong = Math.ceil(Math.max(L.w, L.h) * s * 1.02);
@@ -5504,7 +5463,7 @@ Réponds uniquement avec ce JSON :
         // Claude a vu un dessin photographié sur un sol ou une table que la détection a manqué : on force le détourage
         const orig = it.photo_sol === true && !d.photo && d.photoMode !== 'keep' ? await originalOf(d) : null;
         if (orig) {
-          const a = withCut(d, () => EX(d).analyze(orig, 0, aiOpts(d, { photo: true, force: true })));
+          const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: true, force: true }));
           if (a.photo) {
             d.photoMode = 'force';
             d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo;
@@ -6261,7 +6220,7 @@ Réponds uniquement avec ce JSON :
     }
     const pk = d.savedPack;
     const meta = {
-      v: 1, pack: pk.id, deg: d.orientDeg || 0, kind: a.kind, part: d.part || null, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac, aiGate: d.aiGate && window.AICut ? AICut.toDataURL(d.aiGate) : null,
+      v: 1, pack: pk.id, deg: d.orientDeg || 0, kind: a.kind, part: d.part || null, paper: (a.cut && a.cut.paper) || a.paper || null, paperFrac: a.paperFrac === undefined ? null : a.paperFrac,
       photo: d.photo ? { kind: d.photo.kind || null, sheet: !!d.photo.sheet } : null,
       pieces: pieces.map((p, k) => ({
         at: pk.at[k], w: p.canvas.width, h: p.canvas.height,
@@ -6713,7 +6672,7 @@ Réponds uniquement avec ce JSON :
         const orig = sd.cut && JSON.stringify(sd.cut) !== JSON.stringify(d.cutPrefs || Extract.CUT_DEFAULT) ? await originalOf(d) : null;
         if (orig) {
           d.cutPrefs = sd.cut;
-          const a = withCut(d, () => EX(d).analyze(orig, 0, aiOpts(d, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' })));
+          const a = withCut(d, () => EX(d).analyze(orig, 0, { photo: d.photoMode !== 'keep', force: d.photoMode === 'force' }));
           d.base = a; d.analysis = a; d.orientDeg = 0; d.photo = a.photo || null; d.thumb = thumbOf(a.page);
           preparePieces(a.pieces, d);
         }

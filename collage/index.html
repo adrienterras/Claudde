@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=2">
   <meta name="theme-color" content="#f8f5ef">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://cloud.umami.is https://gateway.umami.is https://api-gateway.umami.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cloud.umami.is; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://cloud.umami.is https://gateway.umami.is https://api-gateway.umami.dev; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Créer un tableau avec les dessins de vos enfants | Atelier Gribouille</title>
   <meta name="description" content="Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à huit propositions, à imprimer en 300 dpi ou à réaliser à la main.">
   <link rel="canonical" href="https://ateliergribouille.art/atelier/">
@@ -148,8 +148,6 @@
         <strong>Déposez les photos ou les scans des dessins</strong>
         <span>PDF de plusieurs pages, JPG ou PNG</span>
       </label>
-      <!-- découpe assistée par IA (js/ai-cut.js) : le réglage, mémorisé, et son état sur cet appareil -->
-      <label id="ai-cut-opt" class="ai-cut-opt" hidden><input type="checkbox" id="ai-cut-on"><span><b>Découpe assistée par IA</b><small id="ai-cut-info">Pour les feuilles de couleur : un modèle de découpe (214 Mo, téléchargé une fois) tourne dans le navigateur ; rien ne sort de l’appareil.</small></span></label>
       <!-- « Importer une meilleure version » d'un dessin (fiche du dessin) -->
       <input id="replace-file" type="file" accept="application/pdf,image/*,image/heic,image/heif" hidden>
       <p id="import-account" class="hint import-account" hidden>Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier ou exporter, et il garde vos œuvres sur tous vos appareils.</p>
@@ -695,7 +693,6 @@
         <button id="ed-undo" class="ed-btn" title="Défaire (Ctrl+Z)"><svg class="ico"><use href="#i-undo"/></svg><span>Défaire</span></button>
         <button id="ed-redo" class="ed-btn" title="Refaire (Ctrl+Maj+Z)"><svg class="ico"><use href="#i-redo"/></svg><span>Refaire</span></button>
         <button id="ed-reset" class="ed-btn" title="Revenir à la découpe faite par l’atelier">Découpe automatique</button>
-        <button id="ed-ai" class="ed-btn" title="Le modèle de découpe (IA) montre le sujet ; la découpe automatique est refaite avec lui" hidden>Affiner avec l’IA</button>
       </div>
     </div>
     <div class="ed-stage">
@@ -736,7 +733,6 @@
   <script src="js/quality.js"></script>
   <script src="js/account.js"></script>
   <script src="js/extract.js"></script>
-  <script src="js/ai-cut.js"></script>
   <script src="js/compose.js"></script>
   <script src="js/guide.js"></script>
   <script src="js/editor.js"></script>

@@ -70,8 +70,6 @@
     syncTone('');
     $('ed-title').textContent = opts.title || tr('Découpe');
     $('ed-msg').textContent = '';
-    $('ed-ai').hidden = !(opts && opts.aiPiece);
-    $('ed-ai').disabled = false;
     $('editor').hidden = false;
     document.body.classList.add('editing');
     setTool('erase');
@@ -437,31 +435,6 @@
     render();
   }
 
-  // « Affiner avec l'IA » : le modèle de découpe montre le sujet de la page, la découpe automatique de
-  // cette pièce est refaite avec lui (voir app.js, aiPiece) ; Défaire rend la découpe d'avant
-  async function aiRefine() {
-    if (!S || !S.opts.aiPiece || S.busy) return;
-    const btn = $('ed-ai');
-    S.busy = true; btn.disabled = true;
-    tip(tr('Découpe assistée par IA…'));
-    try {
-      const auto = await S.opts.aiPiece((msg) => { if (msg) tip(msg); });
-      if (!S) return;
-      if (auto && auto.src) {
-        pushUndo();
-        const m = S.mask.getContext('2d', { willReadFrequently: true });
-        m.clearRect(0, 0, S.mask.width, S.mask.height);
-        m.drawImage(auto.canvas, auto.src.x - S.R.x, auto.src.y - S.R.y, auto.src.w, auto.src.h);
-        S.dirty = true;
-        render();
-        tip(tr('Découpe refaite avec le sujet vu par l’IA. Retouchez si besoin, puis validez.'));
-      } else tip(tr('L’IA n’a pas trouvé de sujet net sur cette page : la découpe est inchangée.'));
-    } catch (e) {
-      console.error(e);
-      tip(tr('La découpe assistée par IA n’a pas pu tourner sur cet appareil.'));
-    } finally { if (S) S.busy = false; btn.disabled = false; }
-  }
-
   function toLocal(e) {
     const r = $('ed-canvas').getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -653,7 +626,6 @@
     $('ed-undo').onclick = undo;
     $('ed-redo').onclick = redo;
     $('ed-reset').onclick = reset;
-    $('ed-ai').onclick = aiRefine;
     $('ed-cancel').onclick = close;
     $('ed-close').onclick = close; // la croix de la fenêtre (ordinateur) : fermer sans enregistrer
     $('ed-tone-toggle').onclick = () => showTone($('ed-tone').hidden);

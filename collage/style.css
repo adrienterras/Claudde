@@ -1292,11 +1292,3 @@ body.stage-full .scene-open { display: none; }
 kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); font: 600 0.78rem var(--f-body); text-align: center; }
 .foot-links .link { font: inherit; color: inherit; }
 @media (max-width: 860px) { .kbd-only { display: none !important; } }
-
-/* découpe assistée par IA : le réglage dans Importer */
-.ai-cut-opt { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 0; font-size: 0.85rem; cursor: pointer; }
-.ai-cut-opt input { margin-top: 4px; flex: none; }
-.ai-cut-opt b { display: block; font-weight: 600; }
-.ai-cut-opt small { display: block; color: var(--muted); line-height: 1.35; }
-.ai-cut-opt.off { cursor: default; }
-.ai-cut-opt.off b { color: var(--muted); }
