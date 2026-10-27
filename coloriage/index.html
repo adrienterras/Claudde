@@ -70,6 +70,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .add:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 .add-page { display: grid; gap: 8px; }
 .add-page .bar { visibility: hidden; height: 30px; }
+.cover .sheet { cursor: default; }
+.cover canvas { width: 100%; height: 100%; display: block; }
+.cover input { width: 100%; min-width: 0; font: 600 14px var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; height: 30px; }
+#pagesSlot { display: contents; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 .export { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
@@ -101,7 +105,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
     <p>Pas encore de clé ? Crée-la sur platform.openai.com/api-keys, après avoir ajouté un moyen de paiement.</p>
   </section>
 
-  <section class="book" id="book" aria-label="Pages du cahier"></section>
+  <section class="book" aria-label="Pages du cahier">
+    <article class="page cover">
+      <div class="sheet"><canvas id="coverCanvas" width="1240" height="1754" aria-label="Couverture du cahier"></canvas></div>
+      <div class="bar"><label class="sr" for="coverText">Phrase de la couverture</label><input id="coverText" type="text" maxlength="70" placeholder="Phrase de la couverture"></div>
+    </article>
+    <div id="pagesSlot"></div>
+  </section>
 
   <p class="foot">Les photos et les dessins restent sur cet appareil. <button class="link" id="changeKey" type="button">Changer de clé OpenAI</button></p>
 </div>
@@ -255,7 +265,7 @@ function moveTo(p, index) {
   pages.splice(i, 1); pages.splice(index, 0, p); render(); persist();
 }
 function render() {
-  const book = $("#book"); book.textContent = "";
+  const book = $("#pagesSlot"); book.textContent = "";
   pages.forEach((p, i) => {
     const el = document.createElement("article"); el.className = "page"; el.draggable = true;
     const sheet = document.createElement("div"); sheet.className = "sheet" + (p.land ? " land" : "");
@@ -316,7 +326,7 @@ function render() {
   const busy = pages.filter((p) => p.status === "working" || p.status === "queued").length;
   const info = $("#info");
   if (!pages.length) info.textContent = "Ajoute une première photo pour commencer le cahier.";
-  else info.innerHTML = `<b>${pages.length} page${pages.length > 1 ? "s" : ""}</b> · A4, un dessin par page` + (busy ? ` · ${busy} dessin${busy > 1 ? "s" : ""} en cours` : "");
+  else info.innerHTML = `<b>${pages.length + (coverText() ? 1 : 0)} pages</b> · ${coverText() ? "couverture + " : ""}${pages.length} dessin${pages.length > 1 ? "s" : ""}, un par page A4` + (busy ? ` · ${busy} dessin${busy > 1 ? "s" : ""} en cours` : "");
   $("#exportBtn").disabled = !done || busy > 0;
 }
 
@@ -359,6 +369,11 @@ $("#exportBtn").addEventListener("click", async () => {
   btn.disabled = true;
   try {
     let doc;
+    if (coverText()) {
+      await document.fonts.ready;
+      doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      doc.addImage(drawCover(document.createElement("canvas")).toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+    }
     for (let i = 0; i < ready.length; i++) {
       btn.textContent = `Préparation… ${i + 1}/${ready.length}`;
       const im = await toJpeg(ready[i].drawing);
@@ -380,6 +395,61 @@ $("#exportBtn").addEventListener("click", async () => {
 });
 
 /* ---------- démarrage ---------- */
+/* ---------- couverture : la phrase en lettres creuses, à colorier elle aussi ---------- */
+const COVER_STORE = "atelier-coloriage-couverture";
+const coverInput = $("#coverText");
+try { coverInput.value = localStorage.getItem(COVER_STORE) ?? "Mon cahier de coloriage"; } catch { coverInput.value = "Mon cahier de coloriage"; }
+function coverText() { return coverInput.value.trim(); }
+function wrapLines(x, text, maxW) {
+  const lines = []; let line = "";
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    const t = line ? line + " " + w : w;
+    if (line && x.measureText(t).width > maxW) { lines.push(line); line = w; } else line = t;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function star(x, cx, cy, R, rot) {
+  x.beginPath();
+  for (let i = 0; i < 10; i++) { const r = i % 2 ? R * 0.45 : R, a = rot + i * Math.PI / 5 - Math.PI / 2; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+  x.closePath(); x.stroke();
+}
+function drawCover(c) {
+  c.width = 1240; c.height = 1754;
+  const x = c.getContext("2d"), W = c.width, H = c.height, m = 74, font = '"Fredoka", "Nunito Sans", Arial, sans-serif';
+  x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
+  x.strokeStyle = "#1a1a1a"; x.lineJoin = "round"; x.lineCap = "round"; x.lineWidth = 5;
+  x.beginPath(); x.roundRect ? x.roundRect(m, m, W - 2 * m, H - 2 * m, 30) : x.rect(m, m, W - 2 * m, H - 2 * m); x.stroke();
+  const text = coverText();
+  if (text) {
+    const maxW = W - 2 * (m + 90);
+    let size = 170, lines;
+    do { x.font = `700 ${size}px ${font}`; lines = wrapLines(x, text, maxW); size -= 6; }
+    while ((lines.length > 4 || lines.some((l) => x.measureText(l).width > maxW)) && size > 40);
+    size += 6;
+    const lh = size * 1.1, top = H * 0.38 - (lines.length - 1) * lh / 2;
+    x.textAlign = "center"; x.textBaseline = "middle"; x.lineWidth = 6;
+    lines.forEach((l, i) => x.strokeText(l, W / 2, top + i * lh));
+  }
+  x.lineWidth = 5;
+  const cx = W / 2, cy = H - m - 150;
+  for (let i = 0; i < 5; i++) { x.beginPath(); x.arc(cx, cy, 380 - i * 58, Math.PI, 0); x.stroke(); }
+  x.beginPath(); x.moveTo(cx - 380, cy); x.lineTo(cx - 148, cy); x.moveTo(cx + 148, cy); x.lineTo(cx + 380, cy); x.stroke();
+  for (const [sx, sy, r, rot] of [[m + 150, m + 170, 62, 0.2], [W - m - 160, m + 230, 78, -0.15], [m + 230, H * 0.64, 46, 0.4], [W - m - 190, H * 0.62, 54, 0.1]]) star(x, sx, sy, r, rot);
+  for (const [ox, d] of [[cx - 470, 1], [cx + 470, -1]]) {
+    x.beginPath(); x.arc(ox, cy - 20, 46, 0, Math.PI * 2); x.stroke();
+    x.beginPath(); x.arc(ox + d * 52, cy - 50, 52, 0, Math.PI * 2); x.stroke();
+  }
+  return c;
+}
+const paintCover = () => drawCover($("#coverCanvas"));
+coverInput.addEventListener("input", () => {
+  try { localStorage.setItem(COVER_STORE, coverInput.value); } catch {}
+  paintCover(); render();
+});
+paintCover();
+document.fonts.ready.then(paintCover);
+
 restore().then(() => { render(); if (!apiKey) showKey(true); });
 render();
 })();
