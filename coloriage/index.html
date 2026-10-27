@@ -136,7 +136,7 @@ const MODELS = ["gpt-image-2", "gpt-image-1"];   // le premier qui répond est g
 const PROMPT = "Turn this photo into a page from a children's coloring book. " +
   "Clean, confident black ink outlines on a pure white background. No color, no gray, no shading, no gradients, no filled black areas. " +
   "Keep every person faithful and recognizable: same faces, expressions, hairstyles, glasses, clothes and poses. " +
-  "Keep the whole scene and background (buildings, trees, furniture, people far away) redrawn as line art with the same framing. " +
+  "Vertical portrait format: keep the people large in the frame, and redraw the whole background (buildings, trees, furniture, people far away) as detailed line art filling the page edge to edge. " +
   "Shapes must be closed so they are easy to color. Line art only, no text, no border.";
 const PARALLEL = 3;
 const KEY_STORE = "atelier-coloriage-openai-key";
@@ -196,7 +196,7 @@ async function callModel(model, p) {
   fd.append("model", model);
   fd.append("image", p.photo, "photo.jpg");
   fd.append("prompt", PROMPT);
-  fd.append("size", p.land ? "1536x1024" : "1024x1536");
+  fd.append("size", "1024x1536");
   fd.append("quality", "high");
   if (model === "gpt-image-1") fd.append("input_fidelity", "high");
   let res;
@@ -248,8 +248,8 @@ async function addFiles(files) {
   if (!imgs.length) { toast("Choisis des photos (JPEG, PNG…)."); return; }
   for (const f of imgs) {
     try {
-      const { blob, land } = await shrinkPhoto(f);
-      pages.push(withUrls({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), photo: blob, drawing: null, land, status: "queued", error: "" }));
+      const { blob } = await shrinkPhoto(f);
+      pages.push(withUrls({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), photo: blob, drawing: null, land: false, status: "queued", error: "" }));
     } catch { toast(`Impossible de lire « ${f.name} ». Essaie un JPEG.`); }
   }
   render(); persist(); pump();
@@ -267,6 +267,7 @@ function moveTo(p, index) {
 }
 function render() {
   const book = $("#pagesSlot"); book.textContent = "";
+  const slots = slotLabels();
   pages.forEach((p, i) => {
     const el = document.createElement("article"); el.className = "page"; el.draggable = true;
     const sheet = document.createElement("div"); sheet.className = "sheet" + (p.land ? " land" : "");
@@ -289,7 +290,7 @@ function render() {
     const bar = document.createElement("div"); bar.className = "bar";
     const lab = document.createElement("label"); lab.textContent = "Page"; lab.htmlFor = "pg-" + p.id;
     const sel = document.createElement("select"); sel.id = "pg-" + p.id;
-    pages.forEach((_, k) => { const o = document.createElement("option"); o.value = k; o.textContent = k + 1; o.selected = k === i; sel.append(o); });
+    slots.forEach((label, k) => { const o = document.createElement("option"); o.value = k; o.textContent = label; o.selected = k === i; sel.append(o); });
     sel.addEventListener("change", () => moveTo(p, Number(sel.value)));
     const sp = document.createElement("span"); sp.className = "sp";
     bar.append(lab, sel, sp);
@@ -327,7 +328,7 @@ function render() {
   const busy = pages.filter((p) => p.status === "working" || p.status === "queued").length;
   const info = $("#info");
   if (!pages.length) info.textContent = "Ajoute une première photo pour commencer le cahier.";
-  else info.innerHTML = `<b>${pages.length + (coverText() ? 1 : 0)} pages</b> · ${coverText() ? "couverture + " : ""}${pages.length} dessin${pages.length > 1 ? "s" : ""}, un par page A4` + (busy ? ` · ${busy} dessin${busy > 1 ? "s" : ""} en cours` : "");
+  else info.innerHTML = `<b>${layout(pages).length + (coverText() ? 1 : 0)} pages</b> · ${coverText() ? "couverture + " : ""}${pages.length} dessin${pages.length > 1 ? "s" : ""}, deux par page A4 à l'horizontale` + (busy ? ` · ${busy} dessin${busy > 1 ? "s" : ""} en cours` : "");
   $("#exportBtn").disabled = !done || busy > 0;
 }
 
@@ -375,15 +376,13 @@ $("#exportBtn").addEventListener("click", async () => {
       doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
       doc.addImage(drawCover(document.createElement("canvas")).toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, 210, 297, undefined, "FAST");
     }
-    for (let i = 0; i < ready.length; i++) {
-      btn.textContent = `Préparation… ${i + 1}/${ready.length}`;
-      const im = await toJpeg(ready[i].drawing);
-      const land = im.w > im.h, o = land ? "landscape" : "portrait";
-      const W = land ? 297 : 210, H = land ? 210 : 297, m = 10;
+    const sheets = layout(ready);
+    for (let i = 0; i < sheets.length; i++) {
+      btn.textContent = `Préparation… ${i + 1}/${sheets.length}`;
+      const c = await composeSheet(sheets[i]), land = c.width > c.height, o = land ? "landscape" : "portrait";
       if (!doc) doc = new window.jspdf.jsPDF({ orientation: o, unit: "mm", format: "a4", compress: true });
       else doc.addPage("a4", o);
-      const s = Math.min((W - 2 * m) / im.w, (H - 2 * m) / im.h), dw = im.w * s, dh = im.h * s;
-      doc.addImage(im.data, "JPEG", (W - dw) / 2, (H - dh) / 2, dw, dh, undefined, "FAST");
+      doc.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, land ? 297 : 210, land ? 210 : 297, undefined, "FAST");
     }
     doc.setProperties({ title: "Cahier de coloriage" });
     const url = URL.createObjectURL(doc.output("blob"));
@@ -394,6 +393,51 @@ $("#exportBtn").addEventListener("click", async () => {
   } catch { toast("Le PDF n'a pas pu être créé."); }
   finally { btn.textContent = "Télécharger le cahier (PDF)"; render(); }
 });
+
+/* ---------- mise en page : deux dessins côte à côte par page A4 à l'horizontale ---------- */
+// Un dessin en largeur (anciens dessins) prend une page entière ; un dessin seul à la fin aussi.
+function layout(list) {
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i], b = list[i + 1];
+    if (!a.land && b && !b.land) { out.push([a, b]); i++; } else out.push([a]);
+  }
+  return out;
+}
+function slotLabels() {
+  const labels = [], first = coverText() ? 2 : 1;
+  layout(pages).forEach((sheet, n) => {
+    if (sheet.length === 2) labels.push(`${n + first} gauche`, `${n + first} droite`);
+    else labels.push(String(n + first));
+  });
+  return labels;
+}
+async function loadImg(blob) {
+  const url = URL.createObjectURL(blob);
+  try { const img = new Image(); img.src = url; await img.decode(); return img; } finally { URL.revokeObjectURL(url); }
+}
+// dessine l'image pour remplir tout le cadre (recadrage au centre), comme sur le modèle
+function fillFrame(x, img, l, t, w, h) {
+  const s = Math.max(w / img.naturalWidth, h / img.naturalHeight), sw = w / s, sh = h / s;
+  x.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, l, t, w, h);
+}
+async function composeSheet(sheet) {
+  const DPMM = 200 / 25.4, c = document.createElement("canvas");
+  const land = sheet.length === 2 || sheet[0].land;
+  const W = land ? 297 : 210, H = land ? 210 : 297, m = 8, gap = 0;
+  c.width = Math.round(W * DPMM); c.height = Math.round(H * DPMM);
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height);
+  x.scale(DPMM, DPMM); x.imageSmoothingQuality = "high";
+  const cw = (W - 2 * m - gap) / sheet.length;
+  for (let k = 0; k < sheet.length; k++) {
+    const img = await loadImg(sheet[k].drawing), l = m + k * (cw + gap);
+    fillFrame(x, img, l, m, cw, H - 2 * m);
+  }
+  x.strokeStyle = "#111"; x.lineWidth = 0.6;
+  x.strokeRect(m, m, W - 2 * m, H - 2 * m);
+  if (sheet.length === 2) { x.beginPath(); x.moveTo(W / 2, m); x.lineTo(W / 2, H - m); x.stroke(); }
+  return c;
+}
 
 /* ---------- démarrage ---------- */
 /* ---------- couverture : la phrase en lettres creuses, à colorier elle aussi ---------- */
