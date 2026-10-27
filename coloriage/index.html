@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atelier Coloriage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap">
+<style>
+/* Mise en page : une seule colonne ; le cahier est une grille de feuilles A4 numérotées, barre d'export collée en bas. */
+:root {
+  --bg: #e9edf4; --surface: #ffffff; --ink: #1c2132; --muted: #5b6479; --line: #d3d9e5;
+  --accent: #2f57e0; --accent-ink: #ffffff; --accent-soft: #dfe6fc; --danger: #c33a2c;
+  --shadow: 0 1px 2px rgba(28,33,50,.08), 0 8px 24px rgba(28,33,50,.12);
+  --f-display: "Fredoka", "Nunito Sans", ui-rounded, system-ui, sans-serif;
+  --f-body: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #11141c; --surface: #1a1f2c; --ink: #e8ebf3; --muted: #9aa3b9; --line: #2b3244;
+    --accent: #819dff; --accent-ink: #0c1020; --accent-soft: #232c4a; --danger: #ff8a7a;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.45); color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f-body);
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 110px max(16px, env(safe-area-inset-left)); }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+h1 { font: 700 clamp(28px, 4vw, 40px)/1 var(--f-display); margin: 0; }
+header p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.key { display: grid; gap: 10px; max-width: 620px; }
+.key h2 { font: 600 19px var(--f-display); margin: 0; }
+.key p { margin: 0; color: var(--muted); font-size: 14px; }
+.key form { display: flex; gap: 8px; flex-wrap: wrap; }
+.key input { flex: 1 1 260px; min-width: 0; font: 15px var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.btn { appearance: none; border: 0; border-radius: 11px; padding: 11px 16px; font: 700 15px var(--f-body); cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); font-weight: 600; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.book { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 22px 18px; align-items: end; }
+.page { display: grid; gap: 8px; min-width: 0; }
+.sheet { position: relative; background: #fff; box-shadow: var(--shadow); border-radius: 3px; aspect-ratio: 210 / 297; display: grid; place-items: center; overflow: hidden; cursor: grab; }
+.sheet.land { aspect-ratio: 297 / 210; }
+.sheet img { max-width: 92%; max-height: 92%; object-fit: contain; display: block; pointer-events: none; }
+.sheet .photo { filter: grayscale(1) opacity(.35); }
+.page.dragging .sheet { opacity: .4; }
+.page.over .sheet { outline: 3px dashed var(--accent); outline-offset: 4px; }
+.overlay { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; padding: 12px; color: #1c2132; font-weight: 700; font-size: 14px; }
+.overlay small { font-weight: 400; color: #5b6479; font-size: 12.5px; }
+.overlay.err { color: #b0291c; background: rgba(255,255,255,.85); }
+.spin { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #d3d9e5; border-top-color: #2f57e0; margin: 0 auto; animation: s 0.9s linear infinite; }
+@keyframes s { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+.bar { display: flex; align-items: center; gap: 6px; }
+.bar label { font: 600 14px var(--f-display); }
+.bar select { font: 600 14px var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; }
+.bar .sp { flex: 1; }
+.icon { appearance: none; border: 0; background: transparent; color: var(--muted); width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; cursor: pointer; }
+.icon:hover { background: var(--surface); color: var(--ink); }
+.icon.del:hover { color: var(--danger); }
+.icon svg { width: 17px; height: 17px; }
+
+.add { display: grid; place-items: center; gap: 4px; text-align: center; aspect-ratio: 210 / 297; border: 2px dashed var(--line); border-radius: 6px; cursor: pointer; padding: 12px; color: var(--muted); }
+.add:hover, .add.over { border-color: var(--accent); background: var(--accent-soft); }
+.add strong { font: 600 17px var(--f-display); color: var(--accent); }
+.add:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.add-page { display: grid; gap: 8px; }
+.add-page .bar { visibility: hidden; height: 30px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.export { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line);
+  padding: 12px max(16px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+.export .in { max-width: 1180px; margin: 0 auto; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.export .info { flex: 1 1 240px; color: var(--muted); font-size: 14px; }
+.export .info b { color: var(--ink); }
+.foot { color: var(--muted); font-size: 13px; }
+.link { appearance: none; border: 0; background: none; color: var(--accent); font: inherit; padding: 0; cursor: pointer; text-decoration: underline; }
+.toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; max-width: calc(100% - 32px); box-shadow: var(--shadow); z-index: 20; }
+@media (max-width: 480px) { .book { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; } .bar label { font-size: 13px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Atelier Coloriage</h1>
+    <p>Ajoute tes photos : chacune est redessinée en coloriage. Range ensuite les dessins dans l'ordre des pages, puis télécharge le cahier.</p>
+  </header>
+
+  <section class="card key" id="keyPanel" hidden>
+    <h2>Clé OpenAI</h2>
+    <p>Les dessins sont faits par le modèle d'images d'OpenAI. Colle ta clé d'API une seule fois : elle reste dans ce navigateur et n'est envoyée qu'à OpenAI. Compte environ 0,20 $ par dessin.</p>
+    <form id="keyForm">
+      <label class="sr" for="keyInput">Clé d'API OpenAI</label>
+      <input id="keyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" required>
+      <button class="btn" type="submit">Enregistrer</button>
+    </form>
+    <p>Pas encore de clé ? Crée-la sur platform.openai.com/api-keys, après avoir ajouté un moyen de paiement.</p>
+  </section>
+
+  <section class="book" id="book" aria-label="Pages du cahier"></section>
+
+  <p class="foot">Les photos et les dessins restent sur cet appareil. <button class="link" id="changeKey" type="button">Changer de clé OpenAI</button></p>
+</div>
+
+<div class="export">
+  <div class="in">
+    <div class="info" id="info"></div>
+    <button class="btn" id="exportBtn" type="button">Télécharger le cahier (PDF)</button>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = (s) => document.querySelector(s);
+
+/* ---------- réglages internes (pas exposés) ---------- */
+const MODELS = ["gpt-image-2", "gpt-image-1"];   // le premier qui répond est gardé
+const PROMPT = "Turn this photo into a page from a children's coloring book. " +
+  "Clean, confident black ink outlines on a pure white background. No color, no gray, no shading, no gradients, no filled black areas. " +
+  "Keep every person faithful and recognizable: same faces, expressions, hairstyles, glasses, clothes and poses. " +
+  "Keep the whole scene and background (buildings, trees, furniture, people far away) redrawn as line art with the same framing. " +
+  "Shapes must be closed so they are easy to color. Line art only, no text, no border.";
+const PARALLEL = 3;
+const KEY_STORE = "atelier-coloriage-openai-key";
+
+let apiKey = "";
+try { apiKey = localStorage.getItem(KEY_STORE) || ""; } catch {}
+let workingModel = null;
+const pages = [];          // {id, photo:Blob, photoUrl, drawing:Blob|null, drawingUrl, land, status:'queued'|'working'|'done'|'error', error}
+let running = 0;
+
+/* ---------- stockage local (pour ne jamais payer deux fois le même dessin) ---------- */
+const dbP = new Promise((res) => {
+  try {
+    const r = indexedDB.open("atelier-coloriage", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("pages", { keyPath: "id" });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => res(null);
+  } catch { res(null); }
+});
+async function persist() {
+  const db = await dbP; if (!db) return;
+  try {
+    const tx = db.transaction("pages", "readwrite"), st = tx.objectStore("pages");
+    st.clear();
+    pages.forEach((p, order) => st.put({ id: p.id, order, photo: p.photo, drawing: p.drawing, land: p.land, status: p.status === "done" ? "done" : "error", error: p.status === "done" ? "" : (p.error || "Dessin interrompu.") }));
+  } catch {}
+}
+async function restore() {
+  const db = await dbP; if (!db) return;
+  const rows = await new Promise((res) => {
+    try { const r = db.transaction("pages").objectStore("pages").getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); }
+    catch { res([]); }
+  });
+  rows.sort((a, b) => a.order - b.order).forEach((r) => pages.push(withUrls({ ...r })));
+}
+function withUrls(p) {
+  p.photoUrl = URL.createObjectURL(p.photo);
+  p.drawingUrl = p.drawing ? URL.createObjectURL(p.drawing) : "";
+  return p;
+}
+
+/* ---------- OpenAI ---------- */
+async function shrinkPhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(1, 1600 / Math.max(w, h));
+    const c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(h * s);
+    const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
+    return { blob, land: w > h * 1.1 };
+  } finally { URL.revokeObjectURL(url); }
+}
+class ApiError extends Error { constructor(msg, kind) { super(msg); this.kind = kind; } }
+async function callModel(model, p) {
+  const fd = new FormData();
+  fd.append("model", model);
+  fd.append("image", p.photo, "photo.jpg");
+  fd.append("prompt", PROMPT);
+  fd.append("size", p.land ? "1536x1024" : "1024x1536");
+  fd.append("quality", "high");
+  if (model === "gpt-image-1") fd.append("input_fidelity", "high");
+  let res;
+  try { res = await fetch("https://api.openai.com/v1/images/edits", { method: "POST", headers: { Authorization: "Bearer " + apiKey }, body: fd }); }
+  catch { throw new ApiError("Impossible de joindre OpenAI. Vérifie la connexion internet.", "network"); }
+  let json = null; try { json = await res.json(); } catch {}
+  if (res.ok && json?.data?.[0]?.b64_json) {
+    const bin = atob(json.data[0].b64_json), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Blob([buf], { type: "image/png" });
+  }
+  const msg = json?.error?.message || `Erreur ${res.status}`;
+  if (res.status === 401) throw new ApiError("La clé OpenAI est refusée. Colle une clé valide.", "key");
+  if ((res.status === 404 || res.status === 400 || res.status === 403) && /model|does not exist|not have access|verif/i.test(msg)) throw new ApiError(msg, "model");
+  if (res.status === 429) throw new ApiError(/quota|billing|credit/i.test(msg) ? "Crédit OpenAI épuisé. Ajoute du crédit sur platform.openai.com." : "OpenAI est saturé pour l'instant. Réessaie dans une minute.", "rate");
+  if (/safety|moderation|rejected/i.test(msg)) throw new ApiError("OpenAI a refusé cette photo. Essaie-en une autre.", "safety");
+  throw new ApiError(msg, "other");
+}
+async function draw(p) {
+  const list = workingModel ? [workingModel] : MODELS;
+  let last;
+  for (const m of list) {
+    try { const b = await callModel(m, p); workingModel = m; return b; }
+    catch (e) { last = e; if (e.kind !== "model") throw e; }
+  }
+  throw last;
+}
+
+/* ---------- file d'attente ---------- */
+function pump() {
+  if (!apiKey) { showKey(true); return; }
+  while (running < PARALLEL) {
+    const p = pages.find((q) => q.status === "queued");
+    if (!p) break;
+    running++; p.status = "working"; render();
+    draw(p).then((blob) => {
+      p.drawing = blob; if (p.drawingUrl) URL.revokeObjectURL(p.drawingUrl);
+      p.drawingUrl = URL.createObjectURL(blob); p.status = "done"; p.error = "";
+    }).catch((e) => {
+      p.status = "error"; p.error = e.message;
+      if (e.kind === "key") { apiKey = ""; try { localStorage.removeItem(KEY_STORE); } catch {} showKey(true);
+        pages.forEach((q) => { if (q.status === "queued") { q.status = "error"; q.error = e.message; } }); }
+    }).finally(() => { running--; render(); persist(); pump(); });
+  }
+}
+
+async function addFiles(files) {
+  const imgs = [...files].filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+  if (!imgs.length) { toast("Choisis des photos (JPEG, PNG…)."); return; }
+  for (const f of imgs) {
+    try {
+      const { blob, land } = await shrinkPhoto(f);
+      pages.push(withUrls({ id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), photo: blob, drawing: null, land, status: "queued", error: "" }));
+    } catch { toast(`Impossible de lire « ${f.name} ». Essaie un JPEG.`); }
+  }
+  render(); persist(); pump();
+}
+
+/* ---------- affichage ---------- */
+const ICON = {
+  redo: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3v3.5H9.5"/><path d="M12.6 6.4A5 5 0 1 0 13 9"/></svg>',
+  del: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
+};
+let dragId = null;
+function moveTo(p, index) {
+  const i = pages.indexOf(p); if (i < 0 || index === i) return;
+  pages.splice(i, 1); pages.splice(index, 0, p); render(); persist();
+}
+function render() {
+  const book = $("#book"); book.textContent = "";
+  pages.forEach((p, i) => {
+    const el = document.createElement("article"); el.className = "page"; el.draggable = true;
+    const sheet = document.createElement("div"); sheet.className = "sheet" + (p.land ? " land" : "");
+    const img = document.createElement("img");
+    if (p.status === "done") { img.src = p.drawingUrl; img.alt = `Coloriage de la page ${i + 1}`; }
+    else { img.src = p.photoUrl; img.alt = ""; img.className = "photo"; }
+    sheet.append(img);
+    if (p.status !== "done") {
+      const ov = document.createElement("div"); ov.className = "overlay" + (p.status === "error" ? " err" : "");
+      if (p.status === "error") {
+        ov.innerHTML = "<span></span>"; ov.firstChild.textContent = p.error || "Le dessin n'a pas pu être fait.";
+        const b = document.createElement("button"); b.className = "btn ghost"; b.type = "button"; b.textContent = "Réessayer";
+        b.addEventListener("click", () => { p.status = "queued"; render(); pump(); });
+        ov.append(b);
+      } else {
+        ov.innerHTML = '<div class="spin"></div><span>' + (p.status === "working" ? "Dessin en cours…" : "En attente…") + '</span><small>environ une minute</small>';
+      }
+      sheet.append(ov);
+    }
+    const bar = document.createElement("div"); bar.className = "bar";
+    const lab = document.createElement("label"); lab.textContent = "Page"; lab.htmlFor = "pg-" + p.id;
+    const sel = document.createElement("select"); sel.id = "pg-" + p.id;
+    pages.forEach((_, k) => { const o = document.createElement("option"); o.value = k; o.textContent = k + 1; o.selected = k === i; sel.append(o); });
+    sel.addEventListener("change", () => moveTo(p, Number(sel.value)));
+    const sp = document.createElement("span"); sp.className = "sp";
+    bar.append(lab, sel, sp);
+    if (p.status === "done") {
+      const r = document.createElement("button"); r.type = "button"; r.className = "icon"; r.innerHTML = ICON.redo;
+      r.title = "Redessiner"; r.setAttribute("aria-label", `Redessiner la page ${i + 1}`);
+      r.addEventListener("click", () => { p.status = "queued"; render(); pump(); });
+      bar.append(r);
+    }
+    const d = document.createElement("button"); d.type = "button"; d.className = "icon del"; d.innerHTML = ICON.del;
+    d.title = "Retirer"; d.setAttribute("aria-label", `Retirer la page ${i + 1}`);
+    d.addEventListener("click", () => { pages.splice(pages.indexOf(p), 1); render(); persist(); toast("Page retirée."); });
+    bar.append(d);
+    el.append(sheet, bar);
+
+    el.addEventListener("dragstart", (ev) => { dragId = p.id; el.classList.add("dragging"); ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", p.id); });
+    el.addEventListener("dragend", () => { dragId = null; el.classList.remove("dragging"); });
+    el.addEventListener("dragover", (ev) => { if (dragId && dragId !== p.id) { ev.preventDefault(); el.classList.add("over"); } });
+    el.addEventListener("dragleave", () => el.classList.remove("over"));
+    el.addEventListener("drop", (ev) => {
+      el.classList.remove("over");
+      if (!dragId) return; ev.preventDefault(); ev.stopPropagation();
+      const src = pages.find((q) => q.id === dragId); if (src) moveTo(src, pages.indexOf(p));
+    });
+    book.append(el);
+  });
+
+  const add = document.createElement("div"); add.className = "add-page";
+  add.innerHTML = '<label class="add" id="addZone"><input class="sr" type="file" id="file" accept="image/*" multiple>' +
+    '<strong>Ajouter des photos</strong><span>ou glisse-les ici</span></label><div class="bar"></div>';
+  book.append(add);
+  add.querySelector("#file").addEventListener("change", (ev) => { addFiles(ev.target.files); ev.target.value = ""; });
+
+  const done = pages.filter((p) => p.status === "done").length;
+  const busy = pages.filter((p) => p.status === "working" || p.status === "queued").length;
+  const info = $("#info");
+  if (!pages.length) info.textContent = "Ajoute une première photo pour commencer le cahier.";
+  else info.innerHTML = `<b>${pages.length} page${pages.length > 1 ? "s" : ""}</b> · A4, un dessin par page` + (busy ? ` · ${busy} dessin${busy > 1 ? "s" : ""} en cours` : "");
+  $("#exportBtn").disabled = !done || busy > 0;
+}
+
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 4000);
+}
+function showKey(on) { $("#keyPanel").hidden = !on; if (on) $("#keyInput").focus(); }
+$("#keyForm").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  apiKey = $("#keyInput").value.trim(); $("#keyInput").value = "";
+  try { localStorage.setItem(KEY_STORE, apiKey); } catch {}
+  showKey(false); toast("Clé enregistrée.");
+  pages.forEach((p) => { if (p.status === "error" && !p.drawing) p.status = "queued"; });
+  render(); pump();
+});
+$("#changeKey").addEventListener("click", () => showKey(true));
+
+/* glisser des fichiers n'importe où sur la page */
+document.addEventListener("dragover", (ev) => { if (!dragId && ev.dataTransfer?.types?.includes("Files")) { ev.preventDefault(); $("#addZone")?.classList.add("over"); } });
+document.addEventListener("dragleave", (ev) => { if (!ev.relatedTarget) $("#addZone")?.classList.remove("over"); });
+document.addEventListener("drop", (ev) => {
+  $("#addZone")?.classList.remove("over");
+  if (!dragId && ev.dataTransfer?.files?.length) { ev.preventDefault(); addFiles(ev.dataTransfer.files); }
+});
+
+/* ---------- PDF : un dessin par page A4, orientation suivant le dessin ---------- */
+async function toJpeg(blob) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0);
+    return { data: c.toDataURL("image/jpeg", 0.92), w: c.width, h: c.height };
+  } finally { URL.revokeObjectURL(url); }
+}
+$("#exportBtn").addEventListener("click", async () => {
+  if (!window.jspdf) { toast("Le module PDF ne s'est pas chargé. Vérifie la connexion et recharge la page."); return; }
+  const btn = $("#exportBtn"), ready = pages.filter((p) => p.status === "done");
+  btn.disabled = true;
+  try {
+    let doc;
+    for (let i = 0; i < ready.length; i++) {
+      btn.textContent = `Préparation… ${i + 1}/${ready.length}`;
+      const im = await toJpeg(ready[i].drawing);
+      const land = im.w > im.h, o = land ? "landscape" : "portrait";
+      const W = land ? 297 : 210, H = land ? 210 : 297, m = 10;
+      if (!doc) doc = new window.jspdf.jsPDF({ orientation: o, unit: "mm", format: "a4", compress: true });
+      else doc.addPage("a4", o);
+      const s = Math.min((W - 2 * m) / im.w, (H - 2 * m) / im.h), dw = im.w * s, dh = im.h * s;
+      doc.addImage(im.data, "JPEG", (W - dw) / 2, (H - dh) / 2, dw, dh, undefined, "FAST");
+    }
+    doc.setProperties({ title: "Cahier de coloriage" });
+    const url = URL.createObjectURL(doc.output("blob"));
+    const a = document.createElement("a"); a.href = url; a.download = "cahier-de-coloriage.pdf";
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast("Cahier téléchargé. Imprime-le en taille réelle (100 %).");
+  } catch { toast("Le PDF n'a pas pu être créé."); }
+  finally { btn.textContent = "Télécharger le cahier (PDF)"; render(); }
+});
+
+/* ---------- démarrage ---------- */
+restore().then(() => { render(); if (!apiKey) showKey(true); });
+render();
+})();
+</script>
+</body>
+</html>
