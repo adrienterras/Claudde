@@ -5,7 +5,7 @@ name: Publier sur GitHub Pages
 on:
   push:
     branches: [claude/children-drawings-art-app-kr5f77]
-    paths: [collage/**, landing/**, .github/workflows/pages.yml]
+    paths: [collage/**, landing/**, coloriage/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -46,6 +46,8 @@ jobs:
           rm -rf _site/atelier/README.md _site/atelier/tests _site/atelier/node_modules _site/atelier/package.json _site/atelier/package-lock.json _site/atelier/playwright.config.js _site/atelier/.gitignore
           cp -r landing/. _site/
           cp collage/confidentialite.html _site/confidentialite.html
+          # Atelier Coloriage (page de test, non référencée)
+          mkdir -p _site/coloriage && cp coloriage/index.html _site/coloriage/index.html
           # Chaque déploiement change l'adresse des scripts et de la feuille de style : les navigateurs
           # (Safari surtout) ne gardent plus une vieille version en cache après une mise à jour.
           V="${GITHUB_SHA:0:8}"
