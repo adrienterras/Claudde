@@ -1163,11 +1163,16 @@
         for (let x = 0; x < fw; x++) if (seg.lines[r0 + colF[x]]) inkF[o + x] = 0;
       }
     }
-    // marge de quelques millimètres autour de l'encre, trous bouchés, puis coupe nette
+    // La coupe serre le dessin au plus près : l'encre élargie de la marge (≈ 3 mm), les trous bouchés
+    // (l'intérieur d'un contour fermé est le dessin). Les creux ouverts (entre les jambes, entre un bras
+    // et le corps) sont découpés, comme aux ciseaux. Si la pièce se retrouve en plusieurs îlots (des
+    // traits qui ne se touchent pas), la fermeture est élargie juste assez pour les relier, et seuls les
+    // ponts entre îlots sont gardés — pas les creux qu'une grande fermeture boucherait partout.
     const closeR = seg.closeR || CUT.close;
-    let fm = dilate(inkF, fw, fh, funit * closeR);
-    fm = fillHoles(fm, fw, fh, seg.holeMax ? seg.holeMax * seg.w * seg.h * kf * kf : 0);
-    fm = erode(fm, fw, fh, funit * (closeR - CUT.margin));
+    const holeMax = seg.holeMax ? seg.holeMax * seg.w * seg.h * kf * kf : 0;
+    const closing = (r) => erode(fillHoles(dilate(inkF, fw, fh, funit * r), fw, fh, holeMax), fw, fh, funit * (r - CUT.margin));
+    let fm = fillHoles(dilate(inkF, fw, fh, funit * CUT.margin), fw, fh, holeMax);
+    fm = bridgeIslands(fm, fw, fh, closing, CUT.margin, closeR);
     // si la détection fine n'a presque rien trouvé (sujet très pâle), on garde la forme grossière
     let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
     let regCount = 0; for (let p = 0; p < region.length; p++) regCount += region[p];
@@ -1179,7 +1184,15 @@
     if (useFine) {
       const rs = funit * CUT.smooth;
       let sm = dilate(erode(alpha, fw, fh, rs), fw, fh, rs);
-      sm = erode(dilate(sm, fw, fh, rs), fw, fh, rs);
+      // la fermeture ne bouche que les petites encoches du contour : un creux allongé plus étroit que
+      // 2 × rs (entre deux jambes, le long d'un bras) resterait bouché sur toute sa longueur
+      const cl = erode(dilate(sm, fw, fh, rs), fw, fh, rs);
+      const add = new Uint8Array(sm.length);
+      for (let p = 0; p < add.length; p++) add[p] = cl[p] && !sm[p] ? 1 : 0;
+      const ac = components(add, fw, fh), maxAdd = (2 * rs) * (2 * rs) * 2;
+      const small = new Uint8Array(ac.comps.length + 1);
+      for (const c of ac.comps) if (c.area <= maxAdd) small[c.id] = 1;
+      for (let p = 0; p < add.length; p++) if (add[p] && small[ac.labels[p]]) sm[p] = 1;
       const guard = dilate(inkF, fw, fh, funit * Math.min(0.004, CUT.margin * 0.5));
       for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
       alpha = sm;
@@ -1224,6 +1237,38 @@
     };
   }
 
+  // Relie les îlots d'une découpe serrée (tight) par les ponts de la plus petite fermeture qui la rend
+  // d'un seul tenant (dichotomie entre la marge et le rayon de fermeture) ; les creux que cette
+  // fermeture boucherait sans relier deux îlots restent ouverts. Ce qui ne se relie pas même à la
+  // fermeture entière reste tel quel (c'était déjà en plusieurs morceaux).
+  function bridgeIslands(tight, w, h, closing, rMin, rMax) {
+    const isl = components(tight, w, h);
+    if (isl.comps.length <= 1) return tight;
+    const full = closing(rMax);
+    const nFull = components(full, w, h).comps.length;
+    if (nFull >= isl.comps.length) return tight;
+    let lo = rMin, hi = rMax, best = full;
+    for (let it = 0; it < 4; it++) {
+      const mid = (lo + hi) / 2;
+      const c = closing(mid);
+      if (components(c, w, h).comps.length <= nFull) { best = c; hi = mid; } else lo = mid;
+    }
+    // les ajouts de la fermeture : gardés s'ils touchent au moins deux îlots (un pont), écartés sinon (un creux)
+    const n = w * h, add = new Uint8Array(n);
+    for (let p = 0; p < n; p++) add[p] = best[p] && !tight[p] ? 1 : 0;
+    const ac = components(add, w, h);
+    const touch = new Map();
+    for (let p = 0; p < n; p++) {
+      const l = ac.labels[p];
+      if (!l) continue;
+      const x = p % w;
+      const nb = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p >= w ? p - w : -1, p < n - w ? p + w : -1];
+      for (const q of nb) if (q >= 0 && tight[q]) { if (!touch.has(l)) touch.set(l, new Set()); touch.get(l).add(isl.labels[q]); }
+    }
+    const out = tight.slice();
+    for (let p = 0; p < n; p++) { const l = ac.labels[p]; if (l && touch.has(l) && touch.get(l).size >= 2) out[p] = 1; }
+    return out;
+  }
   function cutPieces(page, seg) {
     seg = seg || segment(page);
     const enhanced = enhance(page, seg.paper);

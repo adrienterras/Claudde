@@ -297,6 +297,40 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.big).toBeGreaterThan(0.2);
   });
 
+  test('la coupe suit le dessin au plus près : un creux ouvert (entre les jambes) est découpé, un chapeau détaché est relié par un pont', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une feuille A4 (≈ 70 px par cm) ; un bonhomme au feutre : corps fermé, deux jambes au contour fermé
+      // séparées par un creux de 1 cm ouvert vers le bas, un chapeau détaché à 6 mm au-dessus de la tête
+      const W = 1480, H = 2100, cm = H / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(251,250,246)'; x.fillRect(0, 0, W, H);
+      x.strokeStyle = 'rgb(200,30,40)'; x.lineWidth = 6; x.lineJoin = 'round';
+      x.beginPath(); x.ellipse(740, 760, 260, 300, 0, 0, 7); x.stroke();   // le corps (fermé)
+      x.beginPath(); x.rect(560, 1050, 150, 650); x.stroke();                 // jambe gauche
+      x.beginPath(); x.rect(770, 1050, 150, 650); x.stroke();                 // jambe droite (creux de 60 px ≈ 0,85 cm)
+      x.beginPath(); x.rect(600, 380, 280, 40); x.stroke();                   // le chapeau, à 40 px ≈ 6 mm de la tête
+      const a = Extract.analyze(c, 0, {});
+      const ps = (a.pieces || []).slice().sort((u, v) => v.frac - u.frac);
+      const p = ps[0];
+      if (!p) return { kind: a.kind, n: 0 };
+      const pc = p.canvas, d = pc.getContext('2d').getImageData(0, 0, pc.width, pc.height).data, k = pc.width / p.src.w;
+      const at = (px, py) => { const X = Math.round((px - p.src.x) * k), Y = Math.round((py - p.src.y) * k); return X < 0 || Y < 0 || X >= pc.width || Y >= pc.height ? 0 : d[(Y * pc.width + X) * 4 + 3]; };
+      return {
+        kind: a.kind, n: ps.length, frac: p.frac,
+        body: at(740, 760), legIn: at(635, 1400),         // l'intérieur du corps et d'une jambe : gardés
+        gapMid: at(740, 1400), gapHigh: at(740, 1120),    // le creux entre les jambes, jusqu'en haut : découpé
+        gapTop: at(740, 1065),                             // au ras de l'entrejambe : la marge, gardée
+        hat: at(740, 400), bridge: at(740, 440),           // le chapeau, et le pont jusqu'à la tête : gardés
+        beside: at(560, 440), under: at(740, 1760),        // à côté du pont, sous les pieds : découpé
+      };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.n).toBe(1);
+    expect(r.body).toBeGreaterThan(200); expect(r.legIn).toBeGreaterThan(200);
+    expect(r.gapMid).toBe(0); expect(r.gapHigh).toBe(0); expect(r.gapTop).toBeGreaterThan(200);
+    expect(r.hat).toBeGreaterThan(200); expect(r.bridge).toBeGreaterThan(200);
+    expect(r.beside).toBe(0); expect(r.under).toBe(0);
+  });
+
   test('découpe apprise d’une retouche : marge resserrée et traits pâles gardés, appliqués aux découpes suivantes', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       Extract.setCutPrefs(null);

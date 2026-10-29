@@ -122,10 +122,14 @@ cd collage && python3 -m http.server 8000
    change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
-     ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, un contour
-     ouvert est contourné sans entrer dans chaque creux, puis la coupe suit le dessin à ≈ 3 mm, avec
-     un contour **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles
-     arrondis, sans jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle). Un dessin
+     ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, puis la coupe
+     **suit le dessin au plus près**, à ≈ 3 mm : l'intérieur d'un contour fermé est gardé, mais les
+     **creux ouverts** (entre deux jambes, entre un bras et le corps, entre deux rayons) sont découpés
+     comme aux ciseaux. Si les traits d'un sujet ne se touchent pas (un chapeau au-dessus d'une tête),
+     seuls des **ponts** de papier aussi courts que possible les relient (`bridgeIslands` : la plus petite
+     fermeture qui réunit les îlots, dont on ne garde que les ajouts touchant deux îlots). Le contour
+     est **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles arrondis, sans
+     boucher un creux allongé ni jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle). Un dessin
      qui **sort de la feuille** n'est plus coupé net le long du bord de la page : chaque tronçon où
      la découpe touche le bord devient un dôme (demi-ellipse qui touche le bord en son milieu,
      profondeur 35 % de sa longueur, au plus ≈ 4 % du grand côté ; tronçons à moins de ≈ 6 mm
@@ -429,7 +433,7 @@ cd collage && python3 -m http.server 8000
      bords de feuille, texte seul) ; le contour de chaque découpe est calculé en haute résolution
      (à la résolution de la page, jusqu'à 3000 px de côté) avec un seuil d'encre à deux niveaux : les zones pâles (crayon léger,
      couleurs claires, dégradés) reliées à un trait net restent dans le dessin, le grain du papier non ;
-     la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4)
+     la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4), creux ouverts compris
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Galerie »** : grille de cases carrées toujours complète (jamais une dernière rangée
@@ -753,7 +757,8 @@ taille réelle, son rôle et son orientation, et les autres dessins ne bougent p
 ## Fonctionnement
 
 - `js/extract.js` : estimation de la couleur du papier sur les bords, recadrage sur la feuille quand le scan
-  a des marges, détection des traits, dilatation + remplissage des trous (forme « ciseaux »),
+  a des marges, détection des traits, dilatation + remplissage des trous (forme « ciseaux », ponts
+  minimaux entre traits détachés, creux ouverts découpés),
   composantes connexes → pièces, blanchiment du papier et ravivage des couleurs.
 - `js/compose.js` : tout est exprimé en centimètres sur la toile ; fond peint procédural, pages collées
   (recadrées, jamais agrandies), placement des découpes par score de composition, rendu et finition.
