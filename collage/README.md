@@ -125,12 +125,16 @@ cd collage && python3 -m http.server 8000
      ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, puis la coupe
      **suit le dessin au plus près**, à ≈ 3 mm : l'intérieur d'un contour fermé est gardé, mais les
      **creux ouverts** (entre deux jambes, entre un bras et le corps, entre deux rayons) sont découpés
-     comme aux ciseaux. Si les traits d'un sujet ne se touchent pas (un chapeau au-dessus d'une tête),
+     comme aux ciseaux, et les **poches** aussi : un espace blanc que seules les marges referment (entre
+     deux têtes à moins de 5 mm l'une de l'autre) n'est pas l'intérieur du dessin (`keepInsides` : un
+     vrai intérieur est clos par l'encre elle-même, à ≈ 3 mm près ; une poche de moins de ≈ 0,5 cm²
+     reste bouchée). Si les traits d'un sujet ne se touchent pas (un chapeau au-dessus d'une tête),
      seuls des **ponts** de papier aussi courts que possible les relient (`bridgeIslands` : la plus petite
      fermeture qui réunit les îlots, dont on ne garde que les ajouts touchant deux îlots). Le contour
-     est **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles arrondis, sans
-     boucher un creux allongé (seule une fente de moins de ≈ 1 mm l'est) ni jamais entamer l'encre
-     (≈ 1 mm de papier garanti autour d'elle). Un dessin
+     est **lisse** : les petites dents (≈ 2 mm) sont gommées et les angles arrondis (ouverture à
+     ≈ 2,4 mm) ; les encoches et fentes de moins de ≈ 1,5 mm sont comblées et les angles rentrants
+     adoucis (fermeture courte, ≈ 0,7 mm, pour ne boucher aucun creux plus large) ; l'encre n'est jamais
+     entamée (≈ 1 mm de papier garanti autour d'elle). Un dessin
      qui **sort de la feuille** n'est plus coupé net le long du bord de la page : chaque tronçon où
      la découpe touche le bord devient un dôme (demi-ellipse qui touche le bord en son milieu,
      profondeur 35 % de sa longueur, au plus ≈ 4 % du grand côté ; tronçons à moins de ≈ 6 mm

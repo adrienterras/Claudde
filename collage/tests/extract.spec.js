@@ -308,6 +308,10 @@ test.describe('Analyse des pages (Extract)', () => {
       x.beginPath(); x.rect(560, 1050, 150, 650); x.stroke();                 // jambe gauche
       x.beginPath(); x.rect(770, 1050, 150, 650); x.stroke();                 // jambe droite (creux de 60 px ≈ 0,85 cm)
       x.beginPath(); x.rect(600, 380, 280, 40); x.stroke();                   // le chapeau, à 40 px ≈ 6 mm de la tête
+      // un second personnage à droite : une tête à ≈ 4,5 mm du corps, un bras qui rejoint le corps plus bas ;
+      // entre les deux, une poche blanche que seules les marges referment
+      x.beginPath(); x.arc(1133, 700, 100, 0, 7); x.stroke();
+      x.beginPath(); x.moveTo(896, 1000); x.lineTo(1133, 820); x.stroke();
       const a = Extract.analyze(c, 0, {});
       const ps = (a.pieces || []).slice().sort((u, v) => v.frac - u.frac);
       const p = ps[0];
@@ -321,6 +325,7 @@ test.describe('Analyse des pages (Extract)', () => {
         gapTop: at(740, 1065),                             // au ras de l'entrejambe : la marge, gardée
         hat: at(740, 400), bridge: at(740, 440),           // le chapeau, et le pont jusqu'à la tête : gardés
         beside: at(560, 440), under: at(740, 1760),        // à côté du pont, sous les pieds : découpé
+        head2: at(1133, 700), pocket: at(1020, 870),       // la seconde tête gardée ; la poche entre les deux : découpée
       };
     });
     expect(r.kind).toBe('cutout');
@@ -329,6 +334,7 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.gapMid).toBe(0); expect(r.gapHigh).toBe(0); expect(r.gapTop).toBeGreaterThan(200);
     expect(r.hat).toBeGreaterThan(200); expect(r.bridge).toBeGreaterThan(200);
     expect(r.beside).toBe(0); expect(r.under).toBe(0);
+    expect(r.head2).toBeGreaterThan(200); expect(r.pocket).toBe(0);
   });
 
   test('découpe apprise d’une retouche : marge resserrée et traits pâles gardés, appliqués aux découpes suivantes', async ({ app }) => {

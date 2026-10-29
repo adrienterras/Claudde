@@ -1170,8 +1170,8 @@
     // ponts entre îlots sont gardés — pas les creux qu'une grande fermeture boucherait partout.
     const closeR = seg.closeR || CUT.close;
     const holeMax = seg.holeMax ? seg.holeMax * seg.w * seg.h * kf * kf : 0;
-    const closing = (r) => erode(fillHoles(dilate(inkF, fw, fh, funit * r), fw, fh, holeMax), fw, fh, funit * (r - CUT.margin));
-    let fm = fillHoles(dilate(inkF, fw, fh, funit * CUT.margin), fw, fh, holeMax);
+    const closing = (r) => erode(dilate(inkF, fw, fh, funit * r), fw, fh, funit * (r - CUT.margin));
+    let fm = keepInsides(dilate(inkF, fw, fh, funit * CUT.margin), inkF, fw, fh, funit, holeMax);
     fm = bridgeIslands(fm, fw, fh, closing, CUT.margin, closeR);
     // si la détection fine n'a presque rien trouvé (sujet très pâle), on garde la forme grossière
     let fmCount = 0; for (let p = 0; p < fm.length; p++) fmCount += fm[p];
@@ -1184,22 +1184,11 @@
     if (useFine) {
       const rs = funit * CUT.smooth;
       let sm = dilate(erode(alpha, fw, fh, rs), fw, fh, rs);
-      // la fermeture ne bouche que les petites encoches du contour : un creux allongé plus étroit que
-      // 2 × rs (entre deux jambes, le long d'un bras) resterait bouché sur toute sa longueur
-      const cl = erode(dilate(sm, fw, fh, rs), fw, fh, rs);
-      const add = new Uint8Array(sm.length);
-      for (let p = 0; p < add.length; p++) add[p] = cl[p] && !sm[p] ? 1 : 0;
-      // (une encoche ou un angle rentrant est local : au plus ≈ 6 × rs de long ; une fente très fine
-      // (moins de ≈ rs / 2 de large, ≈ 1 mm) est comblée quelle que soit sa longueur ; un creux entre deux jambes
-      // ou le long d'un bras est long et plus large : il reste découpé)
-      const ac = components(add, fw, fh), maxLen = 6 * rs;
-      const inv = new Uint8Array(add.length);
-      for (let p = 0; p < inv.length; p++) inv[p] = add[p] ? 0 : 1;
-      const df = distanceField(inv, fw, fh), thick = new Float32Array(ac.comps.length + 1);
-      for (let p = 0; p < add.length; p++) if (add[p] && df[p] > thick[ac.labels[p]]) thick[ac.labels[p]] = df[p];
-      const small = new Uint8Array(ac.comps.length + 1);
-      for (const c of ac.comps) if (Math.max(c.x1 - c.x0, c.y1 - c.y0) <= maxLen || thick[c.id] <= rs / 4) small[c.id] = 1;
-      for (let p = 0; p < add.length; p++) if (add[p] && small[ac.labels[p]]) sm[p] = 1;
+      // la fermeture est courte (≈ 0,7 mm) : elle comble les petites encoches et les fentes (moins de
+      // ≈ 1,5 mm) et adoucit les angles rentrants, sans boucher un creux plus large (entre deux jambes,
+      // entre deux têtes), qui reste découpé
+      const rc = rs * 0.3;
+      sm = erode(dilate(sm, fw, fh, rc), fw, fh, rc);
       const guard = dilate(inkF, fw, fh, funit * Math.min(0.004, CUT.margin * 0.5));
       for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
       alpha = sm;
@@ -1242,6 +1231,28 @@
       // emplacement de la pièce dans la page (en pixels de page), pour pouvoir retoucher la découpe
       src: { x: x0 * k, y: y0 * k, w: pw, h: ph },
     };
+  }
+
+  // Bouche les trous d'une découpe serrée (l'encre élargie de la marge), sauf les poches : un espace
+  // blanc que seules les marges referment (entre deux têtes qui ne se touchent pas, entre un bras et
+  // le corps) n'est pas l'intérieur du dessin et reste découpé. Un vrai intérieur est clos par l'encre
+  // elle-même (à ≈ 3 mm près : un trait interrompu reste un contour) ; une petite poche (moins de
+  // ≈ 0,5 cm²) reste bouchée.
+  function keepInsides(tight, ink, w, h, funit, holeMax) {
+    const filled = fillHoles(tight, w, h, holeMax);
+    const n = w * h, holes = new Uint8Array(n);
+    let any = 0;
+    for (let p = 0; p < n; p++) if (filled[p] && !tight[p]) { holes[p] = 1; any = 1; }
+    if (!any) return filled;
+    const hc = components(holes, w, h);
+    const closed = fillHoles(dilate(ink, w, h, funit * 0.005), w, h, holeMax);
+    const leak = new Float64Array(hc.comps.length + 1);
+    for (let p = 0; p < n; p++) if (holes[p] && !closed[p]) leak[hc.labels[p]]++;
+    const minArea = (funit * 0.025) * (funit * 0.025), drop = new Uint8Array(hc.comps.length + 1);
+    for (const c of hc.comps) if (c.area > minArea && leak[c.id] > c.area * 0.05) drop[c.id] = 1;
+    const out = filled.slice();
+    for (let p = 0; p < n; p++) if (holes[p] && drop[hc.labels[p]]) out[p] = 0;
+    return out;
   }
 
   // Relie les îlots d'une découpe serrée (tight) par les ponts de la plus petite fermeture qui la rend
