@@ -129,7 +129,8 @@ cd collage && python3 -m http.server 8000
      seuls des **ponts** de papier aussi courts que possible les relient (`bridgeIslands` : la plus petite
      fermeture qui réunit les îlots, dont on ne garde que les ajouts touchant deux îlots). Le contour
      est **lisse** : les petites dents et encoches (≈ 2 mm) sont gommées et les angles arrondis, sans
-     boucher un creux allongé ni jamais entamer l'encre (≈ 1 mm de papier garanti autour d'elle). Un dessin
+     boucher un creux allongé (seule une fente de moins de ≈ 1 mm l'est) ni jamais entamer l'encre
+     (≈ 1 mm de papier garanti autour d'elle). Un dessin
      qui **sort de la feuille** n'est plus coupé net le long du bord de la page : chaque tronçon où
      la découpe touche le bord devient un dôme (demi-ellipse qui touche le bord en son milieu,
      profondeur 35 % de sa longueur, au plus ≈ 4 % du grand côté ; tronçons à moins de ≈ 6 mm

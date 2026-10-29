@@ -1189,9 +1189,16 @@
       const cl = erode(dilate(sm, fw, fh, rs), fw, fh, rs);
       const add = new Uint8Array(sm.length);
       for (let p = 0; p < add.length; p++) add[p] = cl[p] && !sm[p] ? 1 : 0;
-      const ac = components(add, fw, fh), maxAdd = (2 * rs) * (2 * rs) * 2;
+      // (une encoche ou un angle rentrant est local : au plus ≈ 6 × rs de long ; une fente très fine
+      // (moins de ≈ rs / 2 de large, ≈ 1 mm) est comblée quelle que soit sa longueur ; un creux entre deux jambes
+      // ou le long d'un bras est long et plus large : il reste découpé)
+      const ac = components(add, fw, fh), maxLen = 6 * rs;
+      const inv = new Uint8Array(add.length);
+      for (let p = 0; p < inv.length; p++) inv[p] = add[p] ? 0 : 1;
+      const df = distanceField(inv, fw, fh), thick = new Float32Array(ac.comps.length + 1);
+      for (let p = 0; p < add.length; p++) if (add[p] && df[p] > thick[ac.labels[p]]) thick[ac.labels[p]] = df[p];
       const small = new Uint8Array(ac.comps.length + 1);
-      for (const c of ac.comps) if (c.area <= maxAdd) small[c.id] = 1;
+      for (const c of ac.comps) if (Math.max(c.x1 - c.x0, c.y1 - c.y0) <= maxLen || thick[c.id] <= rs / 4) small[c.id] = 1;
       for (let p = 0; p < add.length; p++) if (add[p] && small[ac.labels[p]]) sm[p] = 1;
       const guard = dilate(inkF, fw, fh, funit * Math.min(0.004, CUT.margin * 0.5));
       for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
@@ -1247,12 +1254,13 @@
     const full = closing(rMax);
     const nFull = components(full, w, h).comps.length;
     if (nFull >= isl.comps.length) return tight;
-    let lo = rMin, hi = rMax, best = full;
+    let lo = rMin, hi = rMax;
     for (let it = 0; it < 4; it++) {
       const mid = (lo + hi) / 2;
-      const c = closing(mid);
-      if (components(c, w, h).comps.length <= nFull) { best = c; hi = mid; } else lo = mid;
+      if (components(closing(mid), w, h).comps.length <= nFull) hi = mid; else lo = mid;
     }
+    // un peu plus que le strict minimum : des ponts francs, pas des fils
+    const best = hi + 0.004 < rMax ? closing(hi + 0.004) : full;
     // les ajouts de la fermeture : gardés s'ils touchent au moins deux îlots (un pont), écartés sinon (un creux)
     const n = w * h, add = new Uint8Array(n);
     for (let p = 0; p < n; p++) add[p] = best[p] && !tight[p] ? 1 : 0;
