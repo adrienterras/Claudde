@@ -4981,11 +4981,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         b.classList.toggle('picked', choice === 'auto' && b.dataset.frame === auto);
       });
     }
-    paintRoom(cv, out, room, { comp, framed, kind, mat, Fw, Fh, Pw, Ph, paper, margin });
+    // affiche : l'œuvre aux proportions de la zone imprimée (dessins à leur taille, places ajustées,
+    // comme à la commande), sans bande blanche de part et d'autre
+    const shown = paper ? fitCopy(comp, (Pw - 2 * margin) / (Ph - 2 * margin)) : comp;
+    paintRoom(cv, out, room, { comp: shown, framed, kind, mat, Fw, Fh, Pw, Ph, paper, margin });
     if (out) return true;
     const name = framed && FRAME_KINDS[kind].name;
     const matched = choice === 'auto';
-    const [aw, ah] = printedIn(comp, Pw, Ph, margin);
+    const [aw, ah] = printedIn(shown, Pw, Ph, margin);
     $('scene-info').textContent = paper
       ? (margin
         ? tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm avec une bordure blanche de ${fmt(margin)} cm : l’œuvre imprimée en ${fmt(aw)} × ${fmt(ah)} cm, au-dessus ${S.over}.`
@@ -7360,7 +7363,11 @@ Réponds uniquement avec ce JSON :
   function printedComp(comp) {
     if (choice.product !== 'print' || !printMode()) return comp;
     const [pw, ph] = printAreaOf(Object.assign({ W: comp.W, H: comp.H }, choice));
-    const r = pw / ph;
+    return fitCopy(comp, pw / ph);
+  }
+  // l'œuvre aux proportions r (largeur / hauteur), à surface égale : une copie (voir printedComp), ou
+  // l'œuvre elle-même si elle a déjà ces proportions
+  function fitCopy(comp, r) {
     if (Math.abs(r - comp.W / comp.H) < 0.002) return comp;
     const layer = (L) => Object.assign({}, L, L.clip ? { clip: L.clip.map((q) => q.slice()) } : {});
     const copy = Object.assign({}, comp, {

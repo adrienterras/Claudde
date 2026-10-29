@@ -476,7 +476,10 @@ cd collage && python3 -m http.server 8000
      en tête des réglages, l'affiche seule : la feuille à la taille d'impression du format, sans cadre
      ni passe-partout) et, sans passe-partout (affiche ou encadré), « Bordure blanche » : « Sans
      bordure » ou « Avec bordure blanche » — l'œuvre réduite d'un même facteur dans l'impression, 3 cm
-     de blanc autour, le texte donnant la taille imprimée ; même choix qu'à la commande, mémorisé)
+     de blanc autour, le texte donnant la taille imprimée ; même choix qu'à la commande, mémorisé ; en
+     affiche, l'œuvre est mise aux proportions de la zone imprimée, à surface égale (`fitCopy`, comme à
+     la commande) : pas de bande blanche de part et d'autre quand l'œuvre n'a pas les proportions de
+     l'affiche — une œuvre de 21 × 29,7 cm, taille avec passe-partout, en affiche 30 × 40 cm)
      (baguette fine et plate, comme un
      cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; pas de reflet). Le passe-partout est un carton
      blanc chaud en relief : son ouverture est coupée en biseau à 45°, à l'âme blanche visible tout
@@ -789,7 +792,9 @@ Les optimisations ne changent aucun pixel :
 
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
 workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
-push de la branche de l'application. Le site publié a deux parties : la page d'accueil (`landing/`,
+push de la branche de l'application. Hors site, `tools/artefact.py` fabrique l'atelier en une
+seule page (feuille de style, scripts, pdf.js, jsPDF et images incorporés ; sans compte ; le jeu
+d'exemple et le worker de pdf.js publiés à côté), pour l'artefact de démonstration. Le site publié a deux parties : la page d'accueil (`landing/`,
 présentation du concept avec, en tête, la vidéo de présentation en 16:9, bord à bord sur toute la
 largeur de la page (25 s, muette, lue une fois : la bande se replie ensuite pour laisser la place
 au héros — titre, boutons, photo de la toile dans le salon) : le réel Instagram vertical (hors

@@ -56,7 +56,8 @@ test.describe('Bordure blanche', () => {
     expect(paperSig).not.toBe(framedSig);
     // avec bordure : l'œuvre réduite d'un même facteur dans l'affiche, 3 cm de blanc autour
     await page.locator('#scene-margin [data-margin="1"]').click();
-    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm avec une bordure blanche de 3 cm : l’œuvre imprimée en ${fmt(W * a)} × ${fmt(H * a)} cm, au-dessus`));
+    // (l'affiche : l'œuvre mise aux proportions de la zone imprimée, comme à la commande — la bordure fait 3 cm partout)
+    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm avec une bordure blanche de 3 cm : l’œuvre imprimée en ${fmt(W - 6)} × ${fmt(H - 6)} cm, au-dessus`));
     expect(await sig(page, 'scene-canvas')).not.toBe(paperSig);
     expect(await page.evaluate(() => [localStorage.getItem('atelier.finition'), localStorage.getItem('atelier.marge')])).toEqual(['papier', '1']);
     // la commande reprend papier + bordure, et le texte le dit
