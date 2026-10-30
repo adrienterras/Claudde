@@ -13,7 +13,7 @@
   const INK_DIST = 55;           // écart au papier au-delà duquel un pixel est « dessiné »
   const PAPER_DIST = 42;         // écart en deçà duquel un pixel est considéré comme papier
   const TEXTURE_MAX_PAPER = 0.38; // moins de 38 % de papier visible => page peinte => fond
-  const MAX_PIECES_PER_PAGE = 8;
+  const MAX_PIECES_PER_PAGE = 24;
   // Préférences de découpe, apprises des retouches de l'utilisateur (voir learnCut), en fraction du
   // grand côté de la page : marge de papier gardée autour de l'encre, rayon de fermeture (traits
   // distants de moins de 2 × close font un même sujet), lissage du contour ; ink : sensibilité aux
@@ -419,6 +419,25 @@
     const w = work.width, h = work.height, n = w * h;
     const data = ctx2d(work).getImageData(0, 0, w, h).data;
     const paper = estimatePaper(data, w, h), tint = paperTint(paper);
+    // papier de couleur : sa couleur case par case (ombres des plis, éclairage)
+    const field = tint ? paperField(data, w, h, paper) : null;
+    // une copie à 1600 px : les traits fins de couleur pâle (un feutre jaune clair) y sont encore
+    // visibles, alors qu'ils se fondent dans le papier sur la grille d'analyse ; cette encre colorée
+    // (sur papier blanc : les gris — crayon, ombres, poussières — restent jugés sur la grille, moins
+    // sensible) est reportée sur la grille (un pixel de la grille est encré dès qu'un de ses pixels
+    // l'est), sans les points minuscules (moins de ≈ 0,4 mm²)
+    const mid = scaleTo(page, 1600), mw = mid.width, mh = mid.height, md = ctx2d(mid).getImageData(0, 0, mw, mh).data, mn = mw * mh;
+    release(mid);
+    const midMap = { x0: 0, y0: 0, k: mw / w };
+    const poolInk = (m) => {
+      const cc = components(m, mw, mh), tiny = new Uint8Array(cc.comps.length + 1), minPx = mn * 0.00002;
+      for (const c of cc.comps) if (c.area < minPx) tiny[c.id] = 1;
+      const out = new Uint8Array(n), cx = new Int32Array(mw), cy = new Int32Array(mh);
+      for (let x = 0; x < mw; x++) cx[x] = Math.min(w - 1, Math.floor(x * w / mw));
+      for (let y = 0; y < mh; y++) cy[y] = Math.min(h - 1, Math.floor(y * h / mh)) * w;
+      for (let y = 0, p = 0; y < mh; y++) for (let x = 0; x < mw; x++, p++) if (m[p] && !tiny[cc.labels[p]]) out[cy[y] + cx[x]] = 1;
+      return out;
+    };
     let paperCount = 0, rawCount = 0;
     const U2 = PAPER_DIST * PAPER_DIST;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
@@ -439,8 +458,30 @@
     const unit = Math.max(w, h);
     const m = Math.max(2, Math.round(Math.min(w, h) * 0.015));
     // drop : pixels d'encre ignorés (traits de partage) ; cut : frontières que les sujets ne franchissent pas
+    // papier quadrillé ou ligné : beaucoup de traits fins, pâles et droits sur toute la feuille. Trop
+    // pâles pour la grille d'analyse, ils sont nets à 1600 px et à la résolution de la découpe fine, où
+    // ils relieraient les sujets et dentelleraient les contours ; repérés ici, ils sont retirés de
+    // l'encre (tout trait fin et droit qui traverse la feuille, un trait épais du dessin n'est pas touché)
+    let grid = false, gridMask = null;
+    {
+      const lv = inkLevels(md, mw, mh, paper, strongT, weakT, field, midMap), weakOnly = new Uint8Array(mn), pale = new Uint8Array(mn);
+      for (let p = 0; p < mn; p++) { if (lv[p] === 1) weakOnly[p] = 1; if (lv[p]) pale[p] = 1; }
+      const g = ruledLines(weakOnly, mw, mh, { len: 0.5 });
+      let cnt = 0; for (let p = 0; p < mn; p++) cnt += g[p];
+      grid = cnt > 0.01 * mn;
+      // les lignes elles-mêmes (longues : au moins 40 % de la feuille), reportées sur la grille d'analyse
+      // pour en être retirées (un cahier aux lignes plus marquées les y montre, et les traits de partage
+      // d'une planche seraient vus partout)
+      // (fines : ≈ 0,3 % de la feuille ; un trait de feutre posé sur une ligne est plus épais et reste)
+      if (grid) gridMask = poolInk(ruledLines(pale, mw, mh, { len: 0.4, thick: 0.003 }));
+    }
     const masks = (sT, wT, closeR, holeMax, drop, cut) => {
-      const ink = inkMask(data, w, h, paper, sT, wT);
+      // (sur un cahier ou un papier de couleur, l'encre vient de la grille d'analyse seule : les lignes
+      // du cahier y sont invisibles, alors qu'à 1600 px elles relieraient tous les sujets ; les ombres
+      // d'un papier de couleur y sont plus calmes)
+      const ink = inkMask(data, w, h, paper, sT, wT, field);
+      if (gridMask) for (let p = 0; p < n; p++) if (gridMask[p]) ink[p] = 0;
+      if (!grid && !tint) { const hi = poolInk(inkMask(md, mw, mh, paper, sT, wT, null, null, true)); for (let p = 0; p < n; p++) if (hi[p]) ink[p] = 1; }
       if (drop) for (let p = 0; p < n; p++) if (drop[p]) ink[p] = 0;
       // Les bords du scan (ombres, bord de feuille) ne sont pas du dessin.
       for (let y = 0; y < h; y++) {
@@ -543,7 +584,7 @@
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
       if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r2.lines = r.lines; r = r2; weakT = wT2; strongT = sT2; }
     }
-    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, paperFrac: paperCount / n, rawPaperFrac: rawCount / n, labels: r.labels, comps: r.comps };
+    return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, grid, field, paperFrac: paperCount / n, rawPaperFrac: rawCount / n, labels: r.labels, comps: r.comps };
   }
 
   /*
@@ -559,7 +600,7 @@
   function ruledLines(ink, w, h, o) {
     const n = w * h, out = new Uint8Array(n);
     const len0 = (o && o.len) || 0.6, drift = (o && o.drift) || 0.08, bx = (o && o.box) || { x0: 0, y0: 0, x1: w - 1, y1: h - 1 };
-    const T = Math.max(2, Math.round(Math.max(w, h) * 0.008)); // épaisseur maximale
+    const T = Math.max(2, Math.round(Math.max(w, h) * ((o && o.thick) || 0.008))); // épaisseur maximale (thick : fraction du grand côté)
     const GAP = Math.max(3, T * 2); // interruption permise
     const scan = (horiz) => {
       const A = horiz ? w : h, B = horiz ? h : w; // le long du trait, et en travers
@@ -778,6 +819,85 @@
     const mx = Math.max(paper[0], paper[1], paper[2]), mn = Math.min(paper[0], paper[1], paper[2]);
     return mx > 0 && (mx - mn) / mx > 0.18 && lum(paper) > 80 ? lum(paper) : 0;
   }
+  /*
+   * Papier de couleur photographié ou froissé : sa couleur varie d'un endroit à l'autre (ombre d'un
+   * pli, lumière qui baisse d'un côté) plus que la distance au papier moyen ne le tolère, et ces
+   * ombres passeraient pour du dessin. On estime la couleur du papier case par case (les plus clairs
+   * des pixels de la teinte du papier), les cases sans papier visible (sous le dessin) prennent celle
+   * de leurs voisines, puis le tout est lissé. Rend { gw, gh, cell, bg, tint } (bg : rgb par case,
+   * tint : clarté du papier de la case pour la comparaison insensible à l'ombre).
+   */
+  function paperField(d, w, h, paper) {
+    const cell = Math.max(4, Math.round(Math.max(w, h) / 60));
+    const gw = Math.ceil(w / cell), gh = Math.ceil(h / cell), G = gw * gh;
+    const bg = new Float32Array(G * 3), ok = new Uint8Array(G);
+    const ps = paper[0] + paper[1] + paper[2] || 1, pr = paper[0] / ps, pg = paper[1] / ps, pl = lum(paper);
+    const idx = [], lv = [];
+    for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+      idx.length = 0; lv.length = 0;
+      let total = 0;
+      for (let y = gy * cell; y < Math.min(h, (gy + 1) * cell); y++) for (let x = gx * cell; x < Math.min(w, (gx + 1) * cell); x++) {
+        total++;
+        const i = (y * w + x) * 4, r = d[i], g = d[i + 1], b = d[i + 2], sm = r + g + b || 1;
+        const l = 0.299 * r + 0.587 * g + 0.114 * b;
+        // la teinte du papier (à l'ombre près), pas trop sombre
+        if (l >= 0.4 * pl && Math.abs(r / sm - pr) < 0.035 && Math.abs(g / sm - pg) < 0.035) { idx.push(i); lv.push(l); }
+      }
+      if (idx.length < total * 0.15) continue;
+      const order = lv.map((l, k) => k).sort((a, b) => lv[a] - lv[b]);
+      let r = 0, g = 0, b = 0, m = 0;
+      for (let k = Math.floor(order.length * 0.7); k < order.length; k++) { const i = idx[order[k]]; r += d[i]; g += d[i + 1]; b += d[i + 2]; m++; }
+      const c = gy * gw + gx;
+      bg[c * 3] = r / m; bg[c * 3 + 1] = g / m; bg[c * 3 + 2] = b / m; ok[c] = 1;
+    }
+    let nOk = 0;
+    for (let c = 0; c < G; c++) nOk += ok[c];
+    if (nOk < G * 0.2) return null;
+    // les cases sans papier visible prennent la couleur de leurs voisines, de proche en proche
+    for (let pass = 0; pass < gw + gh && nOk < G; pass++) {
+      const add = [];
+      for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+        const c = gy * gw + gx;
+        if (ok[c]) continue;
+        let r = 0, g = 0, b = 0, m = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const yy = gy + dy, xx = gx + dx;
+          if (yy < 0 || xx < 0 || yy >= gh || xx >= gw) continue;
+          const q = yy * gw + xx;
+          if (ok[q]) { r += bg[q * 3]; g += bg[q * 3 + 1]; b += bg[q * 3 + 2]; m++; }
+        }
+        if (m) add.push([c, r / m, g / m, b / m]);
+      }
+      if (!add.length) break;
+      add.forEach(([c, r, g, b]) => { bg[c * 3] = r; bg[c * 3 + 1] = g; bg[c * 3 + 2] = b; ok[c] = 1; nOk++; });
+    }
+    // lissage (deux passes 3 × 3)
+    for (let pass = 0; pass < 2; pass++) {
+      const nb = new Float32Array(bg.length);
+      for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+        let r = 0, g = 0, b = 0, m = 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const q = Math.min(gh - 1, Math.max(0, gy + dy)) * gw + Math.min(gw - 1, Math.max(0, gx + dx));
+          r += bg[q * 3]; g += bg[q * 3 + 1]; b += bg[q * 3 + 2]; m++;
+        }
+        const c = gy * gw + gx;
+        nb[c * 3] = r / m; nb[c * 3 + 1] = g / m; nb[c * 3 + 2] = b / m;
+      }
+      bg.set(nb);
+    }
+    const tint = new Float32Array(G);
+    for (let c = 0; c < G; c++) tint[c] = paperTint([bg[c * 3], bg[c * 3 + 1], bg[c * 3 + 2]]);
+    return { gw, gh, cell, bg, tint };
+  }
+  // Les cases du champ de papier pour chaque colonne et chaque ligne d'une image (map : x0, y0, k —
+  // le pixel (x, y) de l'image est le point (x0 + x / k, y0 + y / k) de l'image où le champ a été estimé)
+  function fieldIndex(field, w, h, map) {
+    const m = map || { x0: 0, y0: 0, k: 1 };
+    const cx = new Int32Array(w), cy = new Int32Array(h);
+    for (let x = 0; x < w; x++) cx[x] = Math.min(field.gw - 1, Math.max(0, Math.floor((m.x0 + x / m.k) / field.cell)));
+    for (let y = 0; y < h; y++) cy[y] = Math.min(field.gh - 1, Math.max(0, Math.floor((m.y0 + y / m.k) / field.cell))) * field.gw;
+    return { cx, cy };
+  }
   function paperDist2(R, G, B, paper, tint) {
     const dr = R - paper[0], dg = G - paper[1], db = B - paper[2];
     const q = dr * dr + dg * dg + db * db;
@@ -798,28 +918,55 @@
     // (un scan propre descend bas : un crayon pâle y est encore séparé du grain du papier)
     return Math.max(14, Math.min(INK_DIST - 5, q90 * 1.8 + 8));
   }
-  function inkMask(d, w, h, paper, strongT, weakT) {
+  // Chaque pixel face au papier : 0 (papier), 1 (encre pâle : couleur claire, crayon léger, liseré d'un
+  // trait), 2 (encre franche). Un gris neutre se juge à sa luminosité (un reste d'ombre reste à moins
+  // de ≈ 30 du papier ; un trait de crayon descend plus bas), une couleur à sa distance au papier.
+  // field, map (facultatifs) : la couleur du papier case par case (voir paperField) plutôt que la
+  // couleur moyenne, sur un papier de couleur ombré
+  // colorOnly : seules les couleurs franches comptent (saturation ≥ 0,25) ; les gris et les teintes à
+  // peine colorées (crayon, ombres, poussières) ne comptent pas
+  function inkLevels(d, w, h, paper, strongT, weakT, field, map, colorOnly) {
+    const n = w * h, lv = new Uint8Array(n);
+    const S2 = strongT * strongT, W2 = weakT * weakT;
+    const pl0 = lum(paper), tint0 = paperTint(paper);
+    const gStrong = Math.round(strongT * 0.82), gWeak = Math.min(30, gStrong - 6);
+    const fi = field ? fieldIndex(field, w, h, map) : null, pp = [0, 0, 0];
+    // sur papier blanc, une couleur pâle (jaune clair, rose pâle) reste proche du papier en distance
+    // mais s'en distingue par sa saturation
+    const ps = !tint0 ? sat(paper) : 1;
+    let paperAt = paper, pl = pl0, tint = tint0;
+    for (let y = 0, p = 0, i = 0; y < h; y++) {
+      for (let x = 0; x < w; x++, p++, i += 4) {
+        if (fi) {
+          const c = fi.cy[y] + fi.cx[x];
+          pp[0] = field.bg[c * 3]; pp[1] = field.bg[c * 3 + 1]; pp[2] = field.bg[c * 3 + 2];
+          paperAt = pp; pl = 0.299 * pp[0] + 0.587 * pp[1] + 0.114 * pp[2]; tint = field.tint[c];
+        }
+        const R = d[i], G = d[i + 1], B = d[i + 2];
+        const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
+        if (colorOnly && mx - mn < 0.25 * mx) { lv[p] = 0; continue; }
+        if (mx - mn < 0.15 * mx) {
+          const dl = pl - (0.299 * R + 0.587 * G + 0.114 * B);
+          lv[p] = dl > gStrong ? 2 : dl > gWeak ? 1 : 0;
+        } else {
+          const q = paperDist2(R, G, B, paperAt, tint);
+          let L = q > S2 ? 2 : q > W2 ? 1 : 0;
+          if (L < 2 && !tint) { const ds = (mx - mn) / mx - ps; if (ds > 0.3) L = 2; else if (ds > 0.2 && L < 1) L = 1; }
+          lv[p] = L;
+        }
+      }
+    }
+    return lv;
+  }
+  function inkMask(d, w, h, paper, strongT, weakT, field, map, colorOnly) {
     const n = w * h;
+    const lv = inkLevels(d, w, h, paper, strongT, weakT, field, map, colorOnly);
     const weak = new Uint8Array(n);
     const ink = new Uint8Array(n);
     const stack = [];
-    const S2 = strongT * strongT, W2 = weakT * weakT;
-    const pl = lum(paper), tint = paperTint(paper);
-    const gStrong = Math.round(strongT * 0.82), gWeak = Math.min(30, gStrong - 6);
-    for (let p = 0, i = 0; p < n; p++, i += 4) {
-      const R = d[i], G = d[i + 1], B = d[i + 2];
-      const q = paperDist2(R, G, B, paper, tint);
-      const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
-      if (mx - mn < 0.15 * mx) {
-        // gris neutre : un reste d'ombre (pli, bord) reste à moins de ≈ 30 du papier ; un trait de
-        // crayon descend plus bas
-        const dl = pl - (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
-        if (dl > gWeak) weak[p] = 1;
-        if (dl > gStrong) { ink[p] = 1; stack.push(p); }
-        continue;
-      }
-      if (q > W2) weak[p] = 1;
-      if (q > S2) { ink[p] = 1; stack.push(p); }
+    for (let p = 0; p < n; p++) {
+      if (lv[p]) weak[p] = 1;
+      if (lv[p] === 2) { ink[p] = 1; stack.push(p); }
     }
     while (stack.length) {
       const p = stack.pop();
@@ -1119,6 +1266,12 @@
     const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
     let a = new Float32Array(bw * bh);
     let r = 0, g = 0, b = 0, cnt = 0, satSum = 0;
+    // l'encre seule (pixels loin du papier) : sa saturation moyenne et sa part sombre, pour distinguer
+    // un petit sujet au feutre ou au crayon (coloré, ou noir) d'une ombre de pli ou d'un bord de feuille
+    // (pâle et terne), que « colorful » (moyenne sur toute la pièce, marge de papier comprise) ne sépare pas
+    const tint = paperTint(seg.paper), W2 = (seg.weakT || 30) * (seg.weakT || 30);
+    const psum = seg.paper[0] + seg.paper[1] + seg.paper[2] || 1, pr = seg.paper[0] / psum, pg = seg.paper[1] / psum;
+    let inkCnt = 0, inkSat = 0, inkDark = 0, inkPaper = 0;
     for (let y = 0; y < bh; y++) {
       for (let x = 0; x < bw; x++) {
         const p = (y0 + y) * w + x0 + x;
@@ -1129,6 +1282,12 @@
           const s = sat(px);
           // couleur moyenne pondérée par la saturation : on veut la couleur du dessin, pas du papier
           r += px[0] * s; g += px[1] * s; b += px[2] * s; satSum += s; cnt++;
+          if (paperDist2(px[0], px[1], px[2], seg.paper, tint) > W2) {
+            inkCnt++; inkSat += s; if (lum(px) < 120) inkDark++;
+            // de la teinte du papier (un pli, un bord de feuille de couleur dans l'ombre) ?
+            const sm = px[0] + px[1] + px[2] || 1;
+            if (tint && Math.abs(px[0] / sm - pr) < 0.035 && Math.abs(px[1] / sm - pg) < 0.035) inkPaper++;
+          }
         }
       }
     }
@@ -1154,8 +1313,20 @@
     for (let y = 0; y < fh; y++) { const r0 = Math.min(bh - 1, Math.floor(y / kf)) * bw, o = y * fw; for (let x = 0; x < fw; x++) region[o + x] = a[r0 + colF[x]]; }
     const funit = Math.max(fw, fh) / Math.max(bw, bh) * Math.max(seg.w, seg.h); // taille de la page entière, en pixels fins
     const allowed = dilate(region, fw, fh, funit * 0.012);
-    const inkF = inkMask(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30);
+    const fmap = { x0, y0, k: kf };
+    const inkF = inkMask(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30, seg.field, fmap);
     for (let p = 0; p < inkF.length; p++) if (!allowed[p]) inkF[p] = 0;
+    // papier quadrillé : ses traits fins et pâles, suivis ici à la résolution fine (ceux de l'analyse
+    // grossière ne les couvrent pas pixel à pixel), ne font pas partie du sujet ; l'encre franche reste
+    if (seg.grid) {
+      // (les lignes se suivent sur toute l'encre pâle de la zone, pas seulement sur ce qui touche un trait)
+      const lv = inkLevels(fd, fw, fh, seg.paper, seg.strongT || INK_DIST, seg.weakT || 30, seg.field, fmap), pale = new Uint8Array(lv.length);
+      for (let p = 0; p < lv.length; p++) pale[p] = lv[p] ? 1 : 0;
+      // (une ligne du cahier peut être aussi contrastée qu'un trait : tout trait fin et droit qui
+      // traverse une bonne part de la zone est retiré ; un trait épais du dessin n'est pas touché)
+      const rl = ruledLines(pale, fw, fh, { len: 0.4, thick: Math.max(0.003, 0.003 * funit / Math.max(fw, fh)) });
+      for (let p = 0; p < rl.length; p++) if (rl[p]) inkF[p] = 0;
+    }
     // feuille partagée par des traits (voir ruledLines) : ils ne font pas partie du sujet
     if (seg.lines) {
       for (let y = 0; y < fh; y++) {
@@ -1227,6 +1398,10 @@
       frac: comp.area / (w * h),
       color,
       colorful: cnt ? satSum / cnt : 0,
+      inkSat: inkCnt ? inkSat / inkCnt : 0,
+      inkDark: inkCnt ? inkDark / inkCnt : 0,
+      inkPaper: inkCnt ? inkPaper / inkCnt : 0,
+      inkPx: inkCnt,
       base,
       // emplacement de la pièce dans la page (en pixels de page), pour pouvoir retoucher la découpe
       src: { x: x0 * k, y: y0 * k, w: pw, h: ph },
@@ -1291,7 +1466,7 @@
   function cutPieces(page, seg) {
     seg = seg || segment(page);
     const enhanced = enhance(page, seg.paper);
-    const minArea = seg.w * seg.h * 0.006;
+    const minArea = seg.w * seg.h * 0.0008;
     return seg.comps
       // (un groupe de petits sujets d'une case est gardé un peu plus petit)
       .filter((c) => c.area >= (c.group ? minArea / 2 : minArea) && c.x1 - c.x0 > 10 && c.y1 - c.y0 > 10)
@@ -1301,11 +1476,21 @@
         const piece = makePiece(enhanced, seg, c, page);
         piece.src.paper = seg.paper;
         if (c.group) piece.group = true;
+        // au bord de la feuille (bande de ≈ 3 % du petit côté)
+        const m = Math.round(Math.min(seg.w, seg.h) * 0.03);
+        piece.edge = c.x0 <= m || c.y0 <= m || c.x1 >= seg.w - 1 - m || c.y1 >= seg.h - 1 - m;
         return piece;
       })
-      // petite et terne : ombre d'un pli, bord de feuille, reste de table, pas un sujet (des petits
-      // sujets au trait regroupés ont peu de couleur pour leur surface : un peu suffit)
-      .filter((q) => { if (q.frac < 0.012 && q.colorful < (q.group ? 0.05 : 0.2)) { release(q.canvas); return false; } return true; });
+      // petite et terne : ombre d'un pli, bord de feuille, reste de table, pas un sujet. Un petit sujet
+      // (cœur au crayon, étoile au feutre, animal noir) a une encre colorée ou sombre, une ombre non.
+      .filter((q) => {
+        // (sur une feuille de couleur, un petit morceau au bord de la page qui a en partie la teinte du
+        // papier est un coin relevé ou un bord dans l'ombre)
+        const dull = (q.colorful < (q.group ? 0.05 : 0.2) && q.inkSat < 0.25 && q.inkDark < 0.25) || q.inkPaper > 0.6 || (q.edge && paperTint(seg.paper) && q.inkPaper > 0.3)
+          || q.inkPx < Math.pow(0.01 * Math.max(seg.w, seg.h), 2); // un point de poussière (≈ 3 mm d'encre au plus)
+        if (q.frac < 0.012 && dull) { release(q.canvas); return false; }
+        return true;
+      });
   }
 
   // Indicateurs d'une page comme fond (couleur, colorée, calme), calculés sur une petite copie :

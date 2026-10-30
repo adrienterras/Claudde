@@ -277,6 +277,85 @@ test.describe('Analyse des pages (Extract)', () => {
     // (sans cette tolérance aux ombres, la feuille entière partait d'un bloc : 100 % de la page)
   });
 
+  test('petits sujets : trois cœurs de 1 cm au crayon de couleur et un trait fin de feutre jaune pâle sont des pièces ; une poussière de 2 mm, non', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une feuille A4 (≈ 70 px par cm) : un grand personnage, trois petits cœurs violets, un « A » au
+      // feutre jaune clair (trait fin) devant « LMA » en couleurs vives, une poussière grise
+      const W = 1480, H = 2100, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(250,250,247)'; x.fillRect(0, 0, W, H);
+      x.strokeStyle = 'rgb(30,60,200)'; x.lineWidth = 8;
+      x.beginPath(); x.ellipse(740, 1300, 300, 400, 0, 0, 7); x.stroke();
+      const heart = (cx, cy, s, col) => { x.fillStyle = col; x.beginPath(); x.moveTo(cx, cy + s); x.bezierCurveTo(cx - s * 1.4, cy, cx - s * 0.8, cy - s * 0.9, cx, cy - s * 0.3); x.bezierCurveTo(cx + s * 0.8, cy - s * 0.9, cx + s * 1.4, cy, cx, cy + s); x.fill(); };
+      heart(300, 500, 35, 'rgb(190,140,220)'); heart(1200, 450, 35, 'rgb(190,140,220)'); heart(1250, 1900, 35, 'rgb(190,140,220)');
+      // le mot : A pâle, puis L M A vifs, lettres de 1,5 cm à 7 mm d'écart
+      x.lineWidth = 5; x.lineJoin = 'round'; x.strokeStyle = 'rgb(250,238,130)';
+      x.beginPath(); x.moveTo(100, 220); x.lineTo(140, 110); x.lineTo(180, 220); x.moveTo(118, 180); x.lineTo(162, 180); x.stroke();
+      x.strokeStyle = 'rgb(60,180,220)'; x.beginPath(); x.moveTo(230, 110); x.lineTo(230, 220); x.lineTo(300, 220); x.stroke();
+      x.strokeStyle = 'rgb(230,60,90)'; x.beginPath(); x.moveTo(350, 220); x.lineTo(350, 110); x.lineTo(400, 180); x.lineTo(450, 110); x.lineTo(450, 220); x.stroke();
+      x.strokeStyle = 'rgb(150,80,200)'; x.beginPath(); x.moveTo(500, 220); x.lineTo(540, 110); x.lineTo(580, 220); x.stroke();
+      // une poussière
+      x.fillStyle = 'rgb(120,120,120)'; x.beginPath(); x.arc(900, 800, 6, 0, 7); x.fill();
+      const a = Extract.analyze(c, 0, {});
+      const ps = (a.pieces || []).map((p) => ({ x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h, frac: p.frac }));
+      const at = (px, py) => { const p = (a.pieces || []).find((q) => px >= q.src.x && px < q.src.x + q.src.w && py >= q.src.y && py < q.src.y + q.src.h); if (!p) return 0; const k = p.canvas.width / p.src.w, d = p.canvas.getContext('2d').getImageData(Math.round((px - p.src.x) * k), Math.round((py - p.src.y) * k), 1, 1).data; return d[3]; };
+      return { kind: a.kind, n: ps.length, hearts: [[300, 500], [1200, 450], [1250, 1900]].map(([hx, hy]) => at(hx, hy)), paleA: at(140, 150), dust: at(900, 800), small: ps.filter((p) => Math.max(p.w, p.h) < 560).length };
+    });
+    expect(r.kind).toBe('cutout');
+    // chaque petit cœur est dans une pièce, et le A pâle aussi ; la poussière dans aucune
+    r.hearts.forEach((v) => expect(v).toBeGreaterThan(200));
+    expect(r.paleA).toBeGreaterThan(200);
+    expect(r.dust).toBe(0);
+    expect(r.small).toBeGreaterThanOrEqual(3); // (boîte des pièces : le sujet plus ≈ 2,5 cm de part et d’autre)
+  });
+
+  test('page de cahier quadrillé : les lignes du quadrillage ne sont pas du dessin, chaque sujet est découpé au ras', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // un quadrillage 5 mm bleu pâle (traits de 2 px) sur toute la feuille ; deux sujets au feutre
+      const W = 1480, H = 2100, cm = H / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(251,251,249)'; x.fillRect(0, 0, W, H);
+      x.strokeStyle = 'rgb(190,205,232)'; x.lineWidth = 2;
+      for (let gx = 20; gx < W; gx += cm / 2) { x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, H); x.stroke(); }
+      for (let gy = 20; gy < H; gy += cm / 2) { x.beginPath(); x.moveTo(0, gy); x.lineTo(W, gy); x.stroke(); }
+      x.lineWidth = 12; x.lineJoin = 'round'; x.strokeStyle = 'rgb(230,40,120)';
+      x.beginPath(); x.moveTo(400, 500); x.lineTo(400, 800); x.lineTo(600, 800); x.stroke();       // un « L » rose
+      x.fillStyle = 'rgb(40,170,90)'; x.beginPath(); x.arc(1000, 1400, 90, 0, 7); x.fill();      // un rond vert
+      const a = Extract.analyze(c, 0, {});
+      const ps = (a.pieces || []).map((p) => ({ x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h }));
+      const at = (px, py) => { const p = (a.pieces || []).find((q) => px >= q.src.x && px < q.src.x + q.src.w && py >= q.src.y && py < q.src.y + q.src.h); if (!p) return 0; const k = p.canvas.width / p.src.w, d = p.canvas.getContext('2d').getImageData(Math.round((px - p.src.x) * k), Math.round((py - p.src.y) * k), 1, 1).data; return d[3]; };
+      return { kind: a.kind, n: ps.length, ps, L: at(400, 650), round: at(1000, 1400), besideL: at(400 + 1.2 * cm, 650), besideRound: at(1000 + 90 + 1.2 * cm, 1400), between: at(700, 1100) };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r).toMatchObject({ n: 2 });
+    expect(r.L).toBeGreaterThan(200); expect(r.round).toBeGreaterThan(200);
+    // à 1,2 cm du trait, le long d'une ligne du quadrillage : découpé
+    expect(r.besideL).toBe(0); expect(r.besideRound).toBe(0); expect(r.between).toBe(0);
+    // les pièces ne s'étendent pas le long des lignes : la boîte du rond ≈ 2 × (90 px + marge) ≈ 260 px
+    const round = r.ps.slice().sort((u, v) => u.w * u.h - v.w * v.h)[0];
+    expect(Math.max(round.w, round.h)).toBeLessThan(400);
+  });
+
+  test('papier de couleur photographié : lumière qui baisse d’un côté et pli sombre restent du papier, seule la carotte est découpée', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // une feuille vert anis : éclairage qui descend à 60 % vers la droite, un pli sombre en bande
+      const W = 1414, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      const g = x.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgb(196,226,74)'); g.addColorStop(1, 'rgb(118,136,44)');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      const f = x.createLinearGradient(0, 600, 0, 760); f.addColorStop(0, 'rgba(0,0,0,0)'); f.addColorStop(0.5, 'rgba(0,0,0,0.35)'); f.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = f; x.fillRect(0, 600, W, 160);
+      x.save(); x.translate(700, 420); x.rotate(-0.5);
+      x.fillStyle = 'rgb(236,108,38)'; x.beginPath(); x.ellipse(0, 0, 320, 70, 0, 0, 7); x.fill();
+      x.restore();
+      const a = Extract.analyze(c, 0, {});
+      const ps = (a.pieces || []).map((p) => ({ x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h, frac: p.frac }));
+      return { kind: a.kind, n: ps.length, main: ps.slice().sort((u, v) => v.frac - u.frac)[0] };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.n).toBe(1);
+    // la carotte seule (≈ 640 × 400 px, plus la marge), ni le pli ni le côté sombre
+    expect(r.main.w).toBeLessThan(800); expect(r.main.h).toBeLessThan(560);
+    expect(r.main.frac).toBeLessThan(0.25);
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

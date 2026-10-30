@@ -438,7 +438,22 @@ cd collage && python3 -m http.server 8000
      bords de feuille, texte seul) ; le contour de chaque découpe est calculé en haute résolution
      (à la résolution de la page, jusqu'à 3000 px de côté) avec un seuil d'encre à deux niveaux : les zones pâles (crayon léger,
      couleurs claires, dégradés) reliées à un trait net restent dans le dessin, le grain du papier non ;
-     la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4), creux ouverts compris
+     une couleur pâle sur papier blanc (jaune clair, rose) compte aussi par sa saturation ;
+     la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4), creux ouverts compris.
+     Les sujets sont repérés sur une grille de 640 px, complétée pour les traits fins de couleur par
+     une copie à 1600 px (un « A » au feutre jaune clair y est encore visible), sans les points de
+     poussière ; **les petits sujets** (un cœur de 1 cm, une étoile, un animal noir de 1,5 cm) sont
+     gardés dès que leur encre est colorée ou sombre (`inkSat`, `inkDark` : mesurés sur l'encre seule,
+     pas sur la pièce avec sa marge), jusqu'à 24 pièces par page ; une ombre de pli, un bord de
+     feuille, une poussière (moins de ≈ 3 mm d'encre) ou, sur un papier de couleur, un coin relevé de
+     la teinte du papier sont écartés. **Papier quadrillé ou ligné** (`seg.grid`, repéré à 1600 px :
+     beaucoup de traits fins, pâles et droits) : les lignes du cahier sont retirées de l'encre, à
+     l'analyse comme à la découpe fine (tout trait fin et droit qui traverse une bonne part de la zone ;
+     un trait de feutre posé sur une ligne est plus épais et reste). **Papier de couleur** photographié
+     ou froissé (`paperField`) : la couleur du papier est estimée case par case (les plus clairs des
+     pixels de sa teinte, les cases sous le dessin complétées par leurs voisines, le tout lissé), et
+     l'encre se juge face au papier local, à l'analyse comme à la découpe fine : les ombres des plis et
+     la lumière qui baisse d'un côté restent du papier.
      (≈ 0,6 cm) qui les fait ressortir comme des autocollants ; elles couvrent au plus ~45 % de la toile
      et n'empilent jamais : les sujets sans place restent en attente (pointillés dans la liste) ;
    - **composition « Galerie »** : grille de cases carrées toujours complète (jamais une dernière rangée

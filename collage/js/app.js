@@ -483,7 +483,10 @@
     if (a.kind !== 'cutout' || ps.length < 2) return null;
     const page = a.page, long = Math.max(page.width, page.height);
     const ar = (p) => Math.min(p.src.w / p.src.h, p.src.h / p.src.w);
-    const keep = ps.filter((p) => p.frac > 0.002 && p.colorful >= 0.04 && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.08 * long);
+    // (un petit sujet au trait noir ou au crayon de couleur a peu de couleur pour sa surface : son encre
+    // sombre ou colorée suffit, voir Extract inkSat / inkDark)
+    const inked = (p) => p.colorful >= 0.04 || (p.inkDark || 0) >= 0.25 || (p.inkSat || 0) >= 0.25;
+    const keep = ps.filter((p) => p.frac > 0.002 && inked(p) && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.04 * long);
     if (keep.length < 2) return null;
     // (la feuille garde son nom et sa vignette : c'est elle dont on vérifie la taille, voir renderUncertain)
     const sheet = { id: packId(), name: d.name, thumb: d.thumb, origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
@@ -1314,7 +1317,8 @@
     const c = cmPerPx(d);
     // (seuil large : un nuage au crayon gris ou un petit bonhomme sont peu colorés mais sont des sujets)
     const ar = (p) => p.canvas.width / p.canvas.height;
-    const subject = (p) => p.frac > 0.002 && p.colorful >= 0.04 && Math.min(ar(p), 1 / ar(p)) > 0.12 && Math.max(p.canvas.width, p.canvas.height) * c >= 3;
+    const inked = (p) => p.colorful >= 0.04 || (p.inkDark || 0) >= 0.25 || (p.inkSat || 0) >= 0.25;
+    const subject = (p) => p.frac > 0.002 && inked(p) && Math.min(ar(p), 1 / ar(p)) > 0.12 && Math.max(p.canvas.width, p.canvas.height) * c >= 3;
     ps.forEach((p) => { p.enabled = subject(p); p.main = false; });
     if (main) { main.enabled = true; main.main = true; }
     // Claude a regardé chaque élément découpé : on garde tout ce qu'il reconnaît comme un vrai sujet
@@ -1334,7 +1338,7 @@
   // et pas un simple trait fin.
   function eligible(p) {
     const ar = p.canvas.width / p.canvas.height;
-    return p.frac > 0.006 && p.colorful >= 0.15 && Math.min(ar, 1 / ar) > 0.15;
+    return p.frac > 0.006 && (p.colorful >= 0.15 || (p.inkDark || 0) >= 0.25) && Math.min(ar, 1 / ar) > 0.15;
   }
 
   function rank(p) {
@@ -2569,7 +2573,8 @@
   const SCENE_MAX = 18;
   function sceneSelection(o) {
     const score = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.ai ? 1.5 : 0) + (p.main ? 0.5 : 0) + Math.min(1, (p.wcm * p.hcm) / 500) * 0.5;
-    const ok = (p) => (p.ai ? p.ai.garder : (p.colorful || 0) >= 0.12 && !(p.drawing.textOnly));
+    // (un sujet au trait noir — un petit animal — a peu de couleur mais une encre sombre)
+    const ok = (p) => (p.ai ? p.ai.garder : ((p.colorful || 0) >= 0.12 || (p.inkDark || 0) >= 0.25) && !(p.drawing.textOnly));
     return o.pieces.filter(ok).sort((a, b) => score(b) - score(a)).slice(0, SCENE_MAX);
   }
   function sceneFormat(o) {
@@ -5370,7 +5375,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const c = cmPerPx(d);
       (d.analysis.pieces || []).forEach((p) => {
         const ar = p.canvas.width / p.canvas.height;
-        if (!p.ai && p.frac > 0.002 && Math.max(p.canvas.width, p.canvas.height) * c >= 3 && p.colorful >= 0.04 && Math.min(ar, 1 / ar) > 0.1) list.push({ p, d });
+        if (!p.ai && p.frac > 0.002 && Math.max(p.canvas.width, p.canvas.height) * c >= 3 && (p.colorful >= 0.04 || (p.inkDark || 0) >= 0.25 || (p.inkSat || 0) >= 0.25) && Math.min(ar, 1 / ar) > 0.1) list.push({ p, d });
       });
     });
     if (!list.length) return 0;
@@ -6228,7 +6233,7 @@ Réponds uniquement avec ce JSON :
       pieces: pieces.map((p, k) => ({
         at: pk.at[k], w: p.canvas.width, h: p.canvas.height,
         src: { x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h, paper: p.src.paper || null },
-        hit: p.hit ? [p.hit.w, p.hit.h] : null, frac: p.frac, colorful: p.colorful, color: p.color || null, base: p.base === undefined ? null : p.base,
+        hit: p.hit ? [p.hit.w, p.hit.h] : null, frac: p.frac, colorful: p.colorful, inkSat: p.inkSat || 0, inkDark: p.inkDark || 0, color: p.color || null, base: p.base === undefined ? null : p.base,
         object: !!p.object, edited: !!p.edited,
       })),
     };
@@ -6314,7 +6319,7 @@ Réponds uniquement avec ce JSON :
       Extract.release(hc); Extract.release(mask);
       const src = { x: q.src.x * k, y: q.src.y * k, w: q.src.w * k, h: q.src.h * k };
       if (q.src.paper) src.paper = q.src.paper;
-      pieces.push({ canvas: img, hit: { w: hw, h: hh, data: hit }, frac: q.frac, colorful: q.colorful, color: q.color || [200, 200, 200], base: q.base === null ? undefined : q.base, object: q.object || undefined, edited: !!q.edited, src });
+      pieces.push({ canvas: img, hit: { w: hw, h: hh, data: hit }, frac: q.frac, colorful: q.colorful, inkSat: q.inkSat || 0, inkDark: q.inkDark || 0, color: q.color || [200, 200, 200], base: q.base === null ? undefined : q.base, object: q.object || undefined, edited: !!q.edited, src });
     }
     atlases.forEach((c) => Extract.release(c));
     const a = { page, paper, kind: sv.kind || 'cutout', pieces: pieces.length ? pieces : null, texture: null, paperFrac: sv.paperFrac === null ? undefined : sv.paperFrac, photo: sv.photo || null };
