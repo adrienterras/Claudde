@@ -4589,7 +4589,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (x) {
           x.imageSmoothingQuality = 'high';
           const shadows = false; // pas d'ombre portée
-          if (ex.m) { x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.translate(ex.m * scale, ex.m * scale); }
+          if (ex.m) {
+            // la feuille blanche ; l'œuvre posée à m cm du bord, rognée à sa zone (ce qui dépasse de
+            // l'œuvre — une page de fond, un dessin au bord — reste sous la bordure)
+            x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+            x.translate(ex.m * scale, ex.m * scale);
+            x.beginPath(); x.rect(0, 0, ex.comp.W * scale, ex.comp.H * scale); x.clip();
+          }
           Compose.renderBg(x, ex.comp, scale, shadows);
           Compose.renderItems(x, ex.comp, scale, shadows);
         }
@@ -4801,7 +4807,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     for (const L of layers) {
       n++;
       if (n % 3 === 0) { saveStatus(tr`Assemblage du PDF… ${n} / ${layers.length}`); await tick(); }
-      if (L.kind === 'bg' && L.whole && !L.flip) {
+      if (L.kind === 'bg' && L.whole && !L.flip && !sheet) {
+        // (sur une feuille avec bordure, la page passe par la boîte rognée à l'œuvre, plus bas)
         // page entière, bords droits : une image JPEG opaque, posée tournée (jsPDF pivote autour du
         // coin haut-gauche de l'image, dans le même sens que le canvas)
         const cw = Math.max(1, Math.round(L.w * s)), ch = Math.max(1, Math.round(L.h * s));

@@ -98,7 +98,14 @@ test.describe('Bordure blanche', () => {
 
   test('export d’un tableau imprimé : le choix de la bordure blanche, mémorisé ; l’image exportée porte 3 cm de blanc, le PDF une page à la taille de la feuille', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await start(page);
+    // (avec une page peinte en fond : les pages qui dépassent de l'œuvre ne doivent pas entamer la bordure)
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png'), fixture('page-texture.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // une page de fond posée en travers, qui déborde de l'œuvre à gauche et en haut
+    await page.evaluate(() => { const c = AtelierGribouille.state.comp; const L = c.bg.find((q) => !q.paper); if (L) { L.x = 0; L.y = 0; L.rot = 0.4; } });
     const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
     const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
     await openStep(page, 'export-section');
@@ -124,14 +131,18 @@ test.describe('Bordure blanche', () => {
       const x = c.getContext('2d'); x.drawImage(img, 0, 0);
       const k = c.width / W; // px par cm
       const at = (cx, cy) => Array.from(x.getImageData(Math.round(cx * k), Math.round(cy * k), 1, 1).data);
-      // la bande blanche : plusieurs points à 1,5 cm du bord ; l'intérieur : y a-t-il autre chose que du blanc ?
-      const band = [[1.5, 1.5], [W / 2, 1.5], [W - 1.5, H / 2], [W / 2, H - 1.5], [1.5, H - 1.5]].map(([a, b]) => at(a, b));
+      // la bande blanche : tout le pourtour, tous les 0,5 cm, à 0,5 et 2,5 cm du bord ; l'intérieur : y a-t-il autre chose que du blanc ?
+      const band = [];
+      for (const d of [0.5, 2.5]) {
+        for (let t = 0.5; t < W - 0.5; t += 0.5) { band.push(at(t, d)); band.push(at(t, H - d)); }
+        for (let t = 0.5; t < H - 0.5; t += 0.5) { band.push(at(d, t)); band.push(at(W - d, t)); }
+      }
       let nonWhite = 0;
       for (let cy = 4; cy < H - 4; cy += 0.5) for (let cx = 4; cx < W - 4; cx += 0.5) { const p = at(cx, cy); if (p[0] + p[1] + p[2] < 700) nonWhite++; }
       return { w: c.width, h: c.height, band, nonWhite };
     }, [data, W, H]);
     expect(px.w / px.h).toBeCloseTo(W / H, 1);
-    px.band.forEach((p) => { expect(p[0]).toBeGreaterThan(250); expect(p[1]).toBeGreaterThan(250); expect(p[2]).toBeGreaterThan(250); });
+    expect(px.band.filter((p) => p[0] < 250 || p[1] < 250 || p[2] < 250).length).toBe(0);
     expect(px.nonWhite).toBeGreaterThan(50);
     // le PDF : une page à la taille de la feuille
     await page.locator('#fmt').selectOption('application/pdf');
