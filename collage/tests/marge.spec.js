@@ -1,6 +1,6 @@
 // Tableau imprimé : avec ou sans bordure blanche de 3 cm autour de l'œuvre (affiche seule, ou encadré
 // sans passe-partout), dans la mise en scène comme à la commande ; le même choix des deux côtés, mémorisé.
-const { test, expect, fixture } = require('./helpers');
+const { test, expect, fixture, openStep } = require('./helpers');
 
 async function start(page) {
   await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -94,6 +94,61 @@ test.describe('Bordure blanche', () => {
     expect(it.frame).toBeUndefined();
     await page.evaluate(() => document.getElementById('cart-add-view').click());
     await expect(page.locator('#cart')).toContainText('avec une bordure blanche de 3 cm');
+  });
+
+  test('export d’un tableau imprimé : le choix de la bordure blanche, mémorisé ; l’image exportée porte 3 cm de blanc, le PDF une page à la taille de la feuille', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await start(page);
+    const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
+    const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
+    await openStep(page, 'export-section');
+    // le champ n'existe qu'en tableau imprimé ; « Sans bordure » par défaut (mémoire des tests)
+    await expect(page.locator('#export-margin-field')).toBeVisible();
+    await expect(page.locator('#export-margin [data-margin="0"]')).toHaveClass(/on/);
+    await expect(page.locator('#export-info')).not.toContainText('bordure');
+    await page.locator('#export-margin [data-margin="1"]').click();
+    await expect(page.locator('#export-info')).toContainText(`tableau imprimé de ${fmt(W)} × ${fmt(H)} cm avec une bordure blanche de 3 cm (l’œuvre imprimée en ${fmt(W - 6)} × ${fmt(H - 6)} cm)`);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.marge'))).toBe('1');
+    // ce que l'export rend : une copie aux dimensions de la zone imprimée, sur une feuille de la taille de l'œuvre
+    const ex = await page.evaluate(() => { const e = AtelierGribouille.exportComp(); return { W: e.W, H: e.H, m: e.m, cw: e.comp.W, ch: e.comp.H, same: e.comp === AtelierGribouille.state.comp }; });
+    expect(ex.m).toBe(3); expect(ex.same).toBe(false);
+    expect(ex.W).toBeCloseTo(W, 5); expect(ex.cw).toBeCloseTo(W - 6, 5); expect(ex.ch).toBeCloseTo(H - 6, 5);
+    // l'image exportée (qualité écran, PNG) : du blanc sur 3 cm à chaque bord, l'œuvre au milieu
+    await page.locator('#dpi').selectOption('screen');
+    await page.locator('#fmt').selectOption('image/png');
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
+    const data = 'data:image/png;base64,' + require('fs').readFileSync(await dl.path()).toString('base64');
+    const px = await page.evaluate(async ([data, W, H]) => {
+      const img = new Image(); img.src = data; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const k = c.width / W; // px par cm
+      const at = (cx, cy) => Array.from(x.getImageData(Math.round(cx * k), Math.round(cy * k), 1, 1).data);
+      // la bande blanche : plusieurs points à 1,5 cm du bord ; l'intérieur : y a-t-il autre chose que du blanc ?
+      const band = [[1.5, 1.5], [W / 2, 1.5], [W - 1.5, H / 2], [W / 2, H - 1.5], [1.5, H - 1.5]].map(([a, b]) => at(a, b));
+      let nonWhite = 0;
+      for (let cy = 4; cy < H - 4; cy += 0.5) for (let cx = 4; cx < W - 4; cx += 0.5) { const p = at(cx, cy); if (p[0] + p[1] + p[2] < 700) nonWhite++; }
+      return { w: c.width, h: c.height, band, nonWhite };
+    }, [data, W, H]);
+    expect(px.w / px.h).toBeCloseTo(W / H, 1);
+    px.band.forEach((p) => { expect(p[0]).toBeGreaterThan(250); expect(p[1]).toBeGreaterThan(250); expect(p[2]).toBeGreaterThan(250); });
+    expect(px.nonWhite).toBeGreaterThan(50);
+    // le PDF : une page à la taille de la feuille
+    await page.locator('#fmt').selectOption('application/pdf');
+    await expect(page.locator('#export-info')).toContainText(`PDF d’une page de ${fmt(W)} × ${fmt(H)} cm avec une bordure blanche de 3 cm`);
+    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
+    const buf = require('fs').readFileSync(await pdf.path());
+    expect(buf.slice(0, 5).toString()).toBe('%PDF-');
+    const box = /MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(buf.toString('latin1'));
+    expect(box).not.toBeNull();
+    const [pw, ph] = [Number(box[1]), Number(box[2])].map((v) => (v / 72) * 2.54);
+    expect(Math.max(pw, ph)).toBeCloseTo(Math.max(W, H), 0);
+    expect(Math.min(pw, ph)).toBeCloseTo(Math.min(W, H), 0);
+    // « Sans bordure » : l'export rend l'œuvre elle-même ; en collage des originaux, pas de champ
+    await page.locator('#export-margin [data-margin="0"]').click();
+    expect(await page.evaluate(() => { const e = AtelierGribouille.exportComp(); return e.m === 0 && e.comp === AtelierGribouille.state.comp; })).toBe(true);
+    await page.evaluate(() => AtelierGribouille.setMode('toile'));
+    await expect(page.locator('#export-margin-field')).toBeHidden();
   });
 
   test('encadré avec passe-partout : pas de bordure ; sans passe-partout, l’article la porte ; le choix « sans » est mémorisé', async ({ page }) => {

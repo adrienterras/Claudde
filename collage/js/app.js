@@ -2004,6 +2004,7 @@
     syncMatButtons();
     $('sizes-hint').textContent = tr('Vérifiez ici les feuilles dont la taille n’a pas pu être lue dans le scan.');
     $('guide-box').hidden = m === 'impression';
+    syncExportMargin();
     $('drawings-hint').textContent = m === 'impression' ? tr('Touchez un dessin pour régler son rôle ou le retoucher.') : tr('Touchez un dessin pour régler son rôle et sa taille réelle.');
     syncGroundMode();
     fillFormats();
@@ -4331,15 +4332,39 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     } finally { btn.disabled = false; }
   }
 
+  // Tableau imprimé : le fichier exporté peut porter la bordure blanche de 3 cm (le même choix, mémorisé,
+  // que la mise en scène et la commande) : la feuille garde sa taille, l'œuvre est imprimée à l'intérieur
+  const exportMargin = () => printMode() && printMargin();
+  function syncExportMargin() {
+    const f = $('export-margin-field');
+    if (!f) return;
+    f.hidden = !printMode();
+    const on = printMargin();
+    f.querySelectorAll('[data-margin]').forEach((b) => { const sel = (b.dataset.margin === '1') === on; b.classList.toggle('on', sel); b.classList.toggle('ink', sel); b.setAttribute('aria-pressed', sel ? 'true' : 'false'); });
+  }
+  // ce que l'export rend : l'œuvre elle-même, ou, avec bordure, une copie aux proportions de la zone
+  // imprimée (feuille moins la bordure), à sa taille exacte ; W, H : la feuille, m : la bordure (cm)
+  function exportComp() {
+    const comp = state.comp, W = comp.W, H = comp.H;
+    if (!exportMargin()) return { comp, W, H, m: 0 };
+    const m = MARGIN_CM;
+    const copy = fitCopy(comp, (W - 2 * m) / (H - 2 * m));
+    if (copy === comp) return { comp, W, H, m: 0 };
+    fitCompTo(copy, W - 2 * m, H - 2 * m);
+    return { comp: copy, W, H, m };
+  }
   function updateExportInfo() {
     if (!state.comp) return;
+    syncExportMargin();
     const { w, h, capped } = exportSize();
     const pdf = $('fmt').value === 'application/pdf';
+    const W = state.comp.W, H = state.comp.H, m = exportMargin() ? MARGIN_CM : 0;
+    const border = m ? tr` avec une bordure blanche de ${fmt(m)} cm (l’œuvre imprimée en ${fmt(W - 2 * m)} × ${fmt(H - 2 * m)} cm)` : '';
     $('export-info').textContent = pdf
-      ? tr`PDF d’une page de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / state.comp.W) * 2.54))} dpi), cadres et traits en vecteurs.`
+      ? tr`PDF d’une page de ${fmt(W)} × ${fmt(H)} cm${border}, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / W) * 2.54))} dpi), cadres et traits en vecteurs.`
       : printMode()
-        ? tr`${w} × ${h} px pour un tableau imprimé de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
-        : tr`${w} × ${h} px pour une toile de ${fmt(state.comp.W)} × ${fmt(state.comp.H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
+        ? tr`${w} × ${h} px pour un tableau imprimé de ${fmt(W)} × ${fmt(H)} cm${border}${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
+        : tr`${w} × ${h} px pour une toile de ${fmt(W)} × ${fmt(H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
   }
 
   // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
@@ -4535,14 +4560,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     try {
       const { w } = exportSize();
       const s = w / state.comp.W;
+      const ex = exportComp(); // l'œuvre, ou sa copie dans la zone imprimée (bordure blanche)
       if ($('fmt').value === 'application/pdf') {
         saveStatus(tr('Assemblage du PDF…'));
         await tick();
         // les images du PDF restent à 300 dpi au plus : au-delà, le fichier devient énorme sans gain à l'impression
         const ps = Math.min(s, 300 / 2.54);
-        await hydrateHD(state.comp, ps);
-        await sharpenHD(state.comp, ps);
-        const blob = await exportPdf(state.comp, ps);
+        await hydrateHD(ex.comp, ps);
+        await sharpenHD(ex.comp, ps);
+        const blob = await exportPdf(ex.comp, ps, ex.m ? ex : null);
         releaseHD();
         if (await saveFile(blob, 'oeuvre-atelier-gribouille.pdf')) await recordExport(blob, 'oeuvre-atelier-gribouille.pdf');
         return;
@@ -4554,17 +4580,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       let blob = null, scale = s, rw = 0, rh = 0;
       for (let attempt = 0; attempt < 4 && !blob; attempt++) {
         if (attempt) { scale *= 0.6; saveStatus(tr('Image trop grande pour cet appareil : nouvel essai plus petit…')); await tick(); }
-        await hydrateHD(state.comp, scale);
-        await sharpenHD(state.comp, scale);
+        await hydrateHD(ex.comp, scale);
+        await sharpenHD(ex.comp, scale);
         if (!attempt) saveStatus(tr('Rendu de l’image…'));
         await tick();
-        const c = Extract.makeCanvas(state.comp.W * scale, state.comp.H * scale);
+        const c = Extract.makeCanvas(ex.W * scale, ex.H * scale);
         const x = c.getContext('2d');
         if (x) {
           x.imageSmoothingQuality = 'high';
           const shadows = false; // pas d'ombre portée
-          Compose.renderBg(x, state.comp, scale, shadows);
-          Compose.renderItems(x, state.comp, scale, shadows);
+          if (ex.m) { x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.translate(ex.m * scale, ex.m * scale); }
+          Compose.renderBg(x, ex.comp, scale, shadows);
+          Compose.renderItems(x, ex.comp, scale, shadows);
         }
         releaseHD();
         if (x && !blankCanvas(c)) {
@@ -4747,23 +4774,27 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     });
   }
 
-  async function exportPdf(comp, s) {
+  // sheet (facultatif) : { W, H, m } — la feuille imprimée, plus grande que l'œuvre, qui s'y pose à m cm
+  // du bord (bordure blanche)
+  async function exportPdf(comp, s, sheet) {
     await needJsPdf();
     const { jsPDF } = window.jspdf;
     const W = comp.W, H = comp.H;
-    const doc = new jsPDF({ unit: 'cm', format: [W, H], orientation: W >= H ? 'landscape' : 'portrait', compress: true });
-    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(W)} × ${fmt(H)} cm, ${comp.reduced ? tr('dessins réduits (impression)') : tr('dessins à taille réelle')}` });
+    const PW = sheet ? sheet.W : W, PH = sheet ? sheet.H : H, ox = sheet ? sheet.m : 0, oy = sheet ? sheet.m : 0;
+    const doc = new jsPDF({ unit: 'cm', format: [PW, PH], orientation: PW >= PH ? 'landscape' : 'portrait', compress: true });
+    doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(PW)} × ${fmt(PH)} cm, ${comp.reduced ? tr('dessins réduits (impression)') : tr('dessins à taille réelle')}` });
+    if (sheet) { doc.setFillColor('#ffffff'); doc.rect(0, 0, PW, PH, 'F'); }
     const ground = comp.ground || '#f8f5ef';
     doc.setFillColor(ground);
-    doc.rect(0, 0, W, H, 'F');
+    doc.rect(ox, oy, W, H, 'F');
     // Pop art : les cases de couleur, en vecteurs
-    if (comp.tiles) comp.tiles.forEach((t) => { doc.setFillColor(t.color); doc.rect(t.x, t.y, t.w, t.h, 'F'); });
+    if (comp.tiles) comp.tiles.forEach((t) => { doc.setFillColor(t.color); doc.rect(t.x + ox, t.y + oy, t.w, t.h, 'F'); });
     if (comp.ground) {
       // l'aplat de peinture avec ses coups de brosse, en une image pleine page (100 dpi suffisent)
       const gs = Math.min(s, 100 / 2.54);
       const gc = Extract.makeCanvas(Math.round(W * gs), Math.round(H * gs));
       Compose.renderGround(gc.getContext('2d'), comp, gs);
-      doc.addImage(gc.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, W, H, undefined, 'FAST');
+      doc.addImage(gc.toDataURL('image/jpeg', 0.85), 'JPEG', ox, oy, W, H, undefined, 'FAST');
     }
     const layers = comp.bg.concat(comp.items);
     let n = 0;
@@ -4783,8 +4814,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         // jsPDF place une image tournée à partir de l'ordonnée « retournée » (H − y − h) : vérifié
         // en comparant les positions dans le PDF produit avec celles de la composition
         // (sans rotation, jsPDF n'applique pas ce retournement : coordonnées ordinaires)
-        if (Math.abs(L.rot) < 1e-6) doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx, tly, L.w, L.h, undefined, 'FAST');
-        else doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx, H - tly - L.h, L.w, L.h, undefined, 'FAST', (L.rot * 180) / Math.PI);
+        if (Math.abs(L.rot) < 1e-6) doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx + ox, tly + oy, L.w, L.h, undefined, 'FAST');
+        else doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', tlx + ox, PH - (tly + oy) - L.h, L.w, L.h, undefined, 'FAST', (L.rot * 180) / Math.PI);
         continue;
       }
       // boîte englobante du calque (tourné), en cm, rognée à la toile
@@ -4801,14 +4832,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // le papier de fond de la toile est opaque : en JPEG, plus léger ; le reste garde sa transparence
       const opaque = !!L.paper;
       const data = opaque ? c.toDataURL('image/jpeg', 0.9) : c.toDataURL('image/png');
-      doc.addImage(data, opaque ? 'JPEG' : 'PNG', x0, y0, x1 - x0, y1 - y0, undefined, 'FAST');
+      doc.addImage(data, opaque ? 'JPEG' : 'PNG', x0 + ox, y0 + oy, x1 - x0, y1 - y0, undefined, 'FAST');
     }
     // vecteurs : cadres de la galerie (dans la couleur de leur trait), plomb du vitrail, traits de la constellation
     if (comp.frames) {
       const fc = hexRgb(comp.frameColor || FRAME_INK);
       doc.setDrawColor(fc[0], fc[1], fc[2]);
       doc.setLineWidth(comp.frameWidth || 0.3);
-      comp.frames.forEach((f) => doc.rect(f.x, f.y, f.w, f.h, 'S'));
+      comp.frames.forEach((f) => doc.rect(f.x + ox, f.y + oy, f.w, f.h, 'S'));
     }
     doc.setDrawColor(28, 27, 21);
     if (comp.lead) {
@@ -4818,7 +4849,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (!L.panel) return;
         const c = Math.cos(L.rot), sn = Math.sin(L.rot);
         const pts = (L.clip || [[-L.w / 2, -L.h / 2], [L.w / 2, -L.h / 2], [L.w / 2, L.h / 2], [-L.w / 2, L.h / 2]])
-          .map(([x, y]) => [L.x + x * c - y * sn, L.y + x * sn + y * c]);
+          .map(([x, y]) => [L.x + x * c - y * sn + ox, L.y + x * sn + y * c + oy]);
         const segs = pts.slice(1).map((p, i) => [p[0] - pts[i][0], p[1] - pts[i][1]]);
         doc.lines(segs, pts[0][0], pts[0][1], [1, 1], 'S', true);
       });
@@ -4826,7 +4857,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (comp.lines) {
       doc.setLineWidth(0.18);
       doc.setLineDashPattern([1.2, 0.8], 0);
-      comp.lines.forEach(([x0, y0, x1, y1]) => doc.line(x0, y0, x1, y1));
+      comp.lines.forEach(([x0, y0, x1, y1]) => doc.line(x0 + ox, y0 + oy, x1 + ox, y1 + oy));
       doc.setLineDashPattern([], 0);
     }
     return doc.output('blob');
@@ -5156,7 +5187,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }));
   document.querySelectorAll('#scene-mat button, #print-mat button').forEach((b) => b.addEventListener('click', () => setPrintMat(b.dataset.mat === '1')));
   $('scene-finish').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { setSceneFinish(b.dataset.finish); drawRoomScene(); }));
-  $('scene-margin').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); drawRoomScene(); }));
+  $('scene-margin').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); drawRoomScene(); syncExportMargin(); updateExportInfo(); }));
   if (window.ResizeObserver) new ResizeObserver(() => scheduleScene()).observe($('scene-canvas'));
 
   // La mise en scène vit dans la section Tailles sur téléphone ; sur ordinateur, dans une fenêtre
@@ -5289,6 +5320,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('empty-drop').addEventListener('click', () => $('file').click());
   initMode();
   $('dpi').addEventListener('change', updateExportInfo);
+  $('export-margin').querySelectorAll('[data-margin]').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); updateExportInfo(); }));
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
   $('export-free').onclick = exportPreview;
   $('sizes-alert-go').onclick = () => {
@@ -7427,7 +7459,7 @@ Réponds uniquement avec ce JSON :
     const box = $('cart-add');
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => (r.onchange = () => { choice.product = r.value; renderCartAdd(); }));
     box.querySelectorAll('[data-finish]').forEach((b) => (b.onclick = () => { choice.finish = b.dataset.finish; setSceneFinish(choice.finish); renderCartAdd(); }));
-    box.querySelectorAll('[data-margin]').forEach((b) => (b.onclick = () => { choice.margin = b.dataset.margin === '1'; setPrintMargin(choice.margin); renderCartAdd(); }));
+    box.querySelectorAll('[data-margin]').forEach((b) => (b.onclick = () => { choice.margin = b.dataset.margin === '1'; setPrintMargin(choice.margin); renderCartAdd(); syncExportMargin(); updateExportInfo(); }));
     box.querySelectorAll('[data-size]').forEach((b) => (b.onclick = () => { choice.size = b.dataset.size; renderCartAdd(); }));
     box.querySelectorAll('[data-frame-kind]').forEach((b) => (b.onclick = () => { choice.frame = b.dataset.frameKind; renderCartAdd(); }));
     box.querySelectorAll('[data-mat]').forEach((b) => (b.onclick = () => { choice.mat = b.dataset.mat === '1'; renderCartAdd(); }));
@@ -7663,7 +7695,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

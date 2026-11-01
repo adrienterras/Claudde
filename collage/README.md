@@ -321,7 +321,12 @@ cd collage && python3 -m http.server 8000
      (« Affiche 30 × 40 cm, sans cadre, avec une bordure blanche de 3 cm : l'œuvre imprimée en
      24 × 34 cm » ; « Cadre 30 × 40 cm · impression 30 × 40 cm, à la taille du cadre, avec une bordure
      blanche de 3 cm : … »), l'article porte `margin` (dans `meta.cart` aussi) et le panier l'annonce ;
-     avec passe-partout, pas de bordure (le passe-partout en tient lieu). La finition (papier ou
+     avec passe-partout, pas de bordure (le passe-partout en tient lieu). **À l'export** aussi (tableau
+     imprimé seulement) : le même choix, mémorisé, sous Qualité / Fichier (`#export-margin`) ; avec,
+     l'image exportée est la feuille entière (`exportComp` : une copie de l'œuvre aux dimensions de la
+     zone imprimée, posée à 3 cm du bord sur du blanc), le PDF une page à la taille de la feuille avec
+     l'œuvre décalée de 3 cm (`exportPdf(comp, s, sheet)`), et le texte le dit (« … avec une bordure
+     blanche de 3 cm (l'œuvre imprimée en 24 × 34 cm) »). La finition (papier ou
      encadré) et la bordure sont celles de la mise en scène (`atelier.finition`, `atelier.marge`), et
      un choix fait ici y est repris ; le fichier HD, le guide ou le kit :
      l'œuvre à sa taille. Elle suit chaque changement d'option ; l'image prend toute la hauteur de
