@@ -2181,8 +2181,11 @@
   // quelle (voir keepPrintComp)
   function setPrintMat(on) {
     try { localStorage.setItem('atelier.passe-partout', on ? '1' : '0'); } catch (e) { /* ignoré */ }
-    if (printMode() && state.drawings.length) keepPrintComp(syncMatButtons, 'fit');
-    else { syncMatButtons(); updateScaleLabel(); scheduleScene(); }
+    // (la liste des cadres suit : avec passe-partout, pas de 21 × 30 — une œuvre qui y était passe en 30 × 40)
+    // (un « cadre par défaut » en attente pour la prochaine œuvre le reste : la liste seule est refaite)
+    const change = () => { syncMatButtons(); if (printMode()) { const reset = state.frameReset; state.frameReset = false; fillFormats(); state.frameReset = reset; } };
+    if (printMode() && state.drawings.length) keepPrintComp(change, 'fit');
+    else { change(); updateScaleLabel(); scheduleScene(); }
   }
   /*
    * Tableau imprimé : changer de cadre (ou de passe-partout) ne refait pas l'œuvre affichée — elle
@@ -2282,7 +2285,10 @@
     if (print) {
       const g = document.createElement('optgroup');
       g.label = tr('Cadres standard du marché');
+      // (avec passe-partout, pas de cadre 21 × 30 : son impression de 13 × 18 cm est trop petite)
+      const mat = printMat();
       PRINT_FRAMES.forEach((f) => {
+        if (mat && f.key === '21x30') return;
         const o = document.createElement('option');
         o.value = `cadre:${f.key}`;
         o.textContent = frameName(f);
@@ -2290,7 +2296,8 @@
       });
       sel.appendChild(g);
       // (une nouvelle œuvre repart du cadre par défaut, pas de celui de l'œuvre d'avant)
-      sel.value = current.startsWith('cadre:') && !state.frameReset ? normalizeFrame(current) : FRAME_DEFAULT;
+      const want = current.startsWith('cadre:') && !state.frameReset ? normalizeFrame(current) : FRAME_DEFAULT;
+      sel.value = mat && want === 'cadre:21x30' ? FRAME_SMALL : want;
       if (sel.selectedIndex < 0) sel.value = FRAME_DEFAULT;
       state.frameReset = false;
       return;

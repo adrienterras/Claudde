@@ -28,7 +28,9 @@ cd collage && python3 -m http.server 8000
      ramené au cadre le plus proche). Un choix « Sans /
      Avec passe-partout » à côté du cadre (mémorisé, repris par la mise en scène) fixe la taille
      d'impression : sans, elle remplit le cadre (A4 dans le 21 × 30) ; avec, elle prend la taille en
-     dessous (13 × 18, A4, 30 × 40, 40 × 50, 50 × 70) et la composition est refaite à cette taille. Les dessins
+     dessous (A4, 30 × 40, 40 × 50, 50 × 70) et la composition est refaite à cette taille — avec
+     passe-partout, le **21 × 30 n'est pas proposé** (son impression de 13 × 18 cm est trop petite), et
+     une œuvre qui y était passe dans le 30 × 40 quand on remet le passe-partout. Les dessins
      réduits d'un même facteur pour y tenir (`scale()` = `state.printScale`, `computePrintScale`) qui
      **suit le curseur de densité** : les sujets retenus (les plus forts d'abord, autant que le
      curseur en demande, comme à la pose) doivent couvrir la part de l'affiche que le curseur fixe,

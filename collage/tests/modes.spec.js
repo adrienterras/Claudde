@@ -265,7 +265,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-size]')].map((b) => b.dataset.size))).toEqual(['21x30', '30x40', '40x50', '50x70', '70x100']);
     await expect(page.locator('.cart-fit')).toBeHidden(); // l'œuvre fait exactement la taille du cadre
     await page.locator('#cart-add [data-close]').first().click();
-    // avec passe-partout : l'impression prend la taille en dessous (13 × 18 dans le 21 × 30), même cadre.
+    // avec passe-partout : l'impression prend la taille en dessous — et le 21 × 30 n'est plus proposé
+    // (13 × 18, trop petit) : l'œuvre passe dans le 30 × 40 (A4 dans son passe-partout).
     // Sur ordinateur, la section Tailles n'a plus le choix du passe-partout : il se fait dans la mise en
     // scène, ouverte par le bouton sous l'orientation
     await expect(page.locator('#print-mat-field')).toBeHidden();
@@ -277,8 +278,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.keyboard.press('Escape');
     await expect(page.locator('#scene-modal')).toBeHidden();
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([13, 18]);
-    await expect(page.locator('#scale-info')).toHaveText('Impression de 13 × 18 cm avec passe-partout, dans un cadre de 21 × 30 cm.');
+    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([21, 29.7]);
+    expect(await page.evaluate(() => document.getElementById('format').value)).toBe('cadre:30x40');
+    expect(await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value))).toEqual(['cadre:30x40', 'cadre:40x50', 'cadre:50x70', 'cadre:70x100']);
+    await expect(page.locator('#scale-info')).toHaveText('Impression de 21 × 29,7 cm avec passe-partout, dans un cadre de 30 × 40 cm.');
     await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/); // même choix dans la mise en scène
     await page.locator('#add-cart').click();
     // encadré avec passe-partout : pas de 21 × 30 à la commande, le 30 × 40 le remplace
@@ -336,11 +339,11 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.mode)).toBe('impression');
     // (cadre, orientation et passe-partout reviennent)
-    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:21x30', 13, 18]);
+    expect(await page.evaluate(() => [document.getElementById('format').value, AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual(['cadre:30x40', 21, 29.7]);
     await expect(page.locator('#print-mat [data-mat="1"]')).toHaveClass(/on/);
     await page.evaluate(() => document.querySelector('#print-mat [data-mat="0"]').click()); // (caché sur ordinateur)
     await page.waitForTimeout(300);
-    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([21, 29.7]);
+    expect(await page.evaluate(() => [AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H])).toEqual([30, 40]);
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 
