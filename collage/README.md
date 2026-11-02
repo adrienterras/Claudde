@@ -95,7 +95,8 @@ cd collage && python3 -m http.server 8000
    (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
    secours a le sien) : la lampe reste allumée pendant la visée et la photo, le choix est mémorisé
    (`atelier.flash`) et la lampe s'éteint avec la caméra. La photo prise (pleine définition : `ImageCapture`
-   quand il existe, sinon l'image de la vidéo) est jugée de la même façon, avec en plus sa
+   quand il existe et que le flash est éteint — en mode photo, l'appareil éteint la lampe et la photo
+   sortirait sombre —, sinon l'image de la vidéo, éclairée par la lampe) est jugée de la même façon, avec en plus sa
    définition (grand côté de la feuille en pixels : 140 dpi pour un A4, `Camera.PX`) : bonne ou
    correcte, elle est **gardée d'office** (un éclair, « ✓ Photo gardée » avec « Annuler ») et la visée
    continue ; à reprendre, elle s'affiche avec sa raison et un conseil, « Reprendre » ou « Garder

@@ -283,7 +283,10 @@
   async function grab() {
     const video = $('camera-video');
     const track = S.stream && S.stream.getVideoTracks()[0];
-    if (track && window.ImageCapture) {
+    // flash allumé : l'image de la vidéo, éclairée par la lampe — la prise de photo de l'appareil
+    // (ImageCapture) passe en mode photo et éteint la lampe : la photo sortirait sombre
+    const lit = $('camera-flash').getAttribute('aria-pressed') === 'true';
+    if (track && window.ImageCapture && !lit) {
       try {
         const blob = await new ImageCapture(track).takePhoto();
         const bmp = await createImageBitmap(blob);

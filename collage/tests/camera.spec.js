@@ -223,6 +223,20 @@ test.describe('Photographier un dessin', () => {
     await page.locator('#camera-flash').click();
     expect(await page.evaluate(() => window.__torch)).toEqual([true, false]);
     expect(await page.evaluate(() => localStorage.getItem('atelier.flash'))).toBe('0');
+    // flash allumé : la photo est l'image de la vidéo (la prise de photo de l'appareil éteindrait la lampe)
+    await page.evaluate(() => { window.__takePhoto = 0; const IC = window.ImageCapture; window.ImageCapture = class { constructor(t) { this.ic = new IC(t); } takePhoto(o) { window.__takePhoto++; return this.ic.takePhoto(o); } }; });
+    await page.locator('#camera-flash').click();
+    await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('#camera-shoot').click();
+    await expect(page.locator('#camera-shoot')).toBeEnabled({ timeout: 20000 });
+    expect(await page.evaluate(() => window.__takePhoto)).toBe(0);
+    await page.evaluate(() => { const r = document.getElementById('camera-retake'); if (r && !r.hidden && r.offsetParent) r.click(); });
+    await page.locator('#camera-flash').click();
+    await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('#camera-shoot').click();
+    await expect(page.locator('#camera-shoot')).toBeEnabled({ timeout: 20000 });
+    expect(await page.evaluate(() => window.__takePhoto)).toBe(1);
+    await page.evaluate(() => { const r = document.getElementById('camera-retake'); if (r && !r.hidden && r.offsetParent) r.click(); });
     // mémorisé « allumé » : la caméra rouverte l'allume d'elle-même
     await page.locator('#camera-flash').click();
     await page.locator('#camera-done').click();
