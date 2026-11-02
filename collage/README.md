@@ -327,8 +327,10 @@ cd collage && python3 -m http.server 8000
      avec passe-partout, pas de bordure (le passe-partout en tient lieu). **À l'export** aussi (tableau
      imprimé seulement) : le même choix, mémorisé, sous Qualité / Fichier (`#export-margin`) ; avec,
      l'image exportée est la feuille entière (`exportComp` : une copie de l'œuvre aux dimensions de la
-     zone imprimée, posée à 3 cm du bord sur du blanc), le PDF une page à la taille de la feuille avec
-     l'œuvre décalée de 3 cm (`exportPdf(comp, s, sheet)`), et le texte le dit (« … avec une bordure
+     zone imprimée, posée à 3 cm du bord sur du blanc, rognée à sa zone), le PDF une page à la taille de la
+     feuille avec l'œuvre décalée de 3 cm (`exportPdf(comp, s, sheet)`) ; dans les deux, la bordure
+     repasse par-dessus en mordant de 1 mm sur l'œuvre (`EXPORT_BLEED_CM` : ni le bord gris d'une page
+     scannée ni le demi-pixel du rognage ne restent visibles), et le texte le dit (« … avec une bordure
      blanche de 3 cm (l'œuvre imprimée en 24 × 34 cm) »). La finition (papier ou
      encadré) et la bordure sont celles de la mise en scène (`atelier.finition`, `atelier.marge`), et
      un choix fait ici y est repris ; le fichier HD, le guide ou le kit :

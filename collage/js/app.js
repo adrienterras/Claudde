@@ -4335,6 +4335,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Tableau imprimé : le fichier exporté peut porter la bordure blanche de 3 cm (le même choix, mémorisé,
   // que la mise en scène et la commande) : la feuille garde sa taille, l'œuvre est imprimée à l'intérieur
   const exportMargin = () => printMode() && printMargin();
+  const EXPORT_BLEED_CM = 0.1; // la bordure mord d'autant sur l'œuvre (bord d'une page scannée, demi-pixel du rognage)
   function syncExportMargin() {
     const f = $('export-margin-field');
     if (!f) return;
@@ -4598,6 +4599,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
           }
           Compose.renderBg(x, ex.comp, scale, shadows);
           Compose.renderItems(x, ex.comp, scale, shadows);
+          // la bordure repasse par-dessus, en mordant de 1 mm sur l'œuvre : ni le bord d'une page de fond
+          // scannée (un liseré gris), ni le demi-pixel du rognage ne restent visibles
+          if (ex.m) {
+            x.setTransform(1, 0, 0, 1, 0, 0);
+            const b = (ex.m + EXPORT_BLEED_CM) * scale;
+            x.fillStyle = '#fff';
+            x.fillRect(0, 0, c.width, b); x.fillRect(0, c.height - b, c.width, b);
+            x.fillRect(0, 0, b, c.height); x.fillRect(c.width - b, 0, b, c.height);
+          }
         }
         releaseHD();
         if (x && !blankCanvas(c)) {
@@ -4866,6 +4876,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       doc.setLineDashPattern([1.2, 0.8], 0);
       comp.lines.forEach(([x0, y0, x1, y1]) => doc.line(x0 + ox, y0 + oy, x1 + ox, y1 + oy));
       doc.setLineDashPattern([], 0);
+    }
+    if (sheet) {
+      // la bordure blanche par-dessus, en mordant de 1 mm sur l'œuvre (voir l'export image)
+      const b = sheet.m + EXPORT_BLEED_CM;
+      doc.setFillColor('#ffffff');
+      doc.rect(0, 0, PW, b, 'F'); doc.rect(0, PH - b, PW, b, 'F'); doc.rect(0, 0, b, PH, 'F'); doc.rect(PW - b, 0, b, PH, 'F');
     }
     return doc.output('blob');
   }

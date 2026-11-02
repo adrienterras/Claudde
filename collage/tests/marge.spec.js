@@ -104,8 +104,17 @@ test.describe('Bordure blanche', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png'), fixture('page-texture.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // une page de fond posée en travers, qui déborde de l'œuvre à gauche et en haut
-    await page.evaluate(() => { const c = AtelierGribouille.state.comp; const L = c.bg.find((q) => !q.paper); if (L) { L.x = 0; L.y = 0; L.rot = 0.4; } });
+    // une page de fond posée en travers, qui déborde de l'œuvre à gauche et en haut ; une autre, au bord
+    // gris (le bord d'un scan), posée au ras du bas
+    await page.evaluate(() => {
+      const c = AtelierGribouille.state.comp; const L = c.bg.find((q) => !q.paper);
+      if (L) {
+        L.x = 0; L.y = 0; L.rot = 0.4;
+        const src = L.src, g = document.createElement('canvas'); g.width = src.width; g.height = src.height;
+        const x = g.getContext('2d'); x.drawImage(src, 0, 0); x.fillStyle = '#888'; x.fillRect(0, src.height - 6, src.width, 6);
+        c.bg.push(Object.assign({}, L, { src: g, x: c.W / 2, y: c.H - L.h / 2, rot: 0, w: L.w, h: L.h, sx: 0, sy: 0, sw: src.width, sh: src.height }));
+      }
+    });
     const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
     const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
     await openStep(page, 'export-section');
@@ -131,9 +140,10 @@ test.describe('Bordure blanche', () => {
       const x = c.getContext('2d'); x.drawImage(img, 0, 0);
       const k = c.width / W; // px par cm
       const at = (cx, cy) => Array.from(x.getImageData(Math.round(cx * k), Math.round(cy * k), 1, 1).data);
-      // la bande blanche : tout le pourtour, tous les 0,5 cm, à 0,5 et 2,5 cm du bord ; l'intérieur : y a-t-il autre chose que du blanc ?
+      // la bande blanche : tout le pourtour, tous les 0,5 cm, à 0,5 et 2,5 cm du bord, et à 3,05 cm (la
+      // bordure mord de 1 mm sur l'œuvre : pas de liseré au ras) ; l'intérieur : y a-t-il autre chose que du blanc ?
       const band = [];
-      for (const d of [0.5, 2.5]) {
+      for (const d of [0.5, 2.5, 3.05]) {
         for (let t = 0.5; t < W - 0.5; t += 0.5) { band.push(at(t, d)); band.push(at(t, H - d)); }
         for (let t = 0.5; t < H - 0.5; t += 0.5) { band.push(at(d, t)); band.push(at(W - d, t)); }
       }
