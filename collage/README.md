@@ -122,7 +122,10 @@ cd collage && python3 -m http.server 8000
    change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
-     ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet, puis la coupe
+     ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet — sauf les
+     **voisins qui ne se touchent pas** (`splitNeighbours` : chaque partie d'au moins ≈ 3 × 3 cm qui
+     se détache des autres à ≈ 6,5 mm près devient un sujet à part, un personnage, son lit, une fenêtre ;
+     les petits détails, un chapeau, un rayon, restent avec la partie la plus proche) —, puis la coupe
      **suit le dessin au plus près**, à ≈ 3 mm : l'intérieur d'un contour fermé est gardé, mais les
      **creux ouverts** (entre deux jambes, entre un bras et le corps, entre deux rayons) sont découpés
      comme aux ciseaux, et les **poches** aussi : un espace blanc que seules les marges referment (entre

@@ -584,7 +584,62 @@
       let total2 = 0; r2.comps.forEach((c) => { total2 += c.area; });
       if (r2.comps.length && r2.comps[0].area > r.comps[0].area * 1.5 && total2 < n * 0.6) { r2.lines = r.lines; r = r2; weakT = wT2; strongT = sT2; }
     }
+    // Sujets voisins qui ne se touchent pas (un personnage, son lit, une fenêtre, un tableau au mur) :
+    // la fermeture les a réunis dès qu'ils étaient à moins de ≈ 2 × closeR l'un de l'autre. Chaque
+    // partie qui a une vraie taille (≥ 1,2 % de la page, ≈ 3 × 3 cm sur un A4) et se détache des autres
+    // à une fermeture plus courte (≈ 6,5 mm d'écart) devient un sujet à part ; les petits détails (un
+    // chapeau, un rayon, un petit cœur) restent avec la partie la plus proche.
+    splitNeighbours(r, (cr2) => masks(strongT, weakT, cr2, r.holeMax || 0, r.lines), n, w, h);
     return { work, data, w, h, paper, weakT, strongT, closeR: r.closeR || CUT.close, holeMax: r.holeMax || 0, lines: r.lines || null, grid, field, paperFrac: paperCount / n, rawPaperFrac: rawCount / n, labels: r.labels, comps: r.comps };
+  }
+
+  function splitNeighbours(r, masksAt, n, w, h) {
+    const cr = r.closeR || CUT.close, cr2 = Math.max(CUT.margin + 0.002, cr * 0.35); // ≈ 6,5 mm d'écart sur un A4
+    if (cr2 >= cr - 1e-6 || !r.comps.length) return;
+    const r3 = masksAt(cr2);
+    if (r3.comps.length <= r.comps.length) return;
+    // le sujet (de r) de chaque partie (de r3) : celui qui porte la plupart de ses pixels
+    const votes = new Map();
+    for (let p = 0; p < n; p++) {
+      const l3 = r3.labels[p], l = r.labels[p];
+      if (!l3 || !l) continue;
+      let v = votes.get(l3); if (!v) { v = new Map(); votes.set(l3, v); }
+      v.set(l, (v.get(l) || 0) + 1);
+    }
+    const parentOf = new Map();
+    votes.forEach((v, l3) => { let best = 0, bc = 0; v.forEach((c, l) => { if (c > bc) { bc = c; best = l; } }); parentOf.set(l3, best); });
+    const big = 0.012 * n, parts = new Map(); // sujet → ses parties
+    r3.comps.forEach((c) => { const pa = parentOf.get(c.id); if (!pa) return; if (!parts.has(pa)) parts.set(pa, []); parts.get(pa).push(c); });
+    const split = new Set();
+    parts.forEach((list, pa) => { if (list.filter((c) => c.area >= big).length >= 2) split.add(pa); });
+    if (!split.size) return;
+    // nouveaux sujets : les parties grandes ; les petites rejoignent la grande la plus proche (centres)
+    const labels = new Int32Array(n), comps = [];
+    let next = 0;
+    const idOfOld = new Map(), idOfPart = new Map();
+    r.comps.forEach((c) => { if (!split.has(c.id)) { idOfOld.set(c.id, ++next); comps.push(Object.assign({}, c, { id: next, area: 0, x0: w, y0: h, x1: 0, y1: 0 })); } });
+    split.forEach((pa) => {
+      const list = parts.get(pa), bigs = list.filter((c) => c.area >= big);
+      bigs.forEach((c) => { idOfPart.set(c.id, ++next); comps.push({ id: next, area: 0, x0: w, y0: h, x1: 0, y1: 0 }); });
+      const centre = (c) => [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2];
+      list.filter((c) => c.area < big).forEach((c) => {
+        const [cx, cy] = centre(c);
+        let best = null, bd = Infinity;
+        bigs.forEach((b) => { const [bx, by] = centre(b), d = Math.hypot(bx - cx, by - cy); if (d < bd) { bd = d; best = b; } });
+        idOfPart.set(c.id, idOfPart.get(best.id));
+      });
+    });
+    for (let p = 0; p < n; p++) {
+      const l = r.labels[p];
+      if (!l) continue;
+      const id = split.has(l) ? (idOfPart.get(r3.labels[p]) || 0) : idOfOld.get(l);
+      if (!id) continue;
+      labels[p] = id;
+      const c = comps[id - 1], x = p % w, y = (p - x) / w;
+      c.area++; if (x < c.x0) c.x0 = x; if (x > c.x1) c.x1 = x; if (y < c.y0) c.y0 = y; if (y > c.y1) c.y1 = y;
+    }
+    r.labels = labels;
+    r.comps = comps.filter((c) => c.area > 0).sort((a, b) => b.area - a.area);
   }
 
   /*
