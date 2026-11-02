@@ -330,7 +330,11 @@ cd collage && python3 -m http.server 8000
      zone imprimée, posée à 3 cm du bord sur du blanc, rognée à sa zone), le PDF une page à la taille de la
      feuille avec l'œuvre décalée de 3 cm (`exportPdf(comp, s, sheet)`) ; dans les deux, la bordure
      repasse par-dessus en mordant de 1 mm sur l'œuvre (`EXPORT_BLEED_CM` : ni le bord gris d'une page
-     scannée ni le demi-pixel du rognage ne restent visibles), et le texte le dit (« … avec une bordure
+     scannée ni le demi-pixel du rognage ne restent visibles). **Avec passe-partout**, pas de choix de
+     bordure à l'export : la feuille exportée fait la taille du cadre et l'œuvre (la fenêtre du
+     passe-partout) est posée au centre, image comme PDF (« PDF d'une page de 30 × 40 cm, la taille du
+     cadre : l'œuvre de 21 × 29,7 cm au centre, dans la fenêtre du passe-partout »). Le texte le dit
+     dans tous les cas (« … avec une bordure
      blanche de 3 cm (l'œuvre imprimée en 24 × 34 cm) »). La finition (papier ou
      encadré) et la bordure sont celles de la mise en scène (`atelier.finition`, `atelier.marge`), et
      un choix fait ici y est repris ; le fichier HD, le guide ou le kit :

@@ -4275,15 +4275,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   const MAX_PIXELS = () => (phone() ? 12e6 : iOS() ? 16e6 : 180e6); // 180 Mpx : une toile de 130 × 90 cm à 300 dpi
 
   function exportSize() {
-    const comp = state.comp;
+    const ex = exportComp(); // la feuille exportée (l'œuvre, ou le cadre avec passe-partout)
     const v = $('dpi').value;
     let w, h;
     if (v === 'screen') {
-      const k = 2400 / Math.max(comp.W, comp.H);
-      w = Math.round(comp.W * k); h = Math.round(comp.H * k);
+      const k = 2400 / Math.max(ex.W, ex.H);
+      w = Math.round(ex.W * k); h = Math.round(ex.H * k);
     } else {
       const dpi = Number(v);
-      w = Math.round((comp.W / 2.54) * dpi); h = Math.round((comp.H / 2.54) * dpi);
+      w = Math.round((ex.W / 2.54) * dpi); h = Math.round((ex.H / 2.54) * dpi);
     }
     const cap = MAX_PIXELS();
     let capped = false;
@@ -4339,33 +4339,46 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function syncExportMargin() {
     const f = $('export-margin-field');
     if (!f) return;
-    f.hidden = !printMode();
+    const fc = printMode() ? formatCm() : null;
+    f.hidden = !printMode() || !!(fc && fc.frame && fc.mat); // (avec passe-partout, la feuille est le cadre)
     const on = printMargin();
     f.querySelectorAll('[data-margin]').forEach((b) => { const sel = (b.dataset.margin === '1') === on; b.classList.toggle('on', sel); b.classList.toggle('ink', sel); b.setAttribute('aria-pressed', sel ? 'true' : 'false'); });
   }
   // ce que l'export rend : l'œuvre elle-même, ou, avec bordure, une copie aux proportions de la zone
   // imprimée (feuille moins la bordure), à sa taille exacte ; W, H : la feuille, m : la bordure (cm)
+  // Rend { comp, W, H, ox, oy, m, mat } : la feuille exportée (W × H cm), l'œuvre posée à (ox, oy) ;
+  // avec passe-partout, la feuille fait la taille du cadre et l'œuvre (la fenêtre du passe-partout) est
+  // au centre ; avec bordure, la feuille garde la taille de l'œuvre, qui est réduite dans la zone imprimée
   function exportComp() {
     const comp = state.comp, W = comp.W, H = comp.H;
-    if (!exportMargin()) return { comp, W, H, m: 0 };
+    const fc = printMode() ? formatCm() : null;
+    if (fc && fc.frame && fc.mat && Math.abs(fc.w - W) < 0.01 && Math.abs(fc.h - H) < 0.01) {
+      return { comp, W: fc.frameW, H: fc.frameH, ox: (fc.frameW - W) / 2, oy: (fc.frameH - H) / 2, m: 0, mat: true };
+    }
+    if (!exportMargin()) return { comp, W, H, ox: 0, oy: 0, m: 0 };
     const m = MARGIN_CM;
     const copy = fitCopy(comp, (W - 2 * m) / (H - 2 * m));
-    if (copy === comp) return { comp, W, H, m: 0 };
+    if (copy === comp) return { comp, W, H, ox: 0, oy: 0, m: 0 };
     fitCompTo(copy, W - 2 * m, H - 2 * m);
-    return { comp: copy, W, H, m };
+    return { comp: copy, W, H, ox: m, oy: m, m };
   }
   function updateExportInfo() {
     if (!state.comp) return;
     syncExportMargin();
     const { w, h, capped } = exportSize();
     const pdf = $('fmt').value === 'application/pdf';
-    const W = state.comp.W, H = state.comp.H, m = exportMargin() ? MARGIN_CM : 0;
+    const ex = exportComp(), W = state.comp.W, H = state.comp.H, m = ex.m;
     const border = m ? tr` avec une bordure blanche de ${fmt(m)} cm (l’œuvre imprimée en ${fmt(W - 2 * m)} × ${fmt(H - 2 * m)} cm)` : '';
-    $('export-info').textContent = pdf
-      ? tr`PDF d’une page de ${fmt(W)} × ${fmt(H)} cm${border}, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${Math.min(300, Math.round((w / W) * 2.54))} dpi), cadres et traits en vecteurs.`
-      : printMode()
-        ? tr`${w} × ${h} px pour un tableau imprimé de ${fmt(W)} × ${fmt(H)} cm${border}${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
-        : tr`${w} × ${h} px pour une toile de ${fmt(W)} × ${fmt(H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
+    const dpiTxt = Math.min(300, Math.round((w / ex.W) * 2.54));
+    $('export-info').textContent = ex.mat
+      ? (pdf
+        ? tr`PDF d’une page de ${fmt(ex.W)} × ${fmt(ex.H)} cm, la taille du cadre : l’œuvre de ${fmt(W)} × ${fmt(H)} cm au centre, dans la fenêtre du passe-partout, à l’échelle 1 (images à ${dpiTxt} dpi).`
+        : tr`${w} × ${h} px pour une feuille de ${fmt(ex.W)} × ${fmt(ex.H)} cm, la taille du cadre : l’œuvre de ${fmt(W)} × ${fmt(H)} cm au centre, dans la fenêtre du passe-partout${capped ? tr(' (taille limitée sur cet appareil)') : ''}`)
+      : pdf
+        ? tr`PDF d’une page de ${fmt(W)} × ${fmt(H)} cm${border}, à l’échelle 1 : chaque papier posé à sa vraie place (images à ${dpiTxt} dpi), cadres et traits en vecteurs.`
+        : printMode()
+          ? tr`${w} × ${h} px pour un tableau imprimé de ${fmt(W)} × ${fmt(H)} cm${border}${capped ? tr(' (taille limitée sur cet appareil)') : ''}`
+          : tr`${w} × ${h} px pour une toile de ${fmt(W)} × ${fmt(H)} cm${capped ? tr(' (taille limitée sur cet appareil)') : ''}`;
   }
 
   // Page publiée : le téléchargement passe par la demande d'enregistrement du visualiseur ;
@@ -4559,9 +4572,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     btn.querySelector('span').textContent = tr('Préparation…');
     await tick();
     try {
+      const ex = exportComp(); // la feuille : l'œuvre, sa copie dans la zone imprimée (bordure blanche), ou le cadre (passe-partout)
       const { w } = exportSize();
-      const s = w / state.comp.W;
-      const ex = exportComp(); // l'œuvre, ou sa copie dans la zone imprimée (bordure blanche)
+      const s = w / ex.W;
+      const posed = ex.ox > 0 || ex.oy > 0;
       if ($('fmt').value === 'application/pdf') {
         saveStatus(tr('Assemblage du PDF…'));
         await tick();
@@ -4569,7 +4583,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         const ps = Math.min(s, 300 / 2.54);
         await hydrateHD(ex.comp, ps);
         await sharpenHD(ex.comp, ps);
-        const blob = await exportPdf(ex.comp, ps, ex.m ? ex : null);
+        const blob = await exportPdf(ex.comp, ps, posed ? ex : null);
         releaseHD();
         if (await saveFile(blob, 'oeuvre-atelier-gribouille.pdf')) await recordExport(blob, 'oeuvre-atelier-gribouille.pdf');
         return;
@@ -4590,23 +4604,23 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (x) {
           x.imageSmoothingQuality = 'high';
           const shadows = false; // pas d'ombre portée
-          if (ex.m) {
-            // la feuille blanche ; l'œuvre posée à m cm du bord, rognée à sa zone (ce qui dépasse de
-            // l'œuvre — une page de fond, un dessin au bord — reste sous la bordure)
+          if (posed) {
+            // la feuille blanche ; l'œuvre posée en (ox, oy), rognée à sa zone (ce qui dépasse de
+            // l'œuvre — une page de fond, un dessin au bord — reste sous la bordure ou le passe-partout)
             x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
-            x.translate(ex.m * scale, ex.m * scale);
+            x.translate(ex.ox * scale, ex.oy * scale);
             x.beginPath(); x.rect(0, 0, ex.comp.W * scale, ex.comp.H * scale); x.clip();
           }
           Compose.renderBg(x, ex.comp, scale, shadows);
           Compose.renderItems(x, ex.comp, scale, shadows);
           // la bordure repasse par-dessus, en mordant de 1 mm sur l'œuvre : ni le bord d'une page de fond
           // scannée (un liseré gris), ni le demi-pixel du rognage ne restent visibles
-          if (ex.m) {
+          if (posed) {
             x.setTransform(1, 0, 0, 1, 0, 0);
-            const b = (ex.m + EXPORT_BLEED_CM) * scale;
+            const bx = (ex.ox + EXPORT_BLEED_CM) * scale, by = (ex.oy + EXPORT_BLEED_CM) * scale;
             x.fillStyle = '#fff';
-            x.fillRect(0, 0, c.width, b); x.fillRect(0, c.height - b, c.width, b);
-            x.fillRect(0, 0, b, c.height); x.fillRect(c.width - b, 0, b, c.height);
+            x.fillRect(0, 0, c.width, by); x.fillRect(0, c.height - by, c.width, by);
+            x.fillRect(0, 0, bx, c.height); x.fillRect(c.width - bx, 0, bx, c.height);
           }
         }
         releaseHD();
@@ -4790,13 +4804,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     });
   }
 
-  // sheet (facultatif) : { W, H, m } — la feuille imprimée, plus grande que l'œuvre, qui s'y pose à m cm
-  // du bord (bordure blanche)
+  // sheet (facultatif) : { W, H, ox, oy } — la feuille imprimée, plus grande que l'œuvre, qui s'y pose en
+  // (ox, oy) : bordure blanche, ou feuille à la taille du cadre avec l'œuvre dans la fenêtre du passe-partout
   async function exportPdf(comp, s, sheet) {
     await needJsPdf();
     const { jsPDF } = window.jspdf;
     const W = comp.W, H = comp.H;
-    const PW = sheet ? sheet.W : W, PH = sheet ? sheet.H : H, ox = sheet ? sheet.m : 0, oy = sheet ? sheet.m : 0;
+    const PW = sheet ? sheet.W : W, PH = sheet ? sheet.H : H, ox = sheet ? sheet.ox : 0, oy = sheet ? sheet.oy : 0;
     const doc = new jsPDF({ unit: 'cm', format: [PW, PH], orientation: PW >= PH ? 'landscape' : 'portrait', compress: true });
     doc.setProperties({ title: 'Œuvre — Atelier Gribouille', creator: 'Atelier Gribouille', subject: `Collage ${fmt(PW)} × ${fmt(PH)} cm, ${comp.reduced ? tr('dessins réduits (impression)') : tr('dessins à taille réelle')}` });
     if (sheet) { doc.setFillColor('#ffffff'); doc.rect(0, 0, PW, PH, 'F'); }
@@ -4879,9 +4893,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     if (sheet) {
       // la bordure blanche par-dessus, en mordant de 1 mm sur l'œuvre (voir l'export image)
-      const b = sheet.m + EXPORT_BLEED_CM;
+      const bx = ox + EXPORT_BLEED_CM, by = oy + EXPORT_BLEED_CM;
       doc.setFillColor('#ffffff');
-      doc.rect(0, 0, PW, b, 'F'); doc.rect(0, PH - b, PW, b, 'F'); doc.rect(0, 0, b, PH, 'F'); doc.rect(PW - b, 0, b, PH, 'F');
+      doc.rect(0, 0, PW, by, 'F'); doc.rect(0, PH - by, PW, by, 'F'); doc.rect(0, 0, bx, PH, 'F'); doc.rect(PW - bx, 0, bx, PH, 'F');
     }
     return doc.output('blob');
   }

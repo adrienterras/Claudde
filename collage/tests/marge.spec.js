@@ -172,6 +172,57 @@ test.describe('Bordure blanche', () => {
     await expect(page.locator('#export-margin-field')).toBeHidden();
   });
 
+  test('export avec passe-partout : la feuille fait la taille du cadre, l’œuvre au centre dans la fenêtre ; pas de choix de bordure', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.addInitScript(() => { localStorage.setItem('atelier.passe-partout', '1'); localStorage.setItem('atelier.marge', '1'); });
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
+    const fc = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, mat: localStorage.getItem('atelier.passe-partout') }; });
+    expect(fc.mat).toBe('1');
+    await openStep(page, 'export-section');
+    // avec passe-partout : pas de choix de bordure (même mémorisée « avec ») ; la feuille est le cadre
+    await expect(page.locator('#export-margin-field')).toBeHidden();
+    const ex = await page.evaluate(() => { const e = AtelierGribouille.exportComp(); return { W: e.W, H: e.H, ox: e.ox, oy: e.oy, mat: !!e.mat, same: e.comp === AtelierGribouille.state.comp }; });
+    expect(ex.mat).toBe(true); expect(ex.same).toBe(true);
+    expect(ex.W).toBeGreaterThan(fc.W); expect(ex.H).toBeGreaterThan(fc.H);
+    expect(ex.ox).toBeCloseTo((ex.W - fc.W) / 2, 5); expect(ex.oy).toBeCloseTo((ex.H - fc.H) / 2, 5);
+    await expect(page.locator('#export-info')).toContainText(`pour une feuille de ${fmt(ex.W)} × ${fmt(ex.H)} cm, la taille du cadre : l’œuvre de ${fmt(fc.W)} × ${fmt(fc.H)} cm au centre, dans la fenêtre du passe-partout`);
+    // l'image : aux proportions du cadre ; blanc tout autour de la fenêtre, l'œuvre au centre
+    await page.locator('#dpi').selectOption('screen');
+    await page.locator('#fmt').selectOption('image/png');
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
+    const data = 'data:image/png;base64,' + require('fs').readFileSync(await dl.path()).toString('base64');
+    const px = await page.evaluate(async ([data, W, H, ox, oy]) => {
+      const img = new Image(); img.src = data; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const k = c.width / W;
+      const at = (cx, cy) => Array.from(x.getImageData(Math.min(c.width - 1, Math.round(cx * k)), Math.min(c.height - 1, Math.round(cy * k)), 1, 1).data);
+      const band = [];
+      for (let t = 0.5; t < W - 0.5; t += 0.5) { band.push(at(t, oy - 0.5)); band.push(at(t, H - oy + 0.5)); }
+      for (let t = 0.5; t < H - 0.5; t += 0.5) { band.push(at(ox - 0.5, t)); band.push(at(W - ox + 0.5, t)); }
+      let nonWhite = 0;
+      for (let cy = oy + 1; cy < H - oy - 1; cy += 0.5) for (let cx = ox + 1; cx < W - ox - 1; cx += 0.5) { const p = at(cx, cy); if (p[0] + p[1] + p[2] < 700) nonWhite++; }
+      return { w: c.width, h: c.height, bad: band.filter((p) => p[0] < 250 || p[1] < 250 || p[2] < 250).length, nonWhite };
+    }, [data, ex.W, ex.H, ex.ox, ex.oy]);
+    expect(px.w / px.h).toBeCloseTo(ex.W / ex.H, 1);
+    expect(px.bad).toBe(0);
+    expect(px.nonWhite).toBeGreaterThan(50);
+    // le PDF : une page à la taille du cadre
+    await page.locator('#fmt').selectOption('application/pdf');
+    await expect(page.locator('#export-info')).toContainText(`PDF d’une page de ${fmt(ex.W)} × ${fmt(ex.H)} cm, la taille du cadre`);
+    const [pdf] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
+    const buf = require('fs').readFileSync(await pdf.path());
+    const box = /MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(buf.toString('latin1'));
+    const [pw, ph] = [Number(box[1]), Number(box[2])].map((v) => (v / 72) * 2.54);
+    expect(Math.max(pw, ph)).toBeCloseTo(Math.max(ex.W, ex.H), 0);
+    expect(Math.min(pw, ph)).toBeCloseTo(Math.min(ex.W, ex.H), 0);
+  });
+
   test('encadré avec passe-partout : pas de bordure ; sans passe-partout, l’article la porte ; le choix « sans » est mémorisé', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await start(page);

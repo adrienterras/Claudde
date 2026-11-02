@@ -377,6 +377,8 @@
     'Cadres standard du marché': 'Standard frame sizes',
     '{0} × {1} px pour un tableau imprimé de {2} × {3} cm{4}{5}': '{0} × {1} px for a {2} × {3} cm printed artwork{4}{5}',
     ' avec une bordure blanche de {0} cm (l’œuvre imprimée en {1} × {2} cm)': ' with a {0} cm white border (the artwork printed at {1} × {2} cm)',
+    'PDF d’une page de {0} × {1} cm, la taille du cadre : l’œuvre de {2} × {3} cm au centre, dans la fenêtre du passe-partout, à l’échelle 1 (images à {4} dpi).': 'One-page PDF of {0} × {1} cm, the frame size: the {2} × {3} cm artwork centred in the mat window, at 1:1 scale (images at {4} dpi).',
+    '{0} × {1} px pour une feuille de {2} × {3} cm, la taille du cadre : l’œuvre de {4} × {5} cm au centre, dans la fenêtre du passe-partout{6}': '{0} × {1} px for a {2} × {3} cm sheet, the frame size: the {4} × {5} cm artwork centred in the mat window{6}',
     '{0} · tableau imprimé de {1} × {2} cm': '{0} · {1} × {2} cm printed artwork',
     'Lecture du dessin {0} / {1}…': 'Reading drawing {0} / {1}…',
     'Le dessin « {0} » n’a pas pu être analysé (image trop grande pour cet appareil ?).': 'The drawing “{0}” could not be analysed (image too large for this device?).',
