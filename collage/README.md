@@ -91,7 +91,10 @@ cd collage && python3 -m http.server 8000
    sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
    droits), netteté et lumière égale (`Quality.sharpness`, `Quality.lighting`, mêmes seuils qu'à
    l'import), exposition (papier assez clair, sans reflets) ; le quadrilatère de la feuille est
-   tracé sur la vidéo, vert, orange ou rouge. La photo prise (pleine définition : `ImageCapture`
+   tracé sur la vidéo, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
+   (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
+   secours a le sien) : la lampe reste allumée pendant la visée et la photo, le choix est mémorisé
+   (`atelier.flash`) et la lampe s'éteint avec la caméra. La photo prise (pleine définition : `ImageCapture`
    quand il existe, sinon l'image de la vidéo) est jugée de la même façon, avec en plus sa
    définition (grand côté de la feuille en pixels : 140 dpi pour un A4, `Camera.PX`) : bonne ou
    correcte, elle est **gardée d'office** (un éclair, « ✓ Photo gardée » avec « Annuler ») et la visée

@@ -242,6 +242,27 @@
       const devs = await navigator.mediaDevices.enumerateDevices();
       $('camera-switch').hidden = devs.filter((d) => d.kind === 'videoinput').length < 2;
     } catch (e) { /* ignoré */ }
+    await syncFlash();
+  }
+
+  // Le flash (la lampe de l'appareil, allumée pendant la visée et la photo) : proposé quand la caméra le
+  // permet (torch dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
+  // secours a le sien) ; le choix est mémorisé, et s'éteint avec la caméra
+  const flashWanted = () => { try { return localStorage.getItem('atelier.flash') === '1'; } catch (e) { return false; } };
+  const flashTrack = () => { const t = S && S.stream && S.stream.getVideoTracks()[0]; if (!t) return null; try { return t.getCapabilities && t.getCapabilities().torch ? t : null; } catch (e) { return null; } };
+  async function applyFlash(on) {
+    const t = flashTrack();
+    if (!t) return false;
+    try { await t.applyConstraints({ advanced: [{ torch: !!on }] }); } catch (e) { return false; }
+    const b = $('camera-flash');
+    b.classList.toggle('on', !!on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    return true;
+  }
+  async function syncFlash() {
+    const b = $('camera-flash'), t = flashTrack();
+    b.hidden = !t;
+    b.classList.remove('on'); b.setAttribute('aria-pressed', 'false');
+    if (t && flashWanted()) await applyFlash(true);
   }
 
   // la visée : une image analysée après l'autre, sans monopoliser l'appareil
@@ -427,6 +448,11 @@
       if (!S || !files.length) return;
       files.forEach((f) => S.shots.push(new File([f], `photo-${S.shots.length + 1}.jpg`, { type: f.type || 'image/jpeg' })));
       close();
+    });
+    $('camera-flash').addEventListener('click', async () => {
+      if (!S) return;
+      const on = $('camera-flash').getAttribute('aria-pressed') !== 'true';
+      if (await applyFlash(on)) { try { localStorage.setItem('atelier.flash', on ? '1' : '0'); } catch (e) { /* ignoré */ } }
     });
     $('camera-switch').addEventListener('click', async () => {
       if (!S) return;

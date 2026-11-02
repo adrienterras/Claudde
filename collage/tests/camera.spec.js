@@ -187,6 +187,54 @@ test.describe('Photographier un dessin', () => {
     expect(ds[0].name).toBe('photo-1.jpg');
   });
 
+  test('flash : proposé quand la caméra a une lampe (torch), allumé d’un appui et mémorisé ; absent sinon', async ({ app }) => {
+    const page = app.page;
+    await page.setViewportSize({ width: 390, height: 844 });
+    // la caméra factice de Chromium n'a pas de lampe : pas de bouton
+    await page.locator('#camera-open').click();
+    await expect(page.locator('#camera')).toBeVisible();
+    await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
+    await expect(page.locator('#camera-flash')).toBeHidden();
+    await page.locator('#camera-done').click();
+    await expect(page.locator('#camera')).toBeHidden();
+    // une caméra avec lampe : la piste vidéo annonce torch, et note les contraintes reçues
+    await page.evaluate(() => {
+      const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      window.__torch = [];
+      navigator.mediaDevices.getUserMedia = async (c) => {
+        const st = await real(c);
+        st.getVideoTracks().forEach((t) => {
+          t.getCapabilities = () => ({ torch: true });
+          t.applyConstraints = async (k) => { window.__torch.push(k.advanced[0].torch); };
+        });
+        return st;
+      };
+    });
+    await page.locator('#camera-open').click();
+    await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
+    await expect(page.locator('#camera-flash')).toBeVisible();
+    await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'false');
+    expect(await page.evaluate(() => window.__torch)).toEqual([]);
+    await page.locator('#camera-flash').click();
+    await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#camera-flash')).toHaveClass(/on/);
+    expect(await page.evaluate(() => window.__torch)).toEqual([true]);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.flash'))).toBe('1');
+    await page.locator('#camera-flash').click();
+    expect(await page.evaluate(() => window.__torch)).toEqual([true, false]);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.flash'))).toBe('0');
+    // mémorisé « allumé » : la caméra rouverte l'allume d'elle-même
+    await page.locator('#camera-flash').click();
+    await page.locator('#camera-done').click();
+    await expect(page.locator('#camera')).toBeHidden();
+    await page.evaluate(() => { window.__torch = []; });
+    await page.locator('#camera-open').click();
+    await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
+    await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => window.__torch)).toEqual([true]);
+    await page.locator('#camera-done').click();
+  });
+
   test('fermer sans photo n’importe rien ; Échap ferme', async ({ app }) => {
     const page = app.page;
     await page.setViewportSize({ width: 390, height: 844 });

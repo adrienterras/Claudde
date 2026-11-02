@@ -943,6 +943,7 @@ body.stage-full .scene-open { display: none; }
 }
 .ed-btn:hover:not(:disabled) { background: var(--accent-soft); }
 .ed-btn:disabled { opacity: .4; cursor: default; }
+.ed-btn.on { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
 .ed-zval { min-width: 52px; text-align: center; font-family: var(--f-mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .ed-stage { position: relative; min-height: 0; }
 .ed-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
@@ -1258,7 +1259,7 @@ body.stage-full .scene-open { display: none; }
 /* téléphone : comme un appareil photo, le déclencheur en bas ; la barre du haut disparaît si elle est vide */
 @media (max-width: 860px) {
   .camera .ed-bar { grid-row: 1; border-top: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; }
-  .camera .ed-bar:not(:has(#camera-switch:not([hidden]))) { display: none; }
+  .camera .ed-bar:not(:has(#camera-switch:not([hidden]), #camera-flash:not([hidden]))) { display: none; }
   .camera .camera-stage { grid-row: 2; }
   .camera .ed-foot { grid-row: 3; border-bottom: 0; border-top: 1px solid var(--line); padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
   .camera .ed-foot .btn { padding: 12px 14px; }

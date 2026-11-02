@@ -52,6 +52,7 @@
     'PDF de plusieurs pages, JPG ou PNG': 'Multi-page PDF, JPG or PNG',
     // prise de photo dans l'atelier
     'Photographier un dessin': 'Photograph a drawing',
+    'Flash': 'Flash',
     'Changer de caméra': 'Switch camera',
     'Prendre la photo': 'Take the photo',
     'Feuille coupée par le bord': 'Sheet cut off by the edge',
