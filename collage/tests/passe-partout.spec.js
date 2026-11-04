@@ -35,7 +35,6 @@ test.describe('Passe-partout par défaut', () => {
     await page.locator('#scene-open-side').click();
     await expect(page.locator('#scene-modal')).toBeVisible();
     await expect(page.locator('#scene-mat [data-mat="1"]')).toHaveClass(/on/);
-    await expect(page.locator('#scene-info')).toContainText('Avec passe-partout');
     await page.keyboard.press('Escape');
     // la commande aussi : encadré avec passe-partout (donc pas de 21 × 30)
     await openStep(page, 'export-section');

@@ -537,7 +537,8 @@ cd collage && python3 -m http.server 8000
      dans Tailles ; le choix « Sans / Avec passe-partout » y est le même (il change la taille
      d'impression, donc la composition), et le passe-partout se voit dès que l'ouverture du cadre
      dépasse l'œuvre (une composition rouverte d'un ancien format prend le plus petit des quatre
-     cadres où elle tient). « Télécharger la mise en scène » enregistre l'image en
+     cadres où elle tient). Aucune phrase descriptive sous le nuancier du cadre : la taille
+     d'impression est déjà dite sous le choix de la taille. « Télécharger la mise en scène » enregistre l'image en
      JPEG (2000 × 1500 px).
      L'échelle est estimée d'après les meubles (buffet d'environ 2,30 m × 46 cm, lampe de 45 cm, vase
      de 38 cm) : 3,9 px par cm sur le plan du mur. L'œuvre est centrée à 130 cm du sol, au moins 20 cm

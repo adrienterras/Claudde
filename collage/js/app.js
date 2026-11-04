@@ -2176,7 +2176,6 @@
     return portrait ? [Math.min(a, b), Math.max(a, b)] : [Math.max(a, b), Math.min(a, b)];
   }
   // l'œuvre imprimée dans une affiche Pw × Ph, réduite d'un même facteur pour laisser la marge
-  const printedIn = (comp, Pw, Ph, m) => { const a = Math.min((Pw - 2 * m) / comp.W, (Ph - 2 * m) / comp.H); return [comp.W * a, comp.H * a]; };
   // le passe-partout change la taille d'impression : l'œuvre affichée est mise à cette taille telle
   // quelle (voir keepPrintComp)
   function setPrintMat(on) {
@@ -3172,7 +3171,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       // ce qui dépasse du meuble (en pixels de l'image) : l'œuvre reste au-dessus quand elle s'y étend
       obstacles: [{ x0: 280, x1: 405, top: 84 }, { x0: 1030, x1: 1185, top: 89 }],
       top: 238, // haut de l'image, en cm au-dessus du sol
-      over: tr('d’un buffet de 2,30 m'),
     },
     // la chambre d'enfant : une photo, échelle estimée d'après le mobilier (étagère basse de 55 cm,
     // paniers de 33 cm, lampe de 30 cm, ours de 30 cm) : 3,1 px par cm sur le mur ; l'œuvre se place
@@ -3189,7 +3187,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         { x0: 1090, x1: 1374, top: 107 }, // tête de lit
       ],
       top: 230, // sous la suspension
-      over: tr('d’une étagère de chambre d’enfant'),
     },
     // l'entrée : une photo, mur vert sauge, échelle estimée d'après la console (environ 190 × 75 cm)
     // et la lampe (45 cm) : 4,8 px par cm ; l'œuvre se place au-dessus de la console
@@ -3199,7 +3196,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       minBottom: 95, // 20 cm au-dessus de la console
       obstacles: [{ x0: 185, x1: 375, top: 119 }, { x0: 755, x1: 965, top: 94 }],
       top: 221,
-      over: tr('d’une console d’entrée'),
     },
   };
   // la chambre d'enfant d'abord ; l'entrée n'est proposée qu'en tableau imprimé (pas pour un collage)
@@ -5098,20 +5094,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const shown = paper ? fitCopy(comp, (Pw - 2 * margin) / (Ph - 2 * margin)) : comp;
     paintRoom(cv, out, room, { comp: shown, framed, kind, mat, Fw, Fh, Pw, Ph, paper, margin });
     if (out) return true;
-    const name = framed && FRAME_KINDS[kind].name;
-    const matched = choice === 'auto';
-    const [aw, ah] = printedIn(shown, Pw, Ph, margin);
-    $('scene-info').textContent = paper
-      ? (margin
-        ? tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm avec une bordure blanche de ${fmt(margin)} cm : l’œuvre imprimée en ${fmt(aw)} × ${fmt(ah)} cm, au-dessus ${S.over}.`
-        : tr`Affiche de ${fmt(Pw)} × ${fmt(Ph)} cm, sans cadre, au-dessus ${S.over}.`)
-      : !framed
-        ? tr`Toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm, au-dessus ${S.over}.`
-        : mat
-          ? tr`Avec passe-partout : cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm pour l’œuvre de ${fmt(comp.W)} × ${fmt(comp.H)} cm${matched ? tr(', assorti à ses couleurs') : ''}.`
-          : margin
-            ? tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, avec une bordure blanche de ${fmt(margin)} cm (l’œuvre imprimée en ${fmt(aw)} × ${fmt(ah)} cm), au-dessus ${S.over}.`
-            : tr`Cadre ${name} de ${fmt(Fw)} × ${fmt(Fh)} cm${matched ? tr(', assorti aux couleurs de l’œuvre') : ''}, au-dessus ${S.over}.`;
     return true;
   }
   // La pièce et l'œuvre accrochée, sur le canevas cv (out : le téléchargement). spec : { comp, framed,

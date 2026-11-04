@@ -36,13 +36,10 @@ test.describe('Bordure blanche', () => {
     await expect(page.locator('#scene-margin [data-margin="0"]')).toHaveClass(/on/);
     await expect(page.locator('#scene-frame-pick')).toBeVisible();
     const framedSig = await sig(page, 'scene-canvas');
-    const a = Math.min((W - 6) / W, (H - 6) / H);
     await page.locator('#scene-margin [data-margin="1"]').click();
-    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm, assorti aux couleurs de l’œuvre, avec une bordure blanche de 3 cm \\(l’œuvre imprimée en ${fmt(W * a)} × ${fmt(H * a)} cm\\), au-dessus`));
     const borderSig = await sig(page, 'scene-canvas');
     expect(borderSig).not.toBe(framedSig);
     await page.locator('#scene-margin [data-margin="0"]').click();
-    await expect(page.locator('#scene-info')).not.toContainText('bordure');
     expect(await sig(page, 'scene-canvas')).not.toBe(borderSig);
     // papier : plus de cadre ni de passe-partout ; le poster a la taille d'impression du format
     await page.locator('#scene-finish [data-finish="papier"]').click();
@@ -51,13 +48,11 @@ test.describe('Bordure blanche', () => {
     await expect(page.locator('#scene-margin-field')).toBeVisible();
     await expect(page.locator('#scene-margin [data-margin="0"]')).toHaveClass(/on/);
     await expect(page.locator('#scene-size-info')).toHaveText(`Affiche de ${fmt(W)} × ${fmt(H)} cm, sans cadre.`);
-    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm, sans cadre, au-dessus`));
     const paperSig = await sig(page, 'scene-canvas');
     expect(paperSig).not.toBe(framedSig);
     // avec bordure : l'œuvre réduite d'un même facteur dans l'affiche, 3 cm de blanc autour
     await page.locator('#scene-margin [data-margin="1"]').click();
     // (l'affiche : l'œuvre mise aux proportions de la zone imprimée, comme à la commande — la bordure fait 3 cm partout)
-    await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Affiche de ${fmt(W)} × ${fmt(H)} cm avec une bordure blanche de 3 cm : l’œuvre imprimée en ${fmt(W - 6)} × ${fmt(H - 6)} cm, au-dessus`));
     expect(await sig(page, 'scene-canvas')).not.toBe(paperSig);
     expect(await page.evaluate(() => [localStorage.getItem('atelier.finition'), localStorage.getItem('atelier.marge')])).toEqual(['papier', '1']);
     // la commande reprend papier + bordure, et le texte le dit

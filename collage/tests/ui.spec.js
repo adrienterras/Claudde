@@ -231,7 +231,7 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('body')).toHaveClass(/sheet-tall/);
     await expect(p.locator('#scene-box h3')).toHaveText('Mise en scène');
     await expect(p.locator('#scene-canvas')).toBeVisible();
-    await expect(p.locator('#scene-info')).toContainText('chambre d’enfant');
+    await expect(p.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
     // l'onglet suffit : ni numéro ni titre de section
     await expect(p.locator('#sizes-section > h2')).toBeHidden();
     // un autre onglet ramène le tiroir à sa hauteur normale
@@ -1829,17 +1829,15 @@ test.describe('Mettre en scène', () => {
       await expect(page.locator('#scene-modal #scene-canvas')).toBeVisible();
       const { W, H } = await page.evaluate(() => AtelierGribouille.state.comp);
       const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr');
-      // le salon et l'œuvre sont bien peints (pas un canevas vide)
-      await expect(page.locator('#scene-info')).not.toBeEmpty();
-      const painted = await page.locator('#scene-canvas').evaluate((c) => {
+      // le salon et l'œuvre sont bien peints (pas un canevas vide) ; les photos se chargent en différé
+      await expect.poll(() => page.locator('#scene-canvas').evaluate((c) => {
         const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
         let n = 0; for (let i = 3; i < d.length; i += 400) if (d[i] > 0) n++;
         return n / (d.length / 400);
-      });
-      expect(painted).toBeGreaterThan(0.99);
+      }), { timeout: 30000 }).toBeGreaterThan(0.99);
       if (mode === 'impression') {
-        // un cadre assorti aux couleurs de l'œuvre, à la taille du cadre choisi
-        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm, assorti`));
+        // (pas de phrase descriptive sous le nuancier du cadre)
+        await expect(page.locator('#scene-info')).toHaveCount(0);
         // la pièce en premier ; la taille d'impression sous le choix de la taille ; un titre au-dessus du passe-partout
         expect(await page.evaluate(() => [...document.querySelectorAll('.scene-controls > *')].map((el) => el.id || el.className).slice(0, 7))).toEqual(['scene-room', 'scene-finish-field', 'field scene-size', 'scene-size-info', 'scene-margin-field', 'scene-mat-field', 'field scene-size']);
         await expect(page.locator('#scene-size-info')).toHaveText(`Impression de ${fmt(W)} × ${fmt(H)} cm, à la taille du cadre.`);
@@ -1848,10 +1846,12 @@ test.describe('Mettre en scène', () => {
         await expect(page.locator('#scene-frame-pick [data-frame="auto"]')).toHaveClass(/on/);
         expect(await page.locator('#scene-frame-pick button.picked').count()).toBe(1);
         await page.locator('#scene-frame-pick [data-frame="bois-noir"]').click();
-        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Cadre bois noir de ${fmt(W)} × ${fmt(H)} cm, au-dessus`));
+        await expect(page.locator('#scene-frame-pick [data-frame="bois-noir"]')).toHaveClass(/on/);
+        expect(await page.locator('#scene-frame-pick button.picked').count()).toBe(0);
         expect(await page.evaluate(() => localStorage.getItem('atelier.cadre'))).toBe('bois-noir');
         await page.locator('#scene-frame-pick [data-frame="auto"]').click();
-        await expect(page.locator('#scene-info')).toContainText(', assorti aux couleurs de l’œuvre');
+        await expect(page.locator('#scene-frame-pick [data-frame="auto"]')).toHaveClass(/on/);
+        expect(await page.locator('#scene-frame-pick button.picked').count()).toBe(1);
         // avec passe-partout : le même cadre, l'impression prend la taille en dessous (la composition
         // est refaite à cette taille) ; le choix est le même que dans la section Tailles
         await page.locator('#scene-mat [data-mat="1"]').click();
@@ -1860,25 +1860,22 @@ test.describe('Mettre en scène', () => {
         await page.waitForFunction(([w, h]) => { const c = AtelierGribouille.state.comp; return c && c.W < w && c.H < h; }, [W, H], { timeout: 120000 });
         const f = await page.evaluate(() => AtelierGribouille.formatCm());
         expect([f.frameW, f.frameH]).toEqual([W, H]); // le cadre n'a pas changé
-        await expect(page.locator('#scene-info')).toHaveText(new RegExp(`^Avec passe-partout : cadre (bois clair|bois foncé|bois noir|bois blanc|métal) de ${fmt(W)} × ${fmt(H)} cm pour l’œuvre de ${fmt(f.w)} × ${fmt(f.h)} cm`));
         // mémorisé
         await page.reload();
         await page.waitForFunction(() => window.AtelierGribouille);
         expect(await page.evaluate(() => localStorage.getItem('atelier.passe-partout'))).toBe('1');
       } else {
-        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm`);
         await expect(page.locator('#scene-mat')).toBeHidden();
         // collage : deux pièces, la chambre d'enfant par défaut et le salon (mémorisé) ; pas d'entrée
         await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
         await expect(page.locator('#scene-room [data-room="hall"]')).toBeHidden();
-        await expect(page.locator('#scene-info')).toContainText(`Toile de ${fmt(W)} × ${fmt(H)} cm, au-dessus d’une étagère de chambre d’enfant.`);
         await page.locator('#scene-room [data-room="salon"]').click();
-        await expect(page.locator('#scene-info')).toContainText('buffet');
+        await expect(page.locator('#scene-room [data-room="salon"]')).toHaveClass(/on/);
         expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('salon');
         // une entrée mémorisée (choisie pour un tableau imprimé) devient la chambre d'enfant pour un collage
         await page.evaluate(() => { localStorage.setItem('atelier.piece', 'hall'); document.querySelector('#scene-room [data-room="salon"]').click(); localStorage.setItem('atelier.piece', 'hall'); });
         await page.locator('#scene-room [data-room="chambre"]').click();
-        await expect(page.locator('#scene-info')).toContainText('chambre d’enfant');
+        await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
         // collage : dans la fenêtre, ni taille ni orientation (elles se règlent dans la section Tailles) ; l'image est grande
