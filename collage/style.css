@@ -724,6 +724,9 @@ body.bg-mode .stage { outline: 2px dashed var(--olive); outline-offset: -2px; }
 .ground-quick { gap: 8px; }
 .ground-quick button { width: 32px; height: 32px; }
 .zoom-val { min-width: 48px; text-align: center; font-family: var(--f-mono); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+/* portrait / paysage dans la zone d'édition : deux boutons collés, celui de l'orientation en cours enfoncé */
+.zoom-orient { display: inline-flex; gap: 2px; margin-left: 4px; padding-left: 6px; border-left: 1px solid var(--line); }
+.zoom-orient .ico { width: 16px; height: 16px; }
 body.stage-full .stage { position: fixed; inset: 0; z-index: 40; height: auto; }
 body.stage-full .stage { padding-top: env(safe-area-inset-top, 0px); }
 body.stage-full .toolbar { top: calc(10px + env(safe-area-inset-top, 0px)); }
@@ -1136,6 +1139,7 @@ body.stage-full .scene-open { display: none; }
   .zoom { right: 6px; bottom: auto; top: 62px; flex-direction: column; align-items: center; padding: 3px; gap: 1px; border-radius: 20px; overflow: hidden; }
   .zoom button { width: 32px; height: 32px; }
   .zoom-val { min-width: 0; font-size: 0.6rem; text-align: center; padding: 2px 0; }
+  .zoom-orient { flex-direction: column; gap: 1px; margin: 4px 0 0; padding: 6px 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .ground-pop { right: 50px; top: 62px; bottom: auto; width: min(280px, calc(100% - 66px)); }
   .ground-quick button { width: 36px; height: 36px; }
   .label { bottom: calc(var(--sheet) + 8px); max-width: calc(100% - 20px); padding: 6px 12px; }

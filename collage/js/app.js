@@ -1967,7 +1967,7 @@
   }
   function setCanvasOrient(o) {
     state.canvasOrient = o;
-    document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => {
+    document.querySelectorAll('#canvas-orient button, #scene-orient button, #zoom-orient button').forEach((b) => {
       const on = b.dataset.orient === o;
       b.classList.toggle('on', on); b.classList.toggle('ink', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -5353,7 +5353,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));
   $('fmt').addEventListener('change', updateExportInfo);
   // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
-  document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
+  // (les mêmes boutons dans la zone d'édition, à côté du zoom : #zoom-orient)
+  document.querySelectorAll('#canvas-orient button, #scene-orient button, #zoom-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
   try { localStorage.removeItem('atelier.canvasOrient'); } catch (e) { /* ignoré */ } // l'orientation n'est plus mémorisée d'une œuvre à l'autre
   setCanvasOrient('port');
   document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {

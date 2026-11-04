@@ -595,4 +595,30 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 5 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await frame()).toEqual(['cadre:50x70', 50, 70]);
   });
+
+  test('Portrait / Paysage aussi dans la zone d’édition (à côté du zoom) : l’œuvre tourne, Tailles et mise en scène suivent', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'false');
+    const dims = () => page.evaluate(() => { const c = AtelierGribouille.state.comp; return [c.W, c.H]; });
+    const [W0, H0] = await dims();
+    expect(W0).toBeLessThan(H0);
+    await page.locator('#zoom-orient [data-orient="land"]').click();
+    await page.waitForTimeout(300);
+    expect(await dims()).toEqual([H0, W0]);
+    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#canvas-orient [data-orient="land"]')).toHaveClass(/on/);
+    // le même bouton de nouveau : rien ne change ; depuis Tailles, le bouton de la zone d'édition suit
+    await page.locator('#zoom-orient [data-orient="land"]').click();
+    await page.waitForTimeout(200);
+    expect(await dims()).toEqual([H0, W0]);
+    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="port"]').click());
+    await page.waitForTimeout(300);
+    expect(await dims()).toEqual([W0, H0]);
+    await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
+  });
 });
