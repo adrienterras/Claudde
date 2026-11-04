@@ -1551,9 +1551,123 @@
   function generate(o) {
     const comp = generateInner(o);
     if (o.flat) comp.paint = false;
-    if (o.count && (comp.style === 'nuage' || comp.style === 'paysage') && !comp.bg.some((L) => L.panel)) relaxItems(comp);
-    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village', 'popart'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
+    const paysage = comp.style === 'paysage';
+    const noPanel = !comp.bg.some((L) => L.panel);
+    if (o.count && comp.style === 'nuage' && noPanel) relaxItems(comp);
+    // Paysage : l'ensemble est agrandi tant qu'il tient, puis mis en ordre (settle) ; pas d'étirement
+    // des positions jusqu'aux bords, qui disperserait les sujets aux quatre coins. Une foule (plus de
+    // trois rangées de sujets debout) garde la répartition sur toute la surface d'avant.
+    const settled = paysage && !o.spread;
+    // (affiche chargée, o.spread : Paysage garde la suite d'avant, répartition puis agrandissement et étirement)
+    if (o.count && paysage && !settled && noPanel) relaxItems(comp);
+    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village', 'popart'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1, { stretch: !settled });
+    if (settled && !settle(comp, o, rng(((o.seed | 0) + 7) >>> 0)) && o.count) {
+      // une foule : la répartition sur toute la surface, comme pour l'affiche chargée
+      if (noPanel) relaxItems(comp);
+      stretchFrame(comp);
+    }
     return comp;
+  }
+
+  /*
+   * Paysage : mise en ordre après la pose, comme un œil le ferait.
+   *  - gravité : tout ce qui se tient debout pose les pieds sur une même ligne de sol (des rangées en
+   *    profondeur quand la largeur manque, les plus grands derrière, grands et petits alternés depuis
+   *    le centre), ce qui vole reste dans le ciel, le reste (petits éléments semés) flotte entre les
+   *    deux sans recouvrir les autres ;
+   *  - hiérarchie (tableau imprimé) : la pièce maîtresse est un peu agrandie (jusqu'à 1,2 fois, 45 %
+   *    de la largeur au plus) ;
+   *  - équilibre : le ciel se place à l'opposé du poids du sol, puis l'ensemble est recentré ;
+   *  - respiration : une marge tout autour, des espacements réguliers et bornés.
+   * Les pages de fond ne bougent pas ; avec des bandes (pages de fond), la ligne de sol est dans la
+   * bande du sol et le ciel sous l'horizon des pages.
+   */
+  function settle(comp, o, R) {
+    const W = comp.W, H = comp.H, items = comp.items;
+    if (!items.length) return false;
+    // dessins très réduits (affiche chargée, o.spread) : ils se répartissent sur toute la surface, comme avant
+    if (o.spread) return false;
+    const hasBands = comp.bg.some((L) => L.panel);
+    const Z = comp.zones || zonesFor(W, H, hasBands);
+    const m = Math.max(1, Math.min(W, H) * 0.035);
+    const area = (L) => L.w * L.h;
+    const isSky = (L) => !!(L.piece && (L.piece.place === 'ciel' || (L.piece.zone === 'ciel' && !L.piece.grounded)));
+    const isGround = (L) => !!(L.piece && L.piece.grounded) && !isSky(L);
+    const sky = items.filter(isSky), ground = items.filter(isGround), mid = items.filter((L) => !isSky(L) && !isGround(L));
+    const yHor = hasBands ? Math.max(m + 2, Z.horizon) : H * 0.36;
+    const yG = hasBands ? Math.min(H - m, Z.ground + (H - Z.ground) * 0.7) : H - m;
+    const band = Math.max(4, yG - yHor - 2);
+    const maxRows = Math.max(1, Math.min(3, Math.floor(band / Math.max(6, H * 0.12)) + 1));
+    const rowW = (W - 2 * m) * 1.25; // une rangée peut se chevaucher d'un quart
+    // une foule : trop de sujets debout pour trois rangées au plus (sans se recouvrir davantage)
+    if (ground.reduce((a, L) => a + L.w, 0) > rowW * maxRows) return false;
+    // hiérarchie : la pièce maîtresse (la plus lourde) un peu plus grande, en tableau imprimé seulement
+    // (en collage, les dessins restent à leur taille réelle)
+    if (o.count && items.length > 1) {
+      const weight = (L) => area(L) * (0.3 + ((L.piece && L.piece.colorful) || 0)) * ((L.piece && L.piece.importance) || 1);
+      const hero = items.slice().sort((a, b) => weight(b) - weight(a))[0];
+      const room = Math.max(1, (o.maxGrow || 1) / (comp.fill || 1));
+      const b = Math.min(1.2, room, (W * 0.45) / hero.w, (H * 0.6) / hero.h);
+      if (b > 1.01) { hero.w *= b; hero.h *= b; if (hero.scale !== undefined) hero.scale *= b; if (hero.clip) hero.clip = hero.clip.map(([x, y]) => [x * b, y * b]); }
+    }
+    const order = [];
+    const rowsOf = (list, maxW) => { const rows = []; list.forEach((L) => { let r = rows.find((row) => row.w + L.w <= maxW); if (!r) { r = { w: 0, list: [] }; rows.push(r); } r.list.push(L); r.w += L.w; }); return rows; };
+    const mix = (list) => { const byH = list.slice().sort((a, b) => b.h - a.h); const seq = []; byH.forEach((L, i) => (i % 2 ? seq.push(L) : seq.unshift(L))); return seq; };
+    // une rangée : espacements égaux et bornés (négatifs : chevauchement), centrée sur cx0, dans les marges
+    const spreadRow = (list, feetY, cx0, maxGap, jitterY) => {
+      const tw = list.reduce((a, L) => a + L.w, 0);
+      const gap = list.length > 1 ? Math.min((W - 2 * m - tw) / (list.length - 1), maxGap) : 0;
+      const span = tw + gap * (list.length - 1);
+      let x = span <= W - 2 * m ? clamp(cx0 - span / 2, m, W - m - span) : (W - span) / 2;
+      list.forEach((L) => { L.x = x + L.w / 2; L.y = feetY - L.h / 2 + (R() - 0.5) * jitterY; x += L.w + gap; });
+    };
+    if (ground.length) {
+      const byH = ground.slice().sort((a, b) => b.h - a.h); // les plus grands derrière
+      const total = ground.reduce((a, L) => a + L.w, 0);
+      const rows = rowsOf(byH, Math.max(rowW, total / maxRows + 1));
+      // rangées en profondeur : assez espacées pour que les sujets du fond se voient (au plus 30 % de la hauteur)
+      const step = rows.length > 1 ? Math.min(H * 0.3, band / rows.length) : 0;
+      rows.forEach((row, k) => {
+        const feet = yG - (rows.length - 1 - k) * step;
+        spreadRow(mix(row.list), feet, W / 2, Math.max(1.5, W * 0.07), Math.min(1, H * 0.01));
+        row.list.forEach((L) => { L.rot = (R() - 0.5) * 0.04; L.grounded = true; order.push(L); });
+      });
+    }
+    // le ciel : à l'opposé du poids du sol, dans la bande du ciel (une grande pièce peut mordre l'horizon)
+    const gA = ground.reduce((a, L) => a + area(L), 0);
+    const gx = gA ? ground.reduce((a, L) => a + L.x * area(L), 0) / gA : W / 2;
+    if (sky.length) {
+      const list = sky.slice().sort((a, b) => area(b) - area(a));
+      spreadRow(list, 0, W - gx, Math.max(2, W * 0.1), 0);
+      list.forEach((L, i) => {
+        const lo = m + L.h / 2, hi = Math.max(lo, yHor - L.h * 0.3);
+        L.y = clamp(lo + (i % 2 ? 0.7 : 0.3) * (hi - lo) + (R() - 0.5) * (hi - lo) * 0.2, lo, hi);
+        L.rot = (R() - 0.5) * 0.1;
+        L.grounded = false;
+      });
+    }
+    // ce qui flotte : entre ciel et sol, là où il recouvre le moins les autres
+    const fixed = sky.concat(order);
+    const overlap = (L, x, y) => fixed.reduce((a, q) => { const ox = Math.max(0, Math.min(x + L.w / 2, q.x + q.w / 2) - Math.max(x - L.w / 2, q.x - q.w / 2)), oy = Math.max(0, Math.min(y + L.h / 2, q.y + q.h / 2) - Math.max(y - L.h / 2, q.y - q.h / 2)); return a + ox * oy; }, 0);
+    mid.forEach((L) => {
+      const x0 = m + L.w / 2, x1 = Math.max(x0, W - m - L.w / 2), y0 = Math.max(m + L.h / 2, yHor * 0.5), y1 = Math.max(y0, yG - L.h / 2);
+      let best = null;
+      for (let c = 0; c < 60; c++) {
+        const x = c === 0 ? clamp(L.x, x0, x1) : x0 + R() * (x1 - x0), y = c === 0 ? clamp(L.y, y0, y1) : y0 + R() * (y1 - y0);
+        const score = overlap(L, x, y) / Math.max(1e-6, area(L)) + Math.hypot(x - L.x, y - L.y) / Math.max(W, H) * 0.3;
+        if (!best || score < best.score) best = { x, y, score };
+      }
+      L.x = best.x; L.y = best.y; L.grounded = false;
+      fixed.push(L);
+    });
+    // équilibre : le centre des masses au milieu de la largeur, sans sortir des marges
+    const A = items.reduce((a, L) => a + area(L), 0);
+    const cx = items.reduce((a, L) => a + L.x * area(L), 0) / Math.max(1e-6, A);
+    const minX = Math.min(...items.map((L) => L.x - L.w / 2)), maxX = Math.max(...items.map((L) => L.x + L.w / 2));
+    if (m - minX <= W - m - maxX) { const shift = clamp(W / 2 - cx, m - minX, W - m - maxX); items.forEach((L) => { L.x += shift; }); }
+    // profondeur : le ciel derrière, puis ce qui flotte, puis les rangées du fond vers l'avant
+    comp.items = sky.concat(mid, order);
+    return true;
   }
 
   /*
@@ -1598,7 +1712,7 @@
    * (au plus maxGrow, jusqu'à leur taille réelle, et 1,6 fois) ; puis leurs positions sont étirées
    * sur chaque axe pour que l'ensemble touche les bords, sans changer leur taille.
    */
-  function fillFrame(comp, maxGrow) {
+  function fillFrame(comp, maxGrow, opts) {
     const W = comp.W, H = comp.H;
     const layers = comp.items.concat(comp.bg.filter((L) => !L.paper));
     if (!layers.length) return;
@@ -1620,7 +1734,16 @@
         if (L.clip) L.clip = L.clip.map(([x, y]) => [x * f, y * f]);
       }
     });
-    // 2. étirer les positions jusqu'aux bords (au plus 1,6 fois sur chaque axe)
+    if (!opts || opts.stretch !== false) stretchFrame(comp);
+    comp.fill = f;
+  }
+  // Affiche : les positions étirées sur chaque axe pour que l'ensemble touche les bords (au plus 1,6
+  // fois), sans changer les tailles
+  function stretchFrame(comp) {
+    const W = comp.W, H = comp.H;
+    const layers = comp.items.concat(comp.bg.filter((L) => !L.paper));
+    if (!layers.length) return;
+    const ext = (L) => { const c = Math.abs(Math.cos(L.rot || 0)), s = Math.abs(Math.sin(L.rot || 0)); return [(L.w * c + L.h * s) / 2, (L.w * s + L.h * c) / 2]; };
     const stretch = (axis) => {
       const pos = axis === 'x' ? 'x' : 'y', size = axis === 'x' ? W : H, k = axis === 'x' ? 0 : 1;
       let lo = null, hi = null;
@@ -1636,7 +1759,6 @@
       layers.forEach((L) => { L[pos] = a + mm * L[pos] + off; });
     };
     stretch('x'); stretch('y');
-    comp.fill = f;
   }
   function generateInner(o) {
     const W = o.format.w, H = o.format.h;
@@ -1766,6 +1888,7 @@
     // sans fond de peinture, la toile nue (papier) apparaît là où il n'y a pas de page
     if (o.ground) { for (let i = bg.length - 1; i >= 0; i--) if (bg[i].paper) bg.splice(i, 1); }
     const comp = { W, H, bg, items, style, f: 1, scale: 1 };
+    if (style === 'paysage') comp.zones = Z; // (lignes d'horizon et de sol des pages de fond, pour settle)
     if (ground) comp.ground = ground;
     else if (o.ground) { comp.ground = o.ground; comp.groundName = o.groundName || null; }
     if (style === 'vitrail') comp.lead = 0.5; // largeur du trait de plomb, en cm

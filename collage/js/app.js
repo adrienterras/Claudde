@@ -2519,6 +2519,7 @@
 
   // Où va chaque élément dans la scène : décision de Claude si disponible, sinon règles simples.
   const ZONES = ['ciel', 'milieu', 'sol'];
+  const hueOf = (c) => { const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (mx === mn) return 0; const h = mx === r ? ((g - b) / (mx - mn)) % 6 : mx === g ? (b - r) / (mx - mn) + 2 : (r - g) / (mx - mn) + 4; return (h * 60 + 360) % 360; };
   const PLACES = ['ciel', 'horizon', 'sol', 'arriere', 'avant', 'soussol'];
   function direct(textures, pieces) {
     const noAi = textures.filter((t) => !t.drawing.ai);
@@ -2551,11 +2552,18 @@
         // page va au ciel seulement si la page est un ciel, sinon il se tient sur le sol
         p.place = p.main && PLACES.includes(ai.place) ? ai.place : p.main ? (ai.pose ? 'sol' : ai.zone === 'ciel' ? 'ciel' : ai.zone === 'sol' ? 'avant' : 'sol') : (ai.zone === 'ciel' ? 'ciel' : 'sol');
       } else {
-        p.grounded = p.base > 0.55 && p.frac > 0.05;
-        p.zone = p.grounded ? (p.frac > 0.3 ? 'sol' : 'milieu') : (p.frac < 0.06 ? 'ciel' : 'milieu');
+        // sans analyse : une « gravité » d'après la forme et la couleur — ce qui vole va au ciel (un
+        // soleil : rond, jaune orangé, clair ; un nuage : pâle, large), les tout petits éléments
+        // (cœurs, étoiles) se sèment au milieu, et tout le reste se tient debout sur le sol
+        const c = p.color || [0, 0, 0], lum = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+        const r = p.wcm / Math.max(1e-6, p.hcm), big = Math.max(p.wcm, p.hcm);
+        const sun = hueOf(c) >= 28 && hueOf(c) <= 62 && lum > 165 && r > 0.7 && r < 1.45 && (p.colorful || 0) > 0.2;
+        const cloud = (p.colorful || 0) < 0.25 && lum > 185 && r > 1.3;
+        const tiny = big < 4;
+        p.grounded = !sun && !cloud && !tiny;
+        p.zone = sun || cloud ? 'ciel' : tiny ? 'milieu' : p.frac > 0.3 ? 'sol' : 'milieu';
         p.importance = ranked.indexOf(p) < 3 ? 3 : 1;
-        // sans analyse : tout se tient sur le sol, sauf ce qui est franchement un ciel (petit, pâle, large)
-        p.place = p.grounded ? 'sol' : (p.frac < 0.06 && p.colorful < 0.25 && p.canvas.width > p.canvas.height * 1.3) ? 'ciel' : 'sol';
+        p.place = sun || cloud ? 'ciel' : 'sol';
       }
     });
   }
