@@ -82,6 +82,10 @@ test.describe('Interface', () => {
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#edit-hint')).toBeVisible();
     await expect(page.locator('#edit-hint')).toHaveText('Cliquez sur un des dessins pour le modifier');
+    // au milieu de l'œuvre en hauteur (et centrée en largeur)
+    const mid = await page.evaluate(() => { const A = AtelierGribouille; const v = A.view; const c = document.getElementById('canvas').getBoundingClientRect(); const h = document.getElementById('edit-hint').getBoundingClientRect(); return { want: c.top + (v.oy + A.state.comp.H * v.s / 2) / v.dpr, got: (h.top + h.bottom) / 2, cx: (c.left + c.right) / 2, hx: (h.left + h.right) / 2 }; });
+    expect(Math.abs(mid.got - mid.want)).toBeLessThan(3);
+    expect(Math.abs(mid.hx - mid.cx)).toBeLessThan(3);
     // un dessin sélectionné : l'astuce s'efface, et ne revient pas pour cette œuvre (même désélectionné)
     await page.evaluate(() => { const A = AtelierGribouille; A.state.selected = A.state.comp.items[0]; A.render(); });
     await expect(page.locator('#edit-hint')).toBeHidden();
@@ -1612,12 +1616,12 @@ test.describe('Cartel sur ordinateur', () => {
 });
 
 test.describe('Couleur du fond', () => {
-  test('le nuancier est en bas de Propositions ; une teinte s’applique tout de suite ; sans objet en Galerie', async ({ app }) => {
+  test('le nuancier est juste sous « Nouvelles propositions » (ordinateur) ; une teinte s’applique tout de suite ; sans objet en Galerie', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#ground')).toBeVisible();
-    // dernier bloc de la section, hors des réglages avancés (repliés)
-    expect(await page.evaluate(() => { const sec = document.getElementById('compose-section'); const last = sec.lastElementChild; const g = document.getElementById('ground'); return last.contains(g) && !document.getElementById('advanced').contains(g); })).toBe(true);
+    // juste sous le bouton « Nouvelles propositions », hors des réglages avancés (repliés)
+    expect(await page.evaluate(() => { const g = document.getElementById('ground'); const f = document.getElementById('generate').nextElementSibling; return f.contains(g) && !document.getElementById('advanced').contains(g); })).toBe(true);
     const hex = await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
     await page.locator(`#ground button[data-hex="${hex}"]`).click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);

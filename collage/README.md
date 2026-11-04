@@ -291,7 +291,8 @@ cd collage && python3 -m http.server 8000
      de l'œuvre s'il y en a un ;
    - **astuce de la zone d'édition** (`#edit-hint`, `editHint`) : sur l'œuvre affichée, tant que rien
      n'est sélectionné, « Cliquez sur un des dessins pour le modifier » (téléphone : « Touchez un des
-     dessins pour le modifier ») ; elle revient à chaque ouverture d'une œuvre (import,
+     dessins pour le modifier »), posée au milieu de l'œuvre en hauteur (`placeHint`, à chaque rendu,
+     comme le cartel) ; elle revient à chaque ouverture d'une œuvre (import,
      réouverture, rechargement) et disparaît au premier dessin touché ;
    - **œuvre affichée** gardée d'elle-même dans le navigateur (dessins, réglages, mise en place) et
      **rouverte automatiquement** quand on actualise ou rouvre la page ; « commencez une nouvelle
@@ -575,8 +576,9 @@ cd collage && python3 -m http.server 8000
      l'heure) : « Ouvrir cette version » la rouvre, « Garder celle-ci » renvoie celle d'ici ; rien ne
      part ni ne vient pour elle tant qu'on n'a pas choisi. Après une réception, la copie d'ici n'est
      pas renvoyée (pas de ping-pong entre appareils) ;
-   - **couleur du fond** : le nuancier (`#ground`) est le dernier bloc de la section Propositions
-     (hors des réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
+   - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
+     ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
+     réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
      près de l'œuvre, ouvre la même palette juste à côté (`#ground-pop`, reste ouverte pour essayer
      plusieurs teintes, se ferme d'un appui ailleurs ou avec Échap) ; une teinte s'applique tout de
      suite à l'œuvre affichée (`applyGround`, mise en place gardée), les deux nuanciers restent

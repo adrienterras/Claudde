@@ -2862,6 +2862,15 @@
     // (« Mettre en scène » est en haut à gauche de la zone d'édition, sous la barre d'outils : rien à
     // mesurer ici ; le cartel se pose sous l'œuvre, voir placeLabel)
   }
+  // L'astuce « Cliquez sur un des dessins… » se pose au milieu de l'œuvre en hauteur (ordinateur et
+  // téléphone) ; l'œuvre zoomée déborde : elle reste dans la zone visible
+  function placeHint(artMidPx, dpr) {
+    const el = $('edit-hint');
+    if (!el) return;
+    const top = canvas.offsetTop + artMidPx / dpr;
+    const lo = canvas.offsetTop + 40, hi = canvas.offsetTop + canvas.clientHeight - 40;
+    el.style.top = `${Math.round(Math.max(lo, Math.min(hi, top)))}px`;
+  }
   // Le cartel (type de proposition, taille de l'impression) se pose juste sous l'œuvre, centré
   // (ordinateur) ; sur téléphone, il garde sa place au-dessus du tiroir
   function placeLabel(artBottomPx, dpr) {
@@ -3280,6 +3289,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const ox = (cw - comp.W * s) / 2 + Z.px, oy = (ch - comp.H * s) / 2 + Z.py;
     view = { s, ox, oy, dpr, fitS };
     placeLabel(oy + comp.H * s, dpr);
+    placeHint(oy + comp.H * s / 2, dpr);
     const shadows = false; // pas d'ombre portée : papier collé à plat
     $('zoom-val').textContent = `${Math.round(Z.z * 100)} %`;
 
@@ -5276,6 +5286,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   placeNewWork();
   mobileQuery.addEventListener('change', placeNewWork);
+  // le nuancier de la couleur du fond : sur ordinateur, juste sous « Nouvelles propositions » ;
+  // sur téléphone, en bas de l'onglet Propositions
+  function placeGround() {
+    const field = document.querySelector('.ground-field'), gen = $('generate'), sec = $('compose-section');
+    if (!field || !gen || !sec) return;
+    if (mobileQuery.matches) { if (sec.lastElementChild !== field) sec.appendChild(field); }
+    else if (gen.nextElementSibling !== field) gen.after(field);
+  }
+  placeGround();
+  mobileQuery.addEventListener('change', placeGround);
   // Ordinateur et iPad : une œuvre sans dessin n'a pas d'étape Importer dans le menu — le type d'œuvre
   // se choisit au milieu, puis le premier import s'y fait ; l'étape revient avec les premiers dessins
   // (pour en ajouter), ou pour montrer un message (fichier illisible, œuvre en cours à reprendre)
