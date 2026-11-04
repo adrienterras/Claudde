@@ -87,19 +87,19 @@ cd collage && python3 -m http.server 8000
    dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
    zone de dépôt, sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,
    iPad en paysage compris : la visée y reste en plein écran) ; pas sur un ordinateur sans écran
-   tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée et l'écran
-   ne donne qu'**une consigne à la fois**, la plus importante (« Rapprochez-vous un peu », « Tenez le
-   téléphone à plat, au-dessus du dessin »… ou « Prêt : prenez la photo ») — feuille trouvée (`Extract.findSheet`) et bien cadrée (assez grande,
-   sans toucher le bord), téléphone parallèle à la feuille (côtés opposés de même longueur, angles
-   droits), netteté et lumière égale (`Quality.sharpness`, `Quality.lighting`, mêmes seuils qu'à
-   l'import), exposition (papier assez clair, sans reflets) ; le quadrilatère de la feuille est
+   tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée sur
+   **l'éclairage seulement** et l'écran ne donne qu'**une consigne à la fois** (« Ombre sur la feuille :
+   placez-vous face à la fenêtre », « Trop sombre : plus de lumière, près d'une fenêtre »… ou « Prêt :
+   prenez la photo ») — lumière égale (`Quality.lighting`, mêmes seuils qu'à l'import) et exposition
+   (papier assez clair, sans reflets), mesurées sur la feuille quand `Extract.findSheet` la trouve,
+   sinon sur toute l'image ; ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
+   (simplicité demandée). Le quadrilatère de la feuille, quand elle est trouvée, est
    tracé sur la vidéo, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
    (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
    secours a le sien) : la lampe reste allumée pendant la visée et la photo, le choix est mémorisé
    (`atelier.flash`) et la lampe s'éteint avec la caméra. La photo prise (pleine définition : `ImageCapture`
    quand il existe et que le flash est éteint — en mode photo, l'appareil éteint la lampe et la photo
-   sortirait sombre —, sinon l'image de la vidéo, éclairée par la lampe) est jugée de la même façon, avec en plus sa
-   définition (grand côté de la feuille en pixels : 140 dpi pour un A4, `Camera.PX`) : bonne ou
+   sortirait sombre —, sinon l'image de la vidéo, éclairée par la lampe) est jugée de la même façon : bonne ou
    correcte, elle est **gardée d'office** (un éclair, « ✓ Photo gardée » avec « Annuler ») et la visée
    continue ; à reprendre, elle s'affiche avec sa raison et un conseil, « Reprendre » ou « Garder
    quand même ». En bas, comme un appareil photo : « Fermer » / « Importer (N) » à gauche, le

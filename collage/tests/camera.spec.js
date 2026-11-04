@@ -1,4 +1,4 @@
-// Prise de photo dans l'atelier : jugement des images (feuille, cadrage, netteté, lumière) et
+// Prise de photo dans l'atelier : jugement des images (l'éclairage seulement) et
 // parcours complet avec une caméra factice de Chromium qui joue une scène de synthèse (feuille
 // blanche dessinée posée sur un parquet).
 const { test, expect, fixture } = require('./helpers');
@@ -77,33 +77,40 @@ async function judge(page, name, transform) {
     if (transform === 'blur') x.filter = 'blur(5px)';
     if (transform === 'full') { x.drawImage(img, 350, 280, 900, 640, 0, 0, c.width, c.height); } else x.drawImage(img, 0, 0);
     if (transform === 'dark') { x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(0, 0, c.width, c.height); }
+    if (transform === 'shadow') { const g = x.createLinearGradient(0, 0, c.width, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height); }
     if (transform === 'wood') { x.fillStyle = '#9a6a3c'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#8a5c32'; for (let i = 0; i < c.width; i += 130) x.fillRect(i, 0, 60, c.height); }
-    const v = Camera.check(c, { full: true, k: 2 });
+    const v = Camera.check(c);
     return { level: v.level, title: v.title, found: v.found, quad: !!v.quad, points: v.points.map((p) => [p.code, p.level]) };
   }, { data, transform });
 }
 const lvl = (r, code) => (r.points.find((p) => p[0] === code) || [])[1];
 
 test.describe('Photographier un dessin', () => {
-  test('jugement : feuille nette sur parquet optimale ; floue, sombre, sans feuille ou coupée signalées', async ({ app }) => {
+  test('jugement : l’éclairage seulement — feuille sur parquet optimale ; sombre ou ombrée signalée ; floue, sans feuille ou coupée acceptées', async ({ app }) => {
     const good = await judge(app.page, 'photo-wood.png');
     expect(good.found).toBe(true);
     expect(good.quad).toBe(true);
     expect(good.level).toBe('ok');
     expect(good.title).toBe('Photo optimale');
-    for (const code of ['feuille', 'cadre', 'plat', 'nettete', 'lumiere', 'expo', 'definition']) expect(lvl(good, code)).toBe('ok');
-    const blur = await judge(app.page, 'photo-wood.png', 'blur');
-    expect(blur.level).toBe('bad');
-    expect(lvl(blur, 'nettete')).toBe('bad');
+    expect(good.points.map((p) => p[0]).sort()).toEqual(['expo', 'lumiere']);
+    for (const code of ['lumiere', 'expo']) expect(lvl(good, code)).toBe('ok');
     const dark = await judge(app.page, 'photo-wood.png', 'dark');
     expect(dark.level).toBe('bad');
     expect(lvl(dark, 'expo')).toBe('bad');
+    const shadow = await judge(app.page, 'photo-wood.png', 'shadow');
+    expect(shadow.level).not.toBe('ok');
+    expect(['warn', 'bad']).toContain(lvl(shadow, 'lumiere'));
+    // plus de contrôle de netteté, de feuille ni de cadrage : ces photos ne sont pas signalées
+    const blur = await judge(app.page, 'photo-wood.png', 'blur');
+    expect(blur.level).toBe('ok');
+    expect(lvl(blur, 'nettete')).toBeUndefined();
     const wood = await judge(app.page, 'photo-wood.png', 'wood');
     expect(wood.found).toBe(false);
-    expect(lvl(wood, 'feuille')).toBe('bad');
+    expect(wood.level).toBe('ok');
+    expect(wood.points.map((p) => p[0])).not.toContain('feuille');
     const full = await judge(app.page, 'photo-wood.png', 'full');
-    expect(full.found).toBe(false);
-    expect(lvl(full, 'cadre')).toBe('bad');
+    expect(full.level).toBe('ok');
+    expect(full.points.map((p) => p[0])).not.toContain('cadre');
   });
 
   test('visée simple (une consigne), photo bonne gardée d’office (« Annuler »), photo à reprendre montrée avec sa raison, puis importée', async ({ app }) => {
@@ -120,17 +127,18 @@ test.describe('Photographier un dessin', () => {
     expect(await page.evaluate(() => { const g = document.getElementById('camera-guide'); const d = g.getContext('2d').getImageData(0, 0, g.width, g.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; })).toBeGreaterThan(100);
     await expect(page.locator('#camera-done')).toHaveText('Fermer');
     await expect(page.locator('#camera-last')).toBeHidden();
-    // la photo prise est jugée en pleine définition (640 px : trop faible pour un tirage) : montrée, avec la raison
+    // une photo mal éclairée (seuils d'éclairage abaissés pour l'essai) : montrée, avec la raison
+    await page.evaluate(() => { Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
     await page.locator('#camera-shoot').click();
     await expect(page.locator('#camera-review')).toBeVisible();
-    await expect(page.locator('#camera-verdict')).toHaveText('Photo à reprendre : définition trop faible');
-    await expect(page.locator('#camera-tip')).toContainText('Rapprochez-vous');
+    await expect(page.locator('#camera-verdict')).toHaveText('Photo à reprendre : ombre ou lampe sur la feuille');
+    await expect(page.locator('#camera-tip')).toContainText('Lumière du jour');
     await expect(page.locator('#camera-shoot')).toBeHidden();
     await page.locator('#camera-retake').click();
     await expect(page.locator('#camera-review')).toBeHidden();
     await expect(page.locator('#camera-shoot')).toBeVisible();
-    // un bon appareil (seuils abaissés) : la photo est gardée d'office, la visée continue ; « Annuler » la retire
-    await page.evaluate(() => { Camera.PX.bad = 100; Camera.PX.warn = 200; });
+    // bien éclairée : la photo est gardée d'office, la visée continue ; « Annuler » la retire
+    await page.evaluate(() => { Quality.LIGHT.bad = 85; Quality.LIGHT.warn = 45; });
     await page.locator('#camera-shoot').click();
     await expect(page.locator('#camera-toast')).toBeVisible();
     await expect(page.locator('#camera-toast')).toContainText('Photo gardée');
@@ -141,7 +149,7 @@ test.describe('Photographier un dessin', () => {
     await expect(page.locator('#camera-last')).toBeHidden();
     await expect(page.locator('#camera-done')).toHaveText('Fermer');
     // une photo à reprendre peut être gardée quand même
-    await page.evaluate(() => { Camera.PX.bad = 1170; Camera.PX.warn = 1640; });
+    await page.evaluate(() => { Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
     await page.locator('#camera-shoot').click();
     await page.locator('#camera-keep').click();
     await expect(page.locator('#camera-review')).toBeHidden();
@@ -212,6 +220,8 @@ test.describe('Photographier un dessin', () => {
     });
     await page.locator('#camera-open').click();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
+    // (seuils d'éclairage abaissés : chaque photo passe par « à reprendre », rien n'est importé)
+    await page.evaluate(() => { Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
     await expect(page.locator('#camera-flash')).toBeVisible();
     await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'false');
     expect(await page.evaluate(() => window.__torch)).toEqual([]);
