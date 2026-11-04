@@ -5217,22 +5217,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (plant) x.drawImage(plant, (S.plantAt[0] - sx) * q, (S.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
     return true;
   }
-  // Télécharger la mise en scène en JPEG, en 2000 px de large
-  $('scene-save').addEventListener('click', async () => {
-    const btn = $('scene-save');
-    btn.disabled = true;
-    try {
-      const c = Extract.makeCanvas(2000, 1500);
-      if (!drawRoomScene({ canvas: c, width: 2000 })) throw new Error('mise en scène indisponible');
-      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9));
-      if (!blob) throw new Error('toBlob');
-      if (navigator.maxTouchPoints > 0 && !$('scene-modal').hidden) closeModal($('scene-modal'));
-      if (await saveFile(blob, tr('mise-en-scene-atelier-gribouille.jpg'))) window.Atelier.track('Export', { type: 'mise-en-scene', qualite: 'jpeg' });
-    } catch (e) {
-      console.error(e);
-      notice(tr('La mise en scène n’a pas pu être produite sur cet appareil.'));
-    } finally { btn.disabled = false; }
-  });
   // depuis la fenêtre de mise en scène (ordinateur), commander l'œuvre affichée
   $('scene-order').addEventListener('click', () => { closeModal($('scene-modal')); orderNow(); });
   $('scene-room').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
