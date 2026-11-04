@@ -574,6 +574,7 @@
     '{0}. {1} « {2} » {3}×{4} cm': '{0}. {1} “{2}” {3}×{4} cm',
     'Tout voir': 'Show all',
     'Quitter le plein écran': 'Exit full screen',
+    'Pivoter l’œuvre d’un quart de tour': 'Rotate the work a quarter turn',
     '{0} · pièce {1}': '{0} · piece {1}',
     '{0} · copie': '{0} · copy',
     'PDF d’une page de {0} × {1} cm{2}, à l’échelle 1 : chaque papier posé à sa vraie place (images à {3} dpi), cadres et traits en vecteurs.': 'One-page PDF of {0} × {1} cm{2}, at 1:1 scale: every paper placed exactly where it goes (images at {3} dpi), frames and lines as vectors.',

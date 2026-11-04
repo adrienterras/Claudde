@@ -2223,13 +2223,35 @@
   // le cadre, l'orientation et le passe-partout de l'œuvre affichée (l'historique les retrouve : la liste
   // a déjà changé quand l'étape est enregistrée)
   function noteCompFrame() { state.compFormat = $('format').value; state.compOrient = canvasOrient(); state.compMat = printMat(); }
-  function keepPrintComp(change, how) {
+  // cw : sens du quart de tour imposé (bouton Pivoter) ; sinon le sens dépend de l'orientation visée,
+  // pour que Portrait → Paysage → Portrait rende l'œuvre telle qu'elle était
+  function keepPrintComp(change, how, cw) {
     const comp = state.comp;
-    if (!(printMode() && comp && state.drawings.length)) { change(); state.pinned = null; regenerate(); return; }
+    if (!(printMode() && comp && state.drawings.length)) {
+      // atelier Toile : les dessins restent à leur taille réelle ; le quart de tour demandé (Pivoter)
+      // tourne l'œuvre telle quelle si la toile tournée a exactement la taille attendue, sinon
+      // l'œuvre est recomposée dans l'autre orientation (comme les boutons Portrait / Paysage)
+      if (how === 'turn' && cw !== undefined && comp && state.drawings.length) {
+        commit();
+        change();
+        const fc = formatCm();
+        if (Math.abs(comp.H - fc.w) < 1e-6 && Math.abs(comp.W - fc.h) < 1e-6) {
+          turnComp(comp, cw);
+          noteCompFrame();
+          comp.touched = true;
+          state.pinned = comp;
+          state.bgCache = null;
+          regenerate({ noCommit: true });
+          return;
+        }
+        state.pinned = null; regenerate({ noCommit: true }); return;
+      }
+      change(); state.pinned = null; regenerate(); return;
+    }
     commit();
     change();
     const fc = formatCm();
-    if (how === 'turn') { turnComp(comp, fc.w >= fc.h); if (Math.abs(comp.W - fc.w) > 1e-6 || Math.abs(comp.H - fc.h) > 1e-6) fitCompTo(comp, fc.w, fc.h); }
+    if (how === 'turn') { turnComp(comp, cw === undefined ? fc.w >= fc.h : cw); if (Math.abs(comp.W - fc.w) > 1e-6 || Math.abs(comp.H - fc.h) > 1e-6) fitCompTo(comp, fc.w, fc.h); }
     else fitCompTo(comp, fc.w, fc.h);
     if (fc.frame) { comp.frameKey = fc.key; comp.mat = fc.mat; }
     noteCompFrame();
@@ -5354,7 +5376,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('fmt').addEventListener('change', updateExportInfo);
   // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
   // (les mêmes boutons dans la zone d'édition, à côté du zoom : #zoom-orient)
-  document.querySelectorAll('#canvas-orient button, #scene-orient button, #zoom-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
+  document.querySelectorAll('#canvas-orient button, #scene-orient button, #zoom-orient [data-orient]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
+  // Pivoter : un quart de tour de toute l'œuvre vers la gauche à chaque appui (quatre appuis la
+  // ramènent telle quelle) ; l'orientation de la toile suit, Tailles et mise en scène aussi
+  $('zoom-rotate').addEventListener('click', () => keepPrintComp(() => setCanvasOrient(canvasOrient() === 'port' ? 'land' : 'port'), 'turn', false));
   try { localStorage.removeItem('atelier.canvasOrient'); } catch (e) { /* ignoré */ } // l'orientation n'est plus mémorisée d'une œuvre à l'autre
   setCanvasOrient('port');
   document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {

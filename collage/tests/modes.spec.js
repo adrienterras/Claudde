@@ -621,4 +621,42 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await dims()).toEqual([W0, H0]);
     await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
   });
+
+  test('Pivoter (zone d’édition) : un quart de tour vers la gauche à chaque appui, l’orientation suit, quatre appuis ramènent l’œuvre, Défaire aussi', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const snap = () => page.evaluate(() => { const c = AtelierGribouille.state.comp; return { W: c.W, H: c.H, items: c.items.map((L) => [L.x, L.y, L.rot || 0]) }; });
+    const s0 = await snap();
+    expect(s0.W).toBeLessThan(s0.H);
+    await page.locator('#zoom-rotate').click();
+    await page.waitForTimeout(300);
+    const s1 = await snap();
+    expect([s1.W, s1.H]).toEqual([s0.H, s0.W]);
+    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#canvas-orient [data-orient="land"]')).toHaveClass(/on/);
+    // quart de tour vers la gauche : (x, y) → (y, W − x), rotation − π/2
+    s0.items.forEach(([x, y, r], i) => {
+      expect(s1.items[i][0]).toBeCloseTo(y, 4);
+      expect(s1.items[i][1]).toBeCloseTo(s0.W - x, 4);
+      expect(s1.items[i][2]).toBeCloseTo(r - Math.PI / 2, 6);
+    });
+    for (let k = 0; k < 3; k++) { await page.locator('#zoom-rotate').click(); await page.waitForTimeout(300); }
+    const s4 = await snap();
+    expect([s4.W, s4.H]).toEqual([s0.W, s0.H]);
+    await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
+    s0.items.forEach(([x, y, r], i) => {
+      expect(s4.items[i][0]).toBeCloseTo(x, 4);
+      expect(s4.items[i][1]).toBeCloseTo(y, 4);
+      expect(s4.items[i][2]).toBeCloseTo(r - 2 * Math.PI, 6);
+    });
+    // Défaire revient au tour précédent (paysage), avec son orientation
+    await page.locator('[data-act="undo"]').click();
+    await page.waitForTimeout(300);
+    const s3 = await snap();
+    expect([s3.W, s3.H]).toEqual([s0.H, s0.W]);
+    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'true');
+  });
 });
