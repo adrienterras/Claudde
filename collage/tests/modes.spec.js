@@ -382,9 +382,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // (feuilles déclarées de 120 cm : les sujets demandent bien plus que le cadre 21 × 30)
     await page.evaluate(() => { AtelierGribouille.state.drawings.forEach((d) => { d.sizeCm = 120; }); const f = document.getElementById('format'); f.value = 'cadre:21x30'; f.dispatchEvent(new Event('change')); });
     await page.waitForTimeout(300);
-    // (une composition refaite à cette réduction : l'œuvre affichée, elle, garde sa mise en place et se réduit)
-    await page.evaluate(() => { AtelierGribouille.state.pinned = null; AtelierGribouille.state.comp.touched = false; AtelierGribouille.regenerate(); });
-    await page.waitForTimeout(300);
     const sp = await page.evaluate(() => { const c = AtelierGribouille.state.proposals[0].comp; const ys = c.items.map((L) => L.y / c.H), xs = c.items.map((L) => L.x / c.W); return { k: AtelierGribouille.scale(), n: c.items.length, dy: Math.max(...ys) - Math.min(...ys), dx: Math.max(...xs) - Math.min(...xs) }; });
     expect(sp.k).toBeLessThan(0.6);
     expect(sp.n).toBe(n);

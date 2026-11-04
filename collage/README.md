@@ -42,22 +42,12 @@ cd collage && python3 -m http.server 8000
      pouvant avoir plusieurs découpes) et la surface
      qu'ils demandent ensemble (`printCover` : de 90 % à 140 % de l'affiche, ils se chevauchent et
      la remplissent à toute position du curseur) ; la pose reçoit ce nombre (`o.count`) sans
-     plafond de couverture ; jamais au-delà de leur taille réelle. Après la pose : en Nuage sans page de fond, les dessins se partagent toute la
+     plafond de couverture ; jamais au-delà de leur taille réelle. Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
      surface (`relaxItems`, relaxation de Lloyd pondérée par leur taille) ; puis, sauf Galerie,
      Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, jamais
-     au-delà de la taille réelle des dessins) et ses positions étirées jusqu'aux bords (`fillFrame`,
-     `stretchFrame`). **Paysage est ensuite mis en ordre** (`settle`, dans les deux ateliers) comme un œil
-     le ferait : tout ce qui se tient debout pose les pieds sur une même ligne de sol (des rangées en
-     profondeur quand la largeur manque, trois au plus, les plus grands derrière, grands et petits
-     alternés depuis le centre), ce qui vole reste dans la bande du ciel et se place à l'opposé du
-     poids du sol, les petits éléments flottent entre les deux là où ils recouvrent le moins, la
-     pièce maîtresse est un peu agrandie (tableau imprimé, jusqu'à 1,2 fois et 45 % de la largeur),
-     l'ensemble est recentré dans une marge de 3,5 % ; avec des pages de fond, la ligne de sol est
-     dans leur bande du sol et le ciel sous leur horizon (`comp.zones`). Pas d'étirement jusqu'aux
-     bords en Paysage. Une foule (sujets debout trop larges pour trois rangées, `settle` rend faux)
-     garde la répartition d'avant sur toute la surface. Dessins réduits
-     à moins de 60 % (`o.spread`, affiche chargée) : Paysage abandonne les zones ciel / milieu / sol et
-     la ligne de sol, les sujets se répartissent sur toute l'affiche, bien espacés (pas de `settle`). Les pages de fond ont
+     au-delà de la taille réelle des dessins) et ses positions étirées jusqu'aux bords (`fillFrame`). Dessins réduits
+     à moins de 60 % (`o.spread`) : Paysage abandonne les zones ciel / milieu / sol et la ligne
+     de sol, les sujets se répartissent sur toute l'affiche, bien espacés. Les pages de fond ont
      leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se
      chevauchant, la plus grande entière, sans dépasser deux fois l'échelle des découpes.
      Produits : impression livrée (papier d'art ou encadrée ; pas d'impression sur toile pour l'instant) et fichier HD ; pas de
@@ -499,10 +489,7 @@ cd collage && python3 -m http.server 8000
    - **composition « Paysage »** : les pages de fond sont réparties en trois bandes selon leur valeur et
      leur couleur (claires et froides en haut, sombres et chaudes en bas), posées en tuiles presque
      droites qui se chevauchent, le sol par-dessus le milieu, le milieu par-dessus le ciel ; les éventuels lambeaux
-     restent dans la bande de leur page ; sans Claude, chaque découpe reçoit une « gravité » d'après
-     sa forme et sa couleur (`direct`) : un soleil (rond, jaune orangé, clair) ou un nuage (pâle,
-     large) va au ciel, un tout petit élément (moins de 4 cm : cœur, étoile) se sème au milieu, tout
-     le reste se tient debout sur le sol ;
+     restent dans la bande de leur page ;
    - **export PDF à l'échelle** : une page de la taille exacte de la toile (1 cm = 1 cm), chaque page
      de fond posée tournée comme une image JPEG, les découpes et papiers déchirés en PNG avec leur
      transparence, les cadres de la galerie, le plomb et les traits en vecteurs ; images à 300 dpi

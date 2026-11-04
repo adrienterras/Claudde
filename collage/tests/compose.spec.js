@@ -20,54 +20,6 @@ test.describe('Compositions', () => {
     await expect(app.page.locator('#proposals .proposal.on')).toContainText('Paysage');
   });
 
-  // Paysage, mise en ordre après la pose (settle) : gravité, ligne de sol, ciel, hiérarchie, équilibre
-  for (const mode of ['impression', 'toile']) {
-    test(`Paysage (${mode}) : le soleil au ciel, les personnages debout sur une même ligne de sol, l’ensemble centré et dans les marges`, async ({ app }) => {
-      const { page } = app;
-      await page.goto(`index.html?mode=${mode}`);
-      await page.waitForFunction(() => window.AtelierGribouille && window.Compose);
-      await app.import(['page-cutout.png', 'page-two.png']);
-      const c = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, W: c.W, H: c.H, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, feet: L.y + L.h / 2, grounded: !!L.piece.grounded, zone: L.piece.zone, place: L.piece.place, colorful: L.piece.colorful || 0 })) }; });
-      expect(c.style).toBe('paysage');
-      expect(c.items.length).toBe(3);
-      // sans Claude : le soleil (rond, jaune, clair) vole, les deux personnages se tiennent debout
-      const sky = c.items.filter((L) => L.place === 'ciel'), ground = c.items.filter((L) => L.grounded);
-      expect(sky.length).toBe(1);
-      expect(ground.length).toBe(2);
-      const m = Math.min(c.W, c.H) * 0.035;
-      // le soleil dans le tiers haut, les personnages les pieds sur une même ligne, près du bas
-      expect(sky[0].y).toBeLessThan(c.H * 0.4);
-      expect(Math.abs(ground[0].feet - ground[1].feet)).toBeLessThan(c.H * 0.02);
-      expect(ground[0].feet).toBeGreaterThan(c.H * 0.8);
-      expect(ground[0].feet).toBeLessThanOrEqual(c.H - m + 0.01);
-      // dans les marges, et le centre des masses au milieu de la largeur
-      for (const L of c.items) { expect(L.x - L.w / 2).toBeGreaterThanOrEqual(m - 0.01); expect(L.x + L.w / 2).toBeLessThanOrEqual(c.W - m + 0.01); }
-      const A = c.items.reduce((a, L) => a + L.w * L.h, 0), cx = c.items.reduce((a, L) => a + L.x * L.w * L.h, 0) / A;
-      expect(Math.abs(cx - c.W / 2)).toBeLessThan(c.W * 0.08);
-      // les personnages ne se recouvrent pas
-      const [a, b] = ground;
-      expect(Math.abs(a.x - b.x)).toBeGreaterThanOrEqual((a.w + b.w) / 2 - 0.01);
-      // profondeur : le ciel est dessiné derrière les sujets debout
-      expect(c.items.findIndex((L) => L.place === 'ciel')).toBe(0);
-    });
-  }
-
-  test('Paysage (impression) : une foule (plus de trois rangées) garde la répartition sur toute la surface', async ({ app }) => {
-    const { page } = app;
-    // la même pose, directement sur Compose : 40 sujets debout trop larges pour trois rangées
-    const r = await page.evaluate(() => {
-      const mk = (w, h, g) => { const cv = document.createElement('canvas'); cv.width = 20; cv.height = 20; return { canvas: cv, wcm: w, hcm: h, grounded: g, zone: g ? 'sol' : 'ciel', place: g ? 'sol' : 'ciel', color: [200, 80, 80], colorful: 0.4, importance: 1, hit: { w: 2, h: 2, data: new Uint8Array([1, 1, 1, 1]) }, drawing: { id: 1 } }; };
-      const pieces = []; for (let i = 0; i < 40; i++) pieces.push(mk(8, 10, true));
-      const o = { format: { w: 50, h: 70, auto: false }, scale: 1, density: 1.8, rotation: 8, everything: true, densityT: 1, flat: true, spread: true, count: 40, maxGrow: 1, ground: '#223', groundName: null, seed: 3, textures: [], pieces, style: 'paysage' };
-      const comp = Compose.generate(o);
-      const feet = comp.items.map((L) => Math.round((L.y + L.h / 2) * 10) / 10);
-      return { n: comp.items.length, distinctFeet: new Set(feet).size, minY: Math.min(...comp.items.map((L) => L.y)), maxY: Math.max(...comp.items.map((L) => L.y)) };
-    });
-    expect(r.n).toBe(40);
-    expect(r.distinctFeet).toBeGreaterThan(6); // pas trois rangées : la foule reste répartie
-    expect(r.maxY - r.minY).toBeGreaterThan(40); // sur toute la hauteur de l'affiche
-  });
-
   test('chaque style se sélectionne et se dessine ; la Galerie et le Pop art n’existent qu’en tableau imprimé', async ({ app }) => {
     const { page } = app;
     // collage : ni Galerie ni Pop art parmi les propositions (le Village n'est plus proposé du tout)
