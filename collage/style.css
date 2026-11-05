@@ -497,7 +497,6 @@ body.stage-full .stage-cta { display: none; }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 0.84rem; font-weight: 500; color: var(--ink-2); }
 .field-head { display: flex; align-items: center; justify-content: space-between; }
-.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 select {
   width: 100%;
   padding: 10px 12px;

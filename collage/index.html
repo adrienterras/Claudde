@@ -288,15 +288,13 @@
         <p class="hint">Un PDF avec la taille de la toile, le plan de pose, l’ordre de collage et, pour chaque dessin original, sa fiche de découpe avec le trait de coupe et ses cotes.</p>
         <p id="guide-info" class="hint mono-note"></p>
       </div>
-      <div class="field-pair">
-        <label class="field">Fichier
-          <select id="fmt">
-            <option value="image/jpeg" selected>JPEG</option>
-            <option value="image/png">PNG</option>
-            <option value="application/pdf">PDF à l’échelle (page = toile)</option>
-          </select>
-        </label>
-      </div>
+      <label class="field">Fichier
+        <select id="fmt">
+          <option value="image/jpeg" selected>JPEG</option>
+          <option value="image/png">PNG</option>
+          <option value="application/pdf">PDF à l’échelle (page = toile)</option>
+        </select>
+      </label>
       <div class="field export-margin-field" id="export-margin-field" hidden>Bordure blanche
         <div class="seg scene-margin export-margin" id="export-margin" role="group" aria-label="Bordure blanche">
           <button type="button" data-margin="0" class="on ink">Sans bordure</button>
