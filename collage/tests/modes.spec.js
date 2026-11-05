@@ -596,32 +596,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await frame()).toEqual(['cadre:50x70', 50, 70]);
   });
 
-  test('Portrait / Paysage aussi dans la zone d’édition (à côté du zoom) : l’œuvre tourne, Tailles et mise en scène suivent', async ({ page }) => {
-    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
-    await page.goto('index.html?mode=impression');
-    await page.waitForFunction(() => window.AtelierGribouille);
-    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
-    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'false');
-    const dims = () => page.evaluate(() => { const c = AtelierGribouille.state.comp; return [c.W, c.H]; });
-    const [W0, H0] = await dims();
-    expect(W0).toBeLessThan(H0);
-    await page.locator('#zoom-orient [data-orient="land"]').click();
-    await page.waitForTimeout(300);
-    expect(await dims()).toEqual([H0, W0]);
-    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('#canvas-orient [data-orient="land"]')).toHaveClass(/on/);
-    // le même bouton de nouveau : rien ne change ; depuis Tailles, le bouton de la zone d'édition suit
-    await page.locator('#zoom-orient [data-orient="land"]').click();
-    await page.waitForTimeout(200);
-    expect(await dims()).toEqual([H0, W0]);
-    await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="port"]').click());
-    await page.waitForTimeout(300);
-    expect(await dims()).toEqual([W0, H0]);
-    await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
-  });
-
   test('Pivoter (zone d’édition) : un quart de tour vers la gauche à chaque appui, l’orientation suit, quatre appuis ramènent l’œuvre, Défaire aussi', async ({ page }) => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?mode=impression');
@@ -635,8 +609,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForTimeout(300);
     const s1 = await snap();
     expect([s1.W, s1.H]).toEqual([s0.H, s0.W]);
-    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#canvas-orient [data-orient="land"]')).toHaveClass(/on/);
+    await expect(page.locator('#zoom-orient [data-orient]')).toHaveCount(0); // (pas de Portrait / Paysage dans la barre de zoom)
     // quart de tour vers la gauche : (x, y) → (y, W − x), rotation − π/2
     s0.items.forEach(([x, y, r], i) => {
       expect(s1.items[i][0]).toBeCloseTo(y, 4);
@@ -646,7 +620,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     for (let k = 0; k < 3; k++) { await page.locator('#zoom-rotate').click(); await page.waitForTimeout(300); }
     const s4 = await snap();
     expect([s4.W, s4.H]).toEqual([s0.W, s0.H]);
-    await expect(page.locator('#zoom-orient [data-orient="port"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/);
     s0.items.forEach(([x, y, r], i) => {
       expect(s4.items[i][0]).toBeCloseTo(x, 4);
       expect(s4.items[i][1]).toBeCloseTo(y, 4);
@@ -657,6 +631,6 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForTimeout(300);
     const s3 = await snap();
     expect([s3.W, s3.H]).toEqual([s0.H, s0.W]);
-    await expect(page.locator('#zoom-orient [data-orient="land"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#canvas-orient [data-orient="land"]')).toHaveClass(/on/);
   });
 });

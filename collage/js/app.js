@@ -1967,7 +1967,7 @@
   }
   function setCanvasOrient(o) {
     state.canvasOrient = o;
-    document.querySelectorAll('#canvas-orient button, #scene-orient button, #zoom-orient button').forEach((b) => {
+    document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => {
       const on = b.dataset.orient === o;
       b.classList.toggle('on', on); b.classList.toggle('ink', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -5362,9 +5362,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('fmt').addEventListener('change', updateExportInfo);
   // l'orientation se règle dans la section Tailles et, sur ordinateur, dans la fenêtre de mise en scène
   // (les mêmes boutons dans la zone d'édition, à côté du zoom : #zoom-orient)
-  document.querySelectorAll('#canvas-orient button, #scene-orient button, #zoom-orient [data-orient]').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
-  // Pivoter : un quart de tour de toute l'œuvre vers la gauche à chaque appui (quatre appuis la
-  // ramènent telle quelle) ; l'orientation de la toile suit, Tailles et mise en scène aussi
+  document.querySelectorAll('#canvas-orient button, #scene-orient button').forEach((b) => b.addEventListener('click', () => { if (b.dataset.orient === canvasOrient()) return; keepPrintComp(() => setCanvasOrient(b.dataset.orient), 'turn'); }));
+  // Pivoter (zone d'édition, à côté du zoom) : un quart de tour de toute l'œuvre vers la gauche à
+  // chaque appui (quatre appuis la ramènent telle quelle) ; l'orientation de la toile suit (Tailles,
+  // mise en scène)
   $('zoom-rotate').addEventListener('click', () => keepPrintComp(() => setCanvasOrient(canvasOrient() === 'port' ? 'land' : 'port'), 'turn', false));
   try { localStorage.removeItem('atelier.canvasOrient'); } catch (e) { /* ignoré */ } // l'orientation n'est plus mémorisée d'une œuvre à l'autre
   setCanvasOrient('port');

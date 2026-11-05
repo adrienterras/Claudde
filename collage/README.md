@@ -642,12 +642,12 @@ cd collage && python3 -m http.server 8000
      selon la composition), une œuvre rouverte (brouillon, Mes œuvres) reprend la sienne ;
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; toute nouvelle création part en
-     portrait, une œuvre rouverte garde la sienne ; les deux boutons Portrait / Paysage sont aussi
-     dans la zone d'édition, à côté du zoom (sur téléphone, dans la colonne de zoom), et restent
-     synchronisés avec ceux de Tailles ; à côté, le bouton **Pivoter** tourne toute l'œuvre d'un
-     quart de tour vers la gauche à chaque appui (quatre appuis la ramènent telle quelle), l'orientation
-     de la toile suivant ; en atelier Toile, l'œuvre est recomposée si la toile tournée n'a pas
-     exactement la taille attendue ;
+     portrait, une œuvre rouverte garde la sienne ; dans la zone d'édition, à côté du zoom (sur
+     téléphone, dans la colonne de zoom), le bouton **Pivoter** tourne toute l'œuvre d'un quart de
+     tour vers la gauche à chaque appui (quatre appuis la ramènent telle quelle), l'orientation de la
+     toile suivant dans Tailles et la mise en scène (pas de boutons Portrait / Paysage dans cette
+     barre) ; en atelier Toile, l'œuvre est recomposée si la toile tournée n'a pas exactement la
+     taille attendue ;
    - **six propositions en collage, sept en tableau imprimé** (Paysage sélectionné par défaut), à chaque fois :
      *Paysage* (ciel, milieu, sol, comme une grande toile de famille),
      *Tournesol* (tout tourne en spirale d'or autour des pièces maîtresses, au centre),

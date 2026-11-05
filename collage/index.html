@@ -74,8 +74,6 @@
       <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></symbol>
       <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5 3.5 3.5 0 0 1 17.5 18H7z"/></symbol>
       <symbol id="i-fit" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-7 7"/><path d="M10 20H4v-6M4 20l7-7"/></symbol>
-      <symbol id="i-port" viewBox="0 0 24 24"><rect x="7" y="3.5" width="10" height="17" rx="1.2"/></symbol>
-      <symbol id="i-land" viewBox="0 0 24 24"><rect x="3.5" y="7" width="17" height="10" rx="1.2"/></symbol>
       <symbol id="i-rotate" viewBox="0 0 24 24"><rect x="4" y="10" width="10" height="10" rx="1.2"/><path d="M14 10V7.5A3.5 3.5 0 0 0 10.5 4H8"/><path d="M10.5 1.5L8 4l2.5 2.5"/></symbol>
       <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13l8 4.5 8-4.5"/></symbol>
       <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4.5h10v15l-5-3.5-5 3.5z"/></symbol>
@@ -437,9 +435,7 @@
       <button id="zoom-in" title="Zoomer" aria-label="Zoomer">+</button>
       <button id="zoom-fit" title="Voir toute l’œuvre" aria-label="Voir toute l’œuvre"><svg class="ico"><use href="#i-fit"/></svg></button>
       <button id="zoom-full" title="Plein écran" aria-label="Plein écran" aria-pressed="false"><svg class="ico"><use href="#i-expand"/></svg></button>
-      <span class="zoom-orient" id="zoom-orient" role="group" aria-label="Orientation de la toile">
-        <button type="button" data-orient="port" title="Portrait" aria-label="Portrait" aria-pressed="true"><svg class="ico"><use href="#i-port"/></svg></button>
-        <button type="button" data-orient="land" title="Paysage" aria-label="Paysage" aria-pressed="false"><svg class="ico"><use href="#i-land"/></svg></button>
+      <span class="zoom-orient" id="zoom-orient">
         <button type="button" id="zoom-rotate" title="Pivoter l’œuvre d’un quart de tour" aria-label="Pivoter l’œuvre d’un quart de tour"><svg class="ico"><use href="#i-rotate"/></svg></button>
       </span>
       <button id="bg-mode" class="mode" title="Ne voir que le fond et déplacer ses pages" aria-label="Fond seul" aria-pressed="false"><svg class="ico"><use href="#i-layers"/></svg><span>Fond seul</span></button>
