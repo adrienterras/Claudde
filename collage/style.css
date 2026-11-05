@@ -727,7 +727,7 @@ body.bg-mode .stage { outline: 2px dashed var(--olive); outline-offset: -2px; }
 .zoom-val { min-width: 48px; text-align: center; font-family: var(--f-mono); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 /* portrait / paysage dans la zone d'édition : deux boutons collés, celui de l'orientation en cours enfoncé */
 .zoom-orient { display: inline-flex; gap: 2px; margin-left: 4px; padding-left: 6px; border-left: 1px solid var(--line); }
-.zoom-orient .ico { width: 16px; height: 16px; }
+.zoom-orient .ico { width: 16px; height: 16px; stroke-width: 2.3; } /* Pivoter : un carré et une petite flèche, en trait plus épais */
 body.stage-full .stage { position: fixed; inset: 0; z-index: 40; height: auto; }
 body.stage-full .stage { padding-top: env(safe-area-inset-top, 0px); }
 body.stage-full .toolbar { top: calc(10px + env(safe-area-inset-top, 0px)); }

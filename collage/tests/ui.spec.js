@@ -59,9 +59,10 @@ test.describe('Interface', () => {
     expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
     // sur téléphone : dans l'étape Importer, juste après l'invitation au compte (affichée ou non)
     await page.setViewportSize({ width: 390, height: 844 });
-    expect(await page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('import-account'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
+    // (le déplacement suit le changement de taille d'écran : on l'attend)
+    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('import-account'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
-    expect(await page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
     // rien ne se perd : pas de confirmation, l'atelier repart de zéro et l'œuvre reste dans Mes œuvres
     page.once('dialog', (d) => { d.dismiss(); throw new Error(`boîte de dialogue inattendue : ${d.message()}`); });
     await btn.click();
