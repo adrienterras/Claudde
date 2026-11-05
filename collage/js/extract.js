@@ -610,6 +610,29 @@
     votes.forEach((v, l3) => { let best = 0, bc = 0; v.forEach((c, l) => { if (c > bc) { bc = c; best = l; } }); parentOf.set(l3, best); });
     const big = 0.012 * n, parts = new Map(); // sujet → ses parties
     r3.comps.forEach((c) => { const pa = parentOf.get(c.id); if (!pa) return; if (!parts.has(pa)) parts.set(pa, []); parts.get(pa).push(c); });
+    // deux grandes parties empilées (l'une au-dessus de l'autre, largement alignées en largeur) à
+    // moins de ≈ 1 cm l'une de l'autre sont un même sujet : une tête sur un corps dont le col, ou une
+    // chemise aux traits très pâles, laisse un blanc ; une fenêtre à 1,5 cm au-dessus d'un lit reste
+    // un sujet à part. Les grandes parties ainsi liées sont fondues en une seule.
+    // (les parties portent déjà la marge de papier de chaque côté : ≈ 1 cm d'écart d'encre sur un A4)
+    const stackGap = 0.017 * Math.max(w, h);
+    const stacked = (a, b) => {
+      const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) + 1, mw = Math.min(a.x1 - a.x0, b.x1 - b.x0) + 1;
+      const gap = Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1) - 1;
+      return ox >= 0.5 * mw && gap <= stackGap;
+    };
+    parts.forEach((list) => {
+      const bigs = list.filter((c) => c.area >= big);
+      for (let i = 0; i < bigs.length; i++) for (let j = i + 1; j < bigs.length; j++) {
+        const a = bigs[i], b = bigs[j];
+        if (!stacked(a, b)) continue;
+        // b rejoint a (ses pixels prennent l'étiquette de a) ; a s'étend
+        for (let p = 0; p < n; p++) if (r3.labels[p] === b.id) r3.labels[p] = a.id;
+        a.area += b.area; a.x0 = Math.min(a.x0, b.x0); a.y0 = Math.min(a.y0, b.y0); a.x1 = Math.max(a.x1, b.x1); a.y1 = Math.max(a.y1, b.y1);
+        b.area = 0; bigs.splice(j, 1); j = i; // (a a grandi : on recompare a aux suivantes)
+      }
+      for (let i = list.length - 1; i >= 0; i--) if (!list[i].area) list.splice(i, 1);
+    });
     const split = new Set();
     parts.forEach((list, pa) => { if (list.filter((c) => c.area >= big).length >= 2) split.add(pa); });
     if (!split.size) return;

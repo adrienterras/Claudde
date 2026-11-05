@@ -141,7 +141,10 @@ cd collage && python3 -m http.server 8000
      ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet — sauf les
      **voisins qui ne se touchent pas** (`splitNeighbours` : chaque partie d'au moins ≈ 3 × 3 cm qui
      se détache des autres à ≈ 6,5 mm près devient un sujet à part, un personnage, son lit, une fenêtre ;
-     les petits détails, un chapeau, un rayon, restent avec la partie la plus proche) —, puis la coupe
+     les petits détails, un chapeau, un rayon, restent avec la partie la plus proche ; deux grandes
+     parties **empilées**, l'une au-dessus de l'autre et largement alignées en largeur, à moins de
+     ≈ 1 cm, restent un même sujet : une tête sur un corps dont le col, ou une chemise aux traits
+     très pâles, laisse un blanc) —, puis la coupe
      **suit le dessin au plus près**, à ≈ 3 mm : l'intérieur d'un contour fermé est gardé, mais les
      **creux ouverts** (entre deux jambes, entre un bras et le corps, entre deux rayons) sont découpés
      comme aux ciseaux, et les **poches** aussi : un espace blanc que seules les marges referment (entre

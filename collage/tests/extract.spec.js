@@ -384,6 +384,37 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.hat).toBe(r.who);
   });
 
+  test('une tête séparée du corps par un col blanc de 8 mm (chemise aux traits très pâles) reste un seul personnage ; une fenêtre à 1,5 cm au-dessus du lit reste à part', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1480, H = 2100, cm = H / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(251,250,246)'; x.fillRect(0, 0, W, H);
+      // la tête : disque orange cerné de noir ; sous elle, 8 mm de blanc, puis une chemise aux traits
+      // gris très clair (col, hachures), des bras ; puis un pantalon vert bien marqué
+      const cx = 520, top = 300;
+      x.lineWidth = 7; x.strokeStyle = 'rgb(26,26,26)'; x.fillStyle = 'rgb(232,160,96)';
+      x.beginPath(); x.arc(cx, top + 110, 110, 0, 7); x.fill(); x.stroke();
+      const y0 = top + 220 + 0.8 * cm;
+      x.strokeStyle = 'rgb(200,200,200)'; x.lineWidth = 3; x.strokeRect(cx - 150, y0, 300, 290);
+      x.strokeStyle = 'rgb(215,215,215)'; x.lineWidth = 2;
+      for (let k = -300; k < 300; k += 20) { x.beginPath(); x.moveTo(cx - 150 + k, y0); x.lineTo(cx - 150 + k + 290, y0 + 290); x.stroke(); }
+      x.strokeStyle = 'rgb(200,200,200)'; x.lineWidth = 3; x.strokeRect(cx - 290, y0 + 20, 140, 80); x.strokeRect(cx + 150, y0 + 20, 140, 80);
+      x.fillStyle = 'rgb(127,191,90)'; x.strokeStyle = 'rgb(26,26,26)'; x.lineWidth = 5;
+      [[cx - 130, y0 + 290], [cx + 10, y0 + 290]].forEach(([lx, ly]) => { x.fillRect(lx, ly, 120, 340); x.strokeRect(lx, ly, 120, 340); });
+      // le lit, à droite ; la fenêtre, à 1,5 cm au-dessus du lit, alignée avec lui
+      x.strokeStyle = 'rgb(120,80,40)'; x.lineWidth = 7; x.beginPath(); x.rect(1000, 1200, 400, 380); x.stroke();
+      x.strokeStyle = 'rgb(40,120,180)'; x.beginPath(); x.rect(1060, 1200 - 1.5 * cm - 260, 260, 260); x.stroke();
+      const a = Extract.analyze(c, 0, {});
+      const at = (px, py) => (a.pieces || []).findIndex((q) => px >= q.src.x && px < q.src.x + q.src.w && py >= q.src.y && py < q.src.y + q.src.h);
+      return { kind: a.kind, n: (a.pieces || []).length, head: at(cx, top + 110), legs: at(cx - 70, y0 + 460), bed: at(1200, 1400), win: at(1190, 1200 - 1.5 * cm - 130) };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.head).toBeGreaterThanOrEqual(0);
+    expect(r.legs).toBe(r.head); // la tête et le corps : un seul personnage
+    expect(r.bed).toBeGreaterThanOrEqual(0); expect(r.win).toBeGreaterThanOrEqual(0);
+    expect(r.win).not.toBe(r.bed); // la fenêtre reste un sujet à part
+    expect(r.n).toBe(3);
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

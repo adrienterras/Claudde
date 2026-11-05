@@ -46,7 +46,7 @@ test.describe('Interface', () => {
     expect(db.y).toBeLessThan(pb.y + 80);
   });
 
-  test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, sous l’invitation au compte sur téléphone ; l’œuvre est rangée dans Mes œuvres, sans confirmation', async ({ app }) => {
+  test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, en tête de l’étape Importer sur téléphone ; l’œuvre est rangée dans Mes œuvres, sans confirmation', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#new-work')).toBeHidden();
     await app.import(['page-cutout.png']);
@@ -57,10 +57,10 @@ test.describe('Interface', () => {
     const [b, imp] = await Promise.all([btn.boundingBox(), page.locator('#import-section').boundingBox()]);
     expect(b.y).toBeLessThan(imp.y);
     expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
-    // sur téléphone : dans l'étape Importer, juste après l'invitation au compte (affichée ou non)
+    // sur téléphone : en tête de l'étape Importer, juste sous son titre (sous les onglets)
     await page.setViewportSize({ width: 390, height: 844 });
     // (le déplacement suit le changement de taille d'écran : on l'attend)
-    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), c = document.getElementById('import-account'); return document.getElementById('import-section').contains(b) && c.nextElementSibling === b; })).toBe(true);
+    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), s = document.getElementById('import-section'); return s.contains(b) && s.querySelector('h2').nextElementSibling === b; })).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expect.poll(() => page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
     // rien ne se perd : pas de confirmation, l'atelier repart de zéro et l'œuvre reste dans Mes œuvres
