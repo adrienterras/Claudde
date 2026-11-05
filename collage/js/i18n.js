@@ -220,7 +220,7 @@
     'bois noir': 'black wood',
     'bois blanc': 'white wood',
     'Entrée': 'Hallway',
-    'Salle à manger': 'Dining room',
+    'Posé au sol': 'On the floor',
     'Pièce': 'Room',
     'Salon': 'Living room',
     'Chambre d’enfant': 'Child’s bedroom',

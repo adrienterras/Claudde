@@ -5285,11 +5285,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   placeScene();
   mobileQuery.addEventListener('change', placeScene);
   // « Commencer une nouvelle œuvre » : sur ordinateur, au-dessus du titre « 01 Importer » ; sur
-  // téléphone, dans l'étape Importer sous l'invitation au compte
+  // téléphone, en tête de l'étape Importer (juste sous son titre)
   function placeNewWork() {
-    const btn = $('new-work'), sec = $('import-section'), anchor = $('import-account');
+    const btn = $('new-work'), sec = $('import-section'), head = sec && sec.querySelector('h2');
     if (!btn || !sec) return;
-    if (mobileQuery.matches) { if (anchor && anchor.nextElementSibling !== btn) anchor.after(btn); }
+    if (mobileQuery.matches) { if (head && head.nextElementSibling !== btn) head.after(btn); }
     else if (sec.previousElementSibling !== btn) sec.before(btn);
   }
   placeNewWork();
