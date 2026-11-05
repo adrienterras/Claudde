@@ -55,7 +55,19 @@ jobs:
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: _site
-      - id: deployment
+      # Le service Pages met parfois plus de 10 min (le maximum accepté par l'action) : on retente
+      # une fois avant de déclarer l'échec. L'URL du site vient de la tentative qui a réussi.
+      - id: deploy1
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        continue-on-error: true
+        with:
+          timeout: 600000
+          error_count: 20
+      - id: deploy2
+        if: steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
         with:
-          timeout: 1200000 # 20 min : le service Pages dépasse parfois les 10 min par défaut
+          timeout: 600000
+          error_count: 20
+      - id: deployment
+        run: echo "page_url=${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}" >> "$GITHUB_OUTPUT"
