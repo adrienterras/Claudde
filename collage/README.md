@@ -42,10 +42,9 @@ cd collage && python3 -m http.server 8000
      pouvant avoir plusieurs découpes) et la surface
      qu'ils demandent ensemble (`printCover` : de 90 % à 140 % de l'affiche, ils se chevauchent et
      la remplissent à toute position du curseur) ; la pose reçoit ce nombre (`o.count`) sans
-     plafond de couverture ; jamais au-delà de leur taille réelle. Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
+     plafond de couverture ; agrandis s'il le faut pour remplir la surface, jusqu'à trois fois leur taille réelle sur un 30 × 40 (`PRINT_GROW_MAX`, plafond qui grandit avec le cadre : `printCap`). Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
      surface (`relaxItems`, relaxation de Lloyd pondérée par leur taille) ; puis, sauf Galerie,
-     Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, jamais
-     au-delà de la taille réelle des dessins) et ses positions étirées jusqu'aux bords (`fillFrame`). Dessins réduits
+     Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, dans la limite de `printCap`) et ses positions étirées jusqu'aux bords (`fillFrame`). Dessins réduits
      à moins de 60 % (`o.spread`) : Paysage abandonne les zones ciel / milieu / sol et la ligne
      de sol, les sujets se répartissent sur toute l'affiche, bien espacés. Les pages de fond ont
      leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se
@@ -671,8 +670,12 @@ cd collage && python3 -m http.server 8000
      de chaque carreau, les plus grandes sur les plus grands carreaux, les suivantes là où les pages
      ne couvrent pas la toile ; sans page de fond — atelier Impression, ou que des découpes — les
      découpes elles-mêmes font les carreaux : rangées pleine largeur, chaque pièce ajustée à sa
-     rangée sans jamais être agrandie, le nombre de rangées choisi pour remplir la hauteur),
-     *Galerie* (tableau imprimé seulement ; une grille régulière de cases carrées cernées d'un trait
+     rangée, le nombre de rangées choisi pour remplir la hauteur ; en tableau imprimé, la courtepointe
+     entière est agrandie d'un même facteur jusqu'à toucher la largeur ou la hauteur de l'œuvre),
+     *Galerie* (tableau imprimé seulement ; les plus beaux dessins d'abord : reconnus par Claude,
+     colorés, et surtout aux **découpes nettes et aux belles formes** — `neatness`, compacité du masque
+     4πA / P² et remplissage de sa boîte, de 0 à 1, pesée pour 3 dans la note, comme en Pop art — ;
+     une grille régulière de cases carrées cernées d'un trait
      fin de 0,8 mm, noir ou de la couleur choisie dans le nuancier du fond, un sujet
      par case, le nombre de cases suivant le curseur de densité, comme une planche de personnages
      encadrée ; ce style est fait pour l'impression : un dessin trop grand pour sa case est réduit,

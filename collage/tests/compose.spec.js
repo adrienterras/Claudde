@@ -20,6 +20,25 @@ test.describe('Compositions', () => {
     await expect(app.page.locator('#proposals .proposal.on')).toContainText('Paysage');
   });
 
+  test('Pop art et Galerie choisissent les plus beaux dessins : à importance et couleur égales, la découpe nette et pleine passe avant la découpe effilochée', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      // deux découpes de même taille et même couleur : un disque plein, et une étoile de mer effilochée
+      const mask = (fn) => { const n = 48, d = new Uint8Array(n * n); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) d[y * n + x] = fn((x + 0.5) / n - 0.5, (y + 0.5) / n - 0.5) ? 1 : 0; return { w: n, h: n, data: d }; };
+      const disc = mask((x, y) => x * x + y * y < 0.2);
+      const ragged = mask((x, y) => { const a = Math.atan2(y, x), r = Math.hypot(x, y); return r < 0.08 + 0.2 * Math.abs(Math.sin(a * 7)) * (0.5 + 0.5 * Math.abs(Math.sin(a * 23))); });
+      const mk = (id, hit) => { const cv = document.createElement('canvas'); cv.width = 48; cv.height = 48; return { canvas: cv, wcm: 12, hcm: 12, color: [200, 80, 80], colorful: 0.5, importance: 1, main: true, hit, drawing: { id } }; };
+      const A = mk(1, ragged), B = mk(2, disc);
+      const neat = [Compose.neatness(A), Compose.neatness(B)];
+      const base = { format: { w: 30, h: 40, auto: false }, scale: 1, density: 1, rotation: 8, everything: false, densityT: 0.3, flat: true, spread: false, count: 1, maxGrow: 1, ground: null, groundName: null, seed: 3, textures: [], pieces: [A, B] };
+      const pop = Compose.generate(Object.assign({}, base, { style: 'popart' }));
+      const gal = Compose.generate(Object.assign({}, base, { style: 'galerie' }));
+      return { neat, pop: pop.items.map((L) => L.piece.drawing.id), gal: gal.items.map((L) => L.piece.drawing.id) };
+    });
+    expect(r.neat[1]).toBeGreaterThan(r.neat[0] + 0.2); // le disque est bien plus net que l'étoile effilochée
+    expect(r.pop[0]).toBe(2);
+    expect(r.gal[0]).toBe(2);
+  });
+
   test('chaque style se sélectionne et se dessine ; la Galerie et le Pop art n’existent qu’en tableau imprimé', async ({ app }) => {
     const { page } = app;
     // collage : ni Galerie ni Pop art parmi les propositions (le Village n'est plus proposé du tout)

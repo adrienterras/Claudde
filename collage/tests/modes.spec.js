@@ -159,10 +159,11 @@ test.describe('Atelier Impression et atelier Toile', () => {
     });
     expect(r.W).toBe(29.7); expect(r.H).toBe(21);
     expect(r.all).toBe(true);
-    // jamais agrandis ; réduits seulement si nécessaire (les pièces d'essai, petites, tiennent presque)
-    expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThanOrEqual(1);
+    // réduits ou agrandis pour remplir la surface (au plus trois fois la taille réelle sur un 30 × 40,
+    // moins sur ce petit cadre) ; tout tient dans l'œuvre
+    expect(r.k).toBeGreaterThan(0.05); expect(r.k).toBeLessThanOrEqual(3 * Math.sqrt((29.7 * 21) / 1200) + 1e-6);
     expect(r.fits).toBe(true);
-    if (r.pieceCm) expect(r.pieceCm).toBeLessThan(r.sheetCm);
+    if (r.pieceCm) expect(r.pieceCm).toBeLessThanOrEqual(Math.max(r.W, r.H) + 1e-6);
     await expect(page.locator('#scale-info')).toHaveText('Impression de 29,7 × 21 cm, à la taille du cadre.');
     // fond uni : aucune page de fond, un aplat de couleur sur chaque proposition (blanc fixe en Galerie),
     // la page peinte importée est devenue une découpe, et le rôle « fond » n'est plus proposé
@@ -427,7 +428,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#canvas-orient [data-orient="port"]')).toHaveClass(/on/); // toute nouvelle création part en portrait
     await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
-    // un scan A4 à 300 dpi, seul, dans le cadre 70 × 50 : il garderait de la place, mais reste à sa taille
+    // un scan A4 à 300 dpi, seul : agrandi pour remplir la surface (jusqu'à trois fois sa taille réelle)
     await page.setInputFiles('#file', [fixture('scan-300dpi.jpg')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.evaluate(() => { const d = document.getElementById('density'); d.value = d.min; d.dispatchEvent(new Event('change')); });
@@ -445,10 +446,12 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(after.W).toBe(70);
     expect(after.items.length).toBe(before.items.length);
     before.items.forEach(([x, y, w], i) => { expect(after.items[i][0]).toBeCloseTo(x, 3); expect(after.items[i][1]).toBeCloseTo(y, 3); expect(after.items[i][2]).toBeCloseTo((w * before.W * Math.sqrt((70 / before.W) * (50 / before.H))) / 70, 3); });
-    // les autres propositions, recomposées pour ce cadre : au plus ce même agrandissement
+    // les autres propositions, recomposées pour ce cadre : le dessin remplit la surface, agrandi au plus
+    // trois fois sa taille réelle (le plafond d'impression), et au-delà de l'agrandissement du cadre seul
     const over = await page.evaluate(() => { const S = AtelierGribouille.state; return S.proposals.filter((p) => p.comp !== S.comp).flatMap((p) => p.comp.items.map((L) => { const c = L.piece.drawing.sizeCm / L.piece.drawing.srcLong; return Math.max(L.w / (L.piece.canvas.width * c), L.h / (L.piece.canvas.height * c)); })); });
     expect(over.length).toBeGreaterThan(0);
-    for (const r of over) expect(r).toBeLessThanOrEqual(grow + 0.001);
+    for (const r of over) expect(r).toBeLessThanOrEqual(3 * grow * 1.6 + 0.001);
+    expect(Math.max(...over)).toBeGreaterThan(1);
     // « Nouvelles propositions » : les dessins gardent la taille qu'ils ont sur l'œuvre agrandie
     await page.locator('#generate').click();
     await page.waitForTimeout(400);

@@ -2426,10 +2426,13 @@
   // retenus (les plus forts d'abord, autant que le curseur en demande, comme à la pose) doivent couvrir
   // la part de l'affiche que le curseur fixe ; plus on demande de dessins, plus ils sont réduits, et le
   // nombre posé grandit pas à pas. Jamais agrandis au-delà de printCap.
-  // Tableau imprimé : jusqu'au 30 × 40, les dessins ne dépassent pas leur taille réelle ; un cadre plus
-  // grand les laisse grandir d'autant (la racine du rapport des surfaces) : une proposition sur un
-  // 70 × 100 est celle d'un 30 × 40 en plus grand, comme l'œuvre agrandie par le choix du cadre
-  const printCap = () => (state.canvasSize ? Math.max(1, Math.sqrt((state.canvasSize.w * state.canvasSize.h) / 1200)) : 1);
+  // Tableau imprimé : les dessins sont agrandis autant qu'il faut pour remplir la surface (peu de
+  // dessins : ils grandissent, jusqu'à trois fois leur taille réelle sur un 30 × 40 ; la qualité
+  // d'impression le signale s'ils deviennent flous) ; un cadre plus grand les laisse grandir d'autant
+  // (la racine du rapport des surfaces, plafond compris) : une proposition sur un 70 × 100 est celle
+  // d'un 30 × 40 en plus grand, comme l'œuvre agrandie par le choix du cadre
+  const PRINT_GROW_MAX = 3; // sur le 30 × 40 de référence
+  const printCap = () => (state.canvasSize ? PRINT_GROW_MAX * Math.sqrt((state.canvasSize.w * state.canvasSize.h) / 1200) : 1);
   // Affiche : nombre de découpes posées pour une position du curseur. Le curseur est linéaire et
   // compte tous les dessins, pages de fond comprises (toujours posées) : à mi-course, la moitié des
   // dessins est sur l'œuvre, comme l'indique « N sur M » ; en bas, les pages et une découpe ; en

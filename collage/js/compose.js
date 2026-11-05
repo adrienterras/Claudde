@@ -554,6 +554,12 @@
       });
       if (!best || area > best.area * 1.02) best = { area, layout };
     }
+    // tableau imprimé (o.count) et peu de dessins : la courtepointe est agrandie d'un même facteur
+    // jusqu'à toucher la largeur ou la hauteur de l'œuvre
+    if (o.count) {
+      const g = Math.min(W / Math.max(1e-6, ...best.layout.map((l) => l.sw)), H / Math.max(1e-6, best.layout.reduce((a, l) => a + l.h, 0)));
+      if (g > 1.001) best.layout.forEach((l) => { l.f *= g; l.sw *= g; l.h *= g; });
+    }
     // les rangées réparties sur la hauteur, les pièces sur la largeur, l'air partagé également
     const items = [];
     const totalH = best.layout.reduce((a, l) => a + l.h, 0);
@@ -998,9 +1004,34 @@
     return best;
   }
 
+  /*
+   * Netteté de la découpe, de 0 à 1 : une forme pleine et bien fermée (un soleil, une maison, un
+   * personnage bien rempli) vaut 1, une découpe effilochée, pleine de pointes ou de trous, moins.
+   * Compacité du masque (4πA / P², 1 pour un disque) et remplissage de sa boîte, mesurés une fois.
+   */
+  function neatness(p) {
+    if (p.neat !== undefined) return p.neat;
+    const hm = p.hit;
+    if (!hm || !hm.data || !hm.w || !hm.h) return (p.neat = 0.5);
+    const w = hm.w, h = hm.h, d = hm.data;
+    let A = 0, P = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (!d[y * w + x]) continue;
+        A++;
+        if (!x || !y || x === w - 1 || y === h - 1 || !d[y * w + x - 1] || !d[y * w + x + 1] || !d[(y - 1) * w + x] || !d[(y + 1) * w + x]) P++;
+      }
+    }
+    if (!A || !P) return (p.neat = 0);
+    const compact = Math.min(1, (4 * Math.PI * A) / (P * P) * 1.4); // (un disque tramé vaut ~0,7 : ramené à 1)
+    const fill = A / (w * h);
+    p.neat = Math.min(1, 0.7 * compact + 0.3 * Math.min(1, fill * 1.6));
+    return p.neat;
+  }
   function gallery(W, H, pieces, o, R, texs) {
     const M = 3;
-    const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0)
+    // les plus beaux dessins : reconnus par Claude, colorés, et surtout aux découpes nettes, aux belles formes
+    const beauty = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 1 : 0) + neatness(p) * 3
       + (p.hcm / p.wcm >= 0.8 && p.hcm / p.wcm <= 2.4 ? 0.6 : 0) + Math.min(1, (p.wcm * p.hcm) / 600) * 0.5;
     // un sujet par dessin : le meilleur de chaque ; les pages de fond entrent aussi, entières, dans leur case
     const byDrawing = new Map();
@@ -1500,7 +1531,8 @@
    */
   const POP = ['#ff4f9a', '#ffd23f', '#2bb5ff', '#7cdb4a', '#ff7a1a', '#9b5cff', '#1fc8c8', '#ff3b3b', '#ffe8a3', '#3a4fd8'];
   function popart(W, H, o, R) {
-    const score = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 0.5 : 0) + Math.min(1, (p.wcm * p.hcm) / 400) * 0.5;
+    // les plus beaux dessins : reconnus par Claude, colorés, et surtout aux découpes nettes, aux belles formes
+    const score = (p) => (p.importance || 1) * 2 + (p.colorful || 0) * 2 + (p.main ? 0.5 : 0) + neatness(p) * 3 + Math.min(1, (p.wcm * p.hcm) / 400) * 0.5;
     const byDrawing = new Map();
     o.pieces.forEach((p) => { const d = p.drawing || p; if (!byDrawing.has(d) || score(p) > score(byDrawing.get(d))) byDrawing.set(d, p); });
     const cands = [...byDrawing.values()].sort((a, b) => score(b) - score(a));
@@ -2110,5 +2142,5 @@
     return hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)] === 1;
   }
 
-  window.Compose = { colorPatches, skyness, galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
+  window.Compose = { neatness, colorPatches, skyness, galleryCount, galleryGrid, galleryShape, squareGrid, generate, addPiece, renderBg, renderGround, renderItems, drawLayer, toned, autoTone, setTone, hitItem, rng, paperLayer };
 })();
