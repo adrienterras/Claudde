@@ -898,8 +898,13 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
 .scene-card { width: min(1180px, 100%); max-height: calc(100vh - 40px); }
 .scene-modal .acc-title { margin: 0; }
 .scene-modal .scene-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
-/* les trois pièces sur une ligne : chaque bouton prend la place de son libellé */
+/* les pièces : chaque bouton prend la place de son libellé ; s'il manque de place, passage à la ligne */
+.scene-room { flex-wrap: wrap; }
 .scene-room button { flex: 1 1 auto; white-space: nowrap; padding: 5px 6px; }
+/* dans la fenêtre (colonne de 300 px), les quatre pièces en deux rangées de deux ; en toile (trois
+   pièces, l'entrée n'y est pas), la troisième prend la rangée du bas */
+.scene-modal .scene-room { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-radius: 20px; }
+body.mode-toile .scene-modal .scene-room [data-room="salle"] { grid-column: 1 / -1; }
 /* le bouton de téléchargement tient sur une ligne dans la colonne des réglages (iPad, petit écran) */
 /* « Commander l'œuvre » : dans la fenêtre seulement (sur téléphone, le bouton flottant s'en charge) */
 .scene-order { display: none; }
