@@ -172,11 +172,11 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#exports-box')).toBeVisible();
     await expect(page.locator('#exports-list .saved')).toHaveCount(1);
     await expect(page.locator('#exports-list .saved-meta')).toContainText('JPEG');
-    // déconnecté, l'œuvre s'enregistre toujours sur l'appareil, et « Dupliquer » ne demande pas de compte
+    // déconnecté, l'œuvre s'enregistre toujours sur l'appareil, et « Figer » ne demande pas de compte
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
     await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#save-status')).toContainText('ajoutée à Mes œuvres');
+    await expect(page.locator('#save-status')).toContainText('figée dans Mes œuvres');
     await expect(page.locator('#account-section')).toBeHidden();
   });
 

@@ -171,7 +171,7 @@
   // from, count : une page de la liste, des plus récentes aux plus anciennes (sans count : toute la liste)
   async function cloudList(from, count) {
     let q = client.from('compositions')
-      .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format')
+      .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, frozen:meta->>frozen, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format')
       .is('meta->>cart', null).order('created_at', { ascending: false });
     if (count) q = q.range(from || 0, (from || 0) + count - 1);
     const { data, error } = await q;
@@ -182,7 +182,7 @@
       return {
         id: `cloud:${row.id}`, workId: row.id, name: row.name, date: row.date || m.date || row.created_at, thumb: row.thumb, cloud: true,
         comp: { style: row.style || c.style, W: Number(row.W || c.W) || 0, H: Number(row.H || c.H) || 0 }, nDrawings: n,
-        ordered: !!(row.ordered || m.ordered) || ORDER_NAME.test(row.name || ''), legacyDraft: !!(row.draft || m.draft), device: row.device || m.device || null,
+        ordered: !!(row.ordered || m.ordered) || ORDER_NAME.test(row.name || ''), frozen: !!(row.frozen || m.frozen), legacyDraft: !!(row.draft || m.draft), device: row.device || m.device || null,
         settings: { mode: row.mode || (m.settings && m.settings.mode) || null, format: row.format || (m.settings && m.settings.format) || null },
       };
     });
@@ -345,6 +345,7 @@
       drawings.push(Object.assign({}, d, { data: undefined, ref: undefined, file, saved }));
     }
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length, work: true, print: rec.print || null, workName: rec.workName || null, device: rec.device || null };
+    if (rec.frozen) meta.frozen = true; // œuvre figée (voir freezeWork dans app.js) : rouverte en copie
     const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);
     err(e0);
     const old = (rows || [])[0];

@@ -5991,7 +5991,7 @@ Réponds uniquement avec ce JSON :
     let rec = null;
     try { rec = await restoreComposition(fromCloud ? cloud.id : localId, anchor); } finally { state.resuming = false; }
     if (!rec || !state.comp) { renderSaved(); return; }
-    if (entry.ordered) { beginCopy(rec); return; }
+    if (entry.ordered || entry.frozen) { beginCopy(rec); return; }
     const id = UUID.test(entry.workId) ? entry.workId : newWorkId();
     setWork(id, rec.workName || rec.name, rec.date);
     if (fromCloud) setSeen(id, cloud.date);
@@ -6010,23 +6010,26 @@ Réponds uniquement avec ce JSON :
     workStatus();
     selectTab('compose-section');
   }
-  // « Dupliquer » : une copie de l'œuvre affichée rejoint Mes œuvres ; on reste sur l'œuvre
-  async function duplicateWork() {
-    if (!state.comp || !state.drawings.length || onlySamples()) { saveStatus(tr('Importez des dessins et choisissez une proposition avant de dupliquer l’œuvre.')); return; }
-    window.Atelier.track('Dupliquer');
-    saveStatus(tr('Copie de l’œuvre…'));
+  // « Figer » : l'œuvre affichée, telle qu'elle est, rejoint Mes œuvres comme une nouvelle œuvre figée
+  // (étiquette « figée », rouverte en copie comme une œuvre commandée) ; on reste sur l'œuvre en cours,
+  // qui continue de s'enregistrer sous son identité à elle : les changements qui suivent ne touchent
+  // plus la version figée
+  async function freezeWork() {
+    if (!state.comp || !state.drawings.length || onlySamples()) { saveStatus(tr('Importez des dessins et choisissez une proposition avant de figer l’œuvre.')); return; }
+    window.Atelier.track('Figer');
+    saveStatus(tr('Enregistrement de l’œuvre figée…'));
     try {
-      const rec = await snapshotComposition(tr`${workTitle()} (copie)`, { refs: true });
+      const rec = await snapshotComposition(workTitle(), { refs: true });
       const id = newWorkId();
-      Object.assign(rec, { id, workId: id, work: true, workName: rec.name, device: phone() ? 'phone' : 'computer' });
+      Object.assign(rec, { id, workId: id, work: true, frozen: true, workName: rec.name, device: phone() ? 'phone' : 'computer' });
       rec.print = printOf(rec);
       await dbPut(rec);
       cloudQueue.push(rec); syncCloud();
-      saveStatus(tr`Copie « ${rec.name} » ajoutée à Mes œuvres.`);
+      saveStatus(tr`Œuvre « ${rec.name} » figée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
       renderSaved();
     } catch (e) {
       console.error(e);
-      saveStatus(tr`La copie a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
+      saveStatus(tr`Figer l’œuvre a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
     }
   }
 
@@ -6198,7 +6201,7 @@ Réponds uniquement avec ce JSON :
       const here = !!(draft && draft.drawings && draft.drawings.length) || (state.drawings.length > 0 && !onlySamples());
       const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
       if (!here && !fresh && lsGet(NEW_KEY) !== '1' && !state.drawings.length) {
-        const latest = cloudWorks.filter((c) => !c.ordered).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        const latest = cloudWorks.filter((c) => !c.ordered && !c.frozen).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         if (latest) { await openWork({ workId: latest.workId, cloud: latest }); return; }
       }
       // l'ancienne œuvre en cours d'ici et celle du compte (d'avant « Mes œuvres ») ne font qu'une
@@ -6575,6 +6578,7 @@ Réponds uniquement avec ce JSON :
       const info = e.cloud && (!e.local || new Date(e.cloud.date) > new Date(e.local.date)) ? e.cloud : e.local;
       return Object.assign(e, {
         info, current: shown && e.workId === state.workId, ordered: !!(e.cloud && e.cloud.ordered),
+        frozen: !!((e.cloud && e.cloud.frozen) || (e.local && e.local.frozen)),
         nDrawings: info.nDrawings !== undefined ? info.nDrawings : info.drawings.length,
       });
     });
@@ -6605,6 +6609,7 @@ Réponds uniquement avec ce JSON :
     const tags = [
       e.current ? `<span class="saved-tag on">${tr('en cours')}</span>` : '',
       e.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '',
+      e.frozen && !e.ordered ? `<span class="saved-tag">${tr('figée')}</span>` : '',
       signed && !e.cloud && !e.current ? `<span class="saved-tag">${tr('sur cet appareil')}</span>` : '',
     ].join('');
     // le type d'œuvre (une œuvre d'avant les deux ateliers : imprimée si elle est sur un cadre)
@@ -6911,7 +6916,7 @@ Réponds uniquement avec ce JSON :
     return rec;
   }
 
-  $('save-comp').onclick = duplicateWork;
+  $('save-comp').onclick = freezeWork;
   renderSaved();
   if (mobileQuery.matches && !state.drawings.length) setStageFull(true); // téléphone : à l'arrivée, l'accueil vide prend tout l'écran
   resumeDraft();
@@ -7835,7 +7840,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, duplicateWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

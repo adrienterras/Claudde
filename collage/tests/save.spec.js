@@ -44,7 +44,7 @@ test.describe('Réouverture sur un appareil plus petit', () => {
 });
 
 test.describe('Mes œuvres', () => {
-  test('rangée par « nouvelle œuvre », rouverte après rechargement : la mise en place est identique ; dupliquer, supprimer', async ({ app }) => {
+  test('rangée par « nouvelle œuvre », rouverte après rechargement : la mise en place est identique ; figer, supprimer', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png']);
     await app.select('tournesol');
@@ -92,15 +92,16 @@ test.describe('Mes œuvres', () => {
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
 
-    // « Dupliquer » : une copie rejoint Mes œuvres, on reste sur l'œuvre
+    // « Figer » : une œuvre figée rejoint Mes œuvres (même nom, étiquette « figée »), on reste sur l'œuvre
     await openStep(page, 'export-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#save-status')).toContainText('ajoutée à Mes œuvres');
+    await expect(page.locator('#save-status')).toContainText('figée dans Mes œuvres');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
-    await expect(page.locator('#saved-list .saved:not(.current) .saved-name')).toContainText('(copie)');
+    await expect(page.locator('#saved-list .saved:not(.current) .saved-tag')).toHaveText('figée');
+    await expect(page.locator('#saved-list .saved:not(.current) .saved-name')).not.toContainText('(copie)');
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
 
-    // suppression en deux temps : l'œuvre affichée supprimée laisse la place à une nouvelle, la copie reste
+    // suppression en deux temps : l'œuvre affichée supprimée laisse la place à une nouvelle, l'œuvre figée reste
     const del = page.locator('#saved-list .saved.current .saved-del');
     await del.click();
     await expect(del).toContainText('Supprimer ?');
@@ -108,12 +109,13 @@ test.describe('Mes œuvres', () => {
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
     await expect(page.locator('#empty')).toBeVisible();
-    // la copie se rouvre telle quelle
+    // l'œuvre figée se rouvre telle quelle (en copie : elle reste intacte)
     await expect(page.locator('#saved-status')).toBeHidden(); // (le message de la réouverture d'avant est parti)
     await page.locator('#saved-list .saved').first().click();
     await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
     await page.waitForFunction(() => AtelierGribouille.state.comp && AtelierGribouille.state.drawings.length === 5 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.items[0].x)).toBeCloseTo(before.first[0], 3);
+    expect(await page.evaluate(() => AtelierGribouille.state.copyOf)).toBe(true);
     await page.locator('#saved-list .saved .saved-del').click();
     await page.locator('#saved-list .saved .saved-del').click();
     await expect(page.locator('#saved-list .saved')).toHaveCount(0);
@@ -149,7 +151,49 @@ test.describe('Mes œuvres', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.workName)).toBe('Les vacances à la mer');
   });
 
-  test('sans dessin, « Dupliquer » explique quoi faire', async ({ app }) => {
+  test('figer : la version figée ne bouge plus quand l’œuvre en cours change, et se rouvre en copie', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await waitDraft(page);
+    const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
+    await openStep(page, 'export-section');
+    await page.locator('#save-comp').click();
+    await expect(page.locator('#save-status')).toContainText('figée dans Mes œuvres');
+    await openStep(page, 'saved-section');
+    const frozen = page.locator('#saved-list .saved:not(.current)');
+    await expect(frozen).toHaveCount(1);
+    await expect(frozen.locator('.saved-tag')).toHaveText('figée');
+    const metaBefore = await frozen.locator('.saved-meta').textContent();
+    const workId = await page.evaluate(() => AtelierGribouille.state.workId);
+    // l'œuvre en cours change de proposition : elle s'enregistre sous son identité, la version figée reste
+    await page.evaluate(() => AtelierGribouille.selectProposal(AtelierGribouille.state.proposals.findIndex((p) => p.style.id !== AtelierGribouille.state.comp.style)));
+    await expect.poll(() => page.evaluate(() => AtelierGribouille.state.comp.style)).not.toBe(style0);
+    await expect.poll(() => page.evaluate(() => AtelierGribouille.state.workId)).toBe(workId);
+    // (le brouillon se réécrit 2,5 s après le changement)
+    const readRecs = () => page.evaluate(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').getAll(); g.onsuccess = () => res(g.result.filter((r) => r.drawings && r.drawings.length).map((r) => ({ id: r.id, frozen: !!r.frozen, style: r.comp.style }))); }; }));
+    await expect.poll(async () => (await readRecs()).find((r) => !r.frozen).style, { timeout: 20000 }).not.toBe(style0);
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    const recs = await readRecs();
+    const fr = recs.find((r) => r.frozen), cur = recs.find((r) => !r.frozen);
+    expect(fr.style).toBe(style0);
+    expect(cur.style).not.toBe(style0);
+    expect(cur.id).toBe('brouillon');
+    expect(await frozen.locator('.saved-meta').textContent()).toBe(metaBefore);
+    // rouverte, l'œuvre figée vient en copie : l'original reste dans la liste, intact
+    await frozen.click();
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
+    expect(await page.evaluate(() => AtelierGribouille.state.copyOf)).toBe(true);
+    expect(await page.evaluate(() => AtelierGribouille.state.workName)).toMatch(/\(copie\)$/);
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
+    await expect(page.locator('#saved-list .saved-tag', { hasText: 'figée' })).toHaveCount(1);
+  });
+
+  test('sans dessin, « Figer » explique quoi faire', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#export-section')).toBeHidden();
     await page.evaluate(() => document.getElementById('save-comp').click());

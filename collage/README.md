@@ -383,10 +383,13 @@ cd collage && python3 -m http.server 8000
      œuvres », onglet Compte sur téléphone) montre l'œuvre affichée en tête (« en cours »), puis les
      autres de la plus récente à la plus ancienne (« commandée », « sur cet appareil » : pas encore
      dans le compte) ; un toucher rouvre une œuvre telle quelle, sans nouvelle analyse, la version la
-     plus récente l'emportant (celle du navigateur si elle est à jour : rien à télécharger). « Dupliquer
-     cette œuvre » (étape Exporter) en ajoute une copie à la liste, sans compte. Une œuvre commandée,
-     ou un article du panier « revu », se rouvre en copie (`beginCopy`) : elle ne devient une nouvelle
-     œuvre qu'au premier changement, la commande reste telle quelle. Une œuvre rouverte reste épinglée
+     plus récente l'emportant (celle du navigateur si elle est à jour : rien à télécharger). « Figer cette
+     œuvre » (étape Exporter, `freezeWork`) ajoute à la liste, sans compte, une nouvelle œuvre figée :
+     l'œuvre telle qu'elle est à cet instant, sous son nom, étiquetée « figée » ; on reste sur l'œuvre
+     en cours, qui continue de s'enregistrer sous sa propre identité, et les changements qui suivent ne
+     touchent plus la version figée. Une œuvre figée, une œuvre commandée ou un article du panier
+     « revu » se rouvrent en copie (`beginCopy`) : la copie ne devient une nouvelle œuvre qu'au premier
+     changement, l'original reste tel quel. Une œuvre rouverte reste épinglée
      jusqu'à « nouvelles propositions » ou un changement de réglage. Les pièces
      rouvertes sont rebâties depuis la page et les masques sauvegardés (`restoreAnalysis`), jamais
      redécoupées : une découpe automatique améliorée entre-temps ne change pas une œuvre déjà faite
