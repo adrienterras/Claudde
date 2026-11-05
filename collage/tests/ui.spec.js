@@ -1811,6 +1811,39 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
   });
 });
 
+test.describe('Salle à manger', () => {
+  test('l’œuvre est posée au sol, adossée au banc : son bas sur la ligne du sol, centrée, quel que soit le cadre ; la vue en 4 : 3', async ({ app }) => {
+    const { page } = app;
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Compose);
+    await app.import(['page-cutout.png']);
+    await page.locator('#scene-open').click();
+    await expect(page.locator('#scene-modal')).toBeVisible();
+    await page.locator('#scene-room [data-room="salle"]').click();
+    await expect(page.locator('#scene-room [data-room="salle"]')).toHaveClass(/on/);
+    // la pièce est peinte (sa photo se charge en différé) : du parquet, clair et chaud, en bas au milieu
+    const parquet = (c) => c[0] > 120 && c[0] > c[2] + 20;
+    const look = () => page.locator('#scene-canvas').evaluate((cv) => {
+      const x = cv.getContext('2d');
+      const col = (X, Y) => { const d = x.getImageData(Math.round(X), Math.round(Y), 1, 1).data; return [d[0], d[1], d[2]]; };
+      // sur la colonne centrale, en remontant depuis le bas : la dernière ligne sombre (le bas du cadre noir)
+      let yBottom = -1;
+      for (let Y = cv.height - 1; Y > 0; Y--) { const [r, g, b] = col(cv.width * 0.5, Y); if (Math.max(r, g, b) < 60) { yBottom = Y; break; } }
+      return { w: cv.width, h: cv.height, yBottom, bottom: col(cv.width * 0.5, cv.height - 2), floorBelow: yBottom > 0 ? col(cv.width * 0.5, Math.min(cv.height - 1, yBottom + cv.height * 0.06)) : null };
+    });
+    await expect.poll(async () => parquet((await look()).bottom), { timeout: 30000 }).toBe(true);
+    const c = await look();
+    expect(Math.abs(c.w / c.h - 4 / 3)).toBeLessThan(0.02);
+    // le bas du cadre noir sur le sol : sous l'œuvre, la dernière ligne sombre est la baguette du cadre,
+    // dans la moitié basse de la vue, et 6 % plus bas c'est du parquet
+    for (const fmt of ['cadre:30x40', 'cadre:50x70']) {
+      await page.evaluate((v) => { const f = document.getElementById('scene-format'); f.value = v; f.dispatchEvent(new Event('change')); }, fmt);
+      await expect.poll(async () => { const r = await look(); return r.yBottom > r.h * 0.5 && r.yBottom < r.h * 0.95 && !!r.floorBelow && parquet(r.floorBelow); }, { timeout: 30000 }).toBe(true);
+    }
+    await page.keyboard.press('Escape');
+  });
+});
+
 test.describe('Mettre en scène', () => {
   // l'œuvre accrochée dans le salon : toile pour un collage, tableau encadré pour une impression,
   // toujours à la même échelle que la pièce (3,9 px de la photo par centimètre)
@@ -1877,6 +1910,11 @@ test.describe('Mettre en scène', () => {
         await page.evaluate(() => { localStorage.setItem('atelier.piece', 'hall'); document.querySelector('#scene-room [data-room="salon"]').click(); localStorage.setItem('atelier.piece', 'hall'); });
         await page.locator('#scene-room [data-room="chambre"]').click();
         await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
+        // la salle à manger existe aussi pour un collage (la toile posée au sol)
+        await page.locator('#scene-room [data-room="salle"]').click();
+        await expect(page.locator('#scene-room [data-room="salle"]')).toHaveClass(/on/);
+        expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('salle');
+        await page.locator('#scene-room [data-room="chambre"]').click();
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
         // collage : dans la fenêtre, ni taille ni orientation (elles se règlent dans la section Tailles) ; l'image est grande

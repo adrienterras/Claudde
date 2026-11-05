@@ -3157,9 +3157,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // ---------- Scène ----------
 
-  // Deux pièces où accrocher l'œuvre, vues de face : sur le plan du mur, l'échelle est la même
-  // partout. L'œuvre y est accrochée à sa taille réelle : encadrée pour un tableau imprimé, en toile
-  // pour un collage avec les originaux ; la lumière du mur (soleil, ombres) se pose aussi sur elle.
+  // Des pièces où montrer l'œuvre, vues de face : sur le plan du mur (ou du meuble contre lequel
+  // elle est posée), l'échelle est la même partout. L'œuvre y est à sa taille réelle : encadrée pour un
+  // tableau imprimé, en toile pour un collage avec les originaux ; la lumière de la pièce (soleil,
+  // ombres), quand elle est cartographiée, se pose aussi sur elle.
   const SCENES = {
     // le salon : une photo, échelle estimée d'après les meubles (buffet de 2,30 m et 46 cm de haut,
     // lampe de 45 cm, vase de 38 cm) : 3,9 px par cm ; la plante détourée passe devant l'œuvre
@@ -3196,6 +3197,17 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       minBottom: 95, // 20 cm au-dessus de la console
       obstacles: [{ x0: 185, x1: 375, top: 119 }, { x0: 755, x1: 965, top: 94 }],
       top: 221,
+    },
+    // la salle à manger : une photo en hauteur (table laquée, banc en acier, parquet) ; l'œuvre n'est
+    // pas accrochée mais posée au sol, adossée au banc, centrée entre ses deux pieds. Échelle calée
+    // sur un cadre 50 × 70 photographié à cet endroit (366 × 519 px pour 53 × 73 cm) : 7 px par cm.
+    // La vue est cadrée en 4 : 3 autour de l'œuvre (la photo est plus haute) ; pas de carte de lumière.
+    salle: {
+      src: 'assets/salle.webp',
+      w: 1086, h: 1448, pxPerCm: 7, floorY: 1017, centerX: 554, aspect: 4 / 3,
+      floor: true, // posée au sol
+      minBottom: 0, obstacles: [],
+      top: 145,
     },
   };
   // la chambre d'enfant d'abord ; l'entrée n'est proposée qu'en tableau imprimé (pas pour un collage)
@@ -5107,25 +5119,29 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     // le téléchargement a un format fixe (2000 × 1500) : la photo s'y ajuste à une fraction de pixel près
     // spec.fill (le panier) : l'image prend la taille du canevas affiché, cadrée plus près du mur
-    const k = S.pxPerCm, aspect = out ? out.canvas.width / out.canvas.height : spec.fill && cv.clientHeight ? cv.clientWidth / cv.clientHeight : S.w / S.h;
+    const k = S.pxPerCm, aspect = out ? out.canvas.width / out.canvas.height : spec.fill && cv.clientHeight ? cv.clientWidth / cv.clientHeight : S.aspect || S.w / S.h;
     // hauteur d'accrochage : centre à hauteur de regard (150 cm) pour une petite œuvre, un peu plus
     // bas (135 cm) pour une grande qui descend vers le meuble ; le bas reste au moins 20 cm au-dessus
-    // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux
+    // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux.
+    // Posée au sol (S.floor) : le bas de l'œuvre sur la ligne du sol, quelle que soit sa taille.
     const ax = S.centerX;
     const half = (Wo / 2) * k;
     const bottom = S.obstacles.reduce((m, o) => (ax + half > o.x0 && ax - half < o.x1 ? Math.max(m, o.top + 10) : m), S.minBottom);
     const eye = Ho <= 60 ? 150 : Ho >= 100 ? 135 : 150 - ((Ho - 60) * 15) / 40;
-    let mid = Math.max(eye, bottom + Ho / 2);
-    if (mid + Ho / 2 > S.top - 6) mid = Math.max(bottom + Ho / 2, S.top - 6 - Ho / 2);
+    let mid = S.floor ? Ho / 2 : Math.max(eye, bottom + Ho / 2);
+    if (!S.floor && mid + Ho / 2 > S.top - 6) mid = Math.max(bottom + Ho / 2, S.top - 6 - Ho / 2);
     // cadrage : l'œuvre, le buffet et un peu de sol ; plus large pour une grande œuvre
     const top = mid + Ho / 2 + 15;
+    // (jamais plus large que la photo : la salle à manger, photographiée en hauteur, fait 155 cm de large)
     const viewW = spec.fill
       ? Math.min(Math.max(2.2 * Wo, 150), Math.min(S.w, S.h * aspect) / k)
-      : clamp(Math.max(3 * Wo, 260), 260, S.w / k);
+      : Math.min(Math.max(3 * Wo, 260), S.w / k);
     const sw = viewW * k, sh = sw / aspect;
     const ay = S.floorY - mid * k; // centre de l'œuvre, en pixels de la photo
     const sx = clamp(ax - sw / 2, 0, S.w - sw);
-    const sy = clamp(Math.min(S.floorY + 20 * k - sh, S.floorY - top * k), 0, S.h - sh);
+    // (posée au sol : toujours au moins 6 cm de sol sous l'œuvre, même pour un très grand cadre)
+    const syWant = Math.min(S.floorY + 20 * k - sh, S.floorY - top * k);
+    const sy = clamp(S.floor ? Math.max(syWant, S.floorY + 6 * k - sh) : syWant, 0, S.h - sh);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = out ? out.width : Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
@@ -5136,12 +5152,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const q = W / sw; // pixels du canevas par pixel du salon
     const pc = k * q; // pixels du canevas par centimètre
     const ox = (ax - sx) * q - (Wo / 2) * pc, oy = (ay - sy) * q - (Ho / 2) * pc;
-    // ombre portée sur le mur, la lumière vient de la fenêtre à gauche
+    // ombre portée sur le mur, la lumière vient de la fenêtre à gauche ; posée au sol : une ombre
+    // douce et large au pied de l'œuvre et derrière elle
     x.save();
-    x.shadowColor = 'rgba(45, 32, 20, 0.38)';
-    x.shadowBlur = (framed ? 1.2 : paper ? 0.6 : 2.6) * pc;
-    x.shadowOffsetX = (framed ? 0.5 : paper ? 0.2 : 1.4) * pc;
-    x.shadowOffsetY = (framed ? 0.9 : paper ? 0.4 : 2) * pc;
+    x.shadowColor = S.floor ? 'rgba(40, 28, 16, 0.5)' : 'rgba(45, 32, 20, 0.38)';
+    x.shadowBlur = (S.floor ? 2.4 : framed ? 1.2 : paper ? 0.6 : 2.6) * pc;
+    x.shadowOffsetX = (S.floor ? 0.3 : framed ? 0.5 : paper ? 0.2 : 1.4) * pc;
+    x.shadowOffsetY = (S.floor ? 0.7 : framed ? 0.9 : paper ? 0.4 : 2) * pc;
     x.fillStyle = '#000';
     x.fillRect(ox, oy, Wo * pc, Ho * pc);
     x.restore();
@@ -5206,13 +5223,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.beginPath(); x.moveTo(ix + Pw * pc, iy); x.lineTo(ix + Pw * pc, iy + Ph * pc); x.lineTo(ix, iy + Ph * pc); x.stroke();
     }
     // la lumière de la pièce sur l'œuvre : soleil, ombres des feuilles, teinte chaude du mur
-    const lr = light.naturalWidth / S.w;
-    x.save();
-    x.beginPath(); x.rect(ox, oy, Wo * pc, Ho * pc); x.clip();
-    x.globalCompositeOperation = 'multiply';
-    x.globalAlpha = 0.75;
-    x.drawImage(light, sx * lr, sy * lr, sw * lr, sh * lr, 0, 0, W, H);
-    x.restore();
+    if (light) {
+      const lr = light.naturalWidth / S.w;
+      x.save();
+      x.beginPath(); x.rect(ox, oy, Wo * pc, Ho * pc); x.clip();
+      x.globalCompositeOperation = 'multiply';
+      x.globalAlpha = 0.75;
+      x.drawImage(light, sx * lr, sy * lr, sw * lr, sh * lr, 0, 0, W, H);
+      x.restore();
+    }
     // la plante, devant le mur, passe devant l'œuvre
     if (plant) x.drawImage(plant, (S.plantAt[0] - sx) * q, (S.plantAt[1] - sy) * q, plant.naturalWidth * q, plant.naturalHeight * q);
     return true;

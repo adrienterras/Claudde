@@ -509,8 +509,13 @@ cd collage && python3 -m http.server 8000
      l'œuvre (et, dessous, la taille d'impression qui en découle), le passe-partout sous son titre,
      l'orientation, puis le cadre, le téléchargement et un bouton « Commander l'œuvre » ; sur
      téléphone, dans la section Tailles, sous le titre « Mise en scène », sans répéter la taille, le
-     passe-partout et l'orientation choisis juste au-dessus) : trois pièces au choix
-     (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge (photo `assets/hall.webp`,
+     passe-partout et l'orientation choisis juste au-dessus) : quatre pièces au choix
+     (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant, une entrée au mur vert sauge, ou
+     une salle à manger (photo en hauteur `assets/salle.webp`, table laquée, banc en acier, parquet) où
+     l'œuvre n'est pas accrochée mais **posée au sol**, adossée au banc, centrée entre ses pieds
+     (`floor`), avec une ombre douce à son pied ; l'échelle, 7 px par cm, est calée sur un cadre 50 × 70
+     photographié à cet endroit ; la vue est cadrée en 4 : 3 autour de l'œuvre (`aspect`), sans carte de
+     lumière ; l'entrée (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
      `assets/hall-lumiere.webp`) ; la chambre (photo de face `assets/chambre.webp`, échelle estimée
      d'après le mobilier : étagère basse de 55 cm, paniers de 33 cm, lampe et ours de 30 cm, soit 3,1 px

@@ -218,6 +218,7 @@
     'bois noir': 'black wood',
     'bois blanc': 'white wood',
     'Entrée': 'Hallway',
+    'Salle à manger': 'Dining room',
     'Pièce': 'Room',
     'Salon': 'Living room',
     'Chambre d’enfant': 'Child’s bedroom',
