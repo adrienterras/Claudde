@@ -5,9 +5,9 @@ test.describe('Export', () => {
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
   });
 
-  test('300 dpi par défaut, dimensions cohérentes avec la toile', async ({ app }) => {
+  test('toujours 300 dpi (plus de choix de qualité), dimensions cohérentes avec la toile', async ({ app }) => {
     const { page } = app;
-    expect(await page.locator('#dpi').inputValue()).toBe('300');
+    await expect(page.locator('#dpi')).toHaveCount(0);
     const r = await page.evaluate(() => { const { w, h } = AtelierGribouille.exportSize(); const c = AtelierGribouille.state.comp; return { w, h, W: c.W, H: c.H }; });
     expect(r.w / r.W).toBeCloseTo(300 / 2.54, 0);
     expect(r.w / r.h).toBeCloseTo(r.W / r.H, 1);
@@ -16,7 +16,7 @@ test.describe('Export', () => {
   test('téléchargement JPEG : un vrai fichier image', async ({ app }) => {
     const { page } = app;
     await openStep(page, 'export-section');
-    await page.locator('#dpi').selectOption('150');
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 60; }); // (petit fichier pour l'essai : l'export est toujours à 300 dpi)
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
     expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
     const path = await download.path();
@@ -53,23 +53,18 @@ test.describe('Export', () => {
     expect(r.during).toBeLessThanOrEqual(r.items);
   });
 
-  test('netteté pour l’impression : appliquée aux exports 150 et 300 dpi, pas à l’image écran, puis libérée', async ({ app }) => {
+  test('netteté pour l’impression : appliquée à l’export (300 dpi), puis libérée', async ({ app }) => {
     const r = await app.page.evaluate(async () => {
       const A = AtelierGribouille; const comp = A.state.comp;
       const s = 300 / 2.54;
-      document.getElementById('dpi').value = 'screen';
-      await A.sharpenHD(comp, 2400 / Math.max(comp.W, comp.H));
-      const screen = comp.items.filter((L) => L.piece.hd).length;
-      document.getElementById('dpi').value = '300';
       await A.hydrateHD(comp, s);
       await A.sharpenHD(comp, s);
       const items = comp.items.filter((L) => L.piece.hd).length;
       const pages = comp.bg.filter((L) => !L.paper && L.src && L.src.hd).length;
       A.releaseHD();
       const after = comp.items.filter((L) => L.piece.hd).length + comp.bg.filter((L) => L.src && L.src.hd).length;
-      return { screen, items, pages, n: comp.items.length, nb: comp.bg.filter((L) => !L.paper).length, after };
+      return { items, pages, n: comp.items.length, nb: comp.bg.filter((L) => !L.paper).length, after };
     });
-    expect(r.screen).toBe(0);
     expect(r.items).toBe(r.n);
     expect(r.pages).toBe(r.nb);
     expect(r.after).toBe(0);
@@ -92,7 +87,7 @@ test.describe('Export', () => {
     await openStep(page, 'export-section');
     for (const [fmt, ext] of [['image/png', /\.png$/], ['application/pdf', /\.pdf$/]]) {
       await page.locator('#fmt').selectOption(fmt);
-      await page.locator('#dpi').selectOption('screen');
+      await page.evaluate(() => { AtelierGribouille.state.exportDpi = 60; }); // (petit fichier pour l'essai : l'export est toujours à 300 dpi)
       await page.locator('#export').click();
       await expect(page.locator('#preview')).toBeVisible();
       await expect(page.locator('#preview-title')).toHaveText(fmt === 'image/png' ? 'Votre image est prête' : 'Votre fichier est prêt');

@@ -197,8 +197,6 @@
     'Touchez une pièce pour la retirer ou l’ajouter.': 'Tap a piece to remove or add it.',
     'Exporter': 'Export',
     'Qualité': 'Quality',
-    'Écran (2400 px)': 'Screen (2400 px)',
-    '150 dpi': '150 dpi',
     '300 dpi': '300 dpi',
 
     'Fichier': 'File',
@@ -551,7 +549,7 @@
     'Confirmez l’enregistrement dans la fenêtre qui s’affiche…': 'Confirm the save in the window that opens…',
     'Enregistré : {0}': 'Saved: {0}',
     'Enregistrement annulé.': 'Save cancelled.',
-    'Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.': 'File too large for this device: choose “Screen” as quality.',
+    'Fichier trop lourd pour cet appareil : choisissez une taille d’impression plus petite.': 'File too large for this device: choose a smaller print size.',
     'Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.': 'A save dialog is already open. Finish it, then try again.',
     'Téléchargement lancé : {0}': 'Download started: {0}',
     // (bandeau proposant l'anglais : déjà en anglais)
@@ -594,7 +592,7 @@
     'Rendu de l’image…': 'Rendering the image…',
     'Image réduite à {0} × {1} px : cet appareil ne peut pas en produire une plus grande.': 'Image reduced to {0} × {1} px: this device cannot produce a larger one.',
     'Image trop grande pour cet appareil : nouvel essai plus petit…': 'Image too large for this device: trying again smaller…',
-    'Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.': 'Export impossible at this size on this device. Choose “Screen” as quality and try again.',
+    'Export impossible à cette taille sur cet appareil. Choisissez une taille d’impression plus petite et réessayez.': 'Export impossible at this size on this device. Choose a smaller print size and try again.',
     'page introuvable dans le fichier d’origine': 'page not found in the original file',
     'Haute définition : dessin {0} / {1} relu depuis son fichier…': 'High definition: drawing {0} / {1} re-read from its file…',
     'Netteté pour l’impression : {0} / {1}…': 'Sharpening for print: {0} / {1}…',

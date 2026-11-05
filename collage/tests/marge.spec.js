@@ -125,7 +125,7 @@ test.describe('Bordure blanche', () => {
     expect(ex.m).toBe(3); expect(ex.same).toBe(false);
     expect(ex.W).toBeCloseTo(W, 5); expect(ex.cw).toBeCloseTo(W - 6, 5); expect(ex.ch).toBeCloseTo(H - 6, 5);
     // l'image exportée (qualité écran, PNG) : du blanc sur 3 cm à chaque bord, l'œuvre au milieu
-    await page.locator('#dpi').selectOption('screen');
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 150; }); // (fichier réduit pour l'essai : l'export est toujours à 300 dpi)
     await page.locator('#fmt').selectOption('image/png');
     const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
     const data = 'data:image/png;base64,' + require('fs').readFileSync(await dl.path()).toString('base64');
@@ -187,7 +187,7 @@ test.describe('Bordure blanche', () => {
     expect(ex.ox).toBeCloseTo((ex.W - fc.W) / 2, 5); expect(ex.oy).toBeCloseTo((ex.H - fc.H) / 2, 5);
     await expect(page.locator('#export-info')).toContainText(`pour une feuille de ${fmt(ex.W)} × ${fmt(ex.H)} cm, la taille du cadre : l’œuvre de ${fmt(fc.W)} × ${fmt(fc.H)} cm au centre, dans la fenêtre du passe-partout`);
     // l'image : aux proportions du cadre ; blanc tout autour de la fenêtre, l'œuvre au centre
-    await page.locator('#dpi').selectOption('screen');
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 150; }); // (fichier réduit pour l'essai : l'export est toujours à 300 dpi)
     await page.locator('#fmt').selectOption('image/png');
     const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
     const data = 'data:image/png;base64,' + require('fs').readFileSync(await dl.path()).toString('base64');

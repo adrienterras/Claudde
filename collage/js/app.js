@@ -4321,17 +4321,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Safari sur iPhone et iPad refuse les canvas de plus de 16,7 Mpx et plafonne leur mémoire totale
   const MAX_PIXELS = () => (phone() ? 12e6 : iOS() ? 16e6 : 180e6); // 180 Mpx : une toile de 130 × 90 cm à 300 dpi
 
+  // L'export est toujours à 300 dpi (plus de choix de qualité) ; state.exportDpi, sans interface,
+  // sert aux tests pour produire de petits fichiers
+  const EXPORT_DPI = 300;
+  const exportDpi = () => state.exportDpi || EXPORT_DPI;
   function exportSize() {
     const ex = exportComp(); // la feuille exportée (l'œuvre, ou le cadre avec passe-partout)
-    const v = $('dpi').value;
-    let w, h;
-    if (v === 'screen') {
-      const k = 2400 / Math.max(ex.W, ex.H);
-      w = Math.round(ex.W * k); h = Math.round(ex.H * k);
-    } else {
-      const dpi = Number(v);
-      w = Math.round((ex.W / 2.54) * dpi); h = Math.round((ex.H / 2.54) * dpi);
-    }
+    const dpi = exportDpi();
+    let w = Math.round((ex.W / 2.54) * dpi), h = Math.round((ex.H / 2.54) * dpi);
     const cap = MAX_PIXELS();
     let capped = false;
     if (w * h > cap) { const f = Math.sqrt(cap / (w * h)); w = Math.round(w * f); h = Math.round(h * f); capped = true; }
@@ -4445,17 +4442,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // Un export (image, PDF, guide) est aussi gardé dans le compte quand l'utilisateur est connecté.
   async function recordExport(blob, filename) {
-    window.Atelier.track('Export', { type: /\.pdf$/i.test(filename) ? (/guide/.test(filename) ? 'guide' : 'pdf') : 'image', qualite: $('dpi').value });
+    window.Atelier.track('Export', { type: /\.pdf$/i.test(filename) ? (/guide/.test(filename) ? 'guide' : 'pdf') : 'image', qualite: String(exportDpi()) });
     const A = window.Account;
     if (!(A && A.enabled && A.user()) || !state.comp) return;
     try {
       saveStatus(tr('Enregistrement de l’export dans votre compte…'));
       const kind = /guide/.test(filename) ? 'guide' : /\.pdf$/i.test(filename) ? 'pdf' : /\.png$/i.test(filename) ? 'png' : 'jpg';
-      const dpiV = $('dpi').value;
       const { w, h } = exportSize();
       const st = STYLES.find((x) => x.id === state.comp.style);
       await A.exports.put(blob, {
-        name: filename, kind, dpi: kind === 'guide' ? 150 : (dpiV === 'screen' ? null : Number(dpiV)), width: kind === 'guide' ? null : w, height: kind === 'guide' ? null : h,
+        name: filename, kind, dpi: kind === 'guide' ? 150 : exportDpi(), width: kind === 'guide' ? null : w, height: kind === 'guide' ? null : h,
         thumb: thumbOfComp(state.comp), compName: (state.titles && state.titles[state.comp.style]) || (st ? st.name : ''),
       });
       saveStatus(tr`Fichier téléchargé et gardé dans votre compte (${Math.round(blob.size / 1024 / 1024 * 10) / 10} Mo).`);
@@ -4491,7 +4487,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       } catch (err) {
         const code = err && err.code;
         if (code === 'declined') { saveStatus(tr('Enregistrement annulé.')); return false; }
-        if (code === 'too_large') { notice(tr('Fichier trop lourd pour cet appareil : choisissez « Écran » comme qualité.')); saveStatus(''); return false; }
+        if (code === 'too_large') { notice(tr('Fichier trop lourd pour cet appareil : choisissez une taille d’impression plus petite.')); saveStatus(''); return false; }
         if (code === 'rate_limited') { notice(tr('Une demande d’enregistrement est déjà ouverte. Terminez-la, puis réessayez.')); saveStatus(''); return false; }
         // indisponible ici : on passe à l'aperçu
       }
@@ -4655,16 +4651,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
             // la feuille blanche ; l'œuvre posée en (ox, oy), rognée à sa zone (ce qui dépasse de
             // l'œuvre — une page de fond, un dessin au bord — reste sous la bordure ou le passe-partout)
             x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+            x.save();
             x.translate(ex.ox * scale, ex.oy * scale);
             x.beginPath(); x.rect(0, 0, ex.comp.W * scale, ex.comp.H * scale); x.clip();
           }
           Compose.renderBg(x, ex.comp, scale, shadows);
           Compose.renderItems(x, ex.comp, scale, shadows);
           // la bordure repasse par-dessus, en mordant de 1 mm sur l'œuvre : ni le bord d'une page de fond
-          // scannée (un liseré gris), ni le demi-pixel du rognage ne restent visibles
+          // scannée (un liseré gris), ni le demi-pixel du rognage ne restent visibles (le rognage est
+          // levé d'abord : sinon son bord antialiasé laisserait une pointe de teinte aux coins)
           if (posed) {
-            x.setTransform(1, 0, 0, 1, 0, 0);
-            const bx = (ex.ox + EXPORT_BLEED_CM) * scale, by = (ex.oy + EXPORT_BLEED_CM) * scale;
+            x.restore();
+            const bx = Math.ceil((ex.ox + EXPORT_BLEED_CM) * scale), by = Math.ceil((ex.oy + EXPORT_BLEED_CM) * scale);
             x.fillStyle = '#fff';
             x.fillRect(0, 0, c.width, by); x.fillRect(0, c.height - by, c.width, by);
             x.fillRect(0, 0, bx, c.height); x.fillRect(c.width - bx, 0, bx, c.height);
@@ -4673,7 +4671,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         releaseHD();
         if (x && !blankCanvas(c)) {
           // pour l'impression, un JPEG moins compressé : les traits fins ne sont pas lissés
-          blob = await new Promise((r) => c.toBlob(r, type, $('dpi').value === 'screen' ? 0.92 : 0.95));
+          blob = await new Promise((r) => c.toBlob(r, type, 0.95));
           rw = c.width; rh = c.height;
         }
         Extract.release(c);
@@ -4684,7 +4682,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (await saveFile(blob, fname)) await recordExport(blob, fname);
     } catch (e) {
       console.error(e);
-      notice(tr('Export impossible à cette taille sur cet appareil. Choisissez « Écran » comme qualité et réessayez.'));
+      notice(tr('Export impossible à cette taille sur cet appareil. Choisissez une taille d’impression plus petite et réessayez.'));
     } finally {
       releaseHD();
       btn.disabled = false;
@@ -4811,11 +4809,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     });
     if (need.size) saveStatus('');
   }
-  // Netteté pour l'impression (exports à 150 et 300 dpi, pas l'image écran) : chaque découpe et chaque
-  // page de fond est amenée à sa taille sur l'image finale, puis accentuée (Extract.sharpen) ; ces
-  // versions remplacent les originaux le temps du rendu, comme la haute définition.
+  // Netteté pour l'impression (tout export) : chaque découpe et chaque page de fond est amenée à sa
+  // taille sur l'image finale, puis accentuée (Extract.sharpen) ; ces versions remplacent les
+  // originaux le temps du rendu, comme la haute définition.
   async function sharpenHD(comp, s) {
-    if ($('dpi').value === 'screen') return;
     // dosage : plus la source doit être agrandie (photo ou scan trop petit pour 300 dpi), plus elle
     // est douce, et plus l'accentuation peut être franche sans faire ressortir de grain
     const opts = (img, long) => {
@@ -5395,7 +5392,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('empty-change').addEventListener('click', () => emptyChoice(false));
   $('empty-drop').addEventListener('click', () => $('file').click());
   initMode();
-  $('dpi').addEventListener('change', updateExportInfo);
   $('export-margin').querySelectorAll('[data-margin]').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); updateExportInfo(); }));
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
   $('export-free').onclick = exportPreview;

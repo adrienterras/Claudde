@@ -164,7 +164,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('.auth-tabs [data-mode="signup"]').click();
     await page.fill('#auth-email', 'exp@example.org');
     await page.fill('#auth-password', 'Rouge-Soleil-42');
-    await page.locator('#dpi').selectOption('screen');
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 60; }); // (petit fichier pour l'essai : l'export est toujours à 300 dpi)
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#auth-submit').click()]);
     expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
     await expect(page.locator('#save-status')).toContainText('gardé dans votre compte', { timeout: 60000 });

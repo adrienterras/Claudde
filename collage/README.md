@@ -451,8 +451,11 @@ cd collage && python3 -m http.server 8000
      le temps du rendu, puis sont libérées. La seule limite est le fichier d'origine : un scan à 300 dpi
      ou une photo de 12 Mpx donne du 300 dpi réel, un PDF compressé par l'application de scan non.
      Les sauvegardes gardent la source en haute définition (image d'origine, ou page de PDF à 3508 px),
-     si bien qu'une composition rouverte s'exporte avec la même qualité. Sur ordinateur, l'image
-     exportée peut atteindre 180 Mpx (130 × 90 cm à 300 dpi) ; sur téléphone, 12 Mpx (limite de Safari) ;
+     si bien qu'une composition rouverte s'exporte avec la même qualité. **L'export est toujours à
+     300 dpi** (`EXPORT_DPI`, plus de choix de qualité dans Exporter ; `state.exportDpi`, sans
+     interface, sert aux tests pour produire de petits fichiers). Sur ordinateur, l'image
+     exportée peut atteindre 180 Mpx (130 × 90 cm à 300 dpi) ; sur téléphone, 12 Mpx (limite de Safari),
+     au-delà l'image est réduite à ce plafond ;
    - chaque dessin découpé apporte son sujet principal et tous ses autres éléments qui ressemblent
      à un sujet (au moins 3 cm, même peu colorés : nuages au crayon, petits personnages) ; Claude,
      s'il est disponible, regarde ensuite chaque élément un par un et écarte les fragments (taches,

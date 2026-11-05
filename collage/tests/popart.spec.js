@@ -73,7 +73,7 @@ test.describe('Pop art', () => {
     expect(r.inCell).toBe(true);
     // l'image et le PDF se rendent
     await openStep(page, 'export-section');
-    await page.locator('#dpi').selectOption('150');
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 60; }); // (petit fichier pour l'essai : l'export est toujours à 300 dpi)
     const [d1] = await Promise.all([page.waitForEvent('download', { timeout: 120000 }), page.locator('#export').click()]);
     expect(require('fs').readFileSync(await d1.path())[0]).toBe(0xff);
     await page.locator('#fmt').selectOption('application/pdf');
