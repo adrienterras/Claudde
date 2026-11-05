@@ -2482,9 +2482,11 @@
     const t = densityT();
     // échelle pour une position du curseur : les sujets retenus (les plus forts d'abord, comme à la
     // pose) demandent ensemble la surface fixée ; au plus printCap, et la plus grande découpe tient
-    // toujours dans la feuille (avec un peu de marge)
+    // dans la feuille (85 %) — jugé sur le 30 × 40 de référence (même orientation) puis agrandi
+    // avec le cadre comme printCap, pour qu'un cadre plus grand donne la même proposition en plus grand
     let cap = printCap();
-    pieces.forEach((p) => { const c = cmPerPx(p.drawing); cap = Math.min(cap, (0.85 * w) / (p.canvas.width * c), (0.85 * h) / (p.canvas.height * c)); });
+    const rw = w < h ? 30 : 40, rh = w < h ? 40 : 30, grow = Math.sqrt((w * h) / 1200);
+    pieces.forEach((p) => { const c = cmPerPx(p.drawing); cap = Math.min(cap, grow * Math.min((0.85 * rw) / (p.canvas.width * c), (0.85 * rh) / (p.canvas.height * c))); });
     cap = Math.max(cap, 0.05);
     const raw = (tt) => {
       const area = printKeep(pieces, tt).reduce((a, p) => a + areaOf(p), 0);
@@ -3524,7 +3526,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         if (!o.sized) return;
         const n = to.items.find((L) => L.piece === o.piece && !L.sized);
         if (!n) return;
-        setLayerScale(n, o.scale || 1, to);
+        // (au plus la taille du cadre : une découpe agrandie au-delà y est ramenée)
+        const [bw, bh] = layerBase(n);
+        setLayerScale(n, Math.min(o.scale || 1, bw > 0 ? to.W / bw : Infinity, bh > 0 ? to.H / bh : Infinity), to);
         // (reste dans la toile)
         n.x = clamp(n.x, Math.min(n.w / 2, to.W / 2), Math.max(to.W - n.w / 2, to.W / 2));
         n.y = clamp(n.y, Math.min(n.h / 2, to.H / 2), Math.max(to.H - n.h / 2, to.H / 2));

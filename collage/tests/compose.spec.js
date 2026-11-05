@@ -241,7 +241,8 @@ test.describe('Compositions', () => {
     });
     expect(r.bg).toBe(0);
     expect(r.items.length).toBeGreaterThan(2);
-    // les pièces s'étendent sur toute la toile (pas entassées en bas ni au centre), aucune agrandie
+    // les pièces s'étendent sur toute la toile (pas entassées en bas ni au centre) ; chacune peut
+    // grandir dans l'air libre autour d'elle (growIntoGaps), sans sortir du cadre
     const x0 = Math.min(...r.items.map((it) => it.x - it.w / 2)), x1 = Math.max(...r.items.map((it) => it.x + it.w / 2));
     const y0 = Math.min(...r.items.map((it) => it.y - it.h / 2)), y1 = Math.max(...r.items.map((it) => it.y + it.h / 2));
     // (les pièces d'essai sont petites : elles ne couvrent pas tout, mais s'étalent et restent centrées)
@@ -250,7 +251,9 @@ test.describe('Compositions', () => {
     expect(Math.abs((y0 + y1) / 2 - r.H / 2)).toBeLessThan(0.1 * r.H);
     expect(x0).toBeGreaterThan(-0.01 * r.W);
     expect(y0).toBeGreaterThan(-0.01 * r.H);
-    for (const it of r.items) expect(it.scale || 1).toBeLessThanOrEqual(1.0001);
+    expect(x1).toBeLessThan(1.01 * r.W);
+    expect(y1).toBeLessThan(1.01 * r.H);
+    for (const it of r.items) expect(it.scale || 1).toBeLessThanOrEqual(2.5);
     for (const it of r.items) expect(Math.abs(it.rot)).toBeLessThan(0.05);
     await app.page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.formatManual = false; AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await app.page.waitForTimeout(400);

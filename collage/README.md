@@ -45,7 +45,8 @@ cd collage && python3 -m http.server 8000
      forme pleine, moins pour une forme fine — bonhomme, étoile — qui ne remplit qu'un tiers de sa
      boîte et dont la pose, faite sur les formes réelles, emboîte les vides : `pieceFill`, de 60 à
      80 % de remplissage comptés, sinon l'encre ne couvrait qu'une petite part de la feuille) ; la
-     plus grande découpe tient toujours dans la feuille (85 %) ; la pose reçoit ce nombre (`o.count`) sans
+     plus grande découpe tient toujours dans la feuille (85 %, jugé sur le 30 × 40 de référence puis
+     agrandi avec le cadre comme `printCap`) ; la pose reçoit ce nombre (`o.count`) sans
      plafond de couverture ; agrandis s'il le faut pour remplir la surface, jusqu'à trois fois leur taille réelle sur un 30 × 40 (`PRINT_GROW_MAX`, plafond qui grandit avec le cadre : `printCap`). Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
      surface (`relaxItems`, relaxation de Lloyd pondérée par leur taille) ; puis, sauf Galerie,
      Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, dans la limite de `printCap`) et ses positions étirées jusqu'aux bords (`fillFrame`) ; enfin, sur fond

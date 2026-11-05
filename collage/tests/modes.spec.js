@@ -386,8 +386,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     const sp = await page.evaluate(() => { const c = AtelierGribouille.state.proposals[0].comp; const ys = c.items.map((L) => L.y / c.H), xs = c.items.map((L) => L.x / c.W); return { k: AtelierGribouille.scale(), n: c.items.length, dy: Math.max(...ys) - Math.min(...ys), dx: Math.max(...xs) - Math.min(...xs) }; });
     expect(sp.k).toBeLessThan(0.6);
     expect(sp.n).toBe(n);
-    expect(sp.dy).toBeGreaterThan(0.45);
-    expect(sp.dx).toBeGreaterThan(0.45);
+    // (les centres s'étalent sur l'affiche ; les sujets ayant grandi dans l'air libre autour d'eux,
+    // leurs centres restent un peu plus loin des bords)
+    expect(sp.dy).toBeGreaterThan(0.4);
+    expect(sp.dx).toBeGreaterThan(0.4);
   });
 
   test('Impression : « Nouvelles propositions » garde la taille des découpes agrandies ou réduites à la main', async ({ page }) => {
@@ -409,8 +411,9 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForTimeout(400);
     const after = await page.evaluate(() => ({ style: AtelierGribouille.state.comp.style, items: AtelierGribouille.state.comp.items.map((L) => [L.piece.id, L.w, L.x, L.y, !!L.sized]) }));
     const wOf = (list, id) => list.find((x) => x[0] === id);
-    // les deux tailles choisies sont gardées, la troisième suit la nouvelle proposition
-    expect(wOf(after.items, a0.id)[1]).toBeCloseTo(a0.w * 1.21, 3);
+    // les deux tailles choisies sont gardées (au plus la largeur du cadre), la troisième suit la nouvelle proposition
+    const W = await page.evaluate(() => AtelierGribouille.state.comp.W);
+    expect(wOf(after.items, a0.id)[1]).toBeCloseTo(Math.min(a0.w * 1.21, W), 3);
     expect(wOf(after.items, b0.id)[1]).toBeCloseTo(b0.w / 1.1, 3);
     expect(wOf(after.items, a0.id)[4]).toBe(true);
     expect(wOf(after.items, c0.id)[4]).toBe(false);
