@@ -41,7 +41,7 @@ test.describe('Passe-partout par défaut', () => {
     await page.locator('#add-cart').click();
     await expect(page.locator('#cart-add [data-finish="cadre"]')).toHaveClass(/on/);
     await expect(page.locator('#cart-add [data-mat="1"]')).toHaveClass(/on/);
-    await expect(page.locator('#cart-add [data-size="21x30"]')).toBeHidden();
+    await expect(page.locator('#cart-add .cart-print-sizes [data-size="21x30"]')).toBeHidden();
     // le choix « sans » est mémorisé pour la suite
     await page.locator('#cart-add [data-close]').first().click();
     await page.locator('#scene-open-side').click();

@@ -511,7 +511,7 @@
       <button type="button" id="cart-add-view" class="link cart-add-view" hidden>Voir mon panier</button>
       <div class="cart-what"><img alt=""><p><b class="cart-what-name"></b><small class="cart-what-size"></small></p></div>
       <div class="cart-products" role="radiogroup" aria-label="Produit">
-        <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="print" checked><span><b>Tableau imprimé livré</b><small>Affiche premium ou tableau encadré · fichier HD offert</small></span><em data-price="print"></em></label>
+        <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="print" checked><span><b>Impression</b><small>Affiche premium ou tableau encadré · fichier HD offert</small></span><em data-price="print"></em></label>
         <div class="cart-print" data-mode="impression">
           <div class="seg cart-finish" role="group" aria-label="Finition">
             <button type="button" data-finish="papier">Papier</button><button type="button" data-finish="cadre">Encadré</button>
@@ -530,7 +530,7 @@
               <button type="button" data-margin="0">Sans bordure</button><button type="button" data-margin="1">Avec bordure blanche</button>
             </div>
           </div>
-          <div class="chips cart-sizes" role="group" aria-label="Taille">
+          <div class="chips cart-sizes cart-print-sizes" role="group" aria-label="Taille">
             <button type="button" data-size="21x30">21 × 30</button><button type="button" data-size="30x40">30 × 40</button><button type="button" data-size="40x50">40 × 50</button><button type="button" data-size="50x70">50 × 70</button><button type="button" data-size="70x100">70 × 100</button>
           </div>
           <!-- encadré : la couleur du cadre ; les tailles du cadre et de l'impression, en clair -->
@@ -543,6 +543,22 @@
           <p class="cart-dims"></p>
         </div>
         <label class="cart-prod" data-mode="impression"><input type="radio" name="cart-prod" value="hd"><span><b>Fichier HD</b><small>300 dpi, JPEG, PNG et PDF à l’échelle, à imprimer où vous voulez</small></span><em data-price="hd"></em></label>
+        <!-- fichier HD : la taille d'impression et la bordure blanche, comme pour une affiche -->
+        <div class="cart-print cart-hd" data-mode="impression" hidden>
+          <div>
+            <p class="cart-label">Bordure blanche</p>
+            <div class="seg cart-mat cart-margin" role="group" aria-label="Bordure blanche">
+              <button type="button" data-margin="0">Sans bordure</button><button type="button" data-margin="1">Avec bordure blanche</button>
+            </div>
+          </div>
+          <div>
+            <p class="cart-label">Taille</p>
+            <div class="chips cart-sizes" role="group" aria-label="Taille">
+              <button type="button" data-size="21x30">21 × 30</button><button type="button" data-size="30x40">30 × 40</button><button type="button" data-size="40x50">40 × 50</button><button type="button" data-size="50x70">50 × 70</button><button type="button" data-size="70x100">70 × 100</button>
+            </div>
+          </div>
+          <p class="cart-dims cart-hd-dims"></p>
+        </div>
         <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="guide"><span><b>Guide DIY</b><small>Le guide de découpe et de collage à l’échelle, en PDF, pour réaliser l’œuvre avec les originaux</small></span><em data-price="guide"></em></label>
         <label class="cart-prod" data-mode="toile"><input type="radio" name="cart-prod" value="kit"><span><b>Kit DIY 50 × 70</b><small>Guide imprimé et gabarits à l’échelle, livrés ; choisissez ce qui les accompagne</small></span><em data-price="kit"></em></label>
         <!-- les options du kit (prix de chacune à côté ; la toile à la taille de l'œuvre) -->

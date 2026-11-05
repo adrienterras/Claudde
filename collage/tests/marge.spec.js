@@ -60,26 +60,26 @@ test.describe('Bordure blanche', () => {
     await expect(page.locator('#cart-add')).toBeVisible();
     await expect(page.locator('#cart-add [data-finish="papier"]')).toHaveClass(/on/);
     await expect(page.locator('#cart-add .cart-margin-field')).toBeVisible();
-    await expect(page.locator('#cart-add [data-margin="1"]')).toHaveClass(/on/);
-    await expect(page.locator('#cart-add .cart-dims')).toContainText('avec une bordure blanche de 3 cm');
-    await expect(page.locator('#cart-add .cart-dims')).toContainText('l’œuvre imprimée en');
+    await expect(page.locator('#cart-add .cart-margin-field [data-margin="1"]')).toHaveClass(/on/);
+    await expect(page.locator('#cart-add .cart-dims:not(.cart-hd-dims)')).toContainText('avec une bordure blanche de 3 cm');
+    await expect(page.locator('#cart-add .cart-dims:not(.cart-hd-dims)')).toContainText('l’œuvre imprimée en');
     // encadré sans passe-partout : la bordure reste proposée ; avec passe-partout, elle disparaît
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await expect(page.locator('#cart-add .cart-mat-field')).toBeVisible();
     await expect(page.locator('#cart-add [data-mat="0"]')).toHaveClass(/on/);
     await expect(page.locator('#cart-add .cart-margin-field')).toBeVisible();
-    await expect(page.locator('#cart-add .cart-dims')).toContainText('à la taille du cadre, avec une bordure blanche de 3 cm');
+    await expect(page.locator('#cart-add .cart-dims:not(.cart-hd-dims)')).toContainText('à la taille du cadre, avec une bordure blanche de 3 cm');
     await page.locator('#cart-add [data-mat="1"]').click();
     await expect(page.locator('#cart-add .cart-margin-field')).toBeHidden();
-    await expect(page.locator('#cart-add .cart-dims')).not.toContainText('bordure');
+    await expect(page.locator('#cart-add .cart-dims:not(.cart-hd-dims)')).not.toContainText('bordure');
     await page.locator('#cart-add [data-mat="0"]').click();
     await page.locator('#cart-add [data-finish="papier"]').click();
     // « sans bordure » : le texte redevient « sans cadre », et la mise en scène change
     const withSig = await sig(page, 'cart-scene');
-    await page.locator('#cart-add [data-margin="0"]').click();
-    await expect(page.locator('#cart-add .cart-dims')).not.toContainText('bordure');
+    await page.locator('#cart-add .cart-margin-field [data-margin="0"]').click();
+    await expect(page.locator('#cart-add .cart-dims:not(.cart-hd-dims)')).not.toContainText('bordure');
     expect(await sig(page, 'cart-scene')).not.toBe(withSig);
-    await page.locator('#cart-add [data-margin="1"]').click();
+    await page.locator('#cart-add .cart-margin-field [data-margin="1"]').click();
     // l'article garde la bordure ; le panier la dit
     await page.locator('#cart-add-ok').click();
     await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
@@ -224,8 +224,8 @@ test.describe('Bordure blanche', () => {
     await page.evaluate(() => { localStorage.setItem('atelier.finition', 'papier'); localStorage.setItem('atelier.marge', '1'); });
     await page.evaluate(() => document.getElementById('add-cart').click());
     await expect(page.locator('#cart-add')).toBeVisible();
-    await expect(page.locator('#cart-add [data-margin="1"]')).toHaveClass(/on/);
-    await page.locator('#cart-add [data-margin="0"]').click();
+    await expect(page.locator('#cart-add .cart-margin-field [data-margin="1"]')).toHaveClass(/on/);
+    await page.locator('#cart-add .cart-margin-field [data-margin="0"]').click();
     expect(await page.evaluate(() => localStorage.getItem('atelier.marge'))).toBe('0');
     // encadré avec passe-partout : l'article n'a pas de bordure
     await page.locator('#cart-add [data-finish="cadre"]').click();
@@ -243,7 +243,7 @@ test.describe('Bordure blanche', () => {
     await expect(page.locator('#cart-add')).toBeVisible();
     await page.locator('#cart-add [data-finish="cadre"]').click();
     await page.locator('#cart-add [data-mat="0"]').click();
-    await page.locator('#cart-add [data-margin="1"]').click();
+    await page.locator('#cart-add .cart-margin-field [data-margin="1"]').click();
     await page.locator('#cart-add-ok').click();
     await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
     const it2 = await last();

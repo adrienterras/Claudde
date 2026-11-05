@@ -7328,6 +7328,8 @@ Réponds uniquement avec ce JSON :
           : tr`Tableau imprimé encadré : cadre ${frameKindName(it.frame).toLowerCase()} ${sizeLabel(it.size, it.W, it.H)}, sans passe-partout, impression ${printSizeOf(it)}`;
     }
     if (it.product === 'print') return it.margin ? tr`Affiche ${sizeLabel(it.size, it.W, it.H)}, avec une bordure blanche de ${fmt(MARGIN_CM)} cm` : tr`Affiche ${sizeLabel(it.size, it.W, it.H)}`;
+    // fichier HD : à la taille d'impression choisie (un article d'avant ce choix n'en a pas)
+    if (it.product === 'hd' && SIZES[it.size]) return it.margin ? tr`Fichier HD ${sizeLabel(it.size, it.W, it.H)}, avec une bordure blanche de ${fmt(MARGIN_CM)} cm` : tr`Fichier HD ${sizeLabel(it.size, it.W, it.H)}`;
     // collage avec les originaux : la toile est celle de la composition, à sa taille
     const toile = `${fmt(it.W)} × ${fmt(it.H)}`;
     if (it.product === 'kit') {
@@ -7462,7 +7464,9 @@ Réponds uniquement avec ce JSON :
       c.closest('label').querySelector('em').textContent = `+ ${euros(kitOptionPrice(k, comp.W, comp.H))}`;
       if (k === 'toile') c.closest('label').querySelector('b').textContent = tr`Toile vierge sur châssis ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
     });
-    box.querySelector('.cart-print').hidden = choice.product !== 'print' || !printMode();
+    box.querySelector('.cart-print:not(.cart-hd)').hidden = choice.product !== 'print' || !printMode();
+    // fichier HD : la taille d'impression (sans prix : le fichier a le sien) et la bordure blanche
+    box.querySelector('.cart-hd').hidden = choice.product !== 'hd' || !printMode();
     box.querySelectorAll('[data-finish]').forEach((b) => b.classList.toggle('on', b.dataset.finish === choice.finish));
     // encadré : couleur du cadre et passe-partout ; les tailles du cadre et de l'impression, en clair
     const framed = choice.product === 'print' && choice.finish === 'cadre';
@@ -7472,7 +7476,7 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('[data-size]').forEach((b) => {
       b.hidden = noSmall && b.dataset.size === '21x30';
       b.classList.toggle('on', b.dataset.size === choice.size);
-      b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`;
+      b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}${b.closest('.cart-hd') ? '' : `<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`}`;
     });
     // la bordure blanche : sur papier, ou encadré sans passe-partout
     const paper = choice.product === 'print' && choice.finish === 'papier';
@@ -7487,7 +7491,11 @@ Réponds uniquement avec ce JSON :
     });
     box.querySelector('.cart-frame-name').textContent = frameKindName(choice.frame);
     box.querySelectorAll('[data-mat]').forEach((b) => b.classList.toggle('on', (b.dataset.mat === '1') === !!choice.mat));
-    const dims = box.querySelector('.cart-dims'), cur = Object.assign({ W: comp.W, H: comp.H }, choice);
+    const hdIt = Object.assign({ W: comp.W, H: comp.H }, choice, { finish: 'papier', mat: false });
+    box.querySelector('.cart-hd-dims').innerHTML = choice.margin
+      ? tr`Fichier HD de <b>${printSizeOf(hdIt)}</b> à 300 dpi, avec une bordure blanche de ${fmt(MARGIN_CM)} cm : l’œuvre en <b>${printedSizeOf(hdIt)}</b>`
+      : tr`Fichier HD de <b>${printSizeOf(hdIt)}</b> à 300 dpi`;
+    const dims = box.querySelector('.cart-dims:not(.cart-hd-dims)'), cur = Object.assign({ W: comp.W, H: comp.H }, choice);
     dims.hidden = choice.product !== 'print';
     dims.innerHTML = framed
       ? (choice.mat
@@ -7528,8 +7536,9 @@ Réponds uniquement avec ce JSON :
    * copie : l'œuvre affichée ne change pas.
    */
   function printedComp(comp) {
-    if (choice.product !== 'print' || !printMode()) return comp;
-    const [pw, ph] = printAreaOf(Object.assign({ W: comp.W, H: comp.H }, choice));
+    if (!['print', 'hd'].includes(choice.product) || !printMode()) return comp;
+    // (fichier HD : une affiche à la taille choisie)
+    const [pw, ph] = printAreaOf(Object.assign({ W: comp.W, H: comp.H }, choice, choice.product === 'hd' ? { finish: 'papier', mat: false } : {}));
     return fitCopy(comp, pw / ph);
   }
   // l'œuvre aux proportions r (largeur / hauteur), à surface égale : une copie (voir printedComp), ou
@@ -7615,7 +7624,8 @@ Réponds uniquement avec ce JSON :
       const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
       if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
-      if (it.product === 'print' && !(it.finish === 'cadre' && it.mat)) it.margin = !!choice.margin; else delete it.margin;
+      if (it.product === 'hd') it.finish = 'papier'; // (le fichier : une affiche à la taille choisie)
+      if ((it.product === 'print' && !(it.finish === 'cadre' && it.mat)) || it.product === 'hd') it.margin = !!choice.margin; else delete it.margin;
       it.unit = unitPrice(it);
       const items = loadCart();
       items.push(it);
@@ -7695,7 +7705,7 @@ Réponds uniquement avec ce JSON :
    */
   const cloudCartOn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
   const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
-  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: it.product === 'print' && !(it.finish === 'cadre' && it.mat) ? !!it.margin : undefined });
+  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: (it.product === 'print' && !(it.finish === 'cadre' && it.mat)) || it.product === 'hd' ? !!it.margin : undefined });
   // la composition locale d'un article, images comprises, prête à partir dans le compte
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);

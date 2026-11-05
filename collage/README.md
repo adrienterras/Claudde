@@ -306,7 +306,11 @@ cd collage && python3 -m http.server 8000
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
-   - **panier** : un CTA « Commander » bien en vue, avec l'icône d'un sac (sur ordinateur, en bas à droite de l'œuvre, juste
+   - **panier** : les produits d'un tableau imprimé sont « Impression » (affiche ou encadré, dès le
+     prix du 30 × 40 sur papier) et « Fichier HD » ; pour le fichier HD, la taille d'impression et la
+     bordure blanche se choisissent comme pour une affiche (`.cart-hd`, sans prix sur les tailles : le
+     fichier a le sien), l'article les garde (`it.size`, `it.margin`, finition papier) et son libellé
+     les dit (« Fichier HD 40 × 50 cm, avec une bordure blanche de 3 cm ») ; un CTA « Commander » bien en vue, avec l'icône d'un sac (sur ordinateur, en bas à droite de l'œuvre, juste
      au-dessus de la barre de zoom ; sur
      téléphone, petit, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » en haut à

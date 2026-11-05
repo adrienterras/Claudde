@@ -872,7 +872,7 @@ test.describe('Panier', () => {
     await page.locator('.order-cta-desk').click();
     await expect(page.locator('#cart-add')).toBeVisible();
     await page.locator('#cart-add [data-finish="cadre"]').click();
-    await page.locator('#cart-add [data-size="50x70"]').click();
+    await page.locator('#cart-add .cart-print-sizes [data-size="50x70"]').click();
     expect(euros(await page.locator('.cart-add-total').textContent())).toBe(129);
     await page.locator('#cart-add [data-qty="1"]').click();
     expect(euros(await page.locator('.cart-add-total').textContent())).toBe(258);
@@ -884,8 +884,15 @@ test.describe('Panier', () => {
     await openStep(page, 'export-section'); // (l'étape Exporter est repliée après l'import)
     await page.locator('#add-cart').click();
     await page.locator('#cart-add input[value="hd"]').check();
+    // fichier HD : la taille d'impression et la bordure blanche se choisissent aussi
+    await expect(page.locator('#cart-add .cart-hd')).toBeVisible();
+    await expect(page.locator('#cart-add .cart-print:not(.cart-hd)')).toBeHidden();
+    await page.locator('#cart-add .cart-hd [data-size="40x50"]').click();
+    await page.locator('#cart-add .cart-hd [data-margin="1"]').click();
+    await expect(page.locator('#cart-add .cart-hd-dims')).toContainText('bordure blanche de 3 cm');
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(2);
+    await expect(page.locator('#cart .cart-item').nth(1)).toContainText(/Fichier HD (40 × 50|50 × 40) cm, avec une bordure blanche de 3 cm/);
     // chaque article a sa quantité, fichier HD compris
     await expect(page.locator('#cart .cart-item').nth(1).locator('.cart-qty output')).toHaveText('1');
     await expect(page.locator('#cart .cart-item').nth(1).locator('[data-qty="-1"]')).toBeDisabled();
