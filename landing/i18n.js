@@ -124,6 +124,7 @@
     "Tableau de dessins d’enfants, composition Pop art : un dessin par case de couleur vive": "Canvas of children’s drawings, Pop art composition: one drawing per bright colour square",
     "Fait pour durer, comme les souvenirs": "Made to last, like memories",
     "Les dessins sont relus dans leur définition d’origine au moment d’exporter : un scan à 300 dpi donne une toile nette, même en grand format. Rien n’est lissé, rien n’est redessiné : ce sont bien leurs traits.": "The drawings are re-read at their original definition when exporting: a 300 dpi scan gives a sharp canvas, even in large formats. Nothing is smoothed, nothing is redrawn: these are truly their lines.",
+    "Créer une œuvre": "Create an artwork",
     "Commencer maintenant": "Start now",
     "Export JPEG, PNG ou PDF à l’échelle, 300 dpi, aux tailles de toiles et de cadres du commerce.": "JPEG, PNG or to-scale PDF export, 300 dpi, in shop canvas and frame sizes.",
     "Guide de création en PDF pour la version à la main, avec les dessins originaux : plan de pose à l’échelle 1, ordre de collage, trait de coupe de chaque dessin.": "PDF making-of guide for the handmade version, with the original drawings: 1:1 layout plan, gluing order, cut line for each drawing.",

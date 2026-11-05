@@ -79,6 +79,7 @@
     .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
     .btn:hover { transform: translateY(-1px); }
     .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
+    .hero-cta-sm { display: none; } /* « Créer une œuvre » sous l'image d'en-tête : téléphone seulement */
     .btn-primary:hover { background: #000; }
     .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
     .btn-sm { padding: 9px 16px; font-size: .85rem; }
@@ -187,6 +188,7 @@
     @media (max-width: 900px) {
       .hero { grid-template-columns: 1fr; padding-top: 40px; gap: 36px; }
       .hero-art { order: -1; padding: 0 10px; }
+      .hero-cta-sm { display: flex; width: calc(100% - 20px); margin: 34px auto 0; justify-content: center; }
       .video-band + .hero { padding-top: 40px; }
       .scenes, .steps, .styles { grid-template-columns: 1fr; }
       .duo-sec { grid-template-columns: 1fr; gap: 36px; }
@@ -264,6 +266,7 @@
             <div class="sticker"><b>Imprimés et encadrés</b>Dans votre salon</div>
           </figure>
         </div>
+        <a class="btn btn-primary hero-cta-sm" href="atelier/?nouveau" target="_blank" rel="noopener">Créer une œuvre</a>
       </div>
     </section>
 

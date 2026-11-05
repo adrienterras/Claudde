@@ -429,7 +429,9 @@
       $('empty').hidden = true;
       $('new-work').hidden = false;
       if (mobileQuery.matches) setStageFull(false); // le tiroir remonte avec les premiers dessins
-      if (!state.restoring) selectTab('sizes-section'); // téléphone : après un import, l'onglet Tailles, tiroir déplié en grand
+      // téléphone : après un import, l'onglet Propositions pour un tableau imprimé ; Tailles (tiroir
+      // déplié en grand, pour vérifier les tailles des feuilles) pour un collage
+      if (!state.restoring) selectTab(printMode() ? 'compose-section' : 'sizes-section');
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
       // pas pour l'exemple, qui invite justement à importer ses propres dessins
       if (!mobileQuery.matches && $('import-section')._collapse && !(opts && opts.sample) && !state.drawings.some((d) => d.sample)) $('import-section')._collapse();
@@ -1989,6 +1991,19 @@
   const modeOf = () => (MODES.includes(state.mode) ? state.mode : 'toile');
   const printMode = () => state.mode === 'impression';
   // opts.keep : réglages d'une composition rouverte (finition toile, cadre) gardés tels quels
+  // tableau imprimé : Propositions avant Tailles (dans la colonne comme dans les onglets du téléphone),
+  // les numéros à la suite ; collage : Tailles d'abord (la taille réelle des feuilles décide de la toile)
+  function orderSteps(m) {
+    const first = m === 'impression' ? 'compose-section' : 'sizes-section', second = m === 'impression' ? 'sizes-section' : 'compose-section';
+    const a = $(first), b = $(second);
+    if (a && b && a.nextElementSibling !== b) b.before(a);
+    const tabs = $('sheet-tabs');
+    const ta = tabs && tabs.querySelector(`[data-tab="${first}"]`), tb = tabs && tabs.querySelector(`[data-tab="${second}"]`);
+    if (ta && tb && ta.nextElementSibling !== tb) tb.before(ta);
+    const na = a && a.querySelector('h2 .num'), nb = b && b.querySelector('h2 .num');
+    if (na) na.textContent = '02';
+    if (nb) nb.textContent = '03';
+  }
   function setMode(m, opts) {
     if (!MODES.includes(m)) return;
     const was = state.mode;
@@ -1996,6 +2011,7 @@
     try { localStorage.setItem('atelier.mode', m); } catch (e) { /* ignoré */ }
     document.body.classList.toggle('mode-impression', m === 'impression');
     document.body.classList.toggle('mode-toile', m === 'toile');
+    orderSteps(m);
     document.querySelectorAll('#mode-pick button').forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     $('format-label').textContent = m === 'impression' ? tr('Cadre') : tr('Toile');
     // tableau imprimé : pas d'explication sous le choix du cadre
@@ -3211,7 +3227,13 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     },
   };
   // la chambre d'enfant d'abord ; l'entrée n'est proposée qu'en tableau imprimé (pas pour un collage)
-  const sceneRoom = () => { let v = null; try { v = localStorage.getItem('atelier.piece'); } catch (e) { /* ignoré */ } return SCENES[v] && (v !== 'hall' || printMode()) ? v : 'chambre'; };
+  // la salle à manger : pour une œuvre d'au moins 40 × 50 (le cadre en tableau imprimé, la toile en collage)
+  const sceneSalleOk = () => {
+    let w, h;
+    if (printMode()) { const fc = formatCm(); w = fc.frameW || fc.w; h = fc.frameH || fc.h; } else if (state.comp) { w = state.comp.W; h = state.comp.H; } else return false;
+    return Math.min(w, h) >= 40 - 1e-6 && Math.max(w, h) >= 50 - 1e-6;
+  };
+  const sceneRoom = () => { let v = null; try { v = localStorage.getItem('atelier.piece'); } catch (e) { /* ignoré */ } return SCENES[v] && (v !== 'hall' || printMode()) && (v !== 'salle' || sceneSalleOk()) ? v : 'chambre'; };
   const sceneImgs = {};
   let sceneTimer = 0;
 
@@ -3507,7 +3529,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   function zoomAt(f, px, py) {
     const Z = state.zoom;
-    const nz = Math.max(1, Math.min(8, Z.z * f));
+    const nz = Math.max(0.3, Math.min(8, Z.z * f)); // de 30 % à 800 %
     const k = nz / Z.z;
     // le point sous les doigts reste sous les doigts
     const r = canvas.getBoundingClientRect();
@@ -3704,7 +3726,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     lastDouble = Date.now();
     const hit = hitAt(toComp(e));
     if (hit) { state.selected = hit; if (hit.kind === 'piece') editPiece(hit.piece); render(); return; }
-    if (state.zoom.z > 1.05) resetZoom();
+    if (Math.abs(state.zoom.z - 1) > 0.05) resetZoom();
     else { const d = devicePoint(e); zoomAt(2.5, d.px, d.py); }
   }
   // à la souris : le double-clic du navigateur ; au doigt, le double-toucher est reconnu ici (le
@@ -5065,6 +5087,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!cv || !comp || (!out && ($('sizes-section').hidden || !cv.clientWidth))) return false;
     const room = sceneRoom(), S = SCENES[room];
     if (!out) $('scene-room').querySelectorAll('button').forEach((b) => {
+      if (b.dataset.room === 'salle') b.hidden = !sceneSalleOk();
       const on = b.dataset.room === room;
       b.classList.toggle('on', on);
       b.classList.toggle('ink', on);
@@ -6586,7 +6609,23 @@ Réponds uniquement avec ce JSON :
     const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
     const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
     const meta = [kind, st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
-    el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button>`;
+    el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button class="saved-ren" title="${tr('Renommer')}" aria-label="${tr('Renommer')}"><svg class="ico"><use href="#i-pen"/></svg></button><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
+    // renommer : le nom devient un champ, Entrée ou un clic ailleurs valide, Échap annule
+    el.querySelector('.saved-ren').onclick = (ev) => {
+      ev.stopPropagation();
+      const span = el.querySelector('.saved-name span');
+      if (!span) return;
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'saved-rename'; inp.value = rec.name; inp.maxLength = 80;
+      inp.setAttribute('aria-label', tr('Nom de l’œuvre'));
+      let done = false;
+      const finish = (ok) => { if (done) return; done = true; if (ok) renameWork(e, inp.value); else renderSaved(); };
+      inp.onkeydown = (k) => { if (k.key === 'Enter') { k.preventDefault(); finish(true); } else if (k.key === 'Escape') { k.preventDefault(); finish(false); } };
+      inp.onblur = () => finish(true);
+      ['click', 'pointerdown', 'mousedown'].forEach((t) => inp.addEventListener(t, (k) => k.stopPropagation()));
+      span.replaceWith(inp);
+      inp.focus(); inp.select();
+    };
     // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
     const del = el.querySelector('.saved-del');
     del.onclick = async (ev) => {
@@ -6604,6 +6643,22 @@ Réponds uniquement avec ce JSON :
     hit.setAttribute('aria-label', tr`Ouvrir « ${rec.name} »`);
     el.prepend(hit);
     box.appendChild(el);
+  }
+  // renommée partout : l'enregistrement de cet appareil, l'œuvre affichée (son titre), et sa ligne du compte
+  async function renameWork(e, name) {
+    name = String(name || '').trim().slice(0, 80);
+    if (!name || name === e.info.name) { renderSaved(); return; }
+    try {
+      const touch = async (rec) => { if (!rec) return; rec.name = name; rec.workName = name; await dbPut(rec); };
+      if (e.local) await touch(e.local);
+      const draft = await dbGet(DRAFT_ID).catch(() => null);
+      if (draft && draft.workId === e.workId && !(e.local && e.local.id === DRAFT_ID)) await touch(draft);
+      if (e.current) { state.workName = name; state.title = name; state.titles = null; scheduleDraft(); }
+      if (e.cloud && signedIn()) { await window.Account.cloud.rename(e.cloud.id, name); (cloudWorks || []).forEach((c) => { if (c.workId === e.workId) c.name = name; }); }
+      e.info.name = name;
+      savedStatus('');
+    } catch (err) { console.error(err); savedStatus(tr`Impossible de renommer : ${err.message}`); }
+    renderSaved();
   }
   // supprimée partout : dans ce navigateur et dans le compte ; l'œuvre affichée laisse la place à une nouvelle
   async function deleteWork(e) {

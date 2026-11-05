@@ -111,9 +111,11 @@ cd collage && python3 -m http.server 8000
    l'appareil du téléphone » : un champ de fichier `capture="environment"` qui ouvre l'appareil photo
    natif ; ses photos sont gardées et importées comme les autres. Sur téléphone et tablette, la
    visée demande 2560 × 1920 (assez pour un A4 à 150 dpi, sans peser sur la mémoire) ; 4K sur ordinateur.
-2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, Tailles — le choix de la toile ou du
-   cadre se fait avant les propositions —, Propositions, Dessins, Exporter, et en tête, sans numéro, Mes œuvres ; mêmes onglets
-   sur téléphone ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
+2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, puis Tailles et Propositions —
+   Tailles d'abord pour un collage, où la taille réelle des feuilles décide de la toile ; Propositions
+   d'abord pour un tableau imprimé (`orderSteps`, numéros à la suite) —, Dessins, Exporter, et en tête,
+   sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone, où l'import ouvre
+   l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
    pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là
    avec leur « + », sans changer de rôle — le curseur remonté les repose ; `shownRole` dans
@@ -305,9 +307,9 @@ cd collage && python3 -m http.server 8000
      découpe automatique est gardée et c'est signalé ;
    - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
      deuxième fois ;
-   - **panier** : un CTA « Commander » bien en vue (sur ordinateur, en bas à droite de l'œuvre, juste
+   - **panier** : un CTA « Commander » bien en vue, avec l'icône d'un sac (sur ordinateur, en bas à droite de l'œuvre, juste
      au-dessus de la barre de zoom ; sur
-     téléphone, petit, avec l'icône d'un sac, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
+     téléphone, petit, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » en haut à
      droite de la zone d'édition, en face de « Mettre en scène » (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
      présente, avec le compteur en pastille) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou
@@ -366,7 +368,10 @@ cd collage && python3 -m http.server 8000
      (`rec.work`, `state.workId`), leurs images dans le magasin commun (`FILES_STORE`, chaque image et
      chaque découpe écrites une fois, sous une clé stable). « Nouvelle œuvre » ou l'ouverture d'une autre
      œuvre range celle affichée (`shelveCurrent`) ; une œuvre ne s'efface que par la corbeille de la
-     liste (en deux temps), dans ce navigateur et dans le compte. Chaque œuvre garde les dessins
+     liste (en deux temps), dans ce navigateur et dans le compte ; le crayon de la liste **renomme**
+     l'œuvre (`renameWork` : un champ à la place du nom, Entrée ou un clic ailleurs valide, Échap
+     annule) dans ce navigateur, dans le compte (`cloud.rename`) et, pour l'œuvre affichée, son
+     titre. Chaque œuvre garde les dessins
      (images d'origine), leurs réglages (rôle, taille, orientation, luminosité, contraste et
      saturation, photo sur un sol, sujets gardés), la **découpe telle quelle** de chaque dessin (sa page
      de travail en JPEG et le masque de chaque pièce, retouches comprises, rangés dans une planche PNG :
@@ -516,7 +521,9 @@ cd collage && python3 -m http.server 8000
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant, une entrée au mur vert sauge, ou
      une salle à manger (photo en hauteur `assets/salle.webp`, table laquée, banc en acier, parquet) où
      l'œuvre n'est pas accrochée mais **posée au sol**, adossée au banc, centrée entre ses pieds
-     (`floor`), avec une ombre douce à son pied ; l'échelle, 7 px par cm, est calée sur un cadre 50 × 70
+     (`floor`), avec une ombre douce à son pied, proposée seulement pour une œuvre d'au moins 40 × 50
+     (le cadre en tableau imprimé, la toile en collage : `sceneSalleOk`, sinon le bouton disparaît et
+     la chambre d'enfant reprend) ; l'échelle, 7 px par cm, est calée sur un cadre 50 × 70
      photographié à cet endroit ; la vue est cadrée en 4 : 3 autour de l'œuvre (`aspect`), sans carte de
      lumière ; l'entrée (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
@@ -733,8 +740,8 @@ visibles au-dessus du bouton de téléchargement) ; sur ordinateur, toutes les s
 l'arrivée et pour une nouvelle œuvre, l'import ouvre Tailles et Propositions et replie Importer (rien
 n'est mémorisé).
 **Voir l'œuvre de près** : pincement à deux doigts, molette (sans pièce sélectionnée) ou pincement du
-   pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster ; glisser une zone vide pour se
-   déplacer ; bouton plein écran, pratique sur téléphone.
+   pavé tactile, double-tap sur une zone vide, boutons − / + / ajuster, de 30 % à 800 % ; glisser une
+   zone vide pour se déplacer ; bouton plein écran, pratique sur téléphone.
 5. **Retoucher une découpe** : bouton « Retoucher » (ou double-clic sur une pièce de l'œuvre, ou ciseaux
    sur la vignette d'une pièce). Éditeur en fenêtre sur ordinateur (`.ed-card`, même voile que la mise
    en scène, croix `#ed-close` = fermer sans enregistrer, Échap aussi) et plein écran sur téléphone,
@@ -858,7 +865,8 @@ seule page (feuille de style, scripts, pdf.js, jsPDF et images incorporés ; san
 d'exemple et le worker de pdf.js publiés à côté), pour l'artefact de démonstration. Le site publié a deux parties : la page d'accueil (`landing/`,
 présentation du concept avec, en tête, la vidéo de présentation en 16:9, bord à bord sur toute la
 largeur de la page (25 s, muette, lue une fois : la bande se replie ensuite pour laisser la place
-au héros — titre, boutons, photo de la toile dans le salon) : le réel Instagram vertical (hors
+au héros — titre, boutons, photo de la toile dans le salon ; sur téléphone, la photo passe en tête
+et un bouton « Créer une œuvre » (`.hero-cta-sm`, caché sur ordinateur) la suit) : le réel Instagram vertical (hors
 dépôt) fournit l'animation — sa zone visuelle est recadrée image par image et posée à droite à même
 le fond, bords nets —, ses légendes sont réécrites à gauche en Playfair aux mêmes instants ; son
 gros plan sur la toile est réincrusté dans l'écran de l'ordinateur, sans zoom (correspondance

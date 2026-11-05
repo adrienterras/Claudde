@@ -418,6 +418,17 @@
     err(e2);
   }
 
+  // renommer une œuvre du compte : sa ligne, et le nom gardé dans ses données
+  async function cloudRename(cloudId, name) {
+    const id = cloudId.replace(/^cloud:/, '');
+    const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);
+    err(e0);
+    const row = (rows || [])[0];
+    if (!row) return;
+    const meta = Object.assign({}, row.meta || {}, { workName: name });
+    const { error } = await client.from('compositions').update({ name, meta }).eq('id', id);
+    err(error);
+  }
   async function cloudDel(cloudId) {
     const id = cloudId.replace(/^cloud:/, '');
     const store = client.storage.from(BUCKET);
@@ -438,7 +449,7 @@
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
-    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet },
+    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',
   };

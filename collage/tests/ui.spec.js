@@ -1819,6 +1819,10 @@ test.describe('Salle à manger', () => {
     await app.import(['page-cutout.png']);
     await page.locator('#scene-open').click();
     await expect(page.locator('#scene-modal')).toBeVisible();
+    // la salle à manger n'est proposée qu'à partir d'un cadre 40 × 50 : pas pour le 30 × 40 de départ
+    await expect(page.locator('#scene-room [data-room="salle"]')).toBeHidden();
+    await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:40x50'; f.dispatchEvent(new Event('change')); });
+    await expect(page.locator('#scene-room [data-room="salle"]')).toBeVisible();
     await page.locator('#scene-room [data-room="salle"]').click();
     await expect(page.locator('#scene-room [data-room="salle"]')).toHaveClass(/on/);
     // la pièce est peinte (sa photo se charge en différé) : du parquet, clair et chaud, en bas au milieu
@@ -1836,10 +1840,14 @@ test.describe('Salle à manger', () => {
     expect(Math.abs(c.w / c.h - 4 / 3)).toBeLessThan(0.02);
     // le bas du cadre noir sur le sol : sous l'œuvre, la dernière ligne sombre est la baguette du cadre,
     // dans la moitié basse de la vue, et 6 % plus bas c'est du parquet
-    for (const fmt of ['cadre:30x40', 'cadre:50x70']) {
+    for (const fmt of ['cadre:40x50', 'cadre:50x70']) {
       await page.evaluate((v) => { const f = document.getElementById('scene-format'); f.value = v; f.dispatchEvent(new Event('change')); }, fmt);
       await expect.poll(async () => { const r = await look(); return r.yBottom > r.h * 0.5 && r.yBottom < r.h * 0.95 && !!r.floorBelow && parquet(r.floorBelow); }, { timeout: 30000 }).toBe(true);
     }
+    // un cadre plus petit : la salle à manger disparaît, la chambre d'enfant reprend
+    await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:30x40'; f.dispatchEvent(new Event('change')); });
+    await expect(page.locator('#scene-room [data-room="salle"]')).toBeHidden();
+    await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
     await page.keyboard.press('Escape');
   });
 });
@@ -1910,11 +1918,9 @@ test.describe('Mettre en scène', () => {
         await page.evaluate(() => { localStorage.setItem('atelier.piece', 'hall'); document.querySelector('#scene-room [data-room="salon"]').click(); localStorage.setItem('atelier.piece', 'hall'); });
         await page.locator('#scene-room [data-room="chambre"]').click();
         await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
-        // la salle à manger existe aussi pour un collage (la toile posée au sol)
-        await page.locator('#scene-room [data-room="salle"]').click();
-        await expect(page.locator('#scene-room [data-room="salle"]')).toHaveClass(/on/);
-        expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('salle');
-        await page.locator('#scene-room [data-room="chambre"]').click();
+        // la salle à manger existe aussi pour un collage (la toile posée au sol), à partir de 40 × 50 :
+        // pas pour cette petite toile
+        await expect(page.locator('#scene-room [data-room="salle"]')).toBeHidden();
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
         // collage : dans la fenêtre, ni taille ni orientation (elles se règlent dans la section Tailles) ; l'image est grande

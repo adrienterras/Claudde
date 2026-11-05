@@ -1,5 +1,16 @@
 const { test, expect, openStep } = require('./helpers');
 
+// attend que le brouillon soit bien écrit dans IndexedDB (il part 2,5 s après le dernier changement)
+const hasDraft = (page) => page.evaluate(() => new Promise((res) => {
+  const r = indexedDB.open('atelier-gribouille');
+  r.onsuccess = () => { const db = r.result; try { const g = db.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => { db.close(); res(!!(g.result && g.result.drawings && g.result.drawings.length)); }; g.onerror = () => { db.close(); res(false); }; } catch (e) { db.close(); res(false); } };
+  r.onerror = () => res(false);
+}));
+const waitDraft = async (page) => {
+  for (let i = 0; i < 120; i++) { if (await hasDraft(page)) return; await page.waitForTimeout(500); }
+  throw new Error('brouillon jamais écrit');
+};
+
 test.describe('Réouverture sur un appareil plus petit', () => {
   test('une page sauvegardée plus grande que ce que l’appareil porte est réduite, pièces et repères avec elle', async ({ app }) => {
     const { page } = app;
@@ -109,6 +120,33 @@ test.describe('Mes œuvres', () => {
     // plus rien dans le magasin des images (ni œuvre, ni panier)
     const keys = await page.evaluate(() => new Promise((res) => { const q = indexedDB.open('atelier-gribouille'); q.onsuccess = () => { const k = q.result.transaction('brouillon-images').objectStore('brouillon-images').getAllKeys(); k.onsuccess = () => res(k.result.length); }; }));
     expect(keys).toBe(0);
+  });
+
+  test('renommer une œuvre de Mes œuvres : le crayon, un champ, Entrée ; le nom reste après rechargement, l’œuvre affichée prend ce titre', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png']);
+    await waitDraft(page);
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
+    await page.locator('#saved-list .saved.current .saved-ren').click();
+    const inp = page.locator('#saved-list .saved.current .saved-rename');
+    await expect(inp).toBeVisible();
+    await inp.fill('Les vacances à la mer');
+    await inp.press('Enter');
+    await expect(page.locator('#saved-list .saved.current .saved-name')).toContainText('Les vacances à la mer');
+    expect(await page.evaluate(() => AtelierGribouille.state.workName)).toBe('Les vacances à la mer');
+    // Échap annule
+    await openStep(page, 'saved-section');
+    await page.locator('#saved-list .saved.current .saved-ren').click();
+    await page.locator('#saved-list .saved.current .saved-rename').fill('autre chose');
+    await page.locator('#saved-list .saved.current .saved-rename').press('Escape');
+    await expect(page.locator('#saved-list .saved.current .saved-name')).toContainText('Les vacances à la mer');
+    // le nom survit au rechargement
+    await waitDraft(page);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#saved-list .saved.current .saved-name')).toContainText('Les vacances à la mer');
+    expect(await page.evaluate(() => AtelierGribouille.state.workName)).toBe('Les vacances à la mer');
   });
 
   test('sans dessin, « Dupliquer » explique quoi faire', async ({ app }) => {
