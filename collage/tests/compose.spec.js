@@ -39,6 +39,31 @@ test.describe('Compositions', () => {
     expect(r.gal[0]).toBe(2);
   });
 
+  test('tableau imprimé sur fond uni : une petite découpe grandit dans l’air libre autour d’elle, jamais sur un voisin ni hors du cadre', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const mask = (fn) => { const n = 48, d = new Uint8Array(n * n); for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) d[y * n + x] = fn((x + 0.5) / n - 0.5, (y + 0.5) / n - 0.5) ? 1 : 0; return { w: n, h: n, data: d }; };
+      const disc = mask((x, y) => x * x + y * y < 0.2);
+      const mk = (id, cm, hit) => { const cv = document.createElement('canvas'); cv.width = 48; cv.height = 48; return { canvas: cv, wcm: cm, hcm: cm, color: [200, 80, 80], colorful: 0.5, importance: 1, main: true, hit, drawing: { id } }; };
+      // un grand disque et six petits : l'échelle commune laisse de l'air autour des petits
+      const pieces = [mk(1, 16, disc)].concat([2, 3, 4, 5, 6, 7].map((i) => mk(i, 4, disc)));
+      const base = { format: { w: 40, h: 50, auto: false }, scale: 1, density: 1.8, rotation: 8, everything: true, densityT: 1, flat: true, spread: false, count: 7, maxGrow: 2.5, ground: '#223355', groundName: 'bleu', seed: 5, textures: [], pieces };
+      const comp = Compose.generate(Object.assign({}, base, { style: 'nuage' }));
+      const items = comp.items.map((L) => ({ id: L.piece.drawing.id, w: L.w, h: L.h, x: L.x, y: L.y, w0: L.piece.wcm }));
+      // chevauchement de deux disques : la distance des centres plus petite que la somme des rayons (en cm)
+      let overlap = 0;
+      for (let i = 0; i < comp.items.length; i++) for (let j = i + 1; j < comp.items.length; j++) { const a = comp.items[i], b = comp.items[j]; const d = Math.hypot(a.x - b.x, a.y - b.y), r = (a.w + b.w) / 2 * Math.sqrt(0.2) * 2 / 2; if (d < r * 0.97) overlap++; }
+      return { items, overlap, W: comp.W, H: comp.H };
+    });
+    const small = r.items.filter((it) => it.id !== 1);
+    // au moins la plupart des petits ont grandi (avec la plus grande découpe tenant dans le cadre, l'échelle commune ne les fait pas grandir d'autant)
+    expect(small.filter((it) => it.w > it.w0 * 1.3).length).toBeGreaterThanOrEqual(4);
+    // jamais plus de 2,2 fois leur taille posée ni plus que maxGrow
+    small.forEach((it) => expect(it.w).toBeLessThanOrEqual(it.w0 * 2.5 + 1e-6));
+    // tous dans le cadre, et aucun disque sur un autre
+    r.items.forEach((it) => { expect(it.x - it.w / 2).toBeGreaterThanOrEqual(-0.5); expect(it.x + it.w / 2).toBeLessThanOrEqual(r.W + 0.5); expect(it.y - it.h / 2).toBeGreaterThanOrEqual(-0.5); expect(it.y + it.h / 2).toBeLessThanOrEqual(r.H + 0.5); });
+    expect(r.overlap).toBe(0);
+  });
+
   test('chaque style se sélectionne et se dessine ; la Galerie et le Pop art n’existent qu’en tableau imprimé', async ({ app }) => {
     const { page } = app;
     // collage : ni Galerie ni Pop art parmi les propositions (le Village n'est plus proposé du tout)

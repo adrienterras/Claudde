@@ -1584,8 +1584,72 @@
     const comp = generateInner(o);
     if (o.flat) comp.paint = false;
     if (o.count && (comp.style === 'nuage' || comp.style === 'paysage') && !comp.bg.some((L) => L.panel)) relaxItems(comp);
-    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village', 'popart'].includes(comp.style)) fillFrame(comp, o.maxGrow || 1);
+    if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village', 'popart'].includes(comp.style)) {
+      fillFrame(comp, o.maxGrow || 1);
+      // fond uni (sans page de fond posée) : chaque dessin grandit encore dans l'air libre autour de lui
+      // (le plafond restant tient compte de l'agrandissement d'ensemble déjà fait)
+      if (!comp.bg.some((L) => L.panel)) growIntoGaps(comp, (o.maxGrow || 1) / (comp.fill || 1));
+    }
     return comp;
+  }
+
+  /*
+   * Affiche, fond uni : après l'agrandissement d'ensemble, les trous restent là où un grand dessin
+   * en côtoie des petits (l'échelle commune vient de la somme des surfaces, et c'est le grand qui
+   * atteint les bords). Chaque dessin grandit alors à sa place, autour de son centre, tant qu'il ne
+   * touche ni les bords ni un voisin (un peu d'air entre eux), par paliers et à tour de rôle pour
+   * que deux voisins se partagent l'espace ; au plus maxGrow (le plafond de qualité, commun à tous
+   * depuis l'échelle de départ) et 2,2 fois sa taille posée. Un dessin déjà chevauché ne bouge pas.
+   */
+  function growIntoGaps(comp, maxGrow) {
+    const W = comp.W, H = comp.H;
+    // (les petits d'abord : ils prennent l'air libre avant que les grands ne le remplissent)
+    const items = comp.items.filter((L) => L.piece && L.piece.hit && L.piece.hit.data).sort((a, b) => a.w * a.h - b.w * b.h);
+    const cap = Math.min(maxGrow, 2.2);
+    if (!(cap > 1.02) || items.length < 2) return;
+    // grille au centimètre : à qui est chaque case (255 : à plusieurs) ; les formes réelles, d'après
+    // les masques des découpes (comme à la pose, l'inclinaison, faible, est ignorée)
+    const gw = Math.ceil(W), gh = Math.ceil(H);
+    const occ = new Uint8Array(gw * gh);
+    const foot = (L, cx, cy, w, h, fn) => {
+      const x0 = cx - w / 2, y0 = cy - h / 2, hm = L.piece.hit;
+      for (let gy = Math.floor(y0); gy <= Math.floor(y0 + h); gy++) {
+        const v = (gy + 0.5 - y0) / h;
+        if (v < 0 || v >= 1) continue;
+        for (let gx = Math.floor(x0); gx <= Math.floor(x0 + w); gx++) {
+          const u = (gx + 0.5 - x0) / w;
+          if (u < 0 || u >= 1) continue;
+          if (hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)]) fn(gx, gy);
+        }
+      }
+    };
+    const inside = (gx, gy) => gx >= 0 && gy >= 0 && gx < gw && gy < gh;
+    const stamp = (i, L) => foot(L, L.x, L.y, L.w, L.h, (gx, gy) => { if (!inside(gx, gy)) return; const k = gy * gw + gx; occ[k] = occ[k] && occ[k] !== i + 1 ? 255 : i + 1; });
+    items.forEach((L, i) => stamp(i, L));
+    const air = 0.7; // cm d'air gardés autour de chaque dessin
+    const grown = new Map();
+    for (let round = 0; round < 8; round++) {
+      let any = false;
+      items.forEach((L, i) => {
+        const g = grown.get(L) || 1;
+        // (et jamais plus de 85 % de la feuille : un grand dessin ne la prend pas toute)
+        const f = Math.min(cap / g, 1.18, (0.85 * W) / L.w, (0.85 * H) / L.h);
+        if (!(f > 1.015)) return;
+        const w = L.w * f, h = L.h * f;
+        // un dessin au bord glisse vers l'intérieur pour rester dans le cadre en grandissant
+        const cx = clamp(L.x, w / 2 + air, W - w / 2 - air), cy = clamp(L.y, h / 2 + air, H - h / 2 - air);
+        let cells = 0, bad = 0;
+        foot(L, cx, cy, w + 2 * air, h + 2 * air, (gx, gy) => { cells++; if (!inside(gx, gy)) bad++; else { const v = occ[gy * gw + gx]; if (v && v !== i + 1) bad++; } });
+        if (!cells || bad / cells > 0.03) return;
+        L.w = w; L.h = h; L.x = cx; L.y = cy;
+        if (L.scale !== undefined) L.scale *= f;
+        if (L.clip) L.clip = L.clip.map(([x, y]) => [x * f, y * f]);
+        grown.set(L, g * f);
+        stamp(i, L);
+        any = true;
+      });
+      if (!any) break;
+    }
   }
 
   /*

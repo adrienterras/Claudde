@@ -1026,6 +1026,12 @@
     return a.width * c * a.height * c;
   }
 
+  // part de sa boîte qu'une découpe remplit vraiment (d'après son masque) : un bonhomme filiforme ou une
+  // étoile n'en couvrent qu'un tiers, un visage ou une maison presque tout
+  function pieceFill(p) {
+    if (p.fillOf !== p.hit) { let fill = 0; for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i]; p.fill = fill / p.hit.data.length; p.fillOf = p.hit; }
+    return p.fill;
+  }
   function paperAreas(drawings) {
     let bgArea = 0, pieceArea = 0;
     drawings.forEach((d) => {
@@ -1033,8 +1039,7 @@
       if (roleOf(d) !== 'cutout') return;
       (d.analysis.pieces || []).filter((p) => p.enabled).forEach((p) => {
         const c = cmPerPx(d);
-        if (p.fillOf !== p.hit) { let fill = 0; for (let i = 0; i < p.hit.data.length; i++) fill += p.hit.data[i]; p.fill = fill / p.hit.data.length; p.fillOf = p.hit; }
-        pieceArea += p.canvas.width * c * p.canvas.height * c * p.fill;
+        pieceArea += p.canvas.width * c * p.canvas.height * c * pieceFill(p);
       });
     });
     return { bgArea, pieceArea };
@@ -2470,11 +2475,17 @@
     const { w, h } = state.canvasSize;
     const pieces = activePieces().filter((p) => p.enabled);
     if (!pieces.length) return 1;
-    const areaOf = (p) => { const c = cmPerPx(p.drawing); return p.canvas.width * c * p.canvas.height * c; };
+    // la surface que demande une découpe : sa boîte, pour une forme pleine (remplie aux quatre
+    // cinquièmes ou plus) ; moins pour une forme fine (un bonhomme, une étoile), dont la pose, faite sur
+    // les formes réelles, emboîte les vides : sinon l'encre ne couvre qu'une petite part de la feuille
+    const areaOf = (p) => { const c = cmPerPx(p.drawing); return p.canvas.width * c * p.canvas.height * c * (clamp(pieceFill(p), 0.6, 0.8) / 0.8); };
     const t = densityT();
     // échelle pour une position du curseur : les sujets retenus (les plus forts d'abord, comme à la
-    // pose) demandent ensemble la surface fixée ; au plus printCap
-    const cap = printCap();
+    // pose) demandent ensemble la surface fixée ; au plus printCap, et la plus grande découpe tient
+    // toujours dans la feuille (avec un peu de marge)
+    let cap = printCap();
+    pieces.forEach((p) => { const c = cmPerPx(p.drawing); cap = Math.min(cap, (0.85 * w) / (p.canvas.width * c), (0.85 * h) / (p.canvas.height * c)); });
+    cap = Math.max(cap, 0.05);
     const raw = (tt) => {
       const area = printKeep(pieces, tt).reduce((a, p) => a + areaOf(p), 0);
       return Math.min(cap, Math.sqrt((printCover(tt) * w * h) / Math.max(1, area)));

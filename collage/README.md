@@ -41,10 +41,19 @@ cd collage && python3 -m http.server 8000
      l'ordre de la pose, les plus fortes d'abord, jusqu'au nombre de dessins voulu, un dessin
      pouvant avoir plusieurs découpes) et la surface
      qu'ils demandent ensemble (`printCover` : de 90 % à 140 % de l'affiche, ils se chevauchent et
-     la remplissent à toute position du curseur) ; la pose reçoit ce nombre (`o.count`) sans
+     la remplissent à toute position du curseur ; la surface d'une découpe est sa boîte pour une
+     forme pleine, moins pour une forme fine — bonhomme, étoile — qui ne remplit qu'un tiers de sa
+     boîte et dont la pose, faite sur les formes réelles, emboîte les vides : `pieceFill`, de 60 à
+     80 % de remplissage comptés, sinon l'encre ne couvrait qu'une petite part de la feuille) ; la
+     plus grande découpe tient toujours dans la feuille (85 %) ; la pose reçoit ce nombre (`o.count`) sans
      plafond de couverture ; agrandis s'il le faut pour remplir la surface, jusqu'à trois fois leur taille réelle sur un 30 × 40 (`PRINT_GROW_MAX`, plafond qui grandit avec le cadre : `printCap`). Après la pose : en Nuage et en Paysage sans page de fond, les dessins se partagent toute la
      surface (`relaxItems`, relaxation de Lloyd pondérée par leur taille) ; puis, sauf Galerie,
-     Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, dans la limite de `printCap`) et ses positions étirées jusqu'aux bords (`fillFrame`). Dessins réduits
+     Cabinet, Frise et Scène, l'ensemble est agrandi tant qu'il tient (au plus 1,6 fois, dans la limite de `printCap`) et ses positions étirées jusqu'aux bords (`fillFrame`) ; enfin, sur fond
+     uni (sans page de fond posée), chaque dessin grandit à sa place dans l'air libre autour de lui
+     (`growIntoGaps` : d'après son masque, sur une grille au centimètre, par paliers et à tour de
+     rôle, 0,7 cm d'air gardés, jamais sur un voisin ni hors du cadre, au plus 2,2 fois sa taille
+     posée dans la limite de `printCap`) : un grand dessin au milieu de petits ne laisse plus de
+     trous autour d'eux. Dessins réduits
      à moins de 60 % (`o.spread`) : Paysage abandonne les zones ciel / milieu / sol et la ligne
      de sol, les sujets se répartissent sur toute l'affiche, bien espacés. Les pages de fond ont
      leur propre réduction (`state.bgScale`, `computeBgScale`) : elles couvrent l'affiche en se
