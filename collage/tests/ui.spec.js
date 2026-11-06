@@ -456,6 +456,52 @@ test.describe('Brouillon', () => {
     expect(await page.evaluate(() => [AtelierGribouille.state.formatManual, document.getElementById('format').value, AtelierGribouille.state.comp.W])).toEqual([true, '50x50', 50]);
   });
 
+  test('retour sur l’atelier (nouvelle visite) avec une œuvre en cours : deux boutons, reprendre ou nouvelle œuvre ; pas après une actualisation', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#resume-modal')).toBeHidden(); // (rien en cours : pas de question)
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page);
+    // nouvelle visite : la question, avec le nom de l'œuvre et son nombre de dessins, rien de rouvert d'office
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#resume-modal')).toBeVisible();
+    await expect(page.locator('#resume-text')).toContainText('3 dessins');
+    await expect(page.locator('#resume-yes')).toBeVisible();
+    await expect(page.locator('#resume-new')).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    // « Reprendre l'œuvre en cours » : elle revient
+    await page.locator('#resume-yes').click();
+    await expect(page.locator('#resume-modal')).toBeHidden();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page);
+    // une actualisation ne demande rien : l'œuvre revient d'elle-même
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#resume-modal')).toBeHidden();
+    // nouvelle visite, « Commencer une nouvelle œuvre » : l'atelier reste vide, l'œuvre d'avant est dans Mes œuvres
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#resume-modal')).toBeVisible();
+    await page.locator('#resume-new').click();
+    await expect(page.locator('#resume-modal')).toBeHidden();
+    for (let i = 0; i < 40 && await hasDraft(page); i++) await page.waitForTimeout(250); // le rangement est asynchrone
+    expect(await hasDraft(page)).toBe(false);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    await expect(page.locator('#empty')).toBeVisible();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
+    // plus rien en cours : la visite suivante ne demande rien
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.waitForTimeout(800);
+    await expect(page.locator('#resume-modal')).toBeHidden();
+  });
+
   test('l’œuvre en cours est gardée d’elle-même et rouverte toute seule après un rechargement', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -467,8 +513,9 @@ test.describe('Brouillon', () => {
     await waitDraft(page);
     const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
     await page.reload();
-    // sans rien demander : l'œuvre revient, avec un message pendant la réouverture
+    // sans rien demander (une actualisation, pas une nouvelle visite) : l'œuvre revient, avec un message pendant la réouverture
     await expect(page.locator('#empty-resume')).toBeVisible();
+    await expect(page.locator('#resume-modal')).toBeHidden();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBe(style0);
     await expect(page.locator('#draft-offer')).toBeHidden();

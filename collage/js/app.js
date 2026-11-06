@@ -5926,6 +5926,28 @@ Réponds uniquement avec ce JSON :
     $('proposals').innerHTML = '';
     ['sample-note', 'label'].forEach((id) => { if ($(id)) $(id).hidden = true; });
   };
+  // une nouvelle visite (adresse tapée, lien, onglet rouvert) ; ni une actualisation ni un retour en
+  // arrière, ni le retour d'une connexion (code ou jeton dans l'adresse)
+  function newVisit() {
+    let type = '';
+    try { const e = performance.getEntriesByType('navigation')[0]; type = e ? e.type : ''; } catch (e) { type = ''; }
+    if (type === 'reload' || type === 'back_forward') return false;
+    return !/[?&#](code|access_token|refresh_token|type|error)=/.test(location.search + location.hash);
+  }
+  // Retour sur l'atelier avec une œuvre en cours : plutôt que de la rouvrir d'office, on demande —
+  // « Reprendre l'œuvre en cours » ou « Commencer une nouvelle œuvre » (l'œuvre en cours est alors
+  // rangée dans Mes œuvres, et rien du compte ne se rouvre à sa place)
+  function offerResume(rec) {
+    const m = $('resume-modal');
+    if (!m) return;
+    const name = rec.workName || rec.name || defaultWorkName();
+    $('resume-text').textContent = tr`« ${name} » : ${rec.drawings.length} dessins, ${clockText(rec.date)}.`;
+    const img = $('resume-thumb'), thumb = safeData(rec.thumb);
+    if (img) { img.parentElement.hidden = !thumb; if (thumb) img.src = thumb; }
+    $('resume-yes').onclick = () => { closeModal(m); window.Atelier.track('Reprendre'); resumeDraft(true); };
+    $('resume-new').onclick = async () => { closeModal(m); window.Atelier.track('Nouvelle œuvre (retour)'); lsSet(NEW_KEY, '1'); await setDraftAside(); };
+    openModal(m);
+  }
   async function resumeDraft(manual) {
     const box = $('draft-offer');
     if (!box) return;
@@ -5955,10 +5977,12 @@ Réponds uniquement avec ce JSON :
       $('draft-forget').onclick = setDraftAside;
       return;
     }
-    try { localStorage.setItem(RESUME_KEY, String(Date.now())); } catch (e) { /* ignoré */ }
     // retour d'une connexion Google : on revient ensuite à l'export, avec l'action demandée rappelée
     let after = null;
     try { after = sessionStorage.getItem(AFTER_AUTH_KEY); sessionStorage.removeItem(AFTER_AUTH_KEY); } catch (e) { after = null; }
+    // nouvelle visite (pas une actualisation) : on demande avant de rouvrir
+    if (!manual && !after && newVisit()) { offerResume(rec); return; }
+    try { localStorage.setItem(RESUME_KEY, String(Date.now())); } catch (e) { /* ignoré */ }
     const big = $('empty-resume');
     box.querySelector('span').textContent = after ? tr('Connexion terminée : votre œuvre est rouverte…') : tr('Réouverture de votre œuvre…');
     box.hidden = false;

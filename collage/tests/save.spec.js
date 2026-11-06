@@ -397,8 +397,11 @@ test.describe('Réouverture fidèle des retouches', () => {
     // Reprendre : l'œuvre revient
     await page.locator('#draft-resume').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // sans le paramètre, l'œuvre en cours est rouverte d'elle-même
+    // sans le paramètre, une nouvelle visite demande d'abord : reprendre, ou nouvelle œuvre
     await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await expect(page.locator('#resume-modal')).toBeVisible();
+    await page.locator('#resume-yes').click();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3, null, { timeout: 120000 });
   });
 

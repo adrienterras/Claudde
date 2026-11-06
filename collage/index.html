@@ -501,6 +501,19 @@
     </div>
   </section>
 
+  <!-- retour sur l'atelier (nouvelle visite : adresse, lien, onglet rouvert — pas une actualisation) avec une
+       œuvre en cours : la reprendre, ou en commencer une nouvelle (l'œuvre en cours est alors rangée dans Mes œuvres) -->
+  <section id="resume-modal" class="account-modal resume-modal" hidden role="dialog" aria-modal="true" aria-labelledby="resume-title">
+    <div class="acc-card resume-card">
+      <h2 id="resume-title" class="acc-title">Reprendre votre œuvre ?</h2>
+      <p id="resume-text" class="hint resume-text"></p>
+      <p class="resume-thumb" hidden><img id="resume-thumb" alt=""></p>
+      <button type="button" id="resume-yes" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Reprendre l’œuvre en cours</span></button>
+      <button type="button" id="resume-new" class="btn"><svg class="ico"><use href="#i-plus"/></svg><span>Commencer une nouvelle œuvre</span></button>
+      <p class="hint resume-note">L’œuvre en cours reste dans Mes œuvres si vous en commencez une nouvelle.</p>
+    </div>
+  </section>
+
   <section id="cart-add" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cart-add-title">
     <div class="acc-card cart-card cart-add-card">
       <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>

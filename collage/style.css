@@ -207,6 +207,13 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 .acc-close:hover { background: var(--line); color: var(--ink); }
 .acc-mark { width: 44px; margin: 0 auto -4px; }
 .acc-title { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 1.6rem; line-height: 1.15; text-align: center; }
+/* « Reprendre votre œuvre ? » : l'œuvre en cours en vignette, deux boutons */
+.resume-card { text-align: center; }
+.resume-card .resume-text, .resume-card .resume-note { margin: 0; }
+.resume-card .resume-note { font-size: 0.74rem; }
+.resume-thumb { margin: 0; }
+.resume-thumb img { max-width: 100%; max-height: 200px; border-radius: 10px; box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .5), 0 0 0 1px var(--line); }
+.resume-card .btn { width: 100%; justify-content: center; }
 .acc-sub { margin: 4px 0 0; text-align: center; color: var(--muted); font-size: 0.86rem; }
 #auth-box, #profile-box, #recover-form { display: flex; flex-direction: column; gap: 14px; }
 .social { display: flex; flex-direction: column; gap: 8px; }

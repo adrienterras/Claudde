@@ -380,7 +380,10 @@ cd collage && python3 -m http.server 8000
      récapitulatif. Le paiement en ligne n'est pas encore branché ;
    - **Mes œuvres** : chaque œuvre s'enregistre d'elle-même pendant qu'on travaille (2,5 s après le
      dernier changement), il n'y a rien à sauvegarder. L'œuvre affichée est le brouillon (`DRAFT_ID`,
-     rouvert au rechargement) ; les autres sont rangées dans IndexedDB sous leur identifiant
+     rouvert de lui-même à une actualisation ou un retour en arrière ; à une nouvelle visite — adresse,
+     lien, onglet rouvert, `newVisit` d'après le type de navigation, hors retour d'une connexion — une
+     fenêtre demande d'abord, `offerResume` : « Reprendre l'œuvre en cours » ou « Commencer une
+     nouvelle œuvre », qui range l'œuvre en cours dans Mes œuvres) ; les autres sont rangées dans IndexedDB sous leur identifiant
      (`rec.work`, `state.workId`), leurs images dans le magasin commun (`FILES_STORE`, chaque image et
      chaque découpe écrites une fois, sous une clé stable). « Nouvelle œuvre » ou l'ouverture d'une autre
      œuvre range celle affichée (`shelveCurrent`) ; une œuvre ne s'efface que par la corbeille de la
