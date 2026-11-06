@@ -266,6 +266,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, w2, { timeout: 120000 });
     await openStep(page, 'saved-section');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    await expect(page.locator('#saved-list .saved.current')).toHaveCount(1); // (la liste se redessine avec l'œuvre rouverte en tête)
     // l'autre se rouvre depuis le compte, telle qu'elle était
     await page.locator('#saved-list .saved:not(.current)').click();
     await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 4 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, w1, { timeout: 120000 });

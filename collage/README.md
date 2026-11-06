@@ -758,7 +758,9 @@ sont actifs, télécharger une œuvre et créer le guide demandent d'être
 connecté (la fenêtre de connexion s'ouvre et l'action reprend d'elle-même après la connexion) ; les
 œuvres s'enregistrent d'elles-mêmes dans le compte (Mes œuvres), avec les images des dessins en haute
 définition et les retouches, et chaque export (JPEG, PNG, PDF, guide) y est gardé aussi, listé sous « Mes exports »
-avec retéléchargement et suppression. Tout se retrouve depuis n'importe quel appareil. Le service est Supabase (Auth + Storage,
+avec retéléchargement et suppression. Chaque fichier téléchargé porte le nom de l'œuvre dans Mes œuvres
+(`exportFileName` : en minuscules, sans accents ni espaces, « Œuvre du 6 novembre » →
+`oeuvre-du-6-novembre.jpg` ; le guide `…-guide-de-creation.pdf`, l'aperçu `…-apercu.jpg`). Tout se retrouve depuis n'importe quel appareil. Le service est Supabase (Auth + Storage,
 hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)
 limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à
 l'utilisateur d'effacer lui-même tout son compte. Sans réglage dans `config.js`, rien n'apparaît et

@@ -17,8 +17,10 @@ test.describe('Export', () => {
     const { page } = app;
     await openStep(page, 'export-section');
     await page.evaluate(() => { AtelierGribouille.state.exportDpi = 60; }); // (petit fichier pour l'essai : l'export est toujours à 300 dpi)
+    // le fichier porte le nom de l'œuvre dans Mes œuvres, sans accents ni espaces
+    await page.evaluate(() => { AtelierGribouille.state.workName = 'Les vacances à la mer — été'; AtelierGribouille.state.title = 'Les vacances à la mer — été'; AtelierGribouille.state.titles = null; });
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.locator('#export').click()]);
-    expect(download.suggestedFilename()).toMatch(/\.jpe?g$/);
+    expect(download.suggestedFilename()).toBe('les-vacances-a-la-mer-ete.jpg');
     const path = await download.path();
     const fs = require('fs');
     const buf = fs.readFileSync(path);

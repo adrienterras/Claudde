@@ -4409,7 +4409,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.restore();
       const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.86));
       if (!blob) throw new Error('toBlob');
-      if (await saveFile(blob, tr('apercu-atelier-gribouille.jpg'))) window.Atelier.track('Export', { type: 'apercu', qualite: 'apercu' });
+      if (await saveFile(blob, exportFileName('jpg', tr('apercu')))) window.Atelier.track('Export', { type: 'apercu', qualite: 'apercu' });
     } catch (e) {
       console.error(e);
       notice(tr('L’aperçu n’a pas pu être produit sur cet appareil.'));
@@ -4482,12 +4482,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // Un export (image, PDF, guide) est aussi gardé dans le compte quand l'utilisateur est connecté.
   async function recordExport(blob, filename) {
-    window.Atelier.track('Export', { type: /\.pdf$/i.test(filename) ? (/guide/.test(filename) ? 'guide' : 'pdf') : 'image', qualite: String(exportDpi()) });
+    window.Atelier.track('Export', { type: /\.pdf$/i.test(filename) ? (/guide/i.test(filename) ? 'guide' : 'pdf') : 'image', qualite: String(exportDpi()) });
     const A = window.Account;
     if (!(A && A.enabled && A.user()) || !state.comp) return;
     try {
       saveStatus(tr('Enregistrement de l’export dans votre compte…'));
-      const kind = /guide/.test(filename) ? 'guide' : /\.pdf$/i.test(filename) ? 'pdf' : /\.png$/i.test(filename) ? 'png' : 'jpg';
+      const kind = /guide/i.test(filename) ? 'guide' : /\.pdf$/i.test(filename) ? 'pdf' : /\.png$/i.test(filename) ? 'png' : 'jpg';
       const { w, h } = exportSize();
       const st = STYLES.find((x) => x.id === state.comp.style);
       await A.exports.put(blob, {
@@ -4516,6 +4516,15 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     };
   }
 
+  // Le nom des fichiers téléchargés : celui de l'œuvre dans Mes œuvres (son titre, ou son nom choisi),
+  // en minuscules sans accents ni espaces : « Œuvre du 6 novembre » → oeuvre-du-6-novembre.jpg ;
+  // le guide de création et l'aperçu le portent aussi, avec leur mention
+  function exportFileName(ext, suffix) {
+    let s = String(workTitle() || '').toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae').replace(/ß/g, 'ss');
+    try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* ignoré */ }
+    s = s.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+    return `${s || 'oeuvre'}${suffix ? `-${suffix}` : ''}.${ext}`;
+  }
   async function saveFile(blob, filename) {
     const { mode, dl } = await saveMode();
     if (mode === 'viewer') {
@@ -4627,7 +4636,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         onProgress: (t) => { label.textContent = t; },
       });
       label.textContent = tr('Enregistrement…');
-      if (await saveFile(res.blob, tr('guide-de-creation-atelier-gribouille.pdf'))) await recordExport(res.blob, tr('guide-de-creation-atelier-gribouille.pdf'));
+      const gname = exportFileName('pdf', tr('guide-de-creation'));
+      if (await saveFile(res.blob, gname)) await recordExport(res.blob, gname);
       $('guide-info').textContent = tr`${res.pages} pages : ${res.steps} étapes de collage, ${res.sheets} fiches de découpe sur les originaux.`;
     } catch (e) {
       console.error(e);
@@ -4668,7 +4678,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         await sharpenHD(ex.comp, ps);
         const blob = await exportPdf(ex.comp, ps, posed ? ex : null);
         releaseHD();
-        if (await saveFile(blob, 'oeuvre-atelier-gribouille.pdf')) await recordExport(blob, 'oeuvre-atelier-gribouille.pdf');
+        const pname = exportFileName('pdf');
+        if (await saveFile(blob, pname)) await recordExport(blob, pname);
         return;
       }
       const type = $('fmt').value;
@@ -4718,7 +4729,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       }
       if (!blob) throw new Error('toBlob');
       if (scale < s) notice(tr`Image réduite à ${rw} × ${rh} px : cet appareil ne peut pas en produire une plus grande.`);
-      const fname = `oeuvre-atelier-gribouille.${type === 'image/png' ? 'png' : 'jpg'}`;
+      const fname = exportFileName(type === 'image/png' ? 'png' : 'jpg');
       if (await saveFile(blob, fname)) await recordExport(blob, fname);
     } catch (e) {
       console.error(e);
