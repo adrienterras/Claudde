@@ -555,7 +555,11 @@ cd collage && python3 -m http.server 8000
      photographié à cet endroit ; la vue est cadrée en 4 : 3 autour de l'œuvre (`aspect`), sans carte de
      lumière ; l'entrée (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
-     `assets/hall-lumiere.webp`) ; la chambre (photo de face `assets/chambre.webp`, échelle estimée
+     `assets/hall-lumiere.webp`) ; les cartes de lumière (multipliées sur l'œuvre à 75 %) sont
+     ramenées à la même moyenne dans la zone où l'œuvre se pose (`normLight`, référence `LIGHT_REF` :
+     celle du salon, un blanc à peine chaud) : l'œuvre et son cadre gardent leurs couleurs d'une pièce
+     à l'autre (celle de l'entrée, plus sombre et verdâtre, les assombrissait et verdissait), le
+     soleil et les ombres de chaque pièce restent ; la chambre (photo de face `assets/chambre.webp`, échelle estimée
      d'après le mobilier : étagère basse de 55 cm, paniers de 33 cm, lampe et ours de 30 cm, soit 3,1 px
      par cm sur le mur ; l'œuvre est accrochée au-dessus de l'étagère, sous la suspension, avec la carte
      de lumière `assets/chambre-lumiere.webp`). Dans le salon, l'œuvre active est accrochée dans un

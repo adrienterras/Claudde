@@ -1671,12 +1671,12 @@ test.describe('Cartel sur ordinateur', () => {
 });
 
 test.describe('Couleur du fond', () => {
-  test('le nuancier est juste sous « Nouvelles propositions » (ordinateur) ; une teinte s’applique tout de suite ; sans objet en Galerie', async ({ app }) => {
+  test('le nuancier est sous « Nouvelles propositions » et « Figer cette œuvre » (ordinateur) ; une teinte s’applique tout de suite ; sans objet en Galerie', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#ground')).toBeVisible();
-    // juste sous le bouton « Nouvelles propositions », hors des réglages avancés (repliés)
-    expect(await page.evaluate(() => { const g = document.getElementById('ground'); const f = document.getElementById('generate').nextElementSibling; return f.contains(g) && !document.getElementById('advanced').contains(g); })).toBe(true);
+    // sous « Nouvelles propositions » puis « Figer cette œuvre » (et son message), hors des réglages avancés (repliés)
+    expect(await page.evaluate(() => { const g = document.getElementById('ground'); const gen = document.getElementById('generate'); return gen.nextElementSibling === document.getElementById('save-comp') && document.getElementById('freeze-status').nextElementSibling.contains(g) && !document.getElementById('advanced').contains(g); })).toBe(true);
     const hex = await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
     await page.locator(`#ground button[data-hex="${hex}"]`).click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);

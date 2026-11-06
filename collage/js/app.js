@@ -4997,6 +4997,27 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // ---------- Mise en scène ----------
 
+  // Les cartes de lumière des pièces n'ont pas toutes la même clarté ni la même teinte : celle de
+  // l'entrée (mur vert sauge) assombrissait et verdissait l'œuvre et son cadre. Chaque carte est
+  // ramenée à la même moyenne dans la zone où l'œuvre se pose (celle du salon : un blanc à peine
+  // chaud) : l'œuvre et son cadre gardent leurs couleurs d'une pièce à l'autre, le soleil et les
+  // ombres propres à chaque pièce restent.
+  const LIGHT_REF = [214, 202, 191];
+  function normLight(img) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    const id = x.getImageData(0, 0, c.width, c.height), d = id.data;
+    const x0 = Math.round(c.width * 0.3), x1 = Math.round(c.width * 0.7), y0 = Math.round(c.height * 0.15), y1 = Math.round(c.height * 0.6);
+    const m = [0, 0, 0];
+    let n = 0;
+    for (let y = y0; y < y1; y++) for (let xx = x0; xx < x1; xx++) { const i = (y * c.width + xx) * 4; m[0] += d[i]; m[1] += d[i + 1]; m[2] += d[i + 2]; n++; }
+    const g = m.map((v, k) => LIGHT_REF[k] / Math.max(1, v / Math.max(1, n)));
+    for (let i = 0; i < d.length; i += 4) { d[i] = Math.min(255, d[i] * g[0]); d[i + 1] = Math.min(255, d[i + 1] * g[1]); d[i + 2] = Math.min(255, d[i + 2] * g[2]); }
+    x.putImageData(id, 0, 0);
+    return c;
+  }
   // les images d'une pièce, chargées à la première vue
   function roomReady(id) {
     const S = SCENES[id];
@@ -5004,7 +5025,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       sceneImgs[id] = ['src', 'plant', 'light'].map((key) => {
         if (!S[key]) return null;
         const im = new Image();
-        im.onload = () => scheduleScene();
+        im.onload = () => { if (key === 'light') { try { im.norm = normLight(im); } catch (e) { console.warn('carte de lumière', e); } } scheduleScene(); };
         im.src = S[key];
         return im;
       });
@@ -5278,7 +5299,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       x.beginPath(); x.rect(ox, oy, Wo * pc, Ho * pc); x.clip();
       x.globalCompositeOperation = 'multiply';
       x.globalAlpha = 0.75;
-      x.drawImage(light, sx * lr, sy * lr, sw * lr, sh * lr, 0, 0, W, H);
+      x.drawImage(light.norm || light, sx * lr, sy * lr, sw * lr, sh * lr, 0, 0, W, H);
       x.restore();
     }
     // la plante, devant le mur, passe devant l'œuvre
