@@ -93,9 +93,9 @@ test.describe('Mes œuvres', () => {
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
 
     // « Figer » : une œuvre figée rejoint Mes œuvres (même nom, étiquette « figée »), on reste sur l'œuvre
-    await openStep(page, 'export-section');
+    await openStep(page, 'compose-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#save-status')).toContainText('figée dans Mes œuvres');
+    await expect(page.locator('#freeze-status')).toContainText('figée dans Mes œuvres');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
     await expect(page.locator('#saved-list .saved:not(.current) .saved-tag')).toHaveText('figée');
     await expect(page.locator('#saved-list .saved:not(.current) .saved-name')).not.toContainText('(copie)');
@@ -156,9 +156,9 @@ test.describe('Mes œuvres', () => {
     await app.import(['page-cutout.png', 'page-two.png']);
     await waitDraft(page);
     const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
-    await openStep(page, 'export-section');
+    await openStep(page, 'compose-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#save-status')).toContainText('figée dans Mes œuvres');
+    await expect(page.locator('#freeze-status')).toContainText('figée dans Mes œuvres');
     await openStep(page, 'saved-section');
     const frozen = page.locator('#saved-list .saved:not(.current)');
     await expect(frozen).toHaveCount(1);
@@ -197,7 +197,7 @@ test.describe('Mes œuvres', () => {
     const { page } = app;
     await expect(page.locator('#export-section')).toBeHidden();
     await page.evaluate(() => document.getElementById('save-comp').click());
-    await expect(page.locator('#save-status')).toContainText('Importez des dessins');
+    await expect(page.locator('#freeze-status')).toContainText('Importez des dessins');
   });
 });
 

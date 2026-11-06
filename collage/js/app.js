@@ -5325,8 +5325,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function placeGround() {
     const field = document.querySelector('.ground-field'), gen = $('generate'), sec = $('compose-section');
     if (!field || !gen || !sec) return;
+    // (sous « Nouvelles propositions » vient d'abord « Figer cette œuvre », et son message)
+    const anchor = $('freeze-status') || $('save-comp') || gen;
     if (mobileQuery.matches) { if (sec.lastElementChild !== field) sec.appendChild(field); }
-    else if (gen.nextElementSibling !== field) gen.after(field);
+    else if (anchor.nextElementSibling !== field) anchor.after(field);
   }
   placeGround();
   mobileQuery.addEventListener('change', placeGround);
@@ -6064,10 +6066,16 @@ Réponds uniquement avec ce JSON :
   // (étiquette « figée », rouverte en copie comme une œuvre commandée) ; on reste sur l'œuvre en cours,
   // qui continue de s'enregistrer sous son identité à elle : les changements qui suivent ne touchent
   // plus la version figée
+  // (le message de « Figer », sous son bouton dans Propositions)
+  function freezeStatus(text) {
+    const el = $('freeze-status');
+    if (!el) { saveStatus(text); return; }
+    el.textContent = text || ''; el.hidden = !text;
+  }
   async function freezeWork() {
-    if (!state.comp || !state.drawings.length || onlySamples()) { saveStatus(tr('Importez des dessins et choisissez une proposition avant de figer l’œuvre.')); return; }
+    if (!state.comp || !state.drawings.length || onlySamples()) { freezeStatus(tr('Importez des dessins et choisissez une proposition avant de figer l’œuvre.')); return; }
     window.Atelier.track('Figer');
-    saveStatus(tr('Enregistrement de l’œuvre figée…'));
+    freezeStatus(tr('Enregistrement de l’œuvre figée…'));
     try {
       const rec = await snapshotComposition(workTitle(), { refs: true });
       const id = newWorkId();
@@ -6075,11 +6083,11 @@ Réponds uniquement avec ce JSON :
       rec.print = printOf(rec);
       await dbPut(rec);
       cloudQueue.push(rec); syncCloud();
-      saveStatus(tr`Œuvre « ${rec.name} » figée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
+      freezeStatus(tr`Œuvre « ${rec.name} » figée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
       renderSaved();
     } catch (e) {
       console.error(e);
-      saveStatus(tr`Figer l’œuvre a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
+      freezeStatus(tr`Figer l’œuvre a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
     }
   }
 

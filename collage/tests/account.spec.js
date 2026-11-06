@@ -174,9 +174,9 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#exports-list .saved-meta')).toContainText('JPEG');
     // déconnecté, l'œuvre s'enregistre toujours sur l'appareil, et « Figer » ne demande pas de compte
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
-    await openStep(page, 'export-section');
+    await openStep(page, 'compose-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#save-status')).toContainText('figée dans Mes œuvres');
+    await expect(page.locator('#freeze-status')).toContainText('figée dans Mes œuvres');
     await expect(page.locator('#account-section')).toBeHidden();
   });
 

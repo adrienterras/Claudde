@@ -406,7 +406,7 @@ cd collage && python3 -m http.server 8000
      autres de la plus récente à la plus ancienne (« commandée », « sur cet appareil » : pas encore
      dans le compte) ; un toucher rouvre une œuvre telle quelle, sans nouvelle analyse, la version la
      plus récente l'emportant (celle du navigateur si elle est à jour : rien à télécharger). « Figer cette
-     œuvre » (étape Exporter, `freezeWork`) ajoute à la liste, sans compte, une nouvelle œuvre figée :
+     œuvre » (étape Propositions, sous « Nouvelles propositions », `freezeWork`) ajoute à la liste, sans compte, une nouvelle œuvre figée :
      l'œuvre telle qu'elle est à cet instant, sous son nom, étiquetée « figée » ; on reste sur l'œuvre
      en cours, qui continue de s'enregistrer sous sa propre identité, et les changements qui suivent ne
      touchent plus la version figée. Une œuvre figée, une œuvre commandée ou un article du panier

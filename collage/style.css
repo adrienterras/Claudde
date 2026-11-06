@@ -374,6 +374,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 
 /* Propositions */
 #generate { width: 100%; margin-bottom: 12px; }
+#save-comp { width: 100%; margin-bottom: 12px; }
 .proposals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .proposal {
   display: flex; flex-direction: column; align-items: stretch; gap: 4px;
