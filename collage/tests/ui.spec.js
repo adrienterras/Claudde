@@ -1850,8 +1850,10 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
       q.onerror = () => res(null);
     }));
     for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 4 && r.comp && r.comp.style === 'tournesol') break; await page.waitForTimeout(500); }
-    // l'œuvre en cours est rouverte d'elle-même : composition épinglée telle quelle
+    // nouvelle visite : « Reprendre l'œuvre en cours » la rouvre, composition épinglée telle quelle
     await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.locator('#resume-yes').click();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 4 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await page.waitForTimeout(500);
     const before = await page.evaluate(() => { const c = AtelierGribouille.state.comp; return { style: c.style, ground: c.ground, pinned: AtelierGribouille.state.pinned === c, items: c.items.map((L) => [L.x, L.y, L.rot]) }; });

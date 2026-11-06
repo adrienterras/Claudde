@@ -169,6 +169,18 @@
   // de chaque œuvre ne transite qu'à sa réouverture.
   const ORDER_NAME = /^AG-\d{6}-[A-Z0-9]{4} · /;
   // from, count : une page de la liste, des plus récentes aux plus anciennes (sans count : toute la liste)
+  // Chaque compte garde au plus WORK_MAX œuvres (Mes œuvres : œuvres en cours, figées, commandées ;
+  // les articles du panier ne comptent pas), pendant WORK_KEEP_DAYS jours après leur dernier
+  // changement : au-delà, elles sont effacées à la lecture suivante de la liste (cloudPrune).
+  const WORK_MAX = 15, WORK_KEEP_DAYS = 60;
+  async function cloudPrune() {
+    const { data, error } = await client.from('compositions').select('id, created_at, date:meta->>date').is('meta->>cart', null);
+    err(error);
+    const limit = Date.now() - WORK_KEEP_DAYS * 86400e3;
+    const old = (data || []).filter((row) => new Date(row.date || row.created_at).getTime() < limit);
+    for (const row of old) await cloudDel(`cloud:${row.id}`);
+    return old.length;
+  }
   async function cloudList(from, count) {
     let q = client.from('compositions')
       .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, frozen:meta->>frozen, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format')
@@ -450,7 +462,8 @@
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
-    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet },
+    cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet, prune: cloudPrune },
+    limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',
   };

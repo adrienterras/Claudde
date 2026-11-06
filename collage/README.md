@@ -385,7 +385,13 @@ cd collage && python3 -m http.server 8000
      fenêtre demande d'abord, `offerResume` : « Reprendre l'œuvre en cours » ou « Commencer une
      nouvelle œuvre », qui range l'œuvre en cours dans Mes œuvres) ; les autres sont rangées dans IndexedDB sous leur identifiant
      (`rec.work`, `state.workId`), leurs images dans le magasin commun (`FILES_STORE`, chaque image et
-     chaque découpe écrites une fois, sous une clé stable). « Nouvelle œuvre » ou l'ouverture d'une autre
+     chaque découpe écrites une fois, sous une clé stable). **Connecté, le compte garde au plus 15
+     œuvres** (`Account.limits.max` ; Mes œuvres : en cours, figées, commandées — pas le panier),
+     **pendant 60 jours** après leur dernier changement (`limits.keepDays` : les plus vieilles sont
+     effacées à la lecture suivante de la liste, `cloud.prune`). Une œuvre de plus alors que le compte
+     est plein attend (`cloudFull`, `syncCloud` la laisse en attente) : l'alerte de Mes œuvres
+     (`#saved-full`) et le statut de l'œuvre demandent d'en supprimer ; dès qu'une suppression fait
+     de la place, elle part. « Nouvelle œuvre » ou l'ouverture d'une autre
      œuvre range celle affichée (`shelveCurrent`) ; une œuvre ne s'efface que par la corbeille de la
      liste (en deux temps), dans ce navigateur et dans le compte ; le crayon de la liste **renomme**
      l'œuvre (`renameWork` : un champ à la place du nom, Entrée ou un clic ailleurs valide, Échap

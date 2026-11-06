@@ -6081,6 +6081,11 @@ Réponds uniquement avec ce JSON :
    * rien ne part ni ne vient pour elle tant qu'on n'a pas choisi, pour n'écraser ni l'une ni l'autre.
    */
   let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, cloudFailed = false, cloudSent = null;
+  let cloudFull = false; // le compte a déjà son maximum d'œuvres : une nouvelle œuvre n'y part pas tant qu'on n'en supprime pas
+  const workMax = () => (window.Account && window.Account.limits ? window.Account.limits.max : 15);
+  const workKeepDays = () => (window.Account && window.Account.limits ? window.Account.limits.keepDays : 60);
+  // une œuvre que le compte n'a pas encore : elle n'y entre que s'il reste de la place
+  const inCloud = (rec) => !!((cloudWorks || []).some((c) => c.workId === rec.workId) || seenOf(rec.workId));
   const cloudQueue = []; // autres œuvres à envoyer (copies, œuvres faites avant la connexion)
   let cloudHold = null; // { workId, date, device } : une version plus récente dans le compte, pas encore tranchée
   let cloudWorks = null; // la dernière liste lue du compte
@@ -6106,11 +6111,22 @@ Réponds uniquement avec ce JSON :
     else if (!accountOn()) t = tr('✓ Enregistrée dans ce navigateur, avec Mes œuvres.');
     else if (!signedIn()) t = tr('✓ Enregistrée sur cet appareil. Connectez-vous pour la retrouver sur tous vos appareils.');
     else if (cloudHold && cloudHold.workId === state.workId) t = tr('Une version plus récente de cette œuvre est dans votre compte.');
+    else if (cloudFull && pendingCloud && pendingCloud.workId === state.workId && !seenOf(state.workId)) t = tr`Votre compte a atteint son maximum de ${workMax()} œuvres : supprimez-en dans Mes œuvres pour y enregistrer l’œuvre en cours (elle reste enregistrée sur cet appareil).`;
     else if (cloudBusy || (pendingCloud && pendingCloud.workId === state.workId)) t = tr('Enregistrement dans votre compte…');
     else if (cloudFailed) t = tr('✓ Enregistrée sur cet appareil ; elle partira dans votre compte dès que la connexion le permettra.');
     else if (state.workId && seenOf(state.workId)) t = tr`✓ Enregistrée dans votre compte (${clockText(seenOf(state.workId))}).`;
     else t = tr('✓ Enregistrée sur cet appareil.');
     el.textContent = t;
+    el.classList.toggle('warn', !!(cloudFull && pendingCloud && pendingCloud.workId === state.workId && !seenOf(state.workId)));
+    savedFull();
+  }
+  // l'alerte dans Mes œuvres : le compte est plein, une œuvre attend
+  function savedFull() {
+    const box = $('saved-full');
+    if (!box) return;
+    const waiting = !!(pendingCloud && !inCloud(pendingCloud)) || cloudQueue.some((r) => !inCloud(r));
+    box.hidden = !(signedIn() && cloudFull && waiting);
+    if (!box.hidden) box.textContent = tr`Le nombre maximal d’œuvres enregistrées dans votre compte (${workMax()}) est atteint : supprimez des œuvres pour y enregistrer le travail en cours.`;
   }
   function scheduleCloudSync(delay) {
     workStatus();
@@ -6127,9 +6143,16 @@ Réponds uniquement avec ce JSON :
     workStatus();
     try {
       const getBytes = (ref) => filesGet(ref).catch(() => null);
+      // (la liste du compte, pour savoir ce qu'il contient déjà et s'il reste de la place)
+      if (!cloudWorks && !cloudError) await loadCloudWorks();
+      const blocked = new Set();
+      cloudFull = false;
       while (true) {
-        const rec = pendingCloud && !held(pendingCloud) ? pendingCloud : cloudQueue.find((r) => !held(r));
+        const ok = (r) => r && !held(r) && !blocked.has(r);
+        const rec = ok(pendingCloud) ? pendingCloud : cloudQueue.find(ok);
         if (!rec) break;
+        // une œuvre de plus alors que le compte est plein : elle attend qu'on fasse de la place
+        if (cloudWorks && !inCloud(rec) && cloudWorks.filter((c) => !c.legacyDraft).length >= workMax()) { blocked.add(rec); cloudFull = true; continue; }
         await window.Account.cloud.workPut(rec, getBytes);
         if (pendingCloud === rec) pendingCloud = null;
         const i = cloudQueue.indexOf(rec);
@@ -6575,6 +6598,8 @@ Réponds uniquement avec ce JSON :
     cloudLoading = (async () => {
       const got = [];
       try {
+        // les œuvres de plus de 60 jours sont effacées du compte avant la lecture
+        try { await timed(window.Account.cloud.prune()); } catch (e) { console.warn('purge des œuvres anciennes', e); }
         for (let from = 0; ; from += CLOUD_PAGE) {
           const page = await timed(window.Account.cloud.list(from, CLOUD_PAGE));
           got.push(...page);
@@ -6639,6 +6664,7 @@ Réponds uniquement avec ce JSON :
       box.appendChild(note);
     }
     list.forEach((e) => { try { drawEntry(box, e, signed); } catch (err) { console.error('œuvre non affichée', err); } });
+    savedFull();
   }
   function drawEntry(box, e, signed) {
     const rec = e.info, comp = rec.comp || {};
@@ -6723,6 +6749,8 @@ Réponds uniquement avec ce JSON :
       for (let i = cloudQueue.length - 1; i >= 0; i--) if (cloudQueue[i].workId === e.workId) cloudQueue.splice(i, 1);
       setSeen(e.workId, null);
       await pruneFiles();
+      // de la place dans le compte : l'œuvre qui attendait y part
+      if (cloudFull && signedIn()) scheduleCloudSync(300);
     } catch (err) { console.error(err); savedStatus(tr`Suppression impossible : ${err.message}`); }
     renderSaved();
   }
@@ -7110,7 +7138,7 @@ Réponds uniquement avec ce JSON :
       wasSigned = signed;
       $('import-account').hidden = signed;
       $('saved-hint').textContent = signed
-        ? tr('Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils.')
+        ? tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Le compte garde jusqu’à ${workMax()} œuvres, pendant ${workKeepDays()} jours après leur dernier changement.`
         : tr('Vos œuvres s’enregistrent d’elles-mêmes sur cet appareil. Connectez-vous pour les retrouver sur tous vos appareils.');
       if (signed) checkWorks(); else { hideNewer(); renderSaved(); }
       workStatus();

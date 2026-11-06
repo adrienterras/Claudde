@@ -128,6 +128,8 @@
     <section id="saved-section" class="step">
       <h2>Mes œuvres <small id="saved-count"></small></h2>
       <p class="hint" id="saved-hint">Vos œuvres s’enregistrent d’elles-mêmes dans ce navigateur : rouvrez-les plus tard, telles quelles.</p>
+      <!-- le compte a atteint son maximum d'œuvres : l'œuvre en cours attend qu'on fasse de la place -->
+      <p id="saved-full" class="alert alert-warn" role="alert" hidden></p>
       <div id="saved-list" class="saved-list"></div>
       <p id="saved-empty" class="hint">Aucune œuvre pour l’instant : importez des dessins, l’œuvre s’enregistre d’elle-même.</p>
       <p id="saved-status" class="save-status" role="status" hidden></p>

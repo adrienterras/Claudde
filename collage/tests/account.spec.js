@@ -180,6 +180,45 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#account-section')).toBeHidden();
   });
 
+  test('le compte garde 15 œuvres au plus, 60 jours : la 16e attend avec une alerte, part dès qu’on en supprime une ; une œuvre de plus de 60 jours est effacée', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'max@example.org', 'Rouge-Soleil-42', 'Max');
+    // le compte contient déjà 15 œuvres récentes, et une vieille de 61 jours
+    await page.evaluate(() => {
+      const uid = window.__fake.db.session.user.id;
+      const row = (i, daysAgo) => { const date = new Date(Date.now() - daysAgo * 86400e3).toISOString(); return { id: `11111111-1111-4111-8111-${String(i).padStart(12, '0')}`, user_id: uid, created_at: date, name: `Œuvre ${i}`, thumb: null, __table: 'compositions', meta: { date, work: true, n: 0, drawings: [], comp: { style: 'nuage', W: 30, H: 40 }, settings: { mode: 'impression', format: 'cadre:30x40' } } }; };
+      for (let i = 1; i <= 15; i++) window.__fake.db.rows.push(row(i, i));
+      window.__fake.db.rows.push(row(99, 61));
+    });
+    await page.evaluate(() => AtelierGribouille.renderSaved({ refresh: true }));
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(15);
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.work).length)).toBe(15); // la vieille est partie
+    await expect(page.locator('#saved-hint')).toContainText('15 œuvres');
+    await expect(page.locator('#saved-full')).toBeHidden();
+    // une nouvelle œuvre : elle s'enregistre sur l'appareil mais n'entre pas dans le compte, l'alerte le dit
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    const w = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForTimeout(800);
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.work).length)).toBe(15);
+    await expect(page.locator('#saved-full')).toBeVisible();
+    await expect(page.locator('#saved-full')).toContainText('(15) est atteint');
+    await expect(page.locator('#cloud-sync-status')).toContainText('maximum de 15 œuvres');
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(16);
+    // une œuvre supprimée : celle en cours part dans le compte, l'alerte disparaît
+    const del = page.locator('#saved-list .saved:not(.current) .saved-del').first();
+    await del.click(); await del.click();
+    await expect.poll(() => page.evaluate((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work), w), { timeout: 20000 }).toBe(true);
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.work).length)).toBe(15);
+    await expect(page.locator('#saved-full')).toBeHidden();
+    await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
+  });
+
   test('Mes œuvres dans le compte : chaque œuvre part d’elle-même (une ligne, un dossier, chaque image une fois), revient sur un autre appareil, se supprime partout', async ({ acc }) => {
     test.setTimeout(240000); // deux imports et deux réouvertures depuis le compte : long sur une machine d'intégration lente
     const { page } = acc;
@@ -354,7 +393,8 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#saved-list .saved-cloud')).toHaveCount(0);
     const pages = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'select' && c[1] === 'compositions').map((c) => c[2]));
     expect(pages).toEqual(expect.arrayContaining(['0-11', '12-23', '24-35']));
-    expect(pages).not.toContain('all');
+    // (une seule lecture entière, légère : les dates seules, pour effacer les œuvres de plus de 60 jours)
+    expect(pages.filter((p) => p === 'all').length).toBeLessThanOrEqual(1);
   });
 
   test('gestion du compte : nom, mot de passe, déconnexion, suppression définitive', async ({ acc }) => {
