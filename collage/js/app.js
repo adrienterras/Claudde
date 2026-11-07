@@ -5998,6 +5998,10 @@ Réponds uniquement avec ce JSON :
     // l'accueil : l'atelier s'ouvre vide (puis avec les seuls dessins d'exemple), l'œuvre affichée la
     // dernière fois est seulement proposée, jamais mélangée à l'exemple
     const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
+    // « Créer mon œuvre » depuis l'accueil (atelier/?nouveau) : la même fenêtre qu'à une nouvelle
+    // visite — reprendre l'œuvre en cours, ou en commencer une nouvelle (l'exemple garde son message,
+    // puisqu'un exemple s'affiche derrière)
+    if (/[?&]nouveau\b/.test(location.search) && !crashed && !manual) { offerResume(rec); return; }
     if ((crashed || fresh) && !manual) {
       box.querySelector('span').textContent = fresh
         ? tr`Votre dernière œuvre (${rec.drawings.length} dessins) est gardée dans Mes œuvres.`

@@ -397,7 +397,8 @@ cd collage && python3 -m http.server 8000
      rouvert de lui-même à une actualisation ou un retour en arrière ; à une nouvelle visite — adresse,
      lien, onglet rouvert, `newVisit` d'après le type de navigation, hors retour d'une connexion — une
      fenêtre demande d'abord, `offerResume` : « Reprendre l'œuvre en cours » ou « Commencer une
-     nouvelle œuvre », qui range l'œuvre en cours dans Mes œuvres) ; les autres sont rangées dans IndexedDB sous leur identifiant
+     nouvelle œuvre », qui range l'œuvre en cours dans Mes œuvres ; aussi à l'arrivée depuis
+     l'accueil, `atelier/?nouveau`) ; les autres sont rangées dans IndexedDB sous leur identifiant
      (`rec.work`, `state.workId`), leurs images dans le magasin commun (`FILES_STORE`, chaque image et
      chaque découpe écrites une fois, sous une clé stable). **Connecté, le compte garde au plus 15
      œuvres** (`Account.limits.max` ; Mes œuvres : en cours, figées, commandées — pas le panier),

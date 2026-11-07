@@ -386,16 +386,16 @@ test.describe('Réouverture fidèle des retouches', () => {
       q.onerror = () => res(null);
     }));
     for (let i = 0; i < 60; i++) { const r = await draft(); if (r && r.drawings.length === 3) break; await page.waitForTimeout(500); }
-    // arrivée depuis l'accueil : rien n'est importé, l'œuvre en cours est proposée
+    // arrivée depuis l'accueil : rien n'est importé, la fenêtre « Reprendre votre œuvre ? » propose l'œuvre en cours
     await page.goto('index.html?nouveau');
     await page.waitForFunction(() => window.AtelierGribouille);
-    await expect(page.locator('#draft-offer')).toBeVisible();
-    await expect(page.locator('#draft-offer span')).toContainText('3 dessins');
-    await expect(page.locator('#draft-resume')).toBeVisible();
+    await expect(page.locator('#resume-modal')).toBeVisible();
+    await expect(page.locator('#resume-text')).toContainText('3 dessins');
+    await expect(page.locator('#draft-offer')).toBeHidden();
     await page.waitForTimeout(1500);
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
     // Reprendre : l'œuvre revient
-    await page.locator('#draft-resume').click();
+    await page.locator('#resume-yes').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
     // sans le paramètre, une nouvelle visite demande d'abord : reprendre, ou nouvelle œuvre
     await page.goto('index.html');
