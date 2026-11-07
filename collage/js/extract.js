@@ -574,6 +574,38 @@
         r = r2;
       }
     }
+    // feuille couverte de longs traits fins (lignes ondulées d'un fond, hachures, un « ciel » au
+    // feutre) qui relient tous les sujets en un bloc : ces traits, suivis de bout en bout même
+    // ondulés (ruledLines, quelle que soit leur couleur), sont retirés de l'encre avant de regrouper,
+    // si les sujets se détachent alors (un bloc qui couvrait la feuille cède la place à plusieurs
+    // sujets, ou à un sujet bien plus petit)
+    if (r.comps[0] && !r.lines) {
+      const bg = ruledLines(r.ink, w, h, { len: 0.4, thick: 0.022, step: 3 });
+      // (assez de traits — au moins trois longs —, d'un bout à l'autre de la feuille : du premier au
+      // dernier, au moins 40 % de sa hauteur ou de sa largeur)
+      let cnt = 0, yMin = h, yMax = 0, xMin = w, xMax = 0;
+      for (let p = 0; p < n; p++) if (bg[p]) { cnt++; const y = (p / w) | 0, x = p - y * w; if (y < yMin) yMin = y; if (y > yMax) yMax = y; if (x < xMin) xMin = x; if (x > xMax) xMax = x; }
+      const spread = cnt ? Math.max((yMax - yMin) / h, (xMax - xMin) / w) : 0;
+      const longs = cnt > 0.006 * n ? components(bg, w, h).comps.filter((c) => c.x1 - c.x0 + 1 > 0.3 * w || c.y1 - c.y0 + 1 > 0.3 * h).length : 0;
+      segment.debug = { bgStrokes: +(cnt / n).toFixed(4), bgSpread: +spread.toFixed(2), bgLongs: longs };
+      if (cnt > 0.006 * n && spread > 0.4 && longs >= 3) {
+        // (regroupés de moins loin : les bouts de traits qui restent ne relient plus les sujets)
+        const crBg = Math.max(CUT.margin + 0.004, (r.closeR || CUT.close) * 0.6);
+        const r2 = masks(strongT, weakT, crBg, r.holeMax || 0, bg);
+        const a0 = r.comps[0].area, a1 = r2.comps[0] ? r2.comps[0].area : 0;
+        Object.assign(segment.debug, { bgComps: r2.comps.length, bgBox: +(box(r2.comps[0] || { x0: 0, x1: 0, y0: 0, y1: 0 }) / n).toFixed(2), bgArea: +(a1 / Math.max(1, a0)).toFixed(2) });
+        if (segment.wantMasks) {
+          const mc = makeCanvas(w, h), mi = ctx2d(mc).createImageData(w, h);
+          for (let p = 0; p < n; p++) { const i = p * 4; mi.data[i] = r.ink[p] ? 255 : 0; mi.data[i + 1] = bg[p] ? 255 : 0; mi.data[i + 2] = r2.labels[p] ? 255 : 0; mi.data[i + 3] = 255; }
+          ctx2d(mc).putImageData(mi, 0, 0); segment.debug.maskPng = mc.toDataURL('image/png');
+        }
+        // (accepté si le bloc principal fond nettement, ou s'il couvrait la feuille et ne la couvre plus)
+        if (r2.comps.length && (a1 < 0.7 * a0 || (box(r.comps[0]) >= 0.6 * n && box(r2.comps[0]) < 0.6 * n))) {
+          r2.closeR = crBg; r2.holeMax = r.holeMax; r2.lines = bg;
+          r = r2;
+        }
+      }
+    }
     // dessin très pâle (crayon léger sur papier blanc) : la première passe ne trouve que des miettes
     // éparses ; on refait avec des seuils plus bas, juste au-dessus du grain du papier, et des traits
     // reliés de plus loin
@@ -680,6 +712,10 @@
     const len0 = (o && o.len) || 0.6, drift = (o && o.drift) || 0.08, bx = (o && o.box) || { x0: 0, y0: 0, x1: w - 1, y1: h - 1 };
     const T = Math.max(2, Math.round(Math.max(w, h) * ((o && o.thick) || 0.008))); // épaisseur maximale (thick : fraction du grand côté)
     const GAP = Math.max(3, T * 2); // interruption permise
+    // pas transversal permis d'une colonne à l'autre (1 : un trait presque droit ; plus : un trait ondulé)
+    const STEP = Math.max(1, (o && o.step) || 1);
+    const steps = [0];
+    for (let k = 1; k <= STEP; k++) steps.push(-k, k);
     const scan = (horiz) => {
       const A = horiz ? w : h, B = horiz ? h : w; // le long du trait, et en travers
       const a0min = horiz ? bx.x0 : bx.y0, a0max = horiz ? bx.x1 : bx.y1, b0min = horiz ? bx.y0 : bx.x0, b0max = horiz ? bx.y1 : bx.x1;
@@ -711,7 +747,7 @@
           while (a + 1 <= a0max && miss <= GAP) {
             a++;
             let nb = -1;
-            for (const d of [0, -1, 1]) { const bb = b + d; if (bb >= 0 && bb < B && thin[at(a, bb)]) { nb = bb; break; } }
+            for (const d of steps) { const bb = b + d; if (bb >= 0 && bb < B && thin[at(a, bb)]) { nb = bb; break; } }
             if (nb >= 0 && nb >= b0min && nb <= b0max) { miss = 0; b = nb; pts.push([a, b]); end = a; continue; }
             if (ink[at(a, b)]) { miss = 0; continue; }
             miss++;

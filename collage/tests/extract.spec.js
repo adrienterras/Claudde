@@ -415,6 +415,34 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.n).toBe(3);
   });
 
+  test('des lignes ondulées au feutre jaune sur toute la feuille (un fond) ne relient pas les sujets : le personnage et la table sont découpés chacun, sans la feuille entière', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1480, H = 2100, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(251,250,246)'; x.fillRect(0, 0, W, H);
+      // vingt lignes ondulées jaune vif, d'un bord à l'autre, épaisses de 6 px
+      x.strokeStyle = 'rgb(250,205,30)'; x.lineWidth = 6; x.lineCap = 'round';
+      for (let k = 0; k < 20; k++) {
+        const y0 = 120 + k * 92; x.beginPath();
+        for (let xx = 60; xx <= W - 60; xx += 8) { const y = y0 + Math.sin(xx / 70 + k) * 22 + Math.sin(xx / 310) * 14; if (xx === 60) x.moveTo(xx, y); else x.lineTo(xx, y); }
+        x.stroke();
+      }
+      // un personnage plein (tête, corps bleu) au milieu, une table orange en bas à gauche
+      x.lineWidth = 7; x.strokeStyle = 'rgb(26,26,26)';
+      x.fillStyle = 'rgb(245,205,170)'; x.beginPath(); x.arc(760, 760, 150, 0, 7); x.fill(); x.stroke();
+      x.fillStyle = 'rgb(40,70,180)'; x.fillRect(560, 920, 400, 620); x.strokeRect(560, 920, 400, 620);
+      x.fillStyle = 'rgb(220,140,60)'; x.fillRect(150, 1500, 330, 240); x.strokeRect(150, 1500, 330, 240);
+      const a = Extract.analyze(c, 0, {});
+      const ps = (a.pieces || []).map((p) => ({ x: p.src.x, y: p.src.y, w: p.src.w, h: p.src.h }));
+      const at = (px, py) => ps.findIndex((q) => px >= q.x && px < q.x + q.w && py >= q.y && py < q.y + q.h);
+      return { kind: a.kind, n: ps.length, who: at(760, 1200), table: at(315, 1620), widest: Math.max(0, ...ps.map((q) => q.w / W)) };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.who).toBeGreaterThanOrEqual(0);
+    expect(r.table).toBeGreaterThanOrEqual(0);
+    expect(r.who).not.toBe(r.table);
+    expect(r.widest).toBeLessThan(0.7); // (aucune pièce ne couvre la feuille d'un bord à l'autre)
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
