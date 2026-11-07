@@ -195,7 +195,14 @@ cd collage && python3 -m http.server 8000
      miettes) ne deviennent pas des dessins. Une œuvre rouverte relit les dessins tels quels.
      Photographiée sur un mur ou une table de la couleur du papier (surface claire sans papier
      distinct), la feuille est traitée comme un scan : le retrait de surface ne garderait que l'encre
-     et perdrait un short noir, donc les jambes (`removeSurface`, porte `feuille≈surface`). Les seuils
+     et perdrait un short noir, donc les jambes (`removeSurface`, porte `feuille≈surface`). Un objet en
+     papier posé sur du bois dont des parties colorées ont la teinte du bois (un chapeau orange, des
+     cheveux bruns au feutre sur du chêne) reste un objet entier : une couleur sombre et franche d'une
+     autre teinte n'est pas un joint, la forme est acceptée si elle est largement du papier blanc
+     même si ses parties « couleur du sol » la creusent (`solid` ≥ 0,3 avec ≥ 30 % de papier), la
+     fermeture du masque relie ces parties entre leurs reflets de papier (rayon 1,4 %), et au contour
+     fin (`refineAlpha`) le masque grossier a un a priori net, les couloirs minces sont refermés avant
+     de boucher les trous. Les seuils
      d'encre s'adaptent au dessin : sur un scan propre un crayon pâle reste séparé du grain du
      papier, et si la première passe ne trouve que des miettes éparses, une seconde passe à seuils
      plus bas relie les traits de plus loin. Les toutes petites pièces ternes (ombre d'un pli, bord

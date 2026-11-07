@@ -1670,7 +1670,8 @@
       const inBand = M[p] ? dIn[p] <= band : dOut[p] <= band;
       if (!inBand) continue;
       const k = bin(i);
-      const prior = M[p] ? 1.4 : 1 / 1.4;
+      // (a priori net pour le masque grossier : une couleur ambiguë — orange sur chêne — reste à l'objet)
+      const prior = M[p] ? 2.2 : 1 / 1.4;
       lab[p] = pf[k] * prior > pb[k] ? 1 : 0;
     }
     // ce que le masque grossier a perdu (une partie de l'objet de la couleur du sol) : on étend l'objet,
@@ -1702,6 +1703,10 @@
       }
       cur = nx;
     }
+    // les creux ouverts par un mince couloir de la couleur du sol (un chapeau orange sur du chêne,
+    // rongé par son bord) sont refermés avant de boucher les trous
+    const seal = Math.max(2, Math.round(Math.max(W, H) * 0.006));
+    cur = erode(dilate(cur, W, H, seal), W, H, seal);
     cur = fillHoles(cur, W, H);
     // on ne garde que ce qui touche l'intérieur sûr de l'objet (pas de taches détachées dans la surface)
     const { labels } = components(cur, W, H);
@@ -2462,8 +2467,9 @@
       const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
       const s = mx === 0 ? 0 : (mx - mn) / mx;
       // même teinte que la surface, pas plus clair que sa tolérance ; en plus foncé on accepte
-      // large (ombres portées, joints, veines) ; les joints très sombres perdent leur teinte
-      const dark = l < L * 0.6 && (s < 0.45 || dch < cTol * 1.5) && dch < cTol * 2.2;
+      // large (ombres portées, joints, veines) ; les joints très sombres perdent leur teinte — mais
+      // une couleur sombre et franche d'une autre teinte (des cheveux brun foncé au feutre) n'est pas un joint
+      const dark = l < L * 0.6 && (s < 0.45 || dch < cTol) && dch < cTol * 2.2;
       const same = dch < cTol && l < L + lTol;
       if (same || dark) { surfCount++; if (dark || l < L * 0.62) joint[p] = 1; }
       else { obj[p] = 1; if (s < 0.22 && l > Math.max(165, L + 12)) paperCount++; }
@@ -2508,9 +2514,10 @@
       ctx2d(mc).putImageData(mi, 0, 0); removeSurface.debug.maskPng = mc.toDataURL('image/png');
     }
     const unit = Math.max(w, h);
-    // fermeture (relie le dessin), bouchage des trous, ouverture (efface les veines isolées)
-    let mask = dilate(obj, w, h, unit * 0.008);
-    mask = erode(mask, w, h, unit * 0.008);
+    // fermeture (relie le dessin : aussi les parties de la couleur du sol, un chapeau orange sur du
+    // chêne, entre leurs reflets de papier), bouchage des trous, ouverture (efface les veines isolées)
+    let mask = dilate(obj, w, h, unit * 0.014);
+    mask = erode(mask, w, h, unit * 0.014);
     mask = fillHoles(mask, w, h);
     mask = erode(mask, w, h, unit * 0.012);
     mask = dilate(mask, w, h, unit * 0.012);
@@ -2529,7 +2536,10 @@
     for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) { closed++; if (obj[p]) raw++; }
     const solid = raw / Math.max(1, closed);
     Object.assign(removeSurface.debug, { solid: +solid.toFixed(2) });
-    if (solid < 0.6 && !force) return null;
+    // (un objet en papier dont des parties colorées ont la teinte de la surface — un chapeau orange
+    // sur du chêne — est plein lui aussi : ses trous sont ces parties, pas de la surface ; il se
+    // reconnaît à sa large part de papier blanc)
+    if (solid < 0.6 && !(paperFrac >= 0.3 && solid >= 0.3) && !force) return null;
     let x0 = w, y0 = h, x1 = 0, y1 = 0, area = 0;
     keep.forEach((c) => { x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); area += c.area; });
     if (area > (force ? 0.985 : 0.92) * n) return null;
