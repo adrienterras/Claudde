@@ -78,6 +78,7 @@ async function judge(page, name, transform) {
     if (transform === 'full') { x.drawImage(img, 350, 280, 900, 640, 0, 0, c.width, c.height); } else x.drawImage(img, 0, 0);
     if (transform === 'dark') { x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(0, 0, c.width, c.height); }
     if (transform === 'shadow') { const g = x.createLinearGradient(0, 0, c.width, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height); }
+    if (transform === 'hand') { x.fillStyle = 'rgba(0,0,0,0.5)'; x.fillRect(0, c.height * 0.62, c.width, c.height * 0.2); } // l'ombre de la main sur le bas de la feuille (qui va de 24 à 76 % de la hauteur)
     if (transform === 'wood') { x.fillStyle = '#9a6a3c'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#8a5c32'; for (let i = 0; i < c.width; i += 130) x.fillRect(i, 0, 60, c.height); }
     const v = Camera.check(c);
     return { level: v.level, title: v.title, found: v.found, quad: !!v.quad, points: v.points.map((p) => [p.code, p.level]) };
@@ -86,7 +87,7 @@ async function judge(page, name, transform) {
 const lvl = (r, code) => (r.points.find((p) => p[0] === code) || [])[1];
 
 test.describe('Photographier un dessin', () => {
-  test('jugement : l’éclairage seulement — feuille sur parquet optimale ; sombre ou ombrée signalée ; floue, sans feuille ou coupée acceptées', async ({ app }) => {
+  test('jugement : feuille sur parquet optimale ; sombre, ombrée ou avec l’ombre d’une main signalée ; feuille non repérée signalée (photo gardée) ; floue ou coupée acceptées', async ({ app }) => {
     const good = await judge(app.page, 'photo-wood.png');
     expect(good.found).toBe(true);
     expect(good.quad).toBe(true);
@@ -100,14 +101,19 @@ test.describe('Photographier un dessin', () => {
     const shadow = await judge(app.page, 'photo-wood.png', 'shadow');
     expect(shadow.level).not.toBe('ok');
     expect(['warn', 'bad']).toContain(lvl(shadow, 'lumiere'));
-    // plus de contrôle de netteté, de feuille ni de cadrage : ces photos ne sont pas signalées
+    // l'ombre de la main ou du téléphone sur le bas de la feuille : signalée (la pente d'éclairage ne la voit pas)
+    const hand = await judge(app.page, 'photo-wood.png', 'hand');
+    expect(hand.level).not.toBe('ok');
+    expect(['warn', 'bad']).toContain(lvl(hand, 'ombre'));
+    // plus de contrôle de netteté ni de cadrage : ces photos ne sont pas signalées
     const blur = await judge(app.page, 'photo-wood.png', 'blur');
     expect(blur.level).toBe('ok');
     expect(lvl(blur, 'nettete')).toBeUndefined();
+    // sans feuille repérée : on le dit (plus de « Prêt »), mais la photo reste gardée (avertissement, pas un refus)
     const wood = await judge(app.page, 'photo-wood.png', 'wood');
     expect(wood.found).toBe(false);
-    expect(wood.level).toBe('ok');
-    expect(wood.points.map((p) => p[0])).not.toContain('feuille');
+    expect(wood.level).toBe('warn');
+    expect(lvl(wood, 'feuille')).toBe('warn');
     const full = await judge(app.page, 'photo-wood.png', 'full');
     expect(full.level).toBe('ok');
     expect(full.points.map((p) => p[0])).not.toContain('cadre');

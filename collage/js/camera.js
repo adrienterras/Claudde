@@ -53,7 +53,14 @@
     try { sheet = Extract.findSheet(canvas); } catch (e) { sheet = null; }
     const found = !!sheet;
     const quad = sheet && sheet.kind === 'sheet' ? sheet.quad : null;
-    const region = sheet && sheet.kind === 'sheet' ? sheet.canvas : canvas;
+    // feuille non repérée (fond aussi clair qu'elle, feuille coupée par le cadre) : la découpe
+    // risque de prendre la table pour du papier ; on le dit plutôt que « Prêt »
+    // (une feuille qui remplit l'image, comme un scan, n'a rien à repérer : la découpe la prend entière)
+    const pageFills = (Extract.findSheet.attempts || []).some((a) => a.area >= 0.9);
+    if (!found && !pageFills) add('feuille', 'warn', tr('Feuille non repérée'), tr('Posez la feuille entière dans le cadre, à plat, sur une surface plus foncée qu’elle (bois, nappe), sans ombre dessus.'), tr('Feuille non repérée : entière dans le cadre, sur un fond plus foncé'));
+    // la lumière se juge sur la feuille ; à défaut, au centre de l'image, là où elle devrait être
+    // (pas sur la table autour, souvent mieux éclairée que la feuille sous le téléphone)
+    const region = sheet && sheet.kind === 'sheet' ? sheet.canvas : centreOf(canvas);
     let img = null;
     try { img = Quality.gray(region, 1000); } catch (e) { img = null; }
     if (img) {
@@ -61,6 +68,13 @@
       if (l > Quality.LIGHT.bad) add('lumiere', 'bad', tr('Ombre ou lampe sur la feuille'), tr('Lumière du jour, sans flash ; ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur la feuille : placez-vous face à la fenêtre'));
       else if (l > Quality.LIGHT.warn) add('lumiere', 'warn', tr('Lumière un peu inégale'), tr('Tournez le dessin vers la fenêtre, éloignez la lampe.'), tr('Lumière inégale : tournez le dessin vers la fenêtre'));
       else if (l === l) add('lumiere', 'ok', tr('Lumière égale'));
+      // une ombre locale (la main, le téléphone, une lampe) : une partie de la feuille bien plus sombre.
+      // Jugée aussi au centre de l'image entière : une ombre franche coupe la feuille repérée (la
+      // partie à l'ombre n'en fait plus partie), le centre de l'image la voit encore
+      let sh = Quality.shading(img);
+      if (quad) { const cc = centreOf(canvas); try { sh = Math.max(sh, Quality.shading(Quality.gray(cc, 1000))); } catch (e) { /* ignoré */ } release(cc); }
+      if (sh > Quality.SHADE.bad) add('ombre', 'bad', tr('Ombre portée sur la feuille'), tr('Votre main ou le téléphone fait de l’ombre : reculez un peu, ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur la feuille : reculez, ne cachez pas la lumière'));
+      else if (sh > Quality.SHADE.warn) add('ombre', 'warn', tr('Une ombre sur une partie de la feuille'), tr('Reculez un peu, ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur un coin : reculez un peu'));
       // exposition : clarté du papier, reflets (quand assez de papier est visible)
       const vals = [];
       let clipped = 0;
@@ -79,6 +93,14 @@
     }
     if (region !== canvas) release(region);
     return verdict(points, quad, found);
+  }
+  // le centre de l'image (de 15 à 85 % sur chaque axe)
+  function centreOf(canvas) {
+    const w = canvas.width, h = canvas.height, x0 = Math.round(w * 0.15), y0 = Math.round(h * 0.15), cw = Math.round(w * 0.7), ch = Math.round(h * 0.7);
+    const c = document.createElement('canvas');
+    c.width = Math.max(8, cw); c.height = Math.max(8, ch);
+    c.getContext('2d').drawImage(canvas, x0, y0, cw, ch, 0, 0, c.width, c.height);
+    return c;
   }
   function verdict(points, quad, found) {
     const level = points.some((p) => p.level === 'bad') ? 'bad' : points.some((p) => p.level === 'warn') ? 'warn' : 'ok';

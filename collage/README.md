@@ -97,11 +97,18 @@ cd collage && python3 -m http.server 8000
    zone de dépôt, sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,
    iPad en paysage compris : la visée y reste en plein écran) ; pas sur un ordinateur sans écran
    tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée sur
-   **l'éclairage seulement** et l'écran ne donne qu'**une consigne à la fois** (« Ombre sur la feuille :
+   **l'éclairage** et l'écran ne donne qu'**une consigne à la fois** (« Ombre sur la feuille :
    placez-vous face à la fenêtre », « Trop sombre : plus de lumière, près d'une fenêtre »… ou « Prêt :
-   prenez la photo ») — lumière égale (`Quality.lighting`, mêmes seuils qu'à l'import) et exposition
-   (papier assez clair, sans reflets), mesurées sur la feuille quand `Extract.findSheet` la trouve,
-   sinon sur toute l'image ; ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
+   prenez la photo ») — lumière égale (`Quality.lighting`, mêmes seuils qu'à l'import), ombre locale
+   (`Quality.shading` : une case de la grille bien plus sombre que le papier médian — la main, le
+   téléphone, une lampe —, jugée sur la feuille et au centre de l'image entière, car une ombre franche
+   coupe la feuille repérée) et exposition (papier assez clair, sans reflets), mesurées sur la feuille
+   quand `Extract.findSheet` la trouve, sinon au centre de l'image (là où la feuille devrait être, pas
+   sur la table autour, souvent mieux éclairée) ; **feuille non repérée** (fond aussi clair qu'elle,
+   feuille coupée par le cadre : la découpe risque de prendre la table pour du papier) : la consigne
+   le dit — « Feuille non repérée : entière dans le cadre, sur un fond plus foncé » —, la photo reste
+   gardée (avertissement) ; une feuille qui remplit l'image, comme un scan, n'est pas concernée ;
+   ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
    (simplicité demandée). Le quadrilatère de la feuille, quand elle est trouvée, est
    tracé sur la vidéo, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
    (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en

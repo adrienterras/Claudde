@@ -126,6 +126,24 @@
     return fit > 0.55 ? range : range * (fit / 0.55) ** 2;
   }
 
+  // Ombre locale (main, téléphone, lampe) : le papier d'une case de la grille nettement plus sombre
+  // que le papier médian ; la pente d'éclairage (lighting), un plan incliné, ne la voit pas
+  function shading({ g, w, h, neutral }) {
+    const N = 6, cells = [];
+    for (let cy = 0; cy < N; cy++) {
+      for (let cx = 0; cx < N; cx++) {
+        const x0 = Math.floor((cx * w) / N), x1 = Math.floor(((cx + 1) * w) / N), y0 = Math.floor((cy * h) / N), y1 = Math.floor(((cy + 1) * h) / N);
+        const v = [];
+        let n = 0;
+        for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) { n++; const i = y * w + x; if (neutral[i]) v.push(g[i]); }
+        if (v.length > n * 0.35) cells.push(percentile(v, 0.5));
+      }
+    }
+    if (cells.length < 6) return 0;
+    return percentile(cells, 0.5) - Math.min(...cells);
+  }
+  const SHADE = { warn: 28, bad: 45 };
+
   function measure(canvas) {
     try {
       const img = gray(canvas, 1000);
@@ -214,5 +232,5 @@
     return { level, issues };
   }
 
-  window.Quality = { measure, jpegQuality, assess, sharpness, lighting, gray, SHARP, LIGHT, DPI, JPEG };
+  window.Quality = { measure, jpegQuality, assess, sharpness, lighting, shading, gray, SHARP, LIGHT, SHADE, DPI, JPEG };
 })();
