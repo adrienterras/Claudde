@@ -447,7 +447,15 @@ cd collage && python3 -m http.server 8000
      tolérances de couleur, de la plus large à la plus stricte), on bouche les cases fermées par les
      traits, on ajuste un quadrilatère sur l'enveloppe convexe (meilleur quadrilatère parmi ses
      sommets, puis chaque bord réajusté par une droite robuste sur le contour voisin de
-     l'enveloppe). Garde-fous : la surface, lue sur la bordure de la photo hors de la feuille, doit
+     l'enveloppe). Quand la couleur ne suffit pas (feuille blanche sur une table claire, dans l'ombre
+     du téléphone ; ou une « feuille » qui serait presque toute la photo, une table claire prise pour
+     du papier), **la feuille est cherchée par ses bords** comme le fait le scanner de documents d'un
+     téléphone (`edgeSheet`) : contours à seuil bas, droites dominantes (transformée de Hough, 18 au
+     plus), meilleur quadrilatère formé par deux paires de droites — chaque côté suivi par un contour
+     sur presque toute sa longueur, surface d'au moins un dixième de la photo, proportions d'une
+     feuille, coins dans la photo, et le dessin dedans (moins de 55 % des contours hors du
+     quadrilatère : un rectangle dessiné au milieu d'un sujet, une chemise, laisse le reste du sujet
+     dehors et n'est pas une feuille). Garde-fous : la surface, lue sur la bordure de la photo hors de la feuille, doit
      être bois ou peu saturée et d'une seule couleur (un cadre dessiné au crayon n'en est pas une),
      ne pas contenir de papier de la couleur de la feuille (une plage de ciel cernée d'arbres n'est
      pas une feuille), et chaque bord du quadrilatère doit être suivi par un contour franc ou par le

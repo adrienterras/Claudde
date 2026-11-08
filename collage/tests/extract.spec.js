@@ -443,6 +443,35 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.widest).toBeLessThan(0.7); // (aucune pièce ne couvre la feuille d'un bord à l'autre)
   });
 
+  test('feuille blanche sur une table claire veinée : repérée par ses bords (comme le scanner d’un téléphone) quand la couleur ne suffit pas ; un rectangle dessiné dans un sujet n’est pas une feuille', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1600, H = 2000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = 'rgb(214,208,196)'; x.fillRect(0, 0, W, H);
+      let seed = 3; const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      x.strokeStyle = 'rgba(150,145,135,0.5)'; x.lineWidth = 3;
+      for (let k = 0; k < 14; k++) { x.beginPath(); let px = R() * W, py = R() * H; x.moveTo(px, py); for (let s = 0; s < 12; s++) { px += (R() - 0.3) * 220; py += (R() - 0.5) * 220; x.lineTo(px, py); } x.stroke(); }
+      const g = x.createLinearGradient(0, H * 0.7, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.28)'); x.fillStyle = g; x.fillRect(0, H * 0.7, W, H * 0.3);
+      x.save(); x.translate(W / 2, H / 2); x.rotate(0.07);
+      x.shadowColor = 'rgba(0,0,0,0.35)'; x.shadowBlur = 14; x.shadowOffsetX = 6; x.shadowOffsetY = 8;
+      x.fillStyle = 'rgb(234,233,230)'; x.fillRect(-520, -735, 1040, 1470);
+      x.shadowColor = 'transparent';
+      x.fillStyle = 'rgb(40,140,90)'; x.font = 'bold 420px sans-serif'; x.fillText('B', -420, -200); x.fillStyle = 'rgb(240,200,40)'; x.fillText('O', -420, 300);
+      x.restore();
+      // la voie des bords seule (la couleur trouve aussi cette feuille : c'est le relais qu'on vérifie)
+      Extract.findSheet.edgesOnly = true;
+      let s1 = null;
+      try { s1 = Extract.findSheet(c); } finally { Extract.findSheet.edgesOnly = false; }
+      const cx = (s1 && s1.quad) ? s1.quad.reduce((a, p) => a + p[0], 0) / 4 : 0, cy = (s1 && s1.quad) ? s1.quad.reduce((a, p) => a + p[1], 0) / 4 : 0;
+      const area = s1 && s1.quad ? Math.abs(s1.quad.reduce((a, p, i, q) => { const n = q[(i + 1) % 4]; return a + p[0] * n[1] - n[0] * p[1]; }, 0)) / 2 : 0;
+      return { kind: s1 && s1.kind, edges: !!(s1 && s1.surface && s1.surface.edges), cx, cy, area: area / (W * H), W, H };
+    });
+    expect(r.kind).toBe('sheet');
+    expect(r.edges).toBe(true);
+    expect(Math.abs(r.cx - r.W / 2)).toBeLessThan(0.03 * r.W);
+    expect(Math.abs(r.cy - r.H / 2)).toBeLessThan(0.03 * r.H);
+    expect(r.area).toBeGreaterThan(0.42); expect(r.area).toBeLessThan(0.54); // (1040 × 1470 sur 1600 × 2000 ≈ 0,48)
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
