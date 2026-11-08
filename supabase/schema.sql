@@ -114,9 +114,10 @@ security definer
 set search_path = public
 stable
 as $$
-  select u.id, u.email::text
-  from auth.users u
-  where public.is_admin() and u.id = any(ids);
+  -- (sans alias de table : « u.id » ou « u.email » collés depuis un e-mail deviennent des liens)
+  select id, email::text
+  from auth.users
+  where public.is_admin() and id = any(ids);
 $$;
 revoke all on function public.admin_owners(uuid[]) from public;
 revoke execute on function public.admin_owners(uuid[]) from anon;
