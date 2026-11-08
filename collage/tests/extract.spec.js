@@ -689,6 +689,48 @@ test.describe('Précision de la découpe', () => {
     expect(Math.abs(r.ratio90 - r.ratio)).toBeLessThan(0.02);
   });
 
+  test('une petite découpe sur un parquet verni : le reflet clair d’une lame (aussi blanc que du papier, sans bord net) n’est pas la pièce, la découpe si', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1200, H = 1600, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      for (let k = 0; k < 8; k++) {
+        x.fillStyle = `rgb(${165 + (k % 3) * 12},${108 + (k % 2) * 8},${58 + (k % 3) * 5})`;
+        x.fillRect(k * 150, 0, 150, H);
+        x.fillStyle = 'rgb(60,38,20)'; x.fillRect(k * 150, 0, 3, H);
+        for (let v = 0; v < 30; v++) { x.fillStyle = 'rgba(120,70,30,.25)'; x.fillRect(k * 150 + 10 + ((v * 37) % 130), (v * 53) % H, 2, 120); }
+      }
+      // le reflet d'une fenêtre sur la lame du coin supérieur gauche : blanc bleuté au centre, qui se
+      // fond dans le bois sur une large bande ; touche le bord de la photo
+      const g = x.createRadialGradient(140, 160, 60, 140, 160, 420);
+      g.addColorStop(0, 'rgba(228,238,243,1)'); g.addColorStop(0.45, 'rgba(228,238,243,0.9)'); g.addColorStop(1, 'rgba(228,238,243,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 600, 620);
+      // la découpe : une petite forme à branches (≈ 4 % de la photo), papier blanc et pulvérisations
+      const shape = new Path2D('M520 980 L700 900 L760 940 L640 1010 L700 1120 L880 1060 L920 1110 L720 1190 L640 1300 L560 1270 L620 1150 L440 1080 Z');
+      x.fillStyle = 'rgb(246,246,250)'; x.fill(shape);
+      x.save(); x.clip(shape);
+      x.fillStyle = 'rgba(60,170,80,0.7)'; x.beginPath(); x.arc(640, 960, 50, 0, 7); x.fill();
+      x.fillStyle = 'rgba(230,60,60,0.7)'; x.beginPath(); x.arc(800, 1090, 45, 0, 7); x.fill();
+      x.restore();
+      const m = Extract.makeCanvas(W, H), mx = m.getContext('2d'); mx.fill(shape);
+      const md = mx.getImageData(0, 0, W, H).data; let truth = 0; for (let i = 3; i < md.length; i += 4) if (md[i] > 127) truth++;
+      const a = Extract.analyze(c, 0, { photo: true });
+      const p = a.pieces[0];
+      let opaque = 0, red = 0;
+      if (p) {
+        const pd = p.canvas.getContext('2d').getImageData(0, 0, p.canvas.width, p.canvas.height).data;
+        for (let i = 0; i < pd.length; i += 4) if (pd[i + 3] > 127) { opaque++; if (pd[i] > 180 && pd[i + 1] < 150 && pd[i + 2] < 150) red++; }
+      }
+      return { photo: a.photo && a.photo.kind, n: a.pieces.length, object: !!(p && p.object), ratio: opaque / truth, red: red / Math.max(1, opaque), dbg: Extract.removeSurface.debug };
+    });
+    expect(r.photo).toBe('bois');
+    expect(r.n).toBe(1);
+    expect(r.object).toBe(true);
+    // (forme fine à branches : la coupe au ras lui prend un peu de bord)
+    expect(r.ratio).toBeGreaterThan(0.85);
+    expect(r.ratio).toBeLessThan(1.1);
+    // la pièce est la découpe (sa pulvérisation rouge), pas le reflet du coin
+    expect(r.red).toBeGreaterThan(0.02);
+  });
+
   test('netteté pour l’impression : un bord flou devient plus franc, le fond transparent et le papier blanc ne bougent pas', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       // une bande sombre au bord adouci sur du papier blanc, et une zone transparente

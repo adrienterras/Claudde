@@ -479,9 +479,15 @@ cd collage && python3 -m http.server 8000
      reconnue à la bordure (teinte bois, même très saturée comme un chêne
      verni, ou neutre ; unie, ou structurée par des joints qui se prolongent au-delà du dessin), et le
      dessin doit être une forme pleine qui occupe au moins 6 % de la photo (des traits sur une feuille
-     de couleur ne le sont pas) ; une feuille photographiée de près, qui touche les bords, est
+     de couleur ne le sont pas ; une petite découpe bien pleine et franchement papier passe dès
+     2,5 %) ; une feuille photographiée de près, qui touche les bords, est
      acceptée si un bord entier montre encore la surface, dont la couleur est alors lue hors du
-     papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface ; la surface
+     papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface avant même
+     de chercher le dessin (une lame sous un reflet ; ce qui est plus sombre que la surface, les
+     cheveux bruns d'un personnage, attend la coupe fine) ; une forme au contour mou (gradient
+     médian faible le long de son bord : le reflet d'une fenêtre sur une lame vernie, aussi blanc
+     que du papier mais fondu dans le bois) n'est pas le dessin, le contour d'une découpe est net
+     (`boundarySharpness`) ; la surface
      est alors retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. Le bord de
      l'objet est repris à pleine résolution (≈ 1600 px) le long du contour, d'après les couleurs de
      l'objet et de la surface (apprise sur le pourtour de la photo), avec une extension mesurée aux

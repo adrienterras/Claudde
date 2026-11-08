@@ -2717,6 +2717,65 @@
     return { kind: 'sheet', canvas, quad: q, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: outN / Math.max(1, borderN), sheet: true, edges: true } };
   }
 
+  // les pixels de teinte bois reliés au bord de la photo par une chaîne de pixels de bois, sans
+  // franchir un net changement de couleur (le bord d'un objet orangé ou brun)
+  // netteté du contour de chaque forme : gradient de clarté (Sobel) médian sur ses pixels de bord
+  function boundarySharpness(d, w, h, mask, labels, comps) {
+    const n = w * h, L = new Float32Array(n);
+    for (let p = 0, i = 0; p < n; p++, i += 4) L[p] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const per = {};
+    comps.forEach((c) => { per[c.id] = []; });
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (!mask[i] || (mask[i - 1] && mask[i + 1] && mask[i - w] && mask[i + w])) continue;
+      const gx = (L[i - w + 1] + 2 * L[i + 1] + L[i + w + 1]) - (L[i - w - 1] + 2 * L[i - 1] + L[i + w - 1]);
+      const gy = (L[i + w - 1] + 2 * L[i + w] + L[i + w + 1]) - (L[i - w - 1] + 2 * L[i - w] + L[i - w + 1]);
+      // (le plus fort dans un petit voisinage : le bord du masque fermé n'est pas pile sur le contour)
+      let g = Math.hypot(gx, gy) / 8;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const j = i + dy * w + dx;
+        if (j < w + 1 || j >= n - w - 1) continue;
+        const hx = (L[j - w + 1] + 2 * L[j + 1] + L[j + w + 1]) - (L[j - w - 1] + 2 * L[j - 1] + L[j + w - 1]);
+        const hy = (L[j + w - 1] + 2 * L[j + w] + L[j + w + 1]) - (L[j - w - 1] + 2 * L[j - w] + L[j - w + 1]);
+        const g2 = Math.hypot(hx, hy) / 8;
+        if (g2 > g) g = g2;
+      }
+      const arr = per[labels[i]];
+      if (arr) arr.push(g);
+    }
+    const out = {};
+    comps.forEach((c) => { const a = per[c.id].sort((p, q) => p - q); out[c.id] = a.length ? a[a.length >> 1] : 0; });
+    return out;
+  }
+
+  function woodFromBorder(d, w, h) {
+    const n = w * h;
+    const woodish = new Uint8Array(n);
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const R = d[i], G = d[i + 1], B = d[i + 2];
+      const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
+      if (mx === mn || (mx === 0 ? 0 : (mx - mn) / mx) < 0.28 || 0.299 * R + 0.587 * G + 0.114 * B > 235) continue;
+      let hh = mx === R ? ((G - B) / (mx - mn)) % 6 : mx === G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
+      hh = (hh * 60 + 360) % 360;
+      if (hh >= 8 && hh <= 52) woodish[p] = 1;
+    }
+    const seen = new Uint8Array(n);
+    const stack = [];
+    forEachBorder(w, h, 1, (p) => { if (woodish[p] && !seen[p]) { seen[p] = 1; stack.push(p); } });
+    const step = (p, q) => {
+      if (woodish[q] && !seen[q] && Math.abs(d[q * 4] - d[p * 4]) + Math.abs(d[q * 4 + 1] - d[p * 4 + 1]) + Math.abs(d[q * 4 + 2] - d[p * 4 + 2]) < 70) { seen[q] = 1; stack.push(q); }
+    };
+    while (stack.length) {
+      const p = stack.pop();
+      const x = p % w, y = (p - x) / w;
+      if (x + 1 < w) step(p, p + 1);
+      if (x > 0) step(p, p - 1);
+      if (y + 1 < h) step(p, p + w);
+      if (y > 0) step(p, p - w);
+    }
+    return seen;
+  }
+
   function removeSurface(src, force) {
     const inset = trimMargins(src);
     if (inset) src = inset;
@@ -2774,6 +2833,15 @@
       if (same || dark) { surfCount++; if (dark || l < L * 0.62) joint[p] = 1; }
       else { obj[p] = 1; if (s < 0.22 && l > Math.max(165, L + 12)) paperCount++; }
     }
+    // du bois pris pour autre chose (une lame claire sous un reflet, un veinage sombre d'une autre
+    // teinte) : tout ce qui a la teinte du bois et touche le bord de la photo par une chaîne de
+    // pixels de bois est rendu à la surface avant de chercher le dessin (un trait orange sur la
+    // feuille, isolé dans le blanc, n'est pas touché)
+    // (ici seulement ce qui est plus clair que la surface : une lame sous un reflet ; les cheveux
+    // bruns d'un personnage, plus sombres, restent au dessin, la coupe fine tranchera à la fin)
+    const woodSeen = wood ? woodFromBorder(d, w, h) : null;
+    const flooded = new Uint8Array(n);
+    if (woodSeen) for (let p = 0, i = 0; p < n; p++, i += 4) if (woodSeen[p] && obj[p] && 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] >= L) { obj[p] = 0; surfCount++; flooded[p] = 1; }
     // part de papier (clair, peu saturé) dans ce qui n'est pas la surface : un dessin posé sur un sol
     // est une feuille blanche ; des traits sur une feuille de couleur n'en contiennent pas
     const paperFrac = paperCount / Math.max(1, n - surfCount);
@@ -2810,7 +2878,7 @@
     removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), surfFrac: +surfFrac.toFixed(2), paper: +paperFrac.toFixed(2), uniform, lines, dl90: Math.round(q(dl, 0.9)), dc90: +q(dc, 0.9).toFixed(3) };
     if (removeSurface.wantMasks) {
       const mc = makeCanvas(w, h), mi = ctx2d(mc).createImageData(w, h);
-      for (let p = 0; p < n; p++) { const i = p * 4; mi.data[i] = obj[p] ? 255 : 0; mi.data[i + 1] = joint[p] ? 255 : 0; mi.data[i + 2] = 0; mi.data[i + 3] = 255; }
+      for (let p = 0; p < n; p++) { const i = p * 4; mi.data[i] = obj[p] ? 255 : 0; mi.data[i + 1] = joint[p] ? 255 : 0; mi.data[i + 2] = flooded[p] ? 255 : 0; mi.data[i + 3] = 255; }
       ctx2d(mc).putImageData(mi, 0, 0); removeSurface.debug.maskPng = mc.toDataURL('image/png');
     }
     const unit = Math.max(w, h);
@@ -2821,19 +2889,29 @@
     mask = fillHoles(mask, w, h);
     mask = erode(mask, w, h, unit * 0.012);
     mask = dilate(mask, w, h, unit * 0.012);
-    const { labels, comps } = components(mask, w, h);
+    const { labels, comps: comps0 } = components(mask, w, h);
+    // un reflet de fenêtre sur une lame vernie est aussi clair que du papier, mais il n'a pas de bord :
+    // il se fond dans le bois. Le contour d'une découpe est net sur la plus grande part de sa
+    // longueur ; une forme au contour mou (gradient médian faible) est rendue à la surface.
+    const sharp = boundarySharpness(d, w, h, mask, labels, comps0);
+    const bestSharp = comps0.reduce((m, c) => (c.area >= 0.03 * n && sharp[c.id] > m ? sharp[c.id] : m), 0);
+    const comps = comps0.filter((c) => c.area < 0.03 * n || (sharp[c.id] >= 14 && sharp[c.id] >= 0.3 * bestSharp) || force);
+    Object.assign(removeSurface.debug, { sharp: comps0.filter((c) => c.area >= 0.03 * n).map((c) => +sharp[c.id].toFixed(1)) });
     // le dessin : la plus grande forme, et celles qui en sont proches en taille ; des reflets ou des
     // taches claires du sol, petits et isolés, ne comptent pas
     const biggest = comps.reduce((m, c) => (!m || c.area > m.area ? c : m), null);
     const ownFill = (c) => c.area / ((c.x1 - c.x0 + 1) * (c.y1 - c.y0 + 1));
     const keep = comps.filter((c) => c.area >= 0.03 * n && (c === biggest || (c.area >= 0.3 * biggest.area && ownFill(c) >= 0.35)));
+    Object.assign(removeSurface.debug, { compsBig: comps0.filter((c) => c.area >= 0.03 * n).map((c) => [c.id, +(c.area / n).toFixed(3), +ownFill(c).toFixed(2)]), keep: keep.map((c) => c.id) });
     if (!keep.length) return null;
     // un dessin posé sur un sol est une forme pleine (feuille ou découpe) ; des traits sur une feuille
     // de couleur ne remplissent qu'une petite part de la forme que la fermeture leur donne
-    const kept = new Uint8Array(comps.length + 2); // étiquette → forme gardée
+    const kept = new Uint8Array(comps0.length + 2); // étiquette → forme gardée
     keep.forEach((c) => { kept[c.id] = 1; });
     let raw = 0, closed = 0;
-    for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) { closed++; if (obj[p]) raw++; }
+    // (ce qui a été rendu au bois mais se trouve dans la forme gardée est du dessin : une lame
+    // claire n'y est pas, un reflet sur le papier si)
+    for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) { closed++; if (obj[p] || flooded[p]) raw++; }
     const solid = raw / Math.max(1, closed);
     Object.assign(removeSurface.debug, { solid: +solid.toFixed(2) });
     // (un objet en papier dont des parties colorées ont la teinte de la surface — un chapeau orange
@@ -2854,8 +2932,9 @@
       // une surface texturée doit montrer au moins un joint hors du dessin, ou un objet franchement papier
       // (un sujet plein et compact posé sur un bois à joints visibles passe même si les joints restent sous lui)
       if (!uniform && linesOut < 1 && paperFrac < 0.45 && !(lines >= 1 && solid >= 0.6)) return null;
-      // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page de couleur)
-      if (area < 0.06 * n) return null;
+      // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page
+      // de couleur) — une petite découpe bien pleine, franchement papier, passe dès 2,5 %
+      if (area < 0.06 * n && !(area >= 0.025 * n && solid >= 0.8 && paperFrac >= 0.3)) return null;
     }
     // une feuille photographiée de près peut toucher trois bords : on l'accepte si elle est bien du papier
     // ... et qu'un bord entier de la photo montre la surface (le sol file sous la feuille)
@@ -2873,36 +2952,7 @@
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const finMask = new Uint8Array(n);
     for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) finMask[p] = 1;
-    if (wood) {
-      // du bois clair pris pour du papier : tout ce qui a la teinte du bois et touche le bord de la photo
-      // par une chaîne de pixels de bois est rendu à la surface (un trait orange sur la feuille, isolé
-      // dans le blanc, n'est pas touché)
-      const woodish = new Uint8Array(n);
-      for (let p = 0, i = 0; p < n; p++, i += 4) {
-        const R = d[i], G = d[i + 1], B = d[i + 2];
-        const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
-        if (mx === mn || (mx === 0 ? 0 : (mx - mn) / mx) < 0.28 || 0.299 * R + 0.587 * G + 0.114 * B > 235) continue;
-        let hh = mx === R ? ((G - B) / (mx - mn)) % 6 : mx === G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
-        hh = (hh * 60 + 360) % 360;
-        if (hh >= 8 && hh <= 52) woodish[p] = 1;
-      }
-      const seen = new Uint8Array(n);
-      const stack = [];
-      forEachBorder(w, h, 1, (p) => { if (woodish[p] && !seen[p]) { seen[p] = 1; stack.push(p); } });
-      // (on ne franchit pas un net changement de couleur : le bord d'un objet orangé ou brun)
-      const step = (p, q) => {
-        if (woodish[q] && !seen[q] && Math.abs(d[q * 4] - d[p * 4]) + Math.abs(d[q * 4 + 1] - d[p * 4 + 1]) + Math.abs(d[q * 4 + 2] - d[p * 4 + 2]) < 70) { seen[q] = 1; stack.push(q); }
-      };
-      while (stack.length) {
-        const p = stack.pop();
-        const x = p % w, y = (p - x) / w;
-        if (x + 1 < w) step(p, p + 1);
-        if (x > 0) step(p, p - 1);
-        if (y + 1 < h) step(p, p + w);
-        if (y > 0) step(p, p - w);
-      }
-      for (let p = 0; p < n; p++) if (seen[p]) finMask[p] = 0;
-    }
+    if (woodSeen) for (let p = 0; p < n; p++) if (woodSeen[p]) finMask[p] = 0;
     const fin = erode(finMask, w, h, unit * 0.004);
     const cut = cutObject(src, fin, w, h);
     Object.assign(removeSurface.debug, { rect: +cut.rectFill.toFixed(2), refined: cut.refined });
