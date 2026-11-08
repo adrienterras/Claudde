@@ -229,6 +229,8 @@
     '1 œuvre': '1 artwork',
     '{0} œuvres': '{0} artworks',
     'Ouvrir une copie': 'Open a copy',
+    'les règles d’administration ne sont pas installées sur le serveur : exécutez la section « Administration » de supabase/schema.sql dans l’éditeur SQL de Supabase': 'the administration rules are not installed on the server: run the “Administration” section of supabase/schema.sql in the Supabase SQL editor',
+    'le serveur ne reconnaît pas ce compte comme administrateur (adresse différente de celle de la fonction is_admin)': 'the server does not recognise this account as administrator (address different from the one in the is_admin function)',
     'Chaque fichier téléchargé est aussi gardé dans votre compte : retéléchargez-le d’ici, depuis n’importe quel appareil.': 'Every downloaded file is also kept in your account: download it again from here, on any device.',
     'Mise en scène': 'Room view',
     'Mettre en scène': 'See it on a wall',

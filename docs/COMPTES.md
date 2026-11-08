@@ -59,6 +59,35 @@ changer l'adresse : la fonction `is_admin()` dans le SQL (le serveur), et `admin
 `collage/config.js` (la vue ; par défaut la même adresse). La politique de confidentialité mentionne
 cet accès.
 
+## E-mails envoyés aux utilisateurs (expéditeur et modèles)
+
+Par défaut, Supabase envoie ses e-mails (confirmation d'inscription, lien de connexion, mot de passe
+oublié, changement d'adresse) depuis « Supabase Auth », en anglais, avec un quota de quelques
+e-mails par heure. Pour qu'ils partent d'Atelier Gribouille, en français :
+
+1. **Un service d'envoi (SMTP)** au nom de votre domaine. Deux choix simples et gratuits au volume
+   de l'atelier : [Resend](https://resend.com) (3 000 e-mails/mois ; SMTP `smtp.resend.com`,
+   port 465, utilisateur `resend`, mot de passe = la clé API) ou [Brevo](https://www.brevo.com)
+   (300 e-mails/jour ; SMTP `smtp-relay.brevo.com`, port 587, identifiants donnés dans
+   « SMTP & API »). Dans le service choisi, ajoutez le domaine de l'adresse d'envoi
+   (`atelier-gribouille.com` pour `bonjour@atelier-gribouille.com`) et créez chez votre
+   hébergeur DNS les enregistrements qu'il indique (SPF, DKIM, éventuellement DMARC) : sans eux,
+   les e-mails finiraient en indésirables.
+2. **Supabase → Project Settings → Authentication → SMTP Settings** : activez « Enable Custom
+   SMTP », renseignez Sender email `bonjour@atelier-gribouille.com`, Sender name
+   `Atelier Gribouille`, puis l'hôte, le port, l'utilisateur et le mot de passe du service.
+   Enregistrez. (La limite d'envoi, « Rate limits », peut alors être relevée, par exemple à 60/h.)
+3. **Supabase → Authentication → Email Templates** : pour chacun des quatre modèles, collez
+   l'objet et le corps donnés dans `supabase/emails/` (en tête de chaque fichier : l'onglet
+   Supabase visé et l'objet conseillé) :
+   - Confirm signup → `confirmation.html`
+   - Magic Link → `lien-magique.html`
+   - Reset Password → `mot-de-passe.html`
+   - Change Email Address → `changement-email.html`
+   Les variables `{{ .ConfirmationURL }}`, `{{ .Email }}`, `{{ .NewEmail }}` sont celles de
+   Supabase, à laisser telles quelles. Envoyez-vous un e-mail de test (créer un compte avec une
+   autre adresse, ou « mot de passe oublié ») pour vérifier l'expéditeur et le rendu.
+
 ## Mise à jour du schéma
 
 Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table

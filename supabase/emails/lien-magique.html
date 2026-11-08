@@ -1,0 +1,18 @@
+<!-- Atelier Gribouille — modèle d'e-mail Supabase « Lien de connexion ». À coller dans Supabase → Authentication → Email Templates → Magic Link (Body). Objet conseillé : « Votre lien de connexion à Atelier Gribouille » -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4efe6;padding:32px 12px;font-family:Georgia,'Times New Roman',serif;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;padding:36px 32px;color:#2b2a26;">
+      <tr><td style="font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a8577;padding-bottom:6px;">Atelier</td></tr>
+      <tr><td style="font-size:30px;line-height:1.1;padding-bottom:22px;">Gribouille</td></tr>
+      <tr><td style="font-size:22px;line-height:1.3;padding-bottom:14px;">Votre lien de connexion</td></tr>
+      <tr><td style="font-size:16px;line-height:1.6;color:#4a4740;padding-bottom:24px;">Un clic et vous êtes connecté à Atelier Gribouille, sans mot de passe.</td></tr>
+      <tr><td style="padding-bottom:26px;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2b2a26;color:#ffffff;text-decoration:none;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;padding:13px 24px;border-radius:999px;">Me connecter</a>
+      </td></tr>
+      <tr><td style="font-size:13px;line-height:1.6;color:#8a8577;">Ce lien ne sert qu’une fois et expire dans une heure.<br>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br><a href="{{ .ConfirmationURL }}" style="color:#8a8577;word-break:break-all;">{{ .ConfirmationURL }}</a></td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;padding:18px 8px;color:#8a8577;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;">
+      <tr><td align="center">Atelier Gribouille · <a href="https://ateliergribouille.art" style="color:#8a8577;">ateliergribouille.art</a> · <a href="https://ateliergribouille.art/confidentialite.html" style="color:#8a8577;">Confidentialité</a><br>Vous recevez cet e-mail parce qu’une action a été demandée sur ateliergribouille.art avec cette adresse. Si ce n’est pas vous, ignorez-le simplement.</td></tr>
+    </table>
+  </td></tr>
+</table>

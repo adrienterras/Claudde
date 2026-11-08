@@ -78,6 +78,7 @@
     async createSignedUrl(path) { return db.files[path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'fichier absent' } }; },
   }) };
   const rpc = (name, args) => {
+    if (name === 'is_admin') { const u = db.session && db.session.user; return ok(!!(u && u.email === 'adrien@terras.me')); }
     if (name === 'admin_owners') {
       const u = db.session && db.session.user;
       if (!u || u.email !== 'adrien@terras.me') return ok([]);

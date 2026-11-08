@@ -218,6 +218,13 @@
     const { data, error } = await client.from('compositions').select('user_id, ' + LIST_COLS).is('meta->>cart', null).neq('user_id', user.id).order('created_at', { ascending: false });
     err(error);
     const rows = (data || []).filter((r) => !(r.draft || (r.meta && r.meta.draft)));
+    // liste vide : vraiment aucune œuvre ailleurs, ou le serveur qui n'ouvre pas les autres comptes
+    // (règles d'administration pas encore installées, ou ce compte qu'il ne reconnaît pas)
+    if (!rows.length) {
+      const { data: ok, error: e3 } = await client.rpc('is_admin');
+      if (e3) throw new Error(tr('les règles d’administration ne sont pas installées sur le serveur : exécutez la section « Administration » de supabase/schema.sql dans l’éditeur SQL de Supabase'));
+      if (!ok) throw new Error(tr('le serveur ne reconnaît pas ce compte comme administrateur (adresse différente de celle de la fonction is_admin)'));
+    }
     const ids = [...new Set(rows.map((r) => r.user_id))];
     const emails = new Map();
     if (ids.length) {
