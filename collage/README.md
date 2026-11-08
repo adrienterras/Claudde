@@ -811,7 +811,8 @@ l'utilisateur d'effacer lui-même tout son compte. **Administration** : le compt
 « Toutes les œuvres », les œuvres de tous les autres comptes groupées par e-mail (`adminList`,
 fonction SQL `admin_owners`), en lecture seule : « Ouvrir une copie » les rouvre en copie dans son
 compte (comme une œuvre figée), l'original n'est ni modifié ni effacé ; les exports et le panier des
-autres comptes restent privés. Sans réglage dans `config.js`, rien n'apparaît et
+autres comptes restent privés ; ce compte n'a pas de plafond de 15 œuvres (`workMax` → ∞), la
+durée de 60 jours s'applique comme ailleurs. Sans réglage dans `config.js`, rien n'apparaît et
 l'app fonctionne comme avant. Mise en place pas à pas dans `docs/COMPTES.md` ; page de
 confidentialité à relire dans `confidentialite.html`.
 

@@ -307,6 +307,7 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'adrien@terras.me', 'Rouge-Soleil-42', 'Adrien');
     await openStep(page, 'saved-section');
     await expect(page.locator('#admin-box')).toBeVisible();
+    await expect(page.locator('#saved-hint')).toContainText('sans limite de nombre'); // (pas de plafond de 15 œuvres pour ce compte)
     await expect(page.locator('#admin-list .admin-owner')).toContainText('lou@example.org');
     await expect(page.locator('#admin-list .saved')).toHaveCount(1);
     await expect(page.locator('#admin-list .saved .saved-meta')).toContainText('2 dessins');

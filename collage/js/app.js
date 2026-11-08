@@ -6126,7 +6126,8 @@ Réponds uniquement avec ce JSON :
    */
   let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, cloudFailed = false, cloudSent = null;
   let cloudFull = false; // le compte a déjà son maximum d'œuvres : une nouvelle œuvre n'y part pas tant qu'on n'en supprime pas
-  const workMax = () => (window.Account && window.Account.limits ? window.Account.limits.max : 15);
+  // (le compte administrateur n'est pas limité en nombre : il rouvre en copie les œuvres des autres)
+  const workMax = () => { const A = window.Account; if (A && A.isAdmin && A.isAdmin()) return Infinity; return A && A.limits ? A.limits.max : 15; };
   const workKeepDays = () => (window.Account && window.Account.limits ? window.Account.limits.keepDays : 60);
   // une œuvre que le compte n'a pas encore : elle n'y entre que s'il reste de la place
   const inCloud = (rec) => !!((cloudWorks || []).some((c) => c.workId === rec.workId) || seenOf(rec.workId));
@@ -7235,7 +7236,9 @@ Réponds uniquement avec ce JSON :
       wasSigned = signed;
       $('import-account').hidden = signed;
       $('saved-hint').textContent = signed
-        ? tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Le compte garde jusqu’à ${workMax()} œuvres, pendant ${workKeepDays()} jours après leur dernier changement.`
+        ? (workMax() === Infinity
+          ? tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Compte administrateur : sans limite de nombre ; les œuvres sont gardées ${workKeepDays()} jours après leur dernier changement.`
+          : tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Le compte garde jusqu’à ${workMax()} œuvres, pendant ${workKeepDays()} jours après leur dernier changement.`)
         : tr('Vos œuvres s’enregistrent d’elles-mêmes sur cet appareil. Connectez-vous pour les retrouver sur tous vos appareils.');
       if (signed) checkWorks(); else { hideNewer(); renderSaved(); }
       workStatus();
