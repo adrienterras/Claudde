@@ -182,22 +182,49 @@
     return old.length;
   }
   async function cloudList(from, count) {
-    let q = client.from('compositions')
-      .select('id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, frozen:meta->>frozen, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format')
-      .is('meta->>cart', null).order('created_at', { ascending: false });
+    let q = client.from('compositions').select(LIST_COLS).is('meta->>cart', null).order('created_at', { ascending: false });
     if (count) q = q.range(from || 0, (from || 0) + count - 1);
     const { data, error } = await q;
     err(error);
-    return (data || []).map((row) => {
-      const m = row.meta || {}, c = m.comp || {}; // (sans sélection de colonnes : la fiche entière)
-      const n = row.n != null ? Number(row.n) : m.drawings ? m.drawings.length : m.n != null ? m.n : null;
-      return {
-        id: `cloud:${row.id}`, workId: row.id, name: row.name, date: row.date || m.date || row.created_at, thumb: row.thumb, cloud: true,
-        comp: { style: row.style || c.style, W: Number(row.W || c.W) || 0, H: Number(row.H || c.H) || 0 }, nDrawings: n,
-        ordered: !!(row.ordered || m.ordered) || ORDER_NAME.test(row.name || ''), frozen: !!(row.frozen || m.frozen), legacyDraft: !!(row.draft || m.draft), device: row.device || m.device || null,
-        settings: { mode: row.mode || (m.settings && m.settings.mode) || null, format: row.format || (m.settings && m.settings.format) || null },
-      };
-    });
+    return (data || []).map(entryOf);
+  }
+  const LIST_COLS = 'id, name, created_at, thumb, date:meta->>date, style:meta->comp->>style, W:meta->comp->>W, H:meta->comp->>H, n:meta->>n, ordered:meta->>ordered, frozen:meta->>frozen, draft:meta->>draft, device:meta->>device, mode:meta->settings->>mode, format:meta->settings->>format';
+  // une ligne de la liste → la fiche courte d'une œuvre
+  function entryOf(row) {
+    const m = row.meta || {}, c = m.comp || {}; // (sans sélection de colonnes : la fiche entière)
+    const n = row.n != null ? Number(row.n) : m.drawings ? m.drawings.length : m.n != null ? m.n : null;
+    return {
+      id: `cloud:${row.id}`, workId: row.id, name: row.name, date: row.date || m.date || row.created_at, thumb: row.thumb, cloud: true,
+      comp: { style: row.style || c.style, W: Number(row.W || c.W) || 0, H: Number(row.H || c.H) || 0 }, nDrawings: n,
+      ordered: !!(row.ordered || m.ordered) || ORDER_NAME.test(row.name || ''), frozen: !!(row.frozen || m.frozen), legacyDraft: !!(row.draft || m.draft), device: row.device || m.device || null,
+      settings: { mode: row.mode || (m.settings && m.settings.mode) || null, format: row.format || (m.settings && m.settings.format) || null },
+    };
+  }
+
+  // ---------- Administration ----------
+  /*
+   * Le compte administrateur (voir supabase/schema.sql : is_admin, les règles « admin reads all ») lit
+   * les œuvres de tous les comptes, en lecture seule : il les rouvre en copie dans son propre compte
+   * (cloudGet lit la ligne et les fichiers du dossier du propriétaire, que les règles lui ouvrent),
+   * sans rien changer ni effacer chez les autres. Côté navigateur, l'adresse ne sert qu'à montrer la
+   * vue : ce sont les règles du serveur qui donnent, ou non, les lignes et les fichiers.
+   */
+  const ADMIN_EMAIL = cfg.adminEmail || 'adrien@terras.me';
+  const isAdmin = () => !!(user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  // toutes les œuvres des autres comptes (sans le panier ni l'ancien brouillon unique), des plus
+  // récentes aux plus anciennes, avec l'e-mail de leur propriétaire
+  async function adminList() {
+    if (!isAdmin()) return [];
+    const { data, error } = await client.from('compositions').select('user_id, ' + LIST_COLS).is('meta->>cart', null).neq('user_id', user.id).order('created_at', { ascending: false });
+    err(error);
+    const rows = (data || []).filter((r) => !(r.draft || (r.meta && r.meta.draft)));
+    const ids = [...new Set(rows.map((r) => r.user_id))];
+    const emails = new Map();
+    if (ids.length) {
+      const { data: owners, error: e2 } = await client.rpc('admin_owners', { ids });
+      if (e2) console.warn('e-mails des propriétaires', e2); else (owners || []).forEach((o) => emails.set(o.id, o.email));
+    }
+    return rows.map((row) => Object.assign(entryOf(row), { owner: row.user_id, email: emails.get(row.user_id) || '' }));
   }
 
   async function cloudPut(rec, onProgress) {
@@ -463,6 +490,7 @@
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet, prune: cloudPrune },
+    isAdmin, adminList,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',

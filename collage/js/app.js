@@ -6799,6 +6799,59 @@ Réponds uniquement avec ce JSON :
     renderSaved();
   }
 
+  /*
+   * Administration (compte administrateur seulement, voir Account.isAdmin et supabase/schema.sql) :
+   * « Toutes les œuvres », les œuvres de tous les autres comptes, groupées par compte (e-mail), en
+   * lecture seule. Ouvrir une œuvre la rouvre en copie dans le compte de l'administrateur (comme une
+   * œuvre figée) : l'original n'est ni modifié ni effacé.
+   */
+  const adminStatus = (t) => { const el = $('admin-status'); if (!el) return; el.textContent = t || ''; el.hidden = !t; };
+  async function renderAdmin() {
+    const box = $('admin-box'), list = $('admin-list');
+    const A = window.Account;
+    if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; return; }
+    box.hidden = false;
+    let rows = [];
+    adminStatus(tr('Lecture des œuvres de tous les comptes…'));
+    try { rows = await A.adminList(); adminStatus(''); } catch (e) { console.error(e); adminStatus(tr`Œuvres indisponibles : ${e.message}`); return; }
+    $('admin-count').textContent = rows.length ? `(${rows.length})` : '';
+    list.innerHTML = '';
+    if (!rows.length) { list.innerHTML = `<p class="hint">${tr('Aucune œuvre dans les autres comptes pour l’instant.')}</p>`; return; }
+    // groupées par compte, le compte à l'œuvre la plus récente en tête
+    const groups = new Map();
+    rows.forEach((r) => { if (!groups.has(r.owner)) groups.set(r.owner, []); groups.get(r.owner).push(r); });
+    groups.forEach((works, owner) => {
+      const h = document.createElement('h4');
+      h.className = 'admin-owner';
+      h.innerHTML = `${esc(works[0].email || tr`compte ${String(owner).slice(0, 8)}`)} <small>· ${works.length === 1 ? tr('1 œuvre') : tr`${works.length} œuvres`}</small>`;
+      list.appendChild(h);
+      works.forEach((r) => {
+        const comp = r.comp || {}, st = STYLES.find((x) => x.id === comp.style);
+        const sv = r.settings || {};
+        const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
+        const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
+        const tags = [r.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '', r.frozen && !r.ordered ? `<span class="saved-tag">${tr('figée')}</span>` : ''].join('');
+        const meta = [kind, st ? st.name : esc(comp.style || ''), r.nDrawings ? tr`${r.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(r.date)].filter(Boolean).join(' · ');
+        const el = document.createElement('div');
+        el.className = 'saved';
+        el.innerHTML = `<img src="${safeData(r.thumb)}" alt=""><div><p class="saved-name"><span>${esc(r.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button type="button" class="saved-copy">${tr('Ouvrir une copie')}</button></span>`;
+        el.onclick = () => openAdminCopy(r);
+        list.appendChild(el);
+      });
+    });
+  }
+  // l'œuvre d'un autre compte, rouverte en copie : elle ne rejoint Mes œuvres (le compte de
+  // l'administrateur) qu'au premier changement
+  async function openAdminCopy(r) {
+    await shelveCurrent();
+    clearStage();
+    state.resuming = true;
+    let rec = null;
+    try { rec = await restoreComposition(r.id); } finally { state.resuming = false; }
+    if (!rec || !state.comp) { renderSaved(); return; }
+    beginCopy(rec);
+  }
+
   // Liste des exports gardés dans le compte, avec retéléchargement et suppression.
   const exportsStatus = (t) => { const el = $('exports-status'); if (!el) return; el.textContent = t || ''; el.hidden = !t; };
   async function renderExports() {
@@ -7187,6 +7240,7 @@ Réponds uniquement avec ce JSON :
       if (signed) checkWorks(); else { hideNewer(); renderSaved(); }
       workStatus();
       renderExports();
+      renderAdmin();
     });
   })();
 

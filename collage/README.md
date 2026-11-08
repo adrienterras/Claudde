@@ -806,7 +806,12 @@ avec retéléchargement et suppression. Chaque fichier téléchargé porte le no
 `oeuvre-du-6-novembre.jpg` ; le guide `…-guide-de-creation.pdf`, l'aperçu `…-apercu.jpg`). Tout se retrouve depuis n'importe quel appareil. Le service est Supabase (Auth + Storage,
 hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)
 limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à
-l'utilisateur d'effacer lui-même tout son compte. Sans réglage dans `config.js`, rien n'apparaît et
+l'utilisateur d'effacer lui-même tout son compte. **Administration** : le compte de l'éditeur
+(`adrien@terras.me`, `is_admin()` côté serveur, `Account.isAdmin` côté vue) voit sous Mes œuvres
+« Toutes les œuvres », les œuvres de tous les autres comptes groupées par e-mail (`adminList`,
+fonction SQL `admin_owners`), en lecture seule : « Ouvrir une copie » les rouvre en copie dans son
+compte (comme une œuvre figée), l'original n'est ni modifié ni effacé ; les exports et le panier des
+autres comptes restent privés. Sans réglage dans `config.js`, rien n'apparaît et
 l'app fonctionne comme avant. Mise en place pas à pas dans `docs/COMPTES.md` ; page de
 confidentialité à relire dans `confidentialite.html`.
 

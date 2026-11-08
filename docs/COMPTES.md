@@ -45,6 +45,20 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
   autre navigateur connecté au même compte.
 - « Supprimer mon compte » efface les fichiers, les compositions et le compte (fonction `delete_account`).
 
+## Administration
+
+Le compte `adrien@terras.me` voit les œuvres de tous les comptes, en lecture seule, dans
+« Toutes les œuvres » (sous Mes œuvres, visible pour ce compte seulement), groupées par e-mail.
+« Ouvrir une copie » rouvre l'œuvre dans l'atelier comme une copie : elle rejoint le compte de
+l'administrateur au premier changement ; l'original n'est ni modifié ni effacé. Côté serveur
+(`supabase/schema.sql`, section « Administration ») : la fonction `is_admin()` compare l'e-mail du
+jeton signé par Supabase à cette adresse, les règles « admin reads all » lui ouvrent la lecture des
+lignes `compositions` et des fichiers du bucket `drawings`, et `admin_owners(ids)` lui rend les
+e-mails des propriétaires. Les exports et le panier des autres comptes ne sont pas concernés. Pour
+changer l'adresse : la fonction `is_admin()` dans le SQL (le serveur), et `adminEmail` dans
+`collage/config.js` (la vue ; par défaut la même adresse). La politique de confidentialité mentionne
+cet accès.
+
 ## Mise à jour du schéma
 
 Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table

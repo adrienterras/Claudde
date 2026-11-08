@@ -80,3 +80,44 @@ revoke all on function public.delete_account() from public;
 -- Supabase donne aussi le droit d'exécution au rôle anon par défaut : on le retire (la fonction refusait déjà ces appels)
 revoke execute on function public.delete_account() from anon;
 grant execute on function public.delete_account() to authenticated;
+
+-- Administration (8 novembre 2026) : le compte adrien@terras.me lit les œuvres de tous les comptes,
+-- en lecture seule (il les rouvre en copie dans son propre compte ; il ne modifie ni n'efface rien
+-- chez les autres). L'adresse est lue dans le jeton signé par Supabase : infalsifiable depuis le
+-- navigateur. Les exports et le panier des autres comptes ne sont pas concernés.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+as $$
+  select coalesce((select auth.jwt() ->> 'email'), '') = 'adrien@terras.me';
+$$;
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to authenticated;
+
+drop policy if exists "compositions: admin reads all" on public.compositions;
+create policy "compositions: admin reads all" on public.compositions
+  for select to authenticated
+  using (public.is_admin());
+
+drop policy if exists "drawings: admin reads all" on storage.objects;
+create policy "drawings: admin reads all" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'drawings' and public.is_admin());
+
+-- L'e-mail des propriétaires (auth.users n'est pas lisible depuis le navigateur) : seulement pour
+-- l'administrateur, seulement pour les identifiants demandés.
+create or replace function public.admin_owners(ids uuid[])
+returns table (id uuid, email text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select u.id, u.email::text
+  from auth.users u
+  where public.is_admin() and u.id = any(ids);
+$$;
+revoke all on function public.admin_owners(uuid[]) from public;
+revoke execute on function public.admin_owners(uuid[]) from anon;
+grant execute on function public.admin_owners(uuid[]) to authenticated;

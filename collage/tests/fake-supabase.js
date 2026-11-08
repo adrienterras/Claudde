@@ -48,10 +48,12 @@
     const run = () => {
       const uid = db.session && db.session.user.id;
       if (!uid) return ko('JWT expired');
-      let rows = db.rows.filter((r) => r.user_id === uid && (r.__table || 'compositions') === table);
+      // (comme les règles RLS : ses propres lignes ; l'administrateur lit aussi celles des autres)
+      const admin = q.op === 'select' && db.session.user.email === 'adrien@terras.me';
+      let rows = db.rows.filter((r) => (admin || r.user_id === uid) && (r.__table || 'compositions') === table);
       // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
-      q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'is' ? x == v : op === 'not-is' ? x != v : x === v; }); });
+      q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'is' ? x == v : op === 'not-is' ? x != v : op === 'neq' ? x !== v : x === v; }); });
       if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
       if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(null); }
       if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }
@@ -63,7 +65,7 @@
     };
     const chain = {
       select() { return chain; }, insert(row) { q.op = 'insert'; q.row = row; return chain; }, delete() { q.op = 'delete'; return chain; }, update(row) { q.op = 'update'; q.row = row; return chain; },
-      eq(k, v) { q.filters.push([k, v]); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; }, range(a, b) { q.range = [a, b]; return chain; },
+      eq(k, v) { q.filters.push([k, v]); return chain; }, neq(k, v) { q.filters.push([k, v, 'neq']); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; }, range(a, b) { q.range = [a, b]; return chain; },
       then(res, rej) { return run().then(res, rej); },
     };
     return chain;
@@ -75,7 +77,12 @@
     async remove(paths) { paths.forEach((p) => { delete db.files[p]; }); persist(); return { data: paths, error: null }; },
     async createSignedUrl(path) { return db.files[path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'fichier absent' } }; },
   }) };
-  const rpc = (name) => {
+  const rpc = (name, args) => {
+    if (name === 'admin_owners') {
+      const u = db.session && db.session.user;
+      if (!u || u.email !== 'adrien@terras.me') return ok([]);
+      return ok(Object.values(db.users).filter((x) => (args.ids || []).includes(x.id)).map((x) => ({ id: x.id, email: x.email })));
+    }
     if (name !== 'delete_account') return ko('unknown function');
     const u = db.session && db.session.user; if (!u) return ko('non connecté');
     // (comme le vrai Supabase : les lignes partent en cascade, mais pas les fichiers du stockage,

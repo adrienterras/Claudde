@@ -266,8 +266,12 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 .saved .saved-dl { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 6px; border-radius: 999px; }
 .saved .saved-dl:hover { background: var(--accent-soft); }
 .saved .saved-actions { display: flex; align-items: center; gap: 2px; }
-#exports-box { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
-#exports-box h3 { margin: 0; }
+#exports-box, #admin-box { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
+#exports-box h3, #admin-box h3 { margin: 0; }
+.admin-owner { margin: 6px 0 0; font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
+.admin-owner small { font-weight: 400; color: var(--muted); }
+.saved .saved-copy { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; padding: 5px 9px; border-radius: 999px; font: inherit; font-size: 0.72rem; white-space: nowrap; }
+.saved .saved-copy:hover { border-color: var(--accent); color: var(--accent); }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (max-width: 600px) {

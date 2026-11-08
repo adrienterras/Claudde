@@ -288,6 +288,48 @@ test.describe('Comptes utilisateurs', () => {
     expect(files.every((id) => id === w2)).toBe(true);
   });
 
+  test('administration : adrien@terras.me voit les œuvres de tous les comptes (par e-mail) et les ouvre en copie dans son compte, sans toucher à l’original ; un autre compte ne voit rien de tel', async ({ acc }) => {
+    test.setTimeout(240000);
+    const { page } = acc;
+    // Lou fait une œuvre, qui part dans son compte
+    await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
+    await page.setInputFiles('#file', ['page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 2);
+    const w1 = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work), w1);
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#admin-box')).toBeHidden(); // (un compte ordinaire : pas de vue d'administration)
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    // l'administrateur se connecte : la vue liste l'œuvre de Lou, sous son e-mail
+    await signUpAndIn(page, 'adrien@terras.me', 'Rouge-Soleil-42', 'Adrien');
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#admin-box')).toBeVisible();
+    await expect(page.locator('#admin-list .admin-owner')).toContainText('lou@example.org');
+    await expect(page.locator('#admin-list .saved')).toHaveCount(1);
+    await expect(page.locator('#admin-list .saved .saved-meta')).toContainText('2 dessins');
+    const before = await page.evaluate(() => JSON.stringify(window.__fake.db.rows.map((r) => [r.id, r.user_id, r.meta.date])));
+    // ouverte en copie : les dessins de Lou, une copie qui ne rejoint le compte qu'au premier changement
+    await page.locator('#admin-list .saved .saved-copy').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && AtelierGribouille.state.copyOf && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#cloud-sync-status')).toContainText('Copie');
+    expect(await page.evaluate(() => JSON.stringify(window.__fake.db.rows.map((r) => [r.id, r.user_id, r.meta.date])))).toBe(before);
+    // un changement : la copie devient une œuvre de l'administrateur ; celle de Lou n'a pas bougé
+    await page.evaluate(() => AtelierGribouille.selectProposal(1));
+    await page.waitForFunction(() => AtelierGribouille.state.workId && !AtelierGribouille.state.copyOf);
+    await waitDraft(page, 2);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction(() => window.__fake.db.rows.filter((r) => r.meta.work).length === 2);
+    const rows = await page.evaluate(() => window.__fake.db.rows.map((r) => ({ id: r.id, owner: window.__fake.db.users[Object.keys(window.__fake.db.users).find((k) => window.__fake.db.users[k].id === r.user_id)].email, date: r.meta.date, n: r.meta.drawings.length })));
+    const lou = rows.find((r) => r.id === w1), mine = rows.find((r) => r.id !== w1);
+    expect(lou.owner).toBe('lou@example.org');
+    expect(JSON.parse(before).find((r) => r[0] === w1)[2]).toBe(lou.date);
+    expect(mine.owner).toBe('adrien@terras.me');
+    expect(mine.n).toBe(2);
+  });
+
   test('une version plus récente venue d’un autre appareil : un bandeau, « Ouvrir cette version » ou « Garder celle-ci », sans ping-pong', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
