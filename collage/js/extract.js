@@ -393,6 +393,21 @@
     return out;
   }
 
+  // somme d'un masque sur une fenêtre carrée de rayon r autour de chaque pixel (image intégrale)
+  function boxSum(m, w, h, r) {
+    const W1 = w + 1, I = new Int32Array(W1 * (h + 1));
+    for (let y = 1; y <= h; y++) { let row = 0; for (let x = 1; x <= w; x++) { row += m[(y - 1) * w + x - 1]; I[y * W1 + x] = I[(y - 1) * W1 + x] + row; } }
+    const out = new Int32Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+      for (let x = 0; x < w; x++) {
+        const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+        out[y * w + x] = I[y1 * W1 + x1] - I[y0 * W1 + x1] - I[y1 * W1 + x0] + I[y0 * W1 + x0];
+      }
+    }
+    return out;
+  }
+
   function boxBlur(a, w, h) {
     const out = new Float32Array(a.length);
     for (let y = 0; y < h; y++) {
@@ -2448,13 +2463,13 @@
     // une « feuille » qui serait presque toute la photo (une table claire prise pour du papier) : les
     // bords d'une vraie feuille, s'ils se trouvent, l'emportent
     if (byColour && byColour.kind === 'sheet' && polyArea(byColour.quad) > 0.8 * src.width * src.height) {
-      const e = edgeSheet(src, G, gT, raw, w, h);
+      const e = edgeSheet(src, L, gT, raw, w, h);
       if (e) { release(byColour.canvas); return e; }
     }
     if (byColour) return byColour;
     // la couleur n'a pas suffi (feuille blanche sur une table claire, dans l'ombre du téléphone) : les
     // bords de la feuille eux-mêmes, comme le scanner de documents d'un téléphone
-    return edgeSheet(src, G, gT, raw, w, h);
+    return edgeSheet(src, L, gT, raw, w, h);
   }
 
   /*
@@ -2464,49 +2479,100 @@
    * d'au moins un dixième de la photo, proportions d'une feuille (de 1 : 1 à 2,1 : 1), coins dans la
    * photo. La feuille est alors redressée et recadrée comme dans la voie par la couleur.
    */
-  function edgeSheet(src, G, gT, raw, w, h) {
+  function edgeSheet(src, L, gT, raw, w, h) {
     const n = w * h;
-    // contours, au seuil plus bas que pour la couleur : le bord d'une feuille blanche sur une table
-    // claire est ténu (quelques niveaux, et son ombre portée) ; les contours épars (veines, grain) ne
-    // s'alignent pas, la transformée de Hough les ignore ; trop de contours : seuil relevé
+    // gradient sur chaque canal de couleur, non lissé, le plus fort des trois : le bord d'une feuille
+    // blanche sur une table claire ne se voit souvent que dans un canal (le papier plus bleu que le
+    // marbre, à clarté égale), ténu (quelques niveaux sur un pixel), le lissage l'effacerait
+    const G = new Float32Array(n), GX = new Float32Array(n), GY = new Float32Array(n);
+    const gs = [];
+    for (let c = 0; c < 3; c++) {
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x, j = i * 4 + c, W4 = w * 4;
+        const gx = (raw[j - W4 + 4] + 2 * raw[j + 4] + raw[j + W4 + 4]) - (raw[j - W4 - 4] + 2 * raw[j - 4] + raw[j + W4 - 4]);
+        const gy = (raw[j + W4 - 4] + 2 * raw[j + W4] + raw[j + W4 + 4]) - (raw[j - W4 - 4] + 2 * raw[j - W4] + raw[j - W4 + 4]);
+        const g = Math.hypot(gx, gy) / 8;
+        if (g > G[i]) { G[i] = g; GX[i] = gx; GY[i] = gy; }
+      }
+    }
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) if (!((x + y) & 7)) gs.push(G[y * w + x]);
+    gs.sort((a, b) => a - b);
+    const gMed = gs[gs.length >> 1] || 0;
+    // contours au seuil adapté au bruit du capteur, amincis à la crête du gradient (comme dans le
+    // détecteur de Canny) : les traits d'un dessin donnent des lignes fines au lieu de bandes, et le
+    // bord ténu de la feuille reste sans qu'il faille relever le seuil ; les contours épars (veines,
+    // grain) ne s'alignent pas, la transformée de Hough les ignore ; trop de contours : seuil relevé
     const E = new Uint8Array(n);
-    let ne = 0, eT = Math.max(2.5, gT * 0.7);
+    let ne = 0, eT = Math.max(3, gMed * 3, gT * 0.7);
     for (let tries = 0; tries < 6; tries++) {
       ne = 0;
-      for (let p = 0; p < n; p++) { const e = G[p] >= eT ? 1 : 0; E[p] = e; ne += e; }
-      if (ne <= 0.2 * n) break;
+      for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x, g = G[i];
+        if (g < eT) { E[i] = 0; continue; }
+        const ax = Math.abs(GX[i]), ay = Math.abs(GY[i]);
+        let a, b;
+        if (ax > 2.414 * ay) { a = G[i - 1]; b = G[i + 1]; }
+        else if (ay > 2.414 * ax) { a = G[i - w]; b = G[i + w]; }
+        else if (GX[i] * GY[i] > 0) { a = G[i - w - 1]; b = G[i + w + 1]; }
+        else { a = G[i - w + 1]; b = G[i + w - 1]; }
+        const e = g >= a && g >= b ? 1 : 0;
+        E[i] = e; ne += e;
+      }
+      if (ne <= 0.3 * n) break;
       eT *= 1.4;
     }
     findSheet.debug = Object.assign(findSheet.debug || {}, { edgeNe: +(ne / n).toFixed(3), edgeT: +eT.toFixed(1) });
-    if (ne < 200 || ne > 0.2 * n) return null;
-    // Hough : θ par degré, ρ au pixel
+    if (ne < 200 || ne > 0.3 * n) return null;
+    // Hough : θ par degré, ρ au pixel ; chaque contour ne vote que pour les droites dont la normale
+    // suit son gradient (à 12° près) : les traits d'un dessin, de toutes directions, ne s'accumulent
+    // plus par hasard sur des droites qu'ils ne suivent pas
+    // chaque contour pèse d'autant plus qu'il est seul dans son voisinage : le bord de la feuille a
+    // la table nue d'un côté, les traits serrés d'un dessin (ciel, herbe hachurés) ont des contours
+    // des deux côtés et ne doivent pas, par leur nombre, évincer ce bord des droites retenues
+    const dr = Math.max(4, Math.round(Math.max(w, h) * 0.025));
+    const dens = boxSum(E, w, h, dr);
+    const dA = (2 * dr + 1) * (2 * dr + 1);
     const D = Math.ceil(Math.hypot(w, h)), NR = 2 * D + 1, NT = 180;
     const acc = new Int32Array(NT * NR);
     const cs = new Float32Array(NT), sn = new Float32Array(NT);
     for (let t = 0; t < NT; t++) { const a = (t * Math.PI) / 180; cs[t] = Math.cos(a); sn[t] = Math.sin(a); }
-    const step = ne > 40000 ? 2 : 1;
-    let k = 0;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (!E[y * w + x] || (k++ % step)) continue;
-      for (let t = 0; t < NT; t++) { const r = Math.round(x * cs[t] + y * sn[t]) + D; acc[t * NR + r]++; }
+      const i = y * w + x;
+      if (!E[i]) continue;
+      const d = dens[i] / dA;
+      const wt = Math.round(10 * Math.min(3, Math.pow(0.1 / (d + 0.02), 1.5)));
+      const phi = Math.round((Math.atan2(GY[i], GX[i]) * 180) / Math.PI);
+      for (let dt = -12; dt <= 12; dt++) {
+        let t = ((phi + dt) % 180 + 180) % 180;
+        // la normale (cos θ, sin θ) pointe d'un côté ou de l'autre : même droite, ρ de signe opposé
+        const r = Math.round(x * cs[t] + y * sn[t]) + D;
+        acc[t * NR + r] += wt;
+      }
     }
     let vMax = 0;
     for (let i = 0; i < acc.length; i++) if (acc[i] > vMax) vMax = acc[i];
-    const minV = Math.max(25, vMax * 0.2);
+    const minV = Math.max(250, vMax * 0.2);
     const cands = [];
     for (let t = 0; t < NT; t++) for (let r = 0; r < NR; r++) { const v = acc[t * NR + r]; if (v >= minV) cands.push({ t, r: r - D, v }); }
     cands.sort((a, b) => b.v - a.v);
-    // suppression des voisines (à 4° et 8 px près, le cercle des angles compris)
-    const lines = [];
+    // deux familles — normales proches de la verticale (droites horizontales) et le reste —, les
+    // meilleures de chacune (les traits d'un dessin hachuré dominent une famille, les bords de la
+    // feuille doivent rester dans l'autre), sans leurs voisines (à 4° et 8 px près, le cercle des
+    // angles compris)
+    // (près des axes seulement : une feuille se photographie à peu près droite ; les diagonales d'un
+    // dessin hachuré ou d'une grande lettre ne sont pas des bords)
+    const H = [], V = [];
     for (const c of cands) {
-      if (lines.length >= 18) break;
-      if (lines.some((l) => { const dt = Math.min(Math.abs(l.t - c.t), 180 - Math.abs(l.t - c.t)); return dt <= 4 && Math.abs(Math.abs(l.r) - Math.abs(c.r)) <= 8; })) continue;
-      lines.push(c);
+      const dh = Math.abs(c.t - 90), dv = Math.min(c.t, 180 - c.t);
+      if (dh > 32 && dv > 32) continue;
+      const fam = dh <= 32 ? H : V;
+      if (fam.length >= 12) { if (H.length >= 12 && V.length >= 12) break; continue; }
+      if (fam.some((l) => { const dt = Math.min(Math.abs(l.t - c.t), 180 - Math.abs(l.t - c.t)); return dt <= 4 && Math.abs(Math.abs(l.r) - Math.abs(c.r)) <= 8; })) continue;
+      fam.push(c);
     }
-    // deux familles : normales proches de la verticale (droites horizontales) et le reste
-    const H = lines.filter((l) => Math.abs(l.t - 90) <= 45), V = lines.filter((l) => Math.abs(l.t - 90) > 45);
+    const lines = H.concat(V);
     Object.assign(findSheet.debug, { edgeLines: lines.length, edgeH: H.length, edgeV: V.length });
-    if (lines.length < 4 || H.length < 2 || V.length < 2) return null;
+    if (H.length < 2 || V.length < 2) return null;
     const inter = (a, b) => {
       const det = cs[a.t] * sn[b.t] - sn[a.t] * cs[b.t];
       if (Math.abs(det) < 1e-6) return null;
@@ -2523,9 +2589,62 @@
       return ok / Math.max(1, tot);
     };
     const inside = (q) => q.every(([x, y]) => x >= -0.02 * w && x <= 1.02 * w && y >= -0.02 * h && y <= 1.02 * h);
+    const off = Math.max(3, Math.round(Math.min(w, h) * 0.012));
+    const inQ0 = (q, x, y) => { let s2 = 0; for (let i = 0; i < 4; i++) { const a = q[i], b = q[(i + 1) % 4]; const c = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); s2 += c < 0 ? -1 : 1; } return Math.abs(s2) === 4; };
+    const mean3 = (x, y, c) => { let s2 = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s2 += raw[((y + dy) * w + x + dx) * 4 + c]; return s2 / 9; };
+    // le long d'un côté, la couleur un peu en dedans et un peu en dehors
+    const sideSamples = (a, b, q) => {
+      const cx1 = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, cy1 = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
+      let nx = -(b[1] - a[1]), ny = b[0] - a[0];
+      const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      if ((cx1 - mx) * nx + (cy1 - my) * ny < 0) { nx = -nx; ny = -ny; }
+      const out = [];
+      for (let t = 0.05; t <= 0.951; t += 0.05) {
+        const x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
+        const xi = Math.round(x + nx * off), yi = Math.round(y + ny * off), xo = Math.round(x - nx * off), yo = Math.round(y - ny * off);
+        if (xi < 1 || yi < 1 || xi >= w - 1 || yi >= h - 1 || xo < 1 || yo < 1 || xo >= w - 1 || yo >= h - 1) continue;
+        out.push({ i: [mean3(xi, yi, 0), mean3(xi, yi, 1), mean3(xi, yi, 2)], o: [mean3(xo, yo, 0), mean3(xo, yo, 1), mean3(xo, yo, 2)] });
+      }
+      return out;
+    };
+    const cdiff = (a, b) => Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]), Math.abs(a[2] - b[2]));
+    const median = (arr) => { const c = arr.slice().sort((p2, q2) => p2 - q2); return c.length ? c[c.length >> 1] : 0; };
+    /*
+     * De part et d'autre de chaque côté, deux couleurs différentes (le papier, la table) sur presque
+     * toute sa longueur, à l'échelle des contrastes de la photo (un dixième de niveau sur du marbre
+     * clair, bien plus sur du parquet) : le contour d'un corps de personnage découpé sépare, sur un
+     * de ses côtés, du papier du papier. Et dehors, pas la couleur du papier (celle des échantillons
+     * les plus clairs du dedans) : ni la même à quelques niveaux près, ni la même teinte — le marbre
+     * est plus chaud que le papier, même là où l'éclairage les rend aussi clairs l'un que l'autre.
+     */
+    const colourTest = (q) => {
+      const sides = [sideSamples(q[0], q[1], q), sideSamples(q[1], q[2], q), sideSamples(q[2], q[3], q), sideSamples(q[3], q[0], q)];
+      const all = sides.flat();
+      if (all.length < 20) return null;
+      const medC = median(all.map((s2) => cdiff(s2.i, s2.o)));
+      const dT = Math.max(7, 0.3 * medC);
+      const con = sides.map((ss) => (ss.length ? ss.filter((s2) => cdiff(s2.i, s2.o) >= dT).length / ss.length : 0));
+      if (Math.min(...con) < 0.5 || (con[0] + con[1] + con[2] + con[3]) / 4 < 0.7) { findSheet.debug.edgeColourLast = { dT: +dT.toFixed(1), con: con.map((v) => +v.toFixed(2)), q: q.map((p) => p.map(Math.round)) }; return null; }
+      const bright = all.map((s2) => s2.i).sort((a, b) => lum(b) - lum(a)).slice(0, Math.max(5, all.length >> 2));
+      const paper = [0, 1, 2].map((c) => median(bright.map((v) => v[c])));
+      const lp = lum(paper) || 1, pT = Math.max(dT, 0.5 * medC);
+      const notPaper = (o) => {
+        if (cdiff(o, paper) >= pT) return true;
+        const lo = lum(o) || 1;
+        return o.some((v, c) => Math.abs(v / lo - paper[c] / lp) >= 0.06);
+      };
+      const srf = sides.map((ss) => (ss.length ? ss.filter((s2) => notPaper(s2.o)).length / ss.length : 0));
+      findSheet.debug.edgeColourLast = { dT: +dT.toFixed(1), pT: +pT.toFixed(1), con: con.map((v) => +v.toFixed(2)), srf: srf.map((v) => +v.toFixed(2)), paper: paper.map(Math.round), q: q.map((p) => p.map(Math.round)) };
+      if (Math.min(...srf) < 0.5) return null;
+      return { con, srf, paper };
+    };
     let best = null;
     for (let i = 0; i < H.length; i++) for (let j = i + 1; j < H.length; j++) for (let u = 0; u < V.length; u++) for (let v = u + 1; v < V.length; v++) {
       const h1 = H[i], h2 = H[j], v1 = V[u], v2 = V[v];
+      // côtés opposés presque parallèles (une feuille vue d'un peu de biais converge peu)
+      const dAng = (a, b) => Math.min(Math.abs(a.t - b.t), 180 - Math.abs(a.t - b.t));
+      if (dAng(h1, h2) > 14 || dAng(v1, v2) > 14) continue;
       const c1 = inter(v1, h1), c2 = inter(v2, h1), c3 = inter(v2, h2), c4 = inter(v1, h2);
       if (!c1 || !c2 || !c3 || !c4) continue;
       const q = [c1, c2, c3, c4];
@@ -2541,8 +2660,11 @@
       const sup = [support(c1, c2), support(c2, c3), support(c3, c4), support(c4, c1)];
       const minSup = Math.min(...sup), meanSup = (sup[0] + sup[1] + sup[2] + sup[3]) / 4;
       if (minSup < 0.6 || meanSup < 0.78) continue;
-      const score = meanSup + minSup * 0.5 + 0.2 * Math.sqrt(area / n);
-      if (!best || score > best.score) best = { q, score, sup };
+      const score = meanSup + minSup * 0.5 + 0.6 * Math.sqrt(area / n);
+      if (best && score <= best.score) continue;
+      const ct = colourTest(q);
+      if (!ct) continue;
+      best = { q, score, sup, con: ct.con, srf: ct.srf };
     }
     Object.assign(findSheet.debug, { edgeBest: best ? +best.score.toFixed(2) : null });
     if (findSheet.wantMasks) {
@@ -2558,9 +2680,10 @@
     if (!best) return null;
     // le dessin est dans la feuille : hors du quadrilatère, peu de contours (la surface, ses veines) ;
     // un rectangle dessiné au milieu d'un sujet (une chemise) laisse le reste du sujet dehors
-    const inQ0 = (q, x, y) => { let s2 = 0; for (let i = 0; i < 4; i++) { const a = q[i], b = q[(i + 1) % 4]; const c = (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); s2 += c < 0 ? -1 : 1; } return Math.abs(s2) === 4; };
+    // (contours francs seulement : les veines d'un marbre, ténues, ne comptent pas)
+    const sT = Math.max(eT * 2, gT * 1.5);
     let eIn = 0, eOut = 0;
-    for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) { if (!E[y * w + x]) continue; if (inQ0(best.q, x + 0.5, y + 0.5)) eIn++; else eOut++; }
+    for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) { if (G[y * w + x] < sT) continue; if (inQ0(best.q, x + 0.5, y + 0.5)) eIn++; else eOut++; }
     findSheet.debug = Object.assign(findSheet.debug || {}, { edgeOut: +(eOut / Math.max(1, eIn + eOut)).toFixed(2) });
     if (eOut > 0.55 * (eIn + eOut)) return null;
     // coins dans l'ordre (haut-gauche, haut-droit, bas-droit, bas-gauche)
@@ -2588,7 +2711,9 @@
     let hue = 0;
     if (mx > mn) { hue = mx === col[0] ? ((col[1] - col[2]) / (mx - mn)) % 6 : mx === col[1] ? (col[2] - col[0]) / (mx - mn) + 2 : (col[0] - col[1]) / (mx - mn) + 4; hue = (hue * 60 + 360) % 360; }
     const wood = sS >= 0.15 && hue >= 5 && hue <= 55 && lum(col) < 230;
-    findSheet.debug = Object.assign(findSheet.debug || {}, { edges: true, edgeSupport: best.sup.map((v) => +v.toFixed(2)), result: 'sheet' });
+    // une table : bois ou couleur neutre ; un tour rouge vif est un cadre dessiné autour de la page
+    if (!(wood || sS < 0.35)) { release(canvas); findSheet.debug.edgeSurfaceSat = +sS.toFixed(2); return null; }
+    findSheet.debug = Object.assign(findSheet.debug || {}, { edges: true, edgeSupport: best.sup.map((v) => +v.toFixed(2)), edgeContrast: best.con.map((v) => +v.toFixed(2)), edgeSurface: best.srf.map((v) => +v.toFixed(2)), result: 'sheet' });
     return { kind: 'sheet', canvas, quad: q, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: outN / Math.max(1, borderN), sheet: true, edges: true } };
   }
 

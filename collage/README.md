@@ -450,12 +450,18 @@ cd collage && python3 -m http.server 8000
      l'enveloppe). Quand la couleur ne suffit pas (feuille blanche sur une table claire, dans l'ombre
      du téléphone ; ou une « feuille » qui serait presque toute la photo, une table claire prise pour
      du papier), **la feuille est cherchée par ses bords** comme le fait le scanner de documents d'un
-     téléphone (`edgeSheet`) : contours à seuil bas, droites dominantes (transformée de Hough, 18 au
-     plus), meilleur quadrilatère formé par deux paires de droites — chaque côté suivi par un contour
-     sur presque toute sa longueur, surface d'au moins un dixième de la photo, proportions d'une
-     feuille, coins dans la photo, et le dessin dedans (moins de 55 % des contours hors du
-     quadrilatère : un rectangle dessiné au milieu d'un sujet, une chemise, laisse le reste du sujet
-     dehors et n'est pas une feuille). Garde-fous : la surface, lue sur la bordure de la photo hors de la feuille, doit
+     téléphone (`edgeSheet`) : gradient sur chaque canal de couleur (le bord d'une feuille sur du
+     marbre ne se voit souvent que dans le bleu, à clarté égale), contours amincis à la crête du
+     gradient (comme Canny) au seuil du bruit du capteur, droites dominantes par transformée de Hough
+     où chaque contour ne vote que pour les droites suivant son gradient (les traits d'un dessin ne
+     s'accumulent plus par hasard), 12 droites proches de l'horizontale et 12 de la verticale au
+     plus ; meilleur quadrilatère formé par deux paires de droites — côtés opposés presque parallèles,
+     chaque côté suivi par un contour sur presque toute sa longueur, surface d'au moins un dixième de
+     la photo, proportions d'une feuille, coins dans la photo, le dessin dedans (moins de 55 % des
+     contours francs hors du quadrilatère), et deux couleurs de part et d'autre de chaque côté (le
+     papier, la table — à l'échelle des contrastes de la photo) dont, dehors, jamais celle du papier
+     (ni à quelques niveaux près, ni de même teinte : le corps rectangulaire d'un personnage découpé
+     a du papier le long d'un côté et n'est pas une feuille). Garde-fous : la surface, lue sur la bordure de la photo hors de la feuille, doit
      être bois ou peu saturée et d'une seule couleur (un cadre dessiné au crayon n'en est pas une),
      ne pas contenir de papier de la couleur de la feuille (une plage de ciel cernée d'arbres n'est
      pas une feuille), et chaque bord du quadrilatère doit être suivi par un contour franc ou par le

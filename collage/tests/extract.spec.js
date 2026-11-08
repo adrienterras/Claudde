@@ -472,6 +472,36 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.area).toBeGreaterThan(0.42); expect(r.area).toBeLessThan(0.54); // (1040 × 1470 sur 1600 × 2000 ≈ 0,48)
   });
 
+  test('feuille aussi claire que le marbre (seul le bleu diffère), couverte de hachures jusqu’à ses bords : repérée par ses bords', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 2000, H = 1500, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // marbre chaud, dégradé d'éclairage de gauche à droite, veines grises
+      const g = x.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgb(160,150,128)'); g.addColorStop(1, 'rgb(200,196,176)');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      let seed = 11; const R = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+      x.strokeStyle = 'rgba(140,135,130,0.45)'; x.lineWidth = 3;
+      for (let k = 0; k < 16; k++) { x.beginPath(); let px = R() * W, py = R() * H; x.moveTo(px, py); for (let s = 0; s < 12; s++) { px += (R() - 0.5) * 240; py += (R() - 0.3) * 240; x.lineTo(px, py); } x.stroke(); }
+      // la feuille : même clarté que le marbre, plus bleue ; un dessin dense de traits horizontaux
+      // (ciel, herbe) qui touche ses bords
+      x.save(); x.translate(W / 2, H / 2); x.rotate(-0.03);
+      x.fillStyle = 'rgb(188,188,196)'; x.fillRect(-720, -520, 1440, 1040);
+      x.lineWidth = 6; x.lineCap = 'round';
+      for (let k = 0; k < 60; k++) { x.strokeStyle = k < 30 ? 'rgb(90,160,210)' : 'rgb(120,170,60)'; x.beginPath(); const py = -520 + 12 + k * 17; let px = -720 + R() * 60; x.moveTo(px, py); for (let s = 0; s < 8; s++) { px += 150 + R() * 40; x.lineTo(px, py + (R() - 0.5) * 12); } x.stroke(); }
+      x.restore();
+      Extract.findSheet.edgesOnly = true;
+      let s1 = null;
+      try { s1 = Extract.findSheet(c); } finally { Extract.findSheet.edgesOnly = false; }
+      const cx = (s1 && s1.quad) ? s1.quad.reduce((a, p) => a + p[0], 0) / 4 : 0, cy = (s1 && s1.quad) ? s1.quad.reduce((a, p) => a + p[1], 0) / 4 : 0;
+      const area = s1 && s1.quad ? Math.abs(s1.quad.reduce((a, p, i, q) => { const n = q[(i + 1) % 4]; return a + p[0] * n[1] - n[0] * p[1]; }, 0)) / 2 : 0;
+      return { kind: s1 && s1.kind, edges: !!(s1 && s1.surface && s1.surface.edges), cx, cy, area: area / (W * H), W, H, dbg: Extract.findSheet.debug };
+    });
+    expect(r.kind).toBe('sheet');
+    expect(r.edges).toBe(true);
+    expect(Math.abs(r.cx - r.W / 2)).toBeLessThan(0.03 * r.W);
+    expect(Math.abs(r.cy - r.H / 2)).toBeLessThan(0.03 * r.H);
+    expect(r.area).toBeGreaterThan(0.44); expect(r.area).toBeLessThan(0.54); // (1440 × 1040 sur 2000 × 1500 ≈ 0,50)
+  });
+
   test('un dessin très pâle au crayon est découpé d’un seul tenant, comme aux ciseaux', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
