@@ -167,7 +167,10 @@ cd collage && python3 -m http.server 8000
      fermeture qui réunit les îlots, dont on ne garde que les ajouts touchant deux îlots). Le contour
      est **lisse** : les petites dents (≈ 2 mm) sont gommées et les angles arrondis (ouverture à
      ≈ 2,4 mm) ; les encoches et fentes de moins de ≈ 1,5 mm sont comblées et les angles rentrants
-     adoucis (fermeture courte, ≈ 0,7 mm, pour ne boucher aucun creux plus large) ; l'encre n'est jamais
+     adoucis (fermeture courte, ≈ 0,7 mm, pour ne boucher aucun creux plus large) ; puis un arrondi
+     final (`roundMask` : moyenne glissante en deux passes, rayon ≈ 1,8 mm, et seuil à mi-hauteur)
+     fond en une courbe continue les festons que laissent les dilatations — un petit arc autour de
+     chaque point d'une pulvérisation, les dents d'un trait tremblé ; l'encre n'est jamais
      entamée (≈ 1 mm de papier garanti autour d'elle). Un dessin
      qui **sort de la feuille** n'est plus coupé net le long du bord de la page : chaque tronçon où
      la découpe touche le bord devient un dôme (demi-ellipse qui touche le bord en son milieu,

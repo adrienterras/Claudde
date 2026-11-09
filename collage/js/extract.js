@@ -393,6 +393,28 @@
     return out;
   }
 
+  // masque arrondi : moyenne glissante de rayon r, deux fois (noyau triangulaire), puis seuil à 0,5
+  function roundMask(m, w, h, r) {
+    const n = w * h, W1 = w + 1;
+    const mean = (src) => {
+      const I = new Float64Array(W1 * (h + 1));
+      for (let y = 1; y <= h; y++) { let row = 0; for (let x = 1; x <= w; x++) { row += src[(y - 1) * w + x - 1]; I[y * W1 + x] = I[(y - 1) * W1 + x] + row; } }
+      const out = new Float32Array(n);
+      for (let y = 0; y < h; y++) {
+        const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1);
+        for (let x = 0; x < w; x++) {
+          const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1);
+          out[y * w + x] = (I[y1 * W1 + x1] - I[y0 * W1 + x1] - I[y1 * W1 + x0] + I[y0 * W1 + x0]) / ((y1 - y0) * (x1 - x0));
+        }
+      }
+      return out;
+    };
+    const f = mean(mean(m));
+    const out = new Uint8Array(n);
+    for (let p = 0; p < n; p++) out[p] = f[p] >= 0.5 ? 1 : 0;
+    return out;
+  }
+
   // somme d'un masque sur une fenêtre carrée de rayon r autour de chaque pixel (image intégrale)
   function boxSum(m, w, h, r) {
     const W1 = w + 1, I = new Int32Array(W1 * (h + 1));
@@ -1489,6 +1511,10 @@
       // entre deux têtes), qui reste découpé
       const rc = rs * 0.3;
       sm = erode(dilate(sm, fw, fh, rc), fw, fh, rc);
+      // arrondi final : moyenne glissante (deux passes) puis seuil à mi-hauteur — les festons d'un
+      // bord (un petit arc autour de chaque point d'une pulvérisation, les dents d'un trait tremblé)
+      // se fondent en une courbe continue ; tout a déjà la marge en largeur, rien de fin ne disparaît
+      sm = roundMask(sm, fw, fh, Math.max(2, Math.round(rs * 0.75)));
       const guard = dilate(inkF, fw, fh, funit * Math.min(0.004, CUT.margin * 0.5));
       for (let p = 0; p < sm.length; p++) if (guard[p]) sm[p] = 1;
       alpha = sm;
