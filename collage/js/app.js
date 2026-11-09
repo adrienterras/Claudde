@@ -5971,14 +5971,17 @@ Réponds uniquement avec ce JSON :
   // Retour sur l'atelier avec une œuvre en cours : plutôt que de la rouvrir d'office, on demande —
   // « Reprendre l'œuvre en cours » ou « Commencer une nouvelle œuvre » (l'œuvre en cours est alors
   // rangée dans Mes œuvres, et rien du compte ne se rouvre à sa place)
-  function offerResume(rec) {
+  // rec : l'œuvre en cours de cet appareil (brouillon), ou, rien ici, la plus récente du compte (une
+  // fiche courte de la liste : onResume la rouvre, sinon c'est le brouillon qui est repris)
+  function offerResume(rec, onResume) {
     const m = $('resume-modal');
     if (!m) return;
     const name = rec.workName || rec.name || defaultWorkName();
-    $('resume-text').textContent = tr`« ${name} » : ${rec.drawings.length} dessins, ${clockText(rec.date)}.`;
+    const n = rec.drawings ? rec.drawings.length : rec.nDrawings || 0;
+    $('resume-text').textContent = tr`« ${name} » : ${n} dessins, ${clockText(rec.date)}.`;
     const img = $('resume-thumb'), thumb = safeData(rec.thumb);
     if (img) { img.parentElement.hidden = !thumb; if (thumb) img.src = thumb; }
-    $('resume-yes').onclick = () => { closeModal(m); window.Atelier.track('Reprendre'); resumeDraft(true); };
+    $('resume-yes').onclick = () => { closeModal(m); window.Atelier.track('Reprendre'); if (onResume) onResume(); else resumeDraft(true); };
     $('resume-new').onclick = async () => { closeModal(m); window.Atelier.track('Nouvelle œuvre (retour)'); lsSet(NEW_KEY, '1'); await setDraftAside(); };
     openModal(m);
   }
@@ -6071,6 +6074,7 @@ Réponds uniquement avec ce JSON :
     if (entry.ordered || entry.frozen) { beginCopy(rec); return; }
     const id = UUID.test(entry.workId) ? entry.workId : newWorkId();
     setWork(id, rec.workName || rec.name, rec.date);
+    lsSet(NEW_KEY, null); // (une œuvre rouverte : « nouvelle œuvre demandée » ne tient plus)
     if (fromCloud) setSeen(id, cloud.date);
     state.workLegacy = false;
     await saveDraft();
@@ -6294,10 +6298,12 @@ Réponds uniquement avec ce JSON :
   if ($('work-newer-keep')) $('work-newer-keep').addEventListener('click', keepMine);
 
   // à l'arrivée et à la connexion : la liste du compte ; rien d'affiché ici (nouvel appareil) → la plus
-  // récente se rouvre d'elle-même ; l'œuvre affichée a changé ailleurs → le bandeau ; les œuvres de ce
-  // navigateur qui ne sont pas encore dans le compte y partent
+  // récente se rouvre d'elle-même — à une nouvelle visite (lien depuis l'accueil, adresse tapée), on
+  // demande d'abord, comme pour l'œuvre en cours d'ici, avant de télécharger quoi que ce soit ;
+  // l'œuvre affichée a changé ailleurs → le bandeau ; les œuvres de ce navigateur qui ne sont pas
+  // encore dans le compte y partent
   let checking = false;
-  async function checkWorks() {
+  async function checkWorks(opts) {
     if (!signedIn() || checking) return;
     checking = true;
     try {
@@ -6309,7 +6315,12 @@ Réponds uniquement avec ce JSON :
       const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
       if (!here && !fresh && lsGet(NEW_KEY) !== '1' && !state.drawings.length) {
         const latest = cloudWorks.filter((c) => !c.ordered && !c.frozen).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-        if (latest) { await openWork({ workId: latest.workId, cloud: latest }); return; }
+        if (latest) {
+          const entry = { workId: latest.workId, cloud: latest };
+          if (opts && opts.arrival && newVisit()) { offerResume(latest, () => openWork(entry)); return; }
+          await openWork(entry);
+          return;
+        }
       }
       // l'ancienne œuvre en cours d'ici et celle du compte (d'avant « Mes œuvres ») ne font qu'une
       if (state.workLegacy && state.workId) {
@@ -7209,6 +7220,7 @@ Réponds uniquement avec ce JSON :
     A.onChange((u, info) => {
       updateExportNote();
       const signed = !!u, recovering = !!(info && info.recovering);
+      const arrival = wasSigned === null; // (première réponse du service : l'arrivée sur la page)
       $('acc-open').hidden = signed;
       $('acc-menu').hidden = !signed;
       $('auth-box').hidden = signed || recovering;
@@ -7240,7 +7252,7 @@ Réponds uniquement avec ce JSON :
           ? tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Compte administrateur : sans limite de nombre ; les œuvres sont gardées ${workKeepDays()} jours après leur dernier changement.`
           : tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Le compte garde jusqu’à ${workMax()} œuvres, pendant ${workKeepDays()} jours après leur dernier changement.`)
         : tr('Vos œuvres s’enregistrent d’elles-mêmes sur cet appareil. Connectez-vous pour les retrouver sur tous vos appareils.');
-      if (signed) checkWorks(); else { hideNewer(); renderSaved(); }
+      if (signed) checkWorks({ arrival }); else { hideNewer(); renderSaved(); }
       workStatus();
       renderExports();
       renderAdmin();

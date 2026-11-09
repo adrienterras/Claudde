@@ -331,6 +331,48 @@ test.describe('Comptes utilisateurs', () => {
     expect(mine.n).toBe(2);
   });
 
+  test('nouvelle visite, rien sur l’appareil, une œuvre dans le compte : la fenêtre « Reprendre / Nouvelle œuvre » avant tout téléchargement', async ({ acc }) => {
+    test.setTimeout(240000);
+    const { page } = acc;
+    await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
+    await page.setInputFiles('#file', ['page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 2);
+    const w1 = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work), w1);
+    // un autre appareil (rien en local), arrivée par un lien : on demande, rien ne se télécharge
+    const wipe = () => page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    await wipe();
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await expect(page.locator('#resume-modal')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#resume-text')).toContainText('2 dessins');
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    // « Commencer une nouvelle œuvre » : l'atelier reste vide, et une visite suivante ne redemande pas
+    await page.locator('#resume-new').click();
+    await expect(page.locator('#resume-modal')).toBeHidden();
+    await page.waitForTimeout(1500);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await page.waitForTimeout(2500);
+    await expect(page.locator('#resume-modal')).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    // « Reprendre » : l'œuvre du compte se rouvre
+    await wipe();
+    await page.goto('index.html');
+    await expect(page.locator('#resume-modal')).toBeVisible({ timeout: 30000 });
+    await page.locator('#resume-yes').click();
+    await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, w1, { timeout: 120000 });
+    // une actualisation, elle, rouvre sans demander
+    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    expect(await page.evaluate(() => localStorage.getItem('atelier.nouvelle'))).toBeNull(); // (« Reprendre » a levé la marque « nouvelle œuvre »)
+    await page.reload();
+    await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, w1, { timeout: 120000 });
+    await expect(page.locator('#resume-modal')).toBeHidden();
+  });
+
   test('une version plus récente venue d’un autre appareil : un bandeau, « Ouvrir cette version » ou « Garder celle-ci », sans ping-pong', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'duo@example.org', 'Rouge-Soleil-42', 'Duo');
