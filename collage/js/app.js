@@ -5420,7 +5420,16 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   if (window.Camera && Camera.supported()) {
     $('camera-open').hidden = false;
     $('empty-camera').hidden = false;
-    const openCamera = requireAccount(tr('photographier vos dessins'), () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) }));
+    const startCamera = () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) });
+    // avant l'appareil photo, un conseil (fond clair et uni, bonne lumière) ; « Ne plus afficher » le retient
+    const TIP_KEY = 'atelier.conseil-photo-vu';
+    const cameraTip = () => {
+      const m = $('camera-tip');
+      if (!m || lsGet(TIP_KEY) === '1') { startCamera(); return; }
+      $('camera-tip-go').onclick = () => { if ($('camera-tip-skip').checked) lsSet(TIP_KEY, '1'); closeModal(m); startCamera(); };
+      openModal(m);
+    };
+    const openCamera = requireAccount(tr('photographier vos dessins'), cameraTip);
     $('camera-open').addEventListener('click', openCamera);
     $('empty-camera').addEventListener('click', openCamera);
   }

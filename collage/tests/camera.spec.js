@@ -124,7 +124,15 @@ test.describe('Photographier un dessin', () => {
     await page.setViewportSize({ width: 390, height: 844 }); // le bouton n'est là que sur téléphone
     await expect(page.locator('#camera-open')).toBeVisible();
     await page.locator('#camera-open').click();
+    // le conseil d'abord : fond clair et uni ; « Ne plus afficher » le retient pour les fois suivantes
+    await expect(page.locator('#camera-tip')).toBeVisible();
+    await expect(page.locator('#camera-tip')).toContainText('fond clair et uni');
+    await expect(page.locator('#camera')).toBeHidden();
+    await page.locator('#camera-tip-skip').check();
+    await page.locator('#camera-tip-go').click();
+    await expect(page.locator('#camera-tip')).toBeHidden();
     await expect(page.locator('#camera')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.conseil-photo-vu'))).toBe('1');
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
     // la scène de synthèse est une bonne photo : une seule consigne, « Prêt », et le cadre de la feuille tracé
     await expect(page.locator('#camera-verdict')).toHaveText('Prêt : prenez la photo', { timeout: 20000 });
@@ -180,6 +188,7 @@ test.describe('Photographier un dessin', () => {
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('#camera-open').click();
+    await page.locator('#camera-tip-go').click(); // (le conseil du fond clair, d'abord)
     await expect(page.locator('#camera')).toBeVisible();
     await expect(page.locator('#camera-error')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('#camera-error')).toContainText('L’image de l’appareil photo n’arrive pas (NotAllowedError)');
@@ -206,6 +215,7 @@ test.describe('Photographier un dessin', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     // la caméra factice de Chromium n'a pas de lampe : pas de bouton
     await page.locator('#camera-open').click();
+    await page.locator('#camera-tip-go').click(); // (le conseil du fond clair, d'abord)
     await expect(page.locator('#camera')).toBeVisible();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
     await expect(page.locator('#camera-flash')).toBeHidden();
@@ -259,6 +269,7 @@ test.describe('Photographier un dessin', () => {
     await expect(page.locator('#camera')).toBeHidden();
     await page.evaluate(() => { window.__torch = []; });
     await page.locator('#camera-open').click();
+    await page.locator('#camera-tip-go').click();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
     await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => window.__torch)).toEqual([true]);
@@ -269,6 +280,7 @@ test.describe('Photographier un dessin', () => {
     const page = app.page;
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('#camera-open').click();
+    await page.locator('#camera-tip-go').click();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
     await page.keyboard.press('Escape');
     await expect(page.locator('#camera')).toBeHidden();

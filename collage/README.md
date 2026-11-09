@@ -96,7 +96,7 @@ cd collage && python3 -m http.server 8000
    dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
    zone de dépôt, sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,
    iPad en paysage compris : la visée y reste en plein écran) ; pas sur un ordinateur sans écran
-   tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : pendant la visée, chaque image est jugée sur
+   tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : d'abord une fenêtre de conseil (« Avant de photographier » : le dessin bien à plat sur un fond clair et uni, bonne lumière, sans ombre portée ; « Ne plus afficher ce conseil » la retient, `atelier.conseil-photo-vu`), puis pendant la visée, chaque image est jugée sur
    **l'éclairage** et l'écran ne donne qu'**une consigne à la fois** (« Ombre sur la feuille :
    placez-vous face à la fenêtre », « Trop sombre : plus de lumière, près d'une fenêtre »… ou « Prêt :
    prenez la photo ») — lumière égale (`Quality.lighting`, mêmes seuils qu'à l'import), ombre locale
