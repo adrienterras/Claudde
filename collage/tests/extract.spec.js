@@ -689,7 +689,7 @@ test.describe('Précision de la découpe', () => {
     expect(Math.abs(r.ratio90 - r.ratio)).toBeLessThan(0.02);
   });
 
-  test('une petite découpe sur un parquet verni : le reflet clair d’une lame (aussi blanc que du papier, sans bord net) n’est pas la pièce, la découpe si', async ({ app }) => {
+  test('une petite découpe sur un parquet verni : le reflet clair d’une lame (aussi blanc que du papier, sans bord net) et un nœud clair ne sont pas la pièce, la découpe si', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1200, H = 1600, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
       for (let k = 0; k < 8; k++) {
@@ -703,6 +703,10 @@ test.describe('Précision de la découpe', () => {
       const g = x.createRadialGradient(140, 160, 60, 140, 160, 420);
       g.addColorStop(0, 'rgba(228,238,243,1)'); g.addColorStop(0.45, 'rgba(228,238,243,0.9)'); g.addColorStop(1, 'rgba(228,238,243,0)');
       x.fillStyle = g; x.fillRect(0, 0, 600, 620);
+      // et un nœud clair du bois, au bord moins fondu que le reflet mais bien moins net qu'un bord de papier
+      const g2 = x.createRadialGradient(900, 420, 40, 900, 420, 150);
+      g2.addColorStop(0, 'rgba(238,217,192,1)'); g2.addColorStop(0.7, 'rgba(238,217,192,0.9)'); g2.addColorStop(1, 'rgba(238,217,192,0)');
+      x.fillStyle = g2; x.fillRect(740, 260, 320, 320);
       // la découpe : une petite forme à branches (≈ 4 % de la photo), papier blanc et pulvérisations
       const shape = new Path2D('M520 980 L700 900 L760 940 L640 1010 L700 1120 L880 1060 L920 1110 L720 1190 L640 1300 L560 1270 L620 1150 L440 1080 Z');
       x.fillStyle = 'rgb(246,246,250)'; x.fill(shape);

@@ -485,8 +485,9 @@ cd collage && python3 -m http.server 8000
      papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface avant même
      de chercher le dessin (une lame sous un reflet ; ce qui est plus sombre que la surface, les
      cheveux bruns d'un personnage, attend la coupe fine) ; une forme au contour mou (gradient
-     médian faible le long de son bord : le reflet d'une fenêtre sur une lame vernie, aussi blanc
-     que du papier mais fondu dans le bois) n'est pas le dessin, le contour d'une découpe est net
+     médian faible le long de son bord, ou moins de la moitié de celui de la forme la plus nette :
+     le reflet d'une fenêtre sur une lame vernie, un nœud clair du bois, aussi clairs que du papier
+     mais fondus dans le bois) n'est pas le dessin, le contour d'une découpe est un pas franc
      (`boundarySharpness`) ; la surface
      est alors retirée : le dessin est détouré en suivant sa forme, sur un fond blanc. Le bord de
      l'objet est repris à pleine résolution (≈ 1600 px) le long du contour, d'après les couleurs de

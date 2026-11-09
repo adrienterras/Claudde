@@ -2784,7 +2784,7 @@
       if (y + 1 < h) step(p, p + w);
       if (y > 0) step(p, p - w);
     }
-    return seen;
+    return { seen, woodish };
   }
 
   function removeSurface(src, force) {
@@ -2850,7 +2850,8 @@
     // feuille, isolé dans le blanc, n'est pas touché)
     // (ici seulement ce qui est plus clair que la surface : une lame sous un reflet ; les cheveux
     // bruns d'un personnage, plus sombres, restent au dessin, la coupe fine tranchera à la fin)
-    const woodSeen = wood ? woodFromBorder(d, w, h) : null;
+    const woodBorder = wood ? woodFromBorder(d, w, h) : null;
+    const woodSeen = woodBorder ? woodBorder.seen : null, woodish = woodBorder ? woodBorder.woodish : null;
     const flooded = new Uint8Array(n);
     if (woodSeen) for (let p = 0, i = 0; p < n; p++, i += 4) if (woodSeen[p] && obj[p] && 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] >= L) { obj[p] = 0; surfCount++; flooded[p] = 1; }
     // part de papier (clair, peu saturé) dans ce qui n'est pas la surface : un dessin posé sur un sol
@@ -2901,13 +2902,23 @@
     mask = erode(mask, w, h, unit * 0.012);
     mask = dilate(mask, w, h, unit * 0.012);
     const { labels, comps: comps0 } = components(mask, w, h);
-    // un reflet de fenêtre sur une lame vernie est aussi clair que du papier, mais il n'a pas de bord :
-    // il se fond dans le bois. Le contour d'une découpe est net sur la plus grande part de sa
-    // longueur ; une forme au contour mou (gradient médian faible) est rendue à la surface.
+    // un reflet de fenêtre sur une lame vernie, un nœud clair du bois, sont aussi clairs que du
+    // papier, mais ils n'ont pas de bord : ils se fondent dans le bois. Le contour d'une découpe est
+    // net sur la plus grande part de sa longueur (un pas franc, papier contre bois) ; une forme au
+    // contour mou (gradient médian faible, ou moins de la moitié de celui de la forme la plus nette)
+    // est rendue à la surface.
     const sharp = boundarySharpness(d, w, h, mask, labels, comps0);
     const bestSharp = comps0.reduce((m, c) => (c.area >= 0.03 * n && sharp[c.id] > m ? sharp[c.id] : m), 0);
-    const comps = comps0.filter((c) => c.area < 0.03 * n || (sharp[c.id] >= 14 && sharp[c.id] >= 0.3 * bestSharp) || force);
-    Object.assign(removeSurface.debug, { sharp: comps0.filter((c) => c.area >= 0.03 * n).map((c) => +sharp[c.id].toFixed(1)) });
+    // et une forme de la couleur du bois (un nœud clair, une lame sous un reflet : teinte du bois sur
+    // la plus grande part de ses pixels) au contour moins net que la meilleure est du bois, pas un dessin
+    const woodFrac = {};
+    if (woodish) {
+      const cnt = {};
+      for (let p = 0; p < n; p++) if (mask[p] && labels[p]) { const id = labels[p]; if (!cnt[id]) cnt[id] = [0, 0]; cnt[id][0]++; if (woodish[p]) cnt[id][1]++; }
+      comps0.forEach((c) => { woodFrac[c.id] = cnt[c.id] ? cnt[c.id][1] / cnt[c.id][0] : 0; });
+    }
+    const comps = comps0.filter((c) => c.area < 0.03 * n || force || (sharp[c.id] >= 14 && sharp[c.id] >= 0.45 * bestSharp && !((woodFrac[c.id] || 0) >= 0.6 && sharp[c.id] < 0.6 * bestSharp)));
+    Object.assign(removeSurface.debug, { sharp: comps0.filter((c) => c.area >= 0.03 * n).map((c) => +sharp[c.id].toFixed(1)), woodFrac: comps0.filter((c) => c.area >= 0.03 * n).map((c) => +(woodFrac[c.id] || 0).toFixed(2)) });
     // le dessin : la plus grande forme, et celles qui en sont proches en taille ; des reflets ou des
     // taches claires du sol, petits et isolés, ne comptent pas
     const biggest = comps.reduce((m, c) => (!m || c.area > m.area ? c : m), null);
