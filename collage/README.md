@@ -639,7 +639,12 @@ cd collage && python3 -m http.server 8000
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
-     constellations près d'une grande pièce, rotation retenue ;
+     constellations près d'une grande pièce, rotation retenue ; chaque tirage (« Nouvelles
+     propositions ») a son humeur : des inclinaisons plus ou moins marquées (de 0,5 à 2 fois le
+     réglage, pièces maîtresses comprises) et, en tableau imprimé seulement (les originaux d'un
+     collage gardent leur taille), des tailles qui varient d'un dessin à l'autre (de 0,75 à 1,3 fois,
+     les pièces maîtresses penchant vers le grand, jamais au-delà du plafond de qualité d'impression
+     ni de 85 % de la toile ; `L.scale`, dont `fillFrame` et `growIntoGaps` tiennent compte) ;
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;

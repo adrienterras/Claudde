@@ -700,11 +700,30 @@
     const usedThirds = new Set();
     const placed = [];
     let mass = 0, mx = 0, my = 0;
-    const maxRot = (o.rotation * Math.PI) / 180;
+    // « Nouvelles propositions » ne déplace pas seulement les dessins : chaque tirage a son humeur —
+    // des inclinaisons plus ou moins marquées (de ≈ 0,5 à 2 fois le réglage), et, en tableau imprimé
+    // (o.maxGrow > 1 : les dessins ne sont pas les originaux), des tailles qui varient d'un dessin à
+    // l'autre (de 0,75 à 1,3 fois, dans la limite de qualité d'impression) ; les pièces maîtresses
+    // penchent vers le grand, et nulle découpe ne dépasse 85 % de la toile
+    const mood = 0.5 + R() * 1.5;
+    const maxRot = (o.rotation * Math.PI) / 180 * mood;
     const weight = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(Math.max(0.05, p.colorful), 1.3) * (p.importance || 1);
     const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
     if (!stars.size) sorted.slice(0, 3).forEach((p) => stars.add(p));
+    const vary = (o.maxGrow || 1) > 1.02;
+    const sizeOf = new Map();
+    sorted.forEach((p) => {
+      let f = 1;
+      if (vary) {
+        const star = stars.has(p);
+        f = star ? 0.95 + R() * 0.35 : 0.75 + R() * 0.55;
+        f = Math.min(f, o.maxGrow || 1, (0.85 * W) / p.wcm, (0.85 * H) / p.hcm);
+        f = Math.max(f, 0.5);
+      }
+      sizeOf.set(p, f);
+    });
+    const dims = (p) => { const f = sizeOf.get(p) || 1; return [p.wcm * f, p.hcm * f, f]; };
     // les découpes couvrent au plus ~45 % de la toile (× densité) : au-delà, les sujets restent en attente
     // densité : le curseur règle directement le nombre de sujets posés, des plus forts aux plus faibles
     // (de 20 % au minimum jusqu'à tous au maximum), avec un plafond de couverture qui suit ;
@@ -718,13 +737,14 @@
     let covered = 0;
 
     function footprint(p, cx, cy, fn) {
-      const x0 = cx - p.wcm / 2, y0 = cy - p.hcm / 2;
+      const [pw, ph] = dims(p);
+      const x0 = cx - pw / 2, y0 = cy - ph / 2;
       const hm = p.hit;
-      for (let gy = Math.floor(y0); gy <= Math.floor(y0 + p.hcm); gy++) {
-        const v = (gy + 0.5 - y0) / p.hcm;
+      for (let gy = Math.floor(y0); gy <= Math.floor(y0 + ph); gy++) {
+        const v = (gy + 0.5 - y0) / ph;
         if (v < 0 || v >= 1) continue;
-        for (let gx = Math.floor(x0); gx <= Math.floor(x0 + p.wcm); gx++) {
-          const u = (gx + 0.5 - x0) / p.wcm;
+        for (let gx = Math.floor(x0); gx <= Math.floor(x0 + pw); gx++) {
+          const u = (gx + 0.5 - x0) / pw;
           if (u < 0 || u >= 1) continue;
           if (!hm.data[Math.floor(v * hm.h) * hm.w + Math.floor(u * hm.w)]) continue;
           fn(gx, gy);
@@ -737,7 +757,8 @@
       if (idx >= maxCount || covered >= targetCover) return;
       const grounded = !spiral && !spread && !!p.grounded;
       const pHue = hue(p.color);
-      const w8 = p.wcm * p.hcm * (0.3 + p.colorful);
+      const [pw, ph, pf] = dims(p);
+      const w8 = pw * ph * (0.3 + p.colorful);
       const star = !spiral && stars.has(p);
       let best = null, fallback = null;
       // Tournesol : chaque sujet vise son point de la spirale, les pièces maîtresses au cœur.
@@ -745,7 +766,7 @@
       const target = targetsFn ? targetsFn(idx, sorted.length, p) : null;
       for (let c = 0; c < 110 && target; c++) {
         const k = target.r === 0 ? 0.05 : 0.1 + (c / 110) * (mode.spread || (mode.tight === false ? 2.2 : 1.2));
-        const cx = target.x + (R() - 0.5) * p.wcm * k, cy = target.y + (R() - 0.5) * p.hcm * k;
+        const cx = target.x + (R() - 0.5) * pw * k, cy = target.y + (R() - 0.5) * ph * k;
         let cells = 0, over = 0, out = 0;
         footprint(p, cx, cy, (gx, gy) => {
           cells++;
@@ -761,12 +782,12 @@
       for (let c = 0; c < 170 && !target; c++) {
         // un sujet posé peut aussi se tenir sur le bas du milieu, pas seulement dans la bande du sol
         const band = spread ? [0, H] : grounded && c % 2 ? [Z.milieu[0], Z.sol[1]] : Z[p.zone] || [0, H];
-        let cx = p.wcm * 0.35 + R() * Math.max(1, W - p.wcm * 0.7);
+        let cx = pw * 0.35 + R() * Math.max(1, W - pw * 0.7);
         let cy;
         if (grounded) {
           // le bas du sujet repose dans la moitié basse de sa zone
           const bottom = band[0] + (band[1] - band[0]) * (0.55 + R() * 0.45);
-          cy = Math.min(bottom, H + p.hcm * 0.08) - p.hcm / 2;
+          cy = Math.min(bottom, H + ph * 0.08) - ph / 2;
         } else {
           cy = band[0] + R() * (band[1] - band[0]);
         }
@@ -775,7 +796,7 @@
           cx = tx + (R() - 0.5) * W * 0.1;
           if (!grounded) cy = ty + (R() - 0.5) * H * 0.1;
         }
-        cy = clamp(cy, p.hcm * 0.3, H - p.hcm * 0.3);
+        cy = clamp(cy, ph * 0.3, H - ph * 0.3);
         let cells = 0, over = 0, out = 0, busySum = 0, lumSum = 0;
         footprint(p, cx, cy, (gx, gy) => {
           cells++;
@@ -797,11 +818,11 @@
         for (const q of placed) {
           if (!q.star) continue;
           const d = Math.hypot(q.x - cx, q.y - cy);
-          const reach = (Math.max(q.w, q.h) + Math.max(p.wcm, p.hcm)) * 0.55 + 6;
+          const reach = (Math.max(q.w, q.h) + Math.max(pw, ph)) * 0.55 + 6;
           if (d < reach) score += (1 - d / reach) * (star ? 2 : 1.2);
         }
         // les petits éléments se groupent en constellation près d'une grande pièce d'une autre couleur
-        if (Math.max(p.wcm, p.hcm) < 9) {
+        if (Math.max(pw, ph) < 9) {
           let bestNear = Infinity;
           for (const q of placed) {
             if (Math.max(q.w, q.h) < 14) continue;
@@ -816,7 +837,7 @@
         for (const q of placed) {
           const d = Math.hypot(q.x - cx, q.y - cy);
           near = Math.min(near, d);
-          if (d < (Math.max(p.wcm, p.hcm) + Math.max(q.w, q.h)) * 0.7 && p.colorful > 0.2 && q.piece.colorful > 0.2) {
+          if (d < (Math.max(pw, ph) + Math.max(q.w, q.h)) * 0.7 && p.colorful > 0.2 && q.piece.colorful > 0.2) {
             const dh = Math.abs(pHue - hue(q.piece.color));
             if (Math.min(dh, 360 - dh) < 35) score += 0.3;
           }
@@ -843,9 +864,11 @@
       mass += w8; mx += best.cx * w8; my += best.cy * w8;
       p.placed = true;
       // rotation retenue : les pièces maîtresses et les grandes pièces restent presque droites
-      const limit = star ? Math.min(maxRot, 0.06) : Math.max(p.wcm, p.hcm) > 25 ? Math.min(maxRot, 0.1) : maxRot;
+      const limit = star ? Math.min(maxRot, 0.06 * mood) : Math.max(pw, ph) > 25 ? Math.min(maxRot, 0.1 * mood) : maxRot;
       const rot = best.rot !== undefined ? best.rot + (R() - 0.5) * limit : (R() - 0.5) * 2 * (grounded ? Math.min(limit, 0.05) : limit);
-      placed.push({ kind: 'piece', piece: p, x: best.cx, y: best.cy, w: p.wcm, h: p.hcm, rot, flip: false, grounded, star, r: best.r });
+      const item = { kind: 'piece', piece: p, x: best.cx, y: best.cy, w: pw, h: ph, rot, flip: false, grounded, star, r: best.r };
+      if (pf !== 1) item.scale = pf;
+      placed.push(item);
     });
 
     // cibles : l'extérieur d'abord, le cœur par-dessus (ou les grandes pièces dessous)
@@ -1587,8 +1610,9 @@
     if (o.count && !['galerie', 'cabinet', 'frise', 'scene', 'village', 'popart'].includes(comp.style)) {
       fillFrame(comp, o.maxGrow || 1);
       // fond uni (sans page de fond posée) : chaque dessin grandit encore dans l'air libre autour de lui
-      // (le plafond restant tient compte de l'agrandissement d'ensemble déjà fait)
-      if (!comp.bg.some((L) => L.panel)) growIntoGaps(comp, (o.maxGrow || 1) / (comp.fill || 1));
+      // (le plafond de qualité porte sur l'échelle totale de chaque dessin : sa variation de taille
+      // à la pose et l'agrandissement d'ensemble comptent déjà)
+      if (!comp.bg.some((L) => L.panel)) growIntoGaps(comp, o.maxGrow || 1);
     }
     return comp;
   }
@@ -1605,8 +1629,10 @@
     const W = comp.W, H = comp.H;
     // (les petits d'abord : ils prennent l'air libre avant que les grands ne le remplissent)
     const items = comp.items.filter((L) => L.piece && L.piece.hit && L.piece.hit.data).sort((a, b) => a.w * a.h - b.w * b.h);
-    const cap = Math.min(maxGrow, 2.2);
-    if (!(cap > 1.02) || items.length < 2) return;
+    // maxGrow : le plafond de qualité, depuis l'échelle de départ ; ce qu'un dessin a déjà pris (sa
+    // variation de taille à la pose, l'agrandissement d'ensemble : L.scale, sinon comp.fill) en est ôté
+    const capOf = (L) => Math.min(maxGrow / (L.scale !== undefined ? L.scale : comp.fill || 1), 2.2);
+    if (!items.some((L) => capOf(L) > 1.02) || items.length < 2) return;
     // grille au centimètre : à qui est chaque case (255 : à plusieurs) ; les formes réelles, d'après
     // les masques des découpes (comme à la pose, l'inclinaison, faible, est ignorée)
     const gw = Math.ceil(W), gh = Math.ceil(H);
@@ -1633,7 +1659,7 @@
       items.forEach((L, i) => {
         const g = grown.get(L) || 1;
         // (et jamais plus de 85 % de la feuille : un grand dessin ne la prend pas toute)
-        const f = Math.min(cap / g, 1.18, (0.85 * W) / L.w, (0.85 * H) / L.h);
+        const f = Math.min(capOf(L) / g, 1.18, (0.85 * W) / L.w, (0.85 * H) / L.h);
         if (!(f > 1.015)) return;
         const w = L.w * f, h = L.h * f;
         // un dessin au bord glisse vers l'intérieur pour rester dans le cadre en grandissant

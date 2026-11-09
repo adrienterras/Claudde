@@ -188,7 +188,7 @@ test.describe('Compositions', () => {
     expect(r.left).toBeLessThan(6);              // sans bord énorme
   });
 
-  test('« Nouvelles propositions » change la mise en place, la densité aussi', async ({ app }) => {
+  test('« Nouvelles propositions » change la mise en place, la densité aussi ; en tableau imprimé, les tailles et les inclinaisons des dessins changent aussi', async ({ app }) => {
     const { page } = app;
     const sig = () => page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.map((L) => [L.x.toFixed(1), L.y.toFixed(1)].join(',')).join(';'));
     const a = await sig();
@@ -196,6 +196,26 @@ test.describe('Compositions', () => {
     await page.waitForTimeout(300);
     const b = await sig();
     expect(b).not.toBe(a);
+    // tableau imprimé : d'un tirage à l'autre, une même découpe change de taille (pas qu'un facteur commun)
+    // et l'amplitude des inclinaisons change
+    await page.evaluate(() => { AtelierGribouille.setMode('impression'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    const shape = () => page.evaluate(() => {
+      const items = AtelierGribouille.state.proposals[0].comp.items.filter((L) => L.kind === 'piece');
+      return { w: items.map((L) => [L.piece.canvas.width, +(L.w / L.piece.wcm).toFixed(3)]), rot: Math.max(...items.map((L) => Math.abs(L.rot))) };
+    });
+    const sizes = [], rots = [];
+    for (let k = 0; k < 4; k++) {
+      await page.locator('#generate').click();
+      await page.waitForTimeout(300);
+      const sh = await shape();
+      sizes.push(sh.w); rots.push(sh.rot);
+    }
+    // les facteurs de taille diffèrent entre dessins d'un même tirage, et entre tirages pour un même dessin
+    const factors = sizes.map((w) => w.map((x) => x[1]));
+    expect(factors.some((f) => new Set(f).size > 1)).toBe(true);
+    expect(new Set(factors.map((f) => f[0])).size).toBeGreaterThan(1);
+    expect(new Set(rots.map((r) => r.toFixed(3))).size).toBeGreaterThan(1);
+    await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await page.locator('#density').fill('1.1'); // (au maximum par défaut : tous les dessins)
     await page.waitForTimeout(300);
     const c = await sig();
