@@ -366,7 +366,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#resume-yes').click();
     await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, w1, { timeout: 120000 });
     // une actualisation, elle, rouvre sans demander
-    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    await waitDraft(page, 2);
     expect(await page.evaluate(() => localStorage.getItem('atelier.nouvelle'))).toBeNull(); // (« Reprendre » a levé la marque « nouvelle œuvre »)
     await page.reload();
     await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, w1, { timeout: 120000 });

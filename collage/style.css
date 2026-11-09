@@ -214,8 +214,8 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 .resume-card { text-align: center; }
 .resume-card .resume-text, .resume-card .resume-note { margin: 0; }
 .resume-card .resume-note { font-size: 0.74rem; }
-.resume-card .camera-tip-skip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.resume-card .camera-tip-skip input { margin: 0; accent-color: var(--accent); }
+.resume-card .camera-advice-skip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.resume-card .camera-advice-skip input { margin: 0; accent-color: var(--accent); }
 .resume-thumb { margin: 0; }
 .resume-thumb img { max-width: 100%; max-height: 200px; border-radius: 10px; box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .5), 0 0 0 1px var(--line); }
 .resume-card .btn { width: 100%; justify-content: center; }
