@@ -1698,6 +1698,12 @@
       if (M[p] && dIn[p] > band && dIn[p] < band * 6) { hf[bin(i)]++; nf++; }
       else if (!M[p] && dOut[p] > band * 2 && (x < edge || y < edge || x >= W - edge || y >= H - edge)) { hb[bin(i)]++; nb++; }
     }
+    // (objet cadré de près, presque jusqu'aux bords : la surface s'apprend alors sur tout ce qui en
+    // est loin, où qu'il soit — sans quoi le bord resterait celui du masque grossier, bosselé)
+    if (nb < 200) {
+      hb.fill(0); nb = 0;
+      for (let p = 0, i = 0; p < N; p++, i += 4) if (!M[p] && dOut[p] > band * 2) { hb[bin(i)]++; nb++; }
+    }
     if (nf < 200 || nb < 200) return null;
     // lissage des histogrammes (une couleur voisine compte un peu)
     const smooth = (h, n) => {
@@ -2061,7 +2067,12 @@
           const A = ref.alpha;
           a = (A[ya * ref.W + xa] * (1 - tx) + A[ya * ref.W + xb] * tx) * (1 - ty) + (A[yb * ref.W + xa] * (1 - tx) + A[yb * ref.W + xb] * tx) * ty;
         } else {
-          a = fin[Math.min(h - 1, Math.floor((y + cy0) / k)) * w + Math.min(w - 1, Math.floor((x + cx0) / k))];
+          // (sans affinage : le masque grossier interpolé, pour un bord sans marches)
+          const fx = (x + cx0 + 0.5) / k - 0.5, fy = (y + cy0 + 0.5) / k - 0.5;
+          const xa = Math.max(0, Math.min(w - 1, Math.floor(fx))), ya = Math.max(0, Math.min(h - 1, Math.floor(fy)));
+          const xb = Math.min(w - 1, xa + 1), yb = Math.min(h - 1, ya + 1), tx = Math.max(0, Math.min(1, fx - xa)), ty = Math.max(0, Math.min(1, fy - ya));
+          const v = (fin[ya * w + xa] * (1 - tx) + fin[ya * w + xb] * tx) * (1 - ty) + (fin[yb * w + xa] * (1 - tx) + fin[yb * w + xb] * tx) * ty;
+          a = v >= 0.5 ? Math.min(1, (v - 0.5) * 4 + 0.5) : Math.max(0, 0.5 - (0.5 - v) * 4);
         }
         oa[y * OW + x] = a;
         if (a < 1) { const i = (y * OW + x) * 4; od[i] = od[i] * a + 248 * (1 - a); od[i + 1] = od[i + 1] * a + 246 * (1 - a); od[i + 2] = od[i + 2] * a + 241 * (1 - a); od[i + 3] = 255; }
