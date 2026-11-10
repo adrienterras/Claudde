@@ -640,10 +640,11 @@ cd collage && python3 -m http.server 8000
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
      constellations près d'une grande pièce ; chaque tirage (« Nouvelles
-     propositions ») a son humeur : en placement libre (Paysage et apparentés), les dessins tournent
-     franchement, de ≈ 12° à 40° d'amplitude selon le tirage (pièces maîtresses à 60 %, grandes pièces
-     à 75 % ; un sujet posé au sol reste presque droit), les styles à cibles (Nuage, Frise,
-     Courtepointe, Vitrail…) gardent des inclinaisons retenues (de 0,5 à 2 fois le réglage) ; et,
+     propositions ») a son humeur : les dessins tournent franchement, tous — de ≈ 15° à 45°
+     d'amplitude selon le tirage, chaque dessin tirant au moins le tiers de l'amplitude, dans un sens
+     ou dans l'autre ; pièces maîtresses, sujets posés au sol et styles à cibles (Nuage, Frise,
+     Courtepointe, Vitrail, Tournesol…) compris ; seuls les dessins dans les cases de la Galerie et
+     du Pop art, et la Scène composée par Claude, restent d'aplomb — ; et,
      en tableau imprimé seulement (les originaux d'un
      collage gardent leur taille), des tailles qui varient d'un dessin à l'autre (de 0,75 à 1,3 fois,
      les pièces maîtresses penchant vers le grand, jamais au-delà du plafond de qualité d'impression

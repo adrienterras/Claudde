@@ -705,12 +705,11 @@
     // (o.maxGrow > 1 : les dessins ne sont pas les originaux), des tailles qui varient d'un dessin à
     // l'autre (de 0,75 à 1,3 fois, dans la limite de qualité d'impression) ; les pièces maîtresses
     // penchent vers le grand, et nulle découpe ne dépasse 85 % de la toile
-    const mood = 0.5 + R() * 1.5;
-    // placement libre (Paysage et apparentés, pas de cibles) : les dessins tournent franchement, de
-    // ≈ 12° à 40° d'amplitude selon le tirage, pièces maîtresses comprises (un peu moins) ; les styles
-    // à cibles (Nuage, Frise, Courtepointe, Vitrail…) gardent leurs sujets presque droits
-    const frank = !mode;
-    const maxRot = frank ? ((12 + R() * 28) * Math.PI) / 180 : (o.rotation * Math.PI) / 180 * Math.min(mood, 1.2);
+    // les dessins tournent franchement, tous : de ≈ 15° à 45° d'amplitude selon le tirage, pièces
+    // maîtresses, sujets posés au sol et styles à cibles (Nuage, Frise, Courtepointe, Vitrail,
+    // Tournesol…) compris ; chaque dessin tire son inclinaison, dans un sens ou dans l'autre
+    const frank = true;
+    const maxRot = ((15 + R() * 30) * Math.PI) / 180;
     const weight = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(Math.max(0.05, p.colorful), 1.3) * (p.importance || 1);
     const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
@@ -868,11 +867,10 @@
       mass += w8; mx += best.cx * w8; my += best.cy * w8;
       p.placed = true;
       // rotation retenue : les pièces maîtresses et les grandes pièces restent presque droites
-      const limit = frank
-        ? (star ? maxRot * 0.6 : Math.max(pw, ph) > 25 ? maxRot * 0.75 : maxRot)
-        : (star ? Math.min(maxRot, 0.06 * mood) : Math.max(pw, ph) > 25 ? Math.min(maxRot, 0.1 * mood) : maxRot);
-      // (un sujet posé au sol reste presque droit : une maison penchée tomberait)
-      const rot = best.rot !== undefined ? best.rot + (R() - 0.5) * limit : (R() - 0.5) * 2 * (grounded ? Math.min(limit, 0.08) : limit);
+      const limit = maxRot;
+      // (au moins un tiers de l'amplitude : un dessin ne reste pas d'aplomb par hasard)
+      const draw = () => { const u = R(); const a = limit * (1 / 3 + (2 / 3) * u); return (R() < 0.5 ? -1 : 1) * a; };
+      const rot = (best.rot !== undefined ? best.rot : 0) + draw();
       // tourné franchement, le dessin déborde davantage du cadre qu'à plat : il glisse vers
       // l'intérieur d'autant (pas plus loin que son débord à plat, pour ne pas changer la pose)
       let cx = best.cx, cy = best.cy;

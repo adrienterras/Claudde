@@ -215,14 +215,13 @@ test.describe('Compositions', () => {
     expect(factors.some((f) => new Set(f).size > 1)).toBe(true);
     expect(new Set(factors.map((f) => f[0])).size).toBeGreaterThan(1);
     expect(new Set(rots.map((r) => r.toFixed(3))).size).toBeGreaterThan(1);
-    // Paysage (placement libre) : les dessins tournent franchement — au moins un tirage sur six
-    // penche un sujet qui ne repose pas au sol de plus de ≈ 10°
+    // Paysage : les dessins tournent franchement — un tirage penche un sujet de plus de ≈ 10°
     const free = () => page.evaluate(() => {
       const pr = AtelierGribouille.state.proposals.find((q) => q.style.id === 'paysage');
       return Math.max(0, ...pr.comp.items.filter((L) => L.kind === 'piece' && !L.grounded).map((L) => Math.abs(L.rot)));
     });
     let tilt = 0;
-    for (let k = 0; k < 6 && tilt < 0.17; k++) { await page.locator('#generate').click(); await page.waitForTimeout(300); tilt = Math.max(tilt, await free()); }
+    for (let k = 0; k < 3 && tilt < 0.17; k++) { await page.locator('#generate').click(); await page.waitForTimeout(300); tilt = Math.max(tilt, await free()); }
     expect(tilt).toBeGreaterThan(0.17);
     await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await page.locator('#density').fill('1.1'); // (au maximum par défaut : tous les dessins)
@@ -231,7 +230,7 @@ test.describe('Compositions', () => {
     expect(c).not.toBe(b);
   });
 
-  test('Frise : toile panoramique, sujets droits et dans la toile', async ({ app }) => {
+  test('Frise : toile panoramique, sujets tournés et dans la toile', async ({ app }) => {
     await app.select('frise');
     const r = await app.page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
@@ -243,7 +242,7 @@ test.describe('Compositions', () => {
     const srcs = await app.page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => L.panel).map((L) => L.src));
     expect(new Set(srcs).size).toBe(srcs.length);
     for (const it of r.items) {
-      expect(Math.abs(it.rot)).toBeLessThan(0.1);
+      expect(Math.abs(it.rot)).toBeGreaterThan(0.05); // (tournés franchement, comme partout)
       expect(it.x).toBeGreaterThan(-it.w / 2);
       expect(it.x).toBeLessThan(r.W + it.w / 2);
       expect(it.y).toBeGreaterThan(-it.h / 2);
@@ -288,7 +287,7 @@ test.describe('Compositions', () => {
     await app.page.waitForTimeout(400);
   });
 
-  test('Nuage : fond uni sans page peinte, sujets droits et espacés', async ({ app }) => {
+  test('Nuage : fond uni sans page peinte, sujets tournés et espacés', async ({ app }) => {
     await app.select('nuage');
     const r = await app.page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
@@ -296,7 +295,7 @@ test.describe('Compositions', () => {
     });
     expect(r.bg).toBe(0);
     expect(r.items.length).toBeGreaterThan(1);
-    for (const it of r.items) expect(Math.abs(it.rot)).toBeLessThan(0.1);
+    for (const it of r.items) expect(Math.abs(it.rot)).toBeGreaterThan(0.05); // (tournés franchement, comme partout)
     for (let i = 0; i < r.items.length; i++) for (let j = i + 1; j < r.items.length; j++) {
       const a = r.items[i], b = r.items[j];
       const ox = Math.max(0, Math.min(a.x + a.w / 2, b.x + b.w / 2) - Math.max(a.x - a.w / 2, b.x - b.w / 2));
