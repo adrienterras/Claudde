@@ -645,10 +645,11 @@ cd collage && python3 -m http.server 8000
      ou dans l'autre ; pièces maîtresses, sujets posés au sol et styles à cibles (Nuage, Frise,
      Courtepointe, Vitrail, Tournesol…) compris ; seuls les dessins dans les cases de la Galerie et
      du Pop art, et la Scène composée par Claude, restent d'aplomb — ; et,
-     en tableau imprimé seulement (les originaux d'un
+     en tableau imprimé seulement (`o.flat` ; les originaux d'un
      collage gardent leur taille), des tailles qui varient d'un dessin à l'autre (de 0,75 à 1,3 fois,
      les pièces maîtresses penchant vers le grand, jamais au-delà du plafond de qualité d'impression
-     ni de 85 % de la toile ; `L.scale`, dont `fillFrame` et `growIntoGaps` tiennent compte) ;
+     — au plafond, un dessin ne grandit plus mais peut encore être réduit — ni de 85 % de la toile ;
+     `L.scale`, dont `fillFrame` et `growIntoGaps` tiennent compte) ;
    - **direction artistique par Claude** (page publiée) : Claude regarde tous les dessins, reconnaît
      chacun, choisit fond ou découpe, zone (ciel / milieu / sol), pièces maîtresses, et propose un
      titre affiché sous l'œuvre. Sans Claude, des règles intégrées prennent le relais ;

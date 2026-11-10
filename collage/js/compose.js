@@ -714,7 +714,9 @@
     const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
     if (!stars.size) sorted.slice(0, 3).forEach((p) => stars.add(p));
-    const vary = (o.maxGrow || 1) > 1.02;
+    // (tableau imprimé — o.flat — seulement : en collage, les dessins sont les originaux ; au plafond
+    // de qualité, un dessin ne grandit plus mais peut encore être réduit)
+    const vary = !!o.flat;
     const sizeOf = new Map();
     sorted.forEach((p) => {
       let f = 1;
