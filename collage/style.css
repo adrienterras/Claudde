@@ -1228,9 +1228,12 @@ body.stage-full .scene-open { display: none; }
 .work-newer .btn { width: auto; padding: 7px 14px; font-size: 0.8rem; }
 .saved .saved-del.confirm { color: var(--on-ink); background: var(--danger); font-size: 0.7rem; font-weight: 600; padding: 4px 8px; }
 
-/* iOS zoome automatiquement sur un champ dont la police fait moins de 16 px : on l'évite sans bloquer le zoom à deux doigts */
+/* iOS zoome automatiquement sur un champ dont la police fait moins de 16 px : on l'évite sans bloquer le
+   zoom à deux doigts (les champs de la fenêtre de compte et le renommage d'une œuvre ont leur propre
+   règle, plus précise : ils sont nommés ici pour l'emporter) */
 @media (max-width: 860px) {
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea { font-size: 16px; }
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea,
+  .acc-card input[type="text"], .acc-card input[type="email"], .acc-card input[type="password"], .saved .saved-rename { font-size: 16px; }
 }
 
 /* Deux ateliers : Impression (cadres standard) ou Toile (à réaliser, ou par l'atelier) */

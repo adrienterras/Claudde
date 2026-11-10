@@ -56,6 +56,17 @@ test.describe('Comptes utilisateurs', () => {
     await ctx.close();
   });
 
+  test('téléphone : les champs de connexion font 16 px (iOS ne zoome pas en les remplissant)', async ({ acc }) => {
+    const { page } = acc;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.sheet-tabs [data-tab="more"]').click(); // (téléphone : le compte est sous l'onglet « Compte » du tiroir)
+    await page.locator('#acc-open').click();
+    await expect(page.locator('#auth-email')).toBeVisible();
+    for (const id of ['#auth-email', '#auth-password']) expect(parseFloat(await page.locator(id).evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    expect(parseFloat(await page.locator('#auth-name').evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  });
+
   test('inscription par e-mail avec confirmation, puis connexion', async ({ acc }) => {
     const { page } = acc;
     await page.evaluate(() => { window.__FAKE_CONFIRM = true; });
