@@ -155,6 +155,9 @@ test.describe('Interface', () => {
     expect(overflow).toBeLessThanOrEqual(1);
     const zoom = await page.locator('.zoom').evaluate((el) => getComputedStyle(el).flexDirection);
     expect(zoom).toBe('column');
+    // pas de zoom par double touche : la page et ses boutons déclarent touch-action: manipulation
+    expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe('manipulation');
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.sheet-tabs button, .panel button')).touchAction)).toBe('manipulation');
     await ctx.close();
   });
 

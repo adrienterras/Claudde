@@ -875,6 +875,10 @@ body.size-gate-on #scene-open-side, body.size-gate-on #scene-open { display: non
 body.editing { overflow: hidden; }
 /* zones de dessin au doigt : pas de sélection de texte, de loupe ni de menu d'iOS sur un appui long */
 .editor, .stage { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* écran tactile : pas de zoom par double touche sur la page (un appui rapide sur un bouton, un titre,
+   une fiche ne doit pas agrandir l'écran) ; le pincement et le défilement restent possibles */
+html, body, button, a, label, input, select, .panel, .stage, .saved, .acc-card { touch-action: manipulation; }
+.panel { touch-action: pan-y; }
 .editor input, .editor textarea { -webkit-user-select: auto; user-select: auto; }
 #ed-canvas, .stage canvas { -webkit-tap-highlight-color: transparent; }
 .editor {

@@ -676,6 +676,8 @@ cd collage && python3 -m http.server 8000
      l'heure) : « Ouvrir cette version » la rouvre, « Garder celle-ci » renvoie celle d'ici ; rien ne
      part ni ne vient pour elle tant qu'on n'a pas choisi. Après une réception, la copie d'ici n'est
      pas renvoyée (pas de ping-pong entre appareils) ;
+   - **écran tactile** : pas de zoom par double touche (`touch-action: manipulation` sur la page et
+     ses boutons ; le pincement et le défilement restent possibles) ;
    - **« Nouvelles propositions » sur téléphone** : aussi un bouton rond noir (`#stage-generate`,
      icône seule) au ras de l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
      seule la barre d'onglets reste), qui fait la même chose ;
