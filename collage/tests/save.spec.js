@@ -92,12 +92,12 @@ test.describe('Mes œuvres', () => {
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
     await expect(page.locator('#saved-list .saved')).toHaveCount(1);
 
-    // « Figer » : une œuvre figée rejoint Mes œuvres (même nom, étiquette « figée »), on reste sur l'œuvre
+    // « Enregistrer » : une œuvre figée rejoint Mes œuvres (même nom, étiquette « enregistrée »), on reste sur l'œuvre
     await openStep(page, 'compose-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#freeze-status')).toContainText('figée dans Mes œuvres');
+    await expect(page.locator('#freeze-status')).toContainText('enregistrée dans Mes œuvres');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
-    await expect(page.locator('#saved-list .saved:not(.current) .saved-tag')).toHaveText('figée');
+    await expect(page.locator('#saved-list .saved:not(.current) .saved-tag')).toHaveText('enregistrée');
     await expect(page.locator('#saved-list .saved:not(.current) .saved-name')).not.toContainText('(copie)');
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(1);
 
@@ -158,11 +158,11 @@ test.describe('Mes œuvres', () => {
     const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
     await openStep(page, 'compose-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#freeze-status')).toContainText('figée dans Mes œuvres');
+    await expect(page.locator('#freeze-status')).toContainText('enregistrée dans Mes œuvres');
     await openStep(page, 'saved-section');
     const frozen = page.locator('#saved-list .saved:not(.current)');
     await expect(frozen).toHaveCount(1);
-    await expect(frozen.locator('.saved-tag')).toHaveText('figée');
+    await expect(frozen.locator('.saved-tag')).toHaveText('enregistrée');
     const metaBefore = await frozen.locator('.saved-meta').textContent();
     const workId = await page.evaluate(() => AtelierGribouille.state.workId);
     // l'œuvre en cours change de proposition : elle s'enregistre sous son identité, la version figée reste
@@ -190,7 +190,7 @@ test.describe('Mes œuvres', () => {
     await openStep(page, 'saved-section');
     await expect(page.locator('#saved-list .saved')).toHaveCount(2);
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
-    await expect(page.locator('#saved-list .saved-tag', { hasText: 'figée' })).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved-tag', { hasText: 'enregistrée' })).toHaveCount(1);
   });
 
   test('sans dessin, « Figer » explique quoi faire', async ({ app }) => {

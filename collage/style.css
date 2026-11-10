@@ -712,6 +712,19 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .toolbar.icons button { padding: 8px 10px; }
 
 /* Zoom sur l'œuvre */
+/* téléphone seulement : le bouton rond noir « Nouvelles propositions », dans l'angle bas droit de l'œuvre */
+.stage-fab { display: none; }
+@media (max-width: 860px) {
+  .stage-fab {
+    display: grid; place-items: center; position: absolute; right: 8px; bottom: calc(var(--sheet) + 10px); z-index: 4;
+    width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: #1d1c18; color: #fff; cursor: pointer;
+    box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .7);
+  }
+  .stage-fab .ico { width: 24px; height: 24px; }
+  .stage-fab:active { transform: scale(.94); }
+  .stage-fab[hidden] { display: none; }
+  body.stage-full .stage-fab { bottom: calc(var(--sheet) + 10px); }
+}
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;
   display: flex; align-items: center; gap: 2px; padding: 4px;

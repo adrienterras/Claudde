@@ -257,8 +257,8 @@
       <p id="quality-alert" class="alert quality-alert" hidden><span></span> <button type="button" class="link" id="quality-alert-go">Voir lesquels</button></p>
       <!-- « Nouvelles propositions » au-dessus des aperçus -->
       <button id="generate" class="btn btn-primary"><svg class="ico"><use href="#i-spark"/></svg><span>Nouvelles propositions</span></button>
-      <!-- « Figer » : l'œuvre telle qu'elle est rejoint Mes œuvres comme une nouvelle œuvre figée -->
-      <button id="save-comp" class="btn save-comp"><svg class="ico"><use href="#i-lock"/></svg><span>Figer cette œuvre <small>une version gardée telle quelle dans Mes œuvres</small></span></button>
+      <!-- « Enregistrer » : l'œuvre telle qu'elle est rejoint Mes œuvres comme une nouvelle œuvre figée (meta.frozen) -->
+      <button id="save-comp" class="btn save-comp"><svg class="ico"><use href="#i-lock"/></svg><span>Enregistrer cette œuvre <small>une version gardée telle quelle dans Mes œuvres</small></span></button>
       <p id="freeze-status" class="save-status" role="status" hidden></p>
       <div id="proposals" class="proposals"></div>
       <p id="partial-note" class="hint partial" hidden><span></span> <button type="button" class="link" id="partial-add">Tout inclure</button></p>
@@ -432,6 +432,8 @@
       <button data-act="del" title="Retirer (Suppr)" aria-label="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
     </div>
     <canvas id="canvas"></canvas>
+    <!-- téléphone : « Nouvelles propositions » à portée de pouce, dans l'angle bas droit de l'œuvre -->
+    <button type="button" id="stage-generate" class="stage-fab" title="Nouvelles propositions" aria-label="Nouvelles propositions" hidden><svg class="ico"><use href="#i-spark"/></svg></button>
     <div class="zoom" id="zoom-bar" role="group" aria-label="Zoom sur l’œuvre" hidden>
       <button id="ground-open" class="ground-open" title="Couleur du fond" aria-label="Couleur du fond" aria-expanded="false" aria-controls="ground-pop"><span class="ground-dot"></span></button>
       <button id="zoom-out" title="Dézoomer" aria-label="Dézoomer">−</button>

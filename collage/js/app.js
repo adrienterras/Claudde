@@ -2935,6 +2935,7 @@
     layoutLabel();
     $('toolbar').hidden = !state.comp;
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
+    if ($('stage-generate')) $('stage-generate').hidden = !state.comp; // (téléphone : le bouton rond « Nouvelles propositions »)
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;
@@ -5346,7 +5347,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function placeGround() {
     const field = document.querySelector('.ground-field'), gen = $('generate'), sec = $('compose-section');
     if (!field || !gen || !sec) return;
-    // (sous « Nouvelles propositions » vient d'abord « Figer cette œuvre », et son message)
+    // (sous « Nouvelles propositions » vient d'abord « Enregistrer cette œuvre », et son message)
     const anchor = $('freeze-status') || $('save-comp') || gen;
     if (mobileQuery.matches) { if (sec.lastElementChild !== field) sec.appendChild(field); }
     else if (anchor.nextElementSibling !== field) anchor.after(field);
@@ -5456,6 +5457,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   document.addEventListener('pointerdown', (e) => { const pop = $('ground-pop'); if (!pop.hidden && !pop.contains(e.target) && e.target !== $('ground-open') && !$('ground-open').contains(e.target)) setGroundPop(false); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
+  // téléphone : le bouton rond dans l'angle de l'œuvre fait la même chose
+  if ($('stage-generate')) $('stage-generate').onclick = () => $('generate').click();
   ['pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
   // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose
   $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));
@@ -6100,20 +6103,20 @@ Réponds uniquement avec ce JSON :
     workStatus();
     selectTab('compose-section');
   }
-  // « Figer » : l'œuvre affichée, telle qu'elle est, rejoint Mes œuvres comme une nouvelle œuvre figée
-  // (étiquette « figée », rouverte en copie comme une œuvre commandée) ; on reste sur l'œuvre en cours,
+  // « Enregistrer » : l'œuvre affichée, telle qu'elle est, rejoint Mes œuvres comme une nouvelle œuvre figée
+  // (étiquette « enregistrée », rouverte en copie comme une œuvre commandée) ; on reste sur l'œuvre en cours,
   // qui continue de s'enregistrer sous son identité à elle : les changements qui suivent ne touchent
   // plus la version figée
-  // (le message de « Figer », sous son bouton dans Propositions)
+  // (le message de « Enregistrer », sous son bouton dans Propositions)
   function freezeStatus(text) {
     const el = $('freeze-status');
     if (!el) { saveStatus(text); return; }
     el.textContent = text || ''; el.hidden = !text;
   }
   async function freezeWork() {
-    if (!state.comp || !state.drawings.length || onlySamples()) { freezeStatus(tr('Importez des dessins et choisissez une proposition avant de figer l’œuvre.')); return; }
-    window.Atelier.track('Figer');
-    freezeStatus(tr('Enregistrement de l’œuvre figée…'));
+    if (!state.comp || !state.drawings.length || onlySamples()) { freezeStatus(tr('Importez des dessins et choisissez une proposition avant d’enregistrer l’œuvre.')); return; }
+    window.Atelier.track('Enregistrer');
+    freezeStatus(tr('Enregistrement de l’œuvre…'));
     try {
       const rec = await snapshotComposition(workTitle(), { refs: true });
       const id = newWorkId();
@@ -6121,11 +6124,11 @@ Réponds uniquement avec ce JSON :
       rec.print = printOf(rec);
       await dbPut(rec);
       cloudQueue.push(rec); syncCloud();
-      freezeStatus(tr`Œuvre « ${rec.name} » figée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
+      freezeStatus(tr`Œuvre « ${rec.name} » enregistrée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
       renderSaved();
     } catch (e) {
       console.error(e);
-      freezeStatus(tr`Figer l’œuvre a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
+      freezeStatus(tr`Enregistrer l’œuvre a échoué : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
     }
   }
 
@@ -6739,7 +6742,7 @@ Réponds uniquement avec ce JSON :
     const tags = [
       e.current ? `<span class="saved-tag on">${tr('en cours')}</span>` : '',
       e.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '',
-      e.frozen && !e.ordered ? `<span class="saved-tag">${tr('figée')}</span>` : '',
+      e.frozen && !e.ordered ? `<span class="saved-tag">${tr('enregistrée')}</span>` : '',
       signed && !e.cloud && !e.current ? `<span class="saved-tag">${tr('sur cet appareil')}</span>` : '',
     ].join('');
     // le type d'œuvre (une œuvre d'avant les deux ateliers : imprimée si elle est sur un cadre)
@@ -6851,7 +6854,7 @@ Réponds uniquement avec ce JSON :
         const sv = r.settings || {};
         const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
         const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
-        const tags = [r.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '', r.frozen && !r.ordered ? `<span class="saved-tag">${tr('figée')}</span>` : ''].join('');
+        const tags = [r.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '', r.frozen && !r.ordered ? `<span class="saved-tag">${tr('enregistrée')}</span>` : ''].join('');
         const meta = [kind, st ? st.name : esc(comp.style || ''), r.nDrawings ? tr`${r.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(r.date)].filter(Boolean).join(' · ');
         const el = document.createElement('div');
         el.className = 'saved';

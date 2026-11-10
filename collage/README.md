@@ -427,9 +427,9 @@ cd collage && python3 -m http.server 8000
      œuvres », onglet Compte sur téléphone) montre l'œuvre affichée en tête (« en cours »), puis les
      autres de la plus récente à la plus ancienne (« commandée », « sur cet appareil » : pas encore
      dans le compte) ; un toucher rouvre une œuvre telle quelle, sans nouvelle analyse, la version la
-     plus récente l'emportant (celle du navigateur si elle est à jour : rien à télécharger). « Figer cette
+     plus récente l'emportant (celle du navigateur si elle est à jour : rien à télécharger). « Enregistrer cette
      œuvre » (étape Propositions, sous « Nouvelles propositions », `freezeWork`) ajoute à la liste, sans compte, une nouvelle œuvre figée :
-     l'œuvre telle qu'elle est à cet instant, sous son nom, étiquetée « figée » ; on reste sur l'œuvre
+     l'œuvre telle qu'elle est à cet instant, sous son nom, étiquetée « enregistrée » ; on reste sur l'œuvre
      en cours, qui continue de s'enregistrer sous sa propre identité, et les changements qui suivent ne
      touchent plus la version figée. Une œuvre figée, une œuvre commandée ou un article du panier
      « revu » se rouvrent en copie (`beginCopy`) : la copie ne devient une nouvelle œuvre qu'au premier
@@ -676,6 +676,8 @@ cd collage && python3 -m http.server 8000
      l'heure) : « Ouvrir cette version » la rouvre, « Garder celle-ci » renvoie celle d'ici ; rien ne
      part ni ne vient pour elle tant qu'on n'a pas choisi. Après une réception, la copie d'ici n'est
      pas renvoyée (pas de ping-pong entre appareils) ;
+   - **« Nouvelles propositions » sur téléphone** : aussi un bouton rond noir (`#stage-generate`,
+     icône seule) dans l'angle bas droit de l'œuvre, au-dessus du tiroir, qui fait la même chose ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
      réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom

@@ -158,6 +158,41 @@ test.describe('Interface', () => {
     await ctx.close();
   });
 
+  test('téléphone : un bouton rond « Nouvelles propositions » dans l’angle bas droit de l’œuvre, absent sur ordinateur', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?exemple');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
+    const fab = page.locator('#stage-generate');
+    await expect(fab).toBeVisible();
+    const box = await fab.boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44); expect(Math.abs(box.width - box.height)).toBeLessThan(2); // rond
+    expect(box.x + box.width).toBeGreaterThan(390 - 30); // dans l'angle droit
+    expect(await fab.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(29, 28, 24)'); // noir
+    expect(await fab.evaluate((el) => el.textContent.trim())).toBe(''); // icône seule
+    // il ne couvre ni la colonne de zoom ni le curseur de densité
+    const zoom = await page.locator('.zoom').boundingBox(), dens = await page.locator('#density-bar').boundingBox();
+    const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    expect(overlap(box, zoom)).toBe(false);
+    if (dens) expect(overlap(box, dens)).toBe(false);
+    // il tire de nouvelles propositions
+    const sig = () => page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.map((L) => [L.x.toFixed(1), L.y.toFixed(1), L.rot.toFixed(2)].join(',')).join(';'));
+    const a = await sig();
+    await fab.tap();
+    await page.waitForTimeout(400);
+    expect(await sig()).not.toBe(a);
+    await ctx.close();
+    // ordinateur : pas de bouton rond
+    const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page2 = await ctx2.newPage();
+    await page2.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page2.goto('index.html?exemple');
+    await page2.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
+    await expect(page2.locator('#stage-generate')).toBeHidden();
+    await ctx2.close();
+  });
+
   test('téléphone : le carnet est un tiroir à onglets, ouvert sur Propositions après l’import', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
