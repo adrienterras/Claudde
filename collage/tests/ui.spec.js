@@ -158,24 +158,23 @@ test.describe('Interface', () => {
     await ctx.close();
   });
 
-  test('téléphone : un bouton rond « Nouvelles propositions » dans l’angle bas droit de l’œuvre, absent sur ordinateur', async ({ browser }) => {
+  test('téléphone, tiroir baissé : un bouton rond « Nouvelles propositions » dans l’angle bas droit de l’œuvre ; absent tiroir ouvert et sur ordinateur', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html?exemple');
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
     const fab = page.locator('#stage-generate');
-    // tiroir levé : pas de bouton ; tiroir baissé : le bouton
-    await page.evaluate(() => document.body.classList.add('sheet-tall'));
+    // tiroir ouvert (réglages visibles) : pas de bouton ; tiroir baissé (seule la barre d'onglets) : le bouton
+    await page.evaluate(() => document.body.classList.remove('stage-full', 'sheet-tall', 'sheet-detail'));
     await expect(fab).toBeHidden();
-    await page.evaluate(() => document.body.classList.remove('sheet-tall', 'sheet-detail'));
+    await page.locator('#zoom-full').tap(); // (le plein écran : le tiroir se baisse, seule sa barre d'onglets reste)
     await expect(fab).toBeVisible();
     const box = await fab.boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44); expect(Math.abs(box.width - box.height)).toBeLessThan(2); // rond
     expect(box.x + box.width).toBeGreaterThan(390 - 30); // dans l'angle droit
     const stage = await page.locator('.stage').boundingBox();
-    const sheet = await page.evaluate(() => parseFloat(getComputedStyle(document.body).getPropertyValue('--sheet')) * innerHeight / 100);
-    expect(Math.abs(stage.y + stage.height - sheet - (box.y + box.height))).toBeLessThan(12); // au ras du tiroir
+    expect(Math.abs(stage.y + stage.height - (box.y + box.height))).toBeLessThan(12); // au ras de la barre d'onglets
     expect(await fab.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(29, 28, 24)'); // noir
     expect(await fab.evaluate((el) => el.textContent.trim())).toBe(''); // icône seule
     // il ne couvre ni la colonne de zoom ni le curseur de densité

@@ -677,7 +677,8 @@ cd collage && python3 -m http.server 8000
      part ni ne vient pour elle tant qu'on n'a pas choisi. Après une réception, la copie d'ici n'est
      pas renvoyée (pas de ping-pong entre appareils) ;
    - **« Nouvelles propositions » sur téléphone** : aussi un bouton rond noir (`#stage-generate`,
-     icône seule) dans l'angle bas droit de l'œuvre, au-dessus du tiroir, qui fait la même chose ;
+     icône seule) au ras de l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
+     seule la barre d'onglets reste), qui fait la même chose ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
      réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
