@@ -165,10 +165,17 @@ test.describe('Interface', () => {
     await page.goto('index.html?exemple');
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
     const fab = page.locator('#stage-generate');
+    // tiroir levé : pas de bouton ; tiroir baissé : le bouton
+    await page.evaluate(() => document.body.classList.add('sheet-tall'));
+    await expect(fab).toBeHidden();
+    await page.evaluate(() => document.body.classList.remove('sheet-tall', 'sheet-detail'));
     await expect(fab).toBeVisible();
     const box = await fab.boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44); expect(Math.abs(box.width - box.height)).toBeLessThan(2); // rond
     expect(box.x + box.width).toBeGreaterThan(390 - 30); // dans l'angle droit
+    const stage = await page.locator('.stage').boundingBox();
+    const sheet = await page.evaluate(() => parseFloat(getComputedStyle(document.body).getPropertyValue('--sheet')) * innerHeight / 100);
+    expect(Math.abs(stage.y + stage.height - sheet - (box.y + box.height))).toBeLessThan(12); // au ras du tiroir
     expect(await fab.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(29, 28, 24)'); // noir
     expect(await fab.evaluate((el) => el.textContent.trim())).toBe(''); // icône seule
     // il ne couvre ni la colonne de zoom ni le curseur de densité
