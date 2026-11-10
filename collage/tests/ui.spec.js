@@ -195,12 +195,21 @@ test.describe('Interface', () => {
     const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
     expect(overlap(box, zoom)).toBe(false);
     if (dens) expect(overlap(box, dens)).toBe(false);
-    // il tire de nouvelles propositions
+    // il tire de nouvelles propositions ; deux touches rapides comptent deux fois, et aucune ne laisse
+    // au navigateur son geste (la deuxième est annulée : pas de zoom par double touche)
     const sig = () => page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.map((L) => [L.x.toFixed(1), L.y.toFixed(1), L.rot.toFixed(2)].join(',')).join(';'));
     const a = await sig();
     await fab.tap();
     await page.waitForTimeout(400);
-    expect(await sig()).not.toBe(a);
+    const b = await sig();
+    expect(b).not.toBe(a);
+    const r2 = await page.evaluate(() => {
+      const fab2 = document.getElementById('stage-generate'), seeds = [];
+      const fire = () => { const r = fab2.getBoundingClientRect(); const t = new Touch({ identifier: 1, target: fab2, clientX: r.left + 10, clientY: r.top + 10 }); const ev = new TouchEvent('touchend', { changedTouches: [t], bubbles: true, cancelable: true }); fab2.dispatchEvent(ev); seeds.push(AtelierGribouille.state.seed); return ev.defaultPrevented; };
+      const p1 = fire(), p2 = fire();
+      return { p1, p2, distinct: new Set(seeds).size };
+    });
+    expect(r2.p1).toBe(true); expect(r2.p2).toBe(true); expect(r2.distinct).toBe(2);
     await ctx.close();
     // ordinateur : pas de bouton rond
     const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 1000 } });

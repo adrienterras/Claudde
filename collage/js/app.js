@@ -7279,6 +7279,10 @@ Réponds uniquement avec ce JSON :
     let lastTap = 0, lastX = 0, lastY = 0;
     document.addEventListener('touchend', (e) => {
       const t = e.target;
+      // les boutons posés sur l'œuvre (bouton rond, zoom, barre d'outils, Commander) : la touche est
+      // prise en main ici — pas de geste natif, donc pas de zoom —, et chaque appui déclenche le bouton
+      const over = t && t.closest && t.closest('.stage button');
+      if (over && e.cancelable && e.changedTouches && e.changedTouches.length === 1) { e.preventDefault(); lastTap = 0; over.click(); return; }
       if (t && t.closest && t.closest('button, a, input, select, textarea, label, canvas, .sheet-tabs')) { lastTap = 0; return; }
       const c = e.changedTouches && e.changedTouches[0];
       const x = c ? c.clientX : 0, y = c ? c.clientY : 0, now = Date.now();

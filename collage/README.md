@@ -679,7 +679,9 @@ cd collage && python3 -m http.server 8000
    - **écran tactile** : pas de zoom par double touche (`touch-action: manipulation` sur la page, le
      tiroir et les boutons — WebKit ne l'honore pas pour `pan-y` —, doublé d'une garde JavaScript
      qui annule une deuxième touche rapide au même endroit hors boutons, liens, champs, œuvre et
-     barre d'onglets ; le pincement et le défilement restent possibles) ;
+     barre d'onglets ; les boutons posés sur l'œuvre (bouton rond, zoom, barre d'outils) prennent
+     chaque touche en main eux-mêmes : pas de geste natif, chaque appui compte ; le pincement et le
+     défilement restent possibles) ;
    - **« Nouvelles propositions » sur téléphone** : aussi un bouton rond noir (`#stage-generate`,
      icône seule) au ras de l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
      seule la barre d'onglets reste), qui fait la même chose ;
