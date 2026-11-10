@@ -155,9 +155,19 @@ test.describe('Interface', () => {
     expect(overflow).toBeLessThanOrEqual(1);
     const zoom = await page.locator('.zoom').evaluate((el) => getComputedStyle(el).flexDirection);
     expect(zoom).toBe('column');
-    // pas de zoom par double touche : la page et ses boutons déclarent touch-action: manipulation
+    // pas de zoom par double touche : la page, le tiroir et ses boutons déclarent touch-action: manipulation
     expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe('manipulation');
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.panel')).touchAction)).toBe('manipulation');
     expect(await page.evaluate(() => getComputedStyle(document.querySelector('.sheet-tabs button, .panel button')).touchAction)).toBe('manipulation');
+    // et la garde : une deuxième touche rapide au même endroit sur un texte est annulée, pas sur un bouton
+    const guard = await page.evaluate(() => {
+      const fire = (el, x, y) => { const t = new Touch({ identifier: 1, target: el, clientX: x, clientY: y }); const ev = new TouchEvent('touchend', { changedTouches: [t], bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev.defaultPrevented; };
+      const txt = document.querySelector('.panel p, .panel h2'), btn = document.querySelector('.panel button');
+      const a = fire(txt, 100, 500), b = fire(txt, 104, 503);
+      const c = fire(btn, 50, 50), d = fire(btn, 50, 50);
+      return { a, b, c, d };
+    });
+    expect(guard.a).toBe(false); expect(guard.b).toBe(true); expect(guard.c).toBe(false); expect(guard.d).toBe(false);
     await ctx.close();
   });
 

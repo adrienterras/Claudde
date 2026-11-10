@@ -7271,6 +7271,22 @@ Réponds uniquement avec ce JSON :
     });
   })();
 
+  // Écran tactile : garde contre le zoom par double touche (touch-action: manipulation ne suffit pas
+  // sur tous les navigateurs) — une deuxième touche rapide (< 350 ms) près de la première est
+  // annulée ; pas sur les boutons, liens et champs (un appui répété sur « + » doit compter chaque
+  // fois), ni sur l'œuvre et la barre d'onglets, qui gèrent leurs propres gestes
+  (() => {
+    let lastTap = 0, lastX = 0, lastY = 0;
+    document.addEventListener('touchend', (e) => {
+      const t = e.target;
+      if (t && t.closest && t.closest('button, a, input, select, textarea, label, canvas, .sheet-tabs')) { lastTap = 0; return; }
+      const c = e.changedTouches && e.changedTouches[0];
+      const x = c ? c.clientX : 0, y = c ? c.clientY : 0, now = Date.now();
+      if (now - lastTap < 350 && Math.hypot(x - lastX, y - lastY) < 40 && e.cancelable) e.preventDefault();
+      lastTap = now; lastX = x; lastY = y;
+    }, { passive: false });
+  })();
+
   // Sections repliables : un clic sur le titre replie ou développe la section, le choix est mémorisé —
   // sauf Dessins, repliée à chaque visite et à chaque nouvelle œuvre : elle ne s'ouvre que d'un clic
   // sur un dessin de l'œuvre (showDrawingOf) ou sur son titre.
