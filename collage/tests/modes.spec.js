@@ -387,9 +387,10 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(sp.k).toBeLessThan(0.6);
     expect(sp.n).toBe(n);
     // (les centres s'étalent sur l'affiche ; les sujets ayant grandi dans l'air libre autour d'eux,
-    // leurs centres restent un peu plus loin des bords)
-    expect(sp.dy).toBeGreaterThan(0.4);
-    expect(sp.dx).toBeGreaterThan(0.4);
+    // et tournés franchement — leur boîte tournée est plus large —, leurs centres restent un peu
+    // plus loin des bords)
+    expect(sp.dy).toBeGreaterThan(0.3);
+    expect(sp.dx).toBeGreaterThan(0.3);
   });
 
   test('Impression : « Nouvelles propositions » garde la taille des découpes agrandies ou réduites à la main', async ({ page }) => {

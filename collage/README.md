@@ -639,9 +639,12 @@ cd collage && python3 -m http.server 8000
    - **rendu à plat** : aucune ombre portée sur les papiers ni sur les découpes, comme un collage vu de face ;
    - **placement des sujets** : carte de charge visuelle du fond (les sujets cherchent une zone calme et
      un contraste clair / foncé), respiration autour des pièces maîtresses, petits éléments groupés en
-     constellations près d'une grande pièce, rotation retenue ; chaque tirage (« Nouvelles
-     propositions ») a son humeur : des inclinaisons plus ou moins marquées (de 0,5 à 2 fois le
-     réglage, pièces maîtresses comprises) et, en tableau imprimé seulement (les originaux d'un
+     constellations près d'une grande pièce ; chaque tirage (« Nouvelles
+     propositions ») a son humeur : en placement libre (Paysage et apparentés), les dessins tournent
+     franchement, de ≈ 12° à 40° d'amplitude selon le tirage (pièces maîtresses à 60 %, grandes pièces
+     à 75 % ; un sujet posé au sol reste presque droit), les styles à cibles (Nuage, Frise,
+     Courtepointe, Vitrail…) gardent des inclinaisons retenues (de 0,5 à 2 fois le réglage) ; et,
+     en tableau imprimé seulement (les originaux d'un
      collage gardent leur taille), des tailles qui varient d'un dessin à l'autre (de 0,75 à 1,3 fois,
      les pièces maîtresses penchant vers le grand, jamais au-delà du plafond de qualité d'impression
      ni de 85 % de la toile ; `L.scale`, dont `fillFrame` et `growIntoGaps` tiennent compte) ;

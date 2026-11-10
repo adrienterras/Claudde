@@ -706,7 +706,11 @@
     // l'autre (de 0,75 à 1,3 fois, dans la limite de qualité d'impression) ; les pièces maîtresses
     // penchent vers le grand, et nulle découpe ne dépasse 85 % de la toile
     const mood = 0.5 + R() * 1.5;
-    const maxRot = (o.rotation * Math.PI) / 180 * mood;
+    // placement libre (Paysage et apparentés, pas de cibles) : les dessins tournent franchement, de
+    // ≈ 12° à 40° d'amplitude selon le tirage, pièces maîtresses comprises (un peu moins) ; les styles
+    // à cibles (Nuage, Frise, Courtepointe, Vitrail…) gardent leurs sujets presque droits
+    const frank = !mode;
+    const maxRot = frank ? ((12 + R() * 28) * Math.PI) / 180 : (o.rotation * Math.PI) / 180 * Math.min(mood, 1.2);
     const weight = (p) => Math.sqrt(p.wcm * p.hcm) * Math.pow(Math.max(0.05, p.colorful), 1.3) * (p.importance || 1);
     const sorted = pieces.slice().sort((a, b) => weight(b) - weight(a));
     const stars = new Set(sorted.filter((p) => (p.importance || 1) >= 3).slice(0, 4));
@@ -864,9 +868,21 @@
       mass += w8; mx += best.cx * w8; my += best.cy * w8;
       p.placed = true;
       // rotation retenue : les pièces maîtresses et les grandes pièces restent presque droites
-      const limit = star ? Math.min(maxRot, 0.06 * mood) : Math.max(pw, ph) > 25 ? Math.min(maxRot, 0.1 * mood) : maxRot;
-      const rot = best.rot !== undefined ? best.rot + (R() - 0.5) * limit : (R() - 0.5) * 2 * (grounded ? Math.min(limit, 0.05) : limit);
-      const item = { kind: 'piece', piece: p, x: best.cx, y: best.cy, w: pw, h: ph, rot, flip: false, grounded, star, r: best.r };
+      const limit = frank
+        ? (star ? maxRot * 0.6 : Math.max(pw, ph) > 25 ? maxRot * 0.75 : maxRot)
+        : (star ? Math.min(maxRot, 0.06 * mood) : Math.max(pw, ph) > 25 ? Math.min(maxRot, 0.1 * mood) : maxRot);
+      // (un sujet posé au sol reste presque droit : une maison penchée tomberait)
+      const rot = best.rot !== undefined ? best.rot + (R() - 0.5) * limit : (R() - 0.5) * 2 * (grounded ? Math.min(limit, 0.08) : limit);
+      // tourné franchement, le dessin déborde davantage du cadre qu'à plat : il glisse vers
+      // l'intérieur d'autant (pas plus loin que son débord à plat, pour ne pas changer la pose)
+      let cx = best.cx, cy = best.cy;
+      if (frank) {
+        const c0 = Math.abs(Math.cos(rot)), s0 = Math.abs(Math.sin(rot));
+        const ex = (pw * c0 + ph * s0) / 2, ey = (pw * s0 + ph * c0) / 2;
+        const over = (v, e, size, e0) => { const o0 = Math.max(0, e0 - v, v + e0 - size); if (v - e < -o0) return -o0 + e; if (v + e > size + o0) return size + o0 - e; return v; };
+        cx = over(cx, ex, W, pw / 2); cy = over(cy, ey, H, ph / 2);
+      }
+      const item = { kind: 'piece', piece: p, x: cx, y: cy, w: pw, h: ph, rot, flip: false, grounded, star, r: best.r };
       if (pf !== 1) item.scale = pf;
       placed.push(item);
     });

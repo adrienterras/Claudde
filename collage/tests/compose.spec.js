@@ -215,6 +215,15 @@ test.describe('Compositions', () => {
     expect(factors.some((f) => new Set(f).size > 1)).toBe(true);
     expect(new Set(factors.map((f) => f[0])).size).toBeGreaterThan(1);
     expect(new Set(rots.map((r) => r.toFixed(3))).size).toBeGreaterThan(1);
+    // Paysage (placement libre) : les dessins tournent franchement — au moins un tirage sur six
+    // penche un sujet qui ne repose pas au sol de plus de ≈ 10°
+    const free = () => page.evaluate(() => {
+      const pr = AtelierGribouille.state.proposals.find((q) => q.style.id === 'paysage');
+      return Math.max(0, ...pr.comp.items.filter((L) => L.kind === 'piece' && !L.grounded).map((L) => Math.abs(L.rot)));
+    });
+    let tilt = 0;
+    for (let k = 0; k < 6 && tilt < 0.17; k++) { await page.locator('#generate').click(); await page.waitForTimeout(300); tilt = Math.max(tilt, await free()); }
+    expect(tilt).toBeGreaterThan(0.17);
     await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
     await page.locator('#density').fill('1.1'); // (au maximum par défaut : tous les dessins)
     await page.waitForTimeout(300);
