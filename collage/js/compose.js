@@ -701,10 +701,10 @@
     const placed = [];
     let mass = 0, mx = 0, my = 0;
     // « Nouvelles propositions » ne déplace pas seulement les dessins : chaque tirage a son humeur —
-    // des inclinaisons plus ou moins marquées (de ≈ 0,5 à 2 fois le réglage), et, en tableau imprimé
-    // (o.maxGrow > 1 : les dessins ne sont pas les originaux), des tailles qui varient d'un dessin à
-    // l'autre (de 0,75 à 1,3 fois, dans la limite de qualité d'impression) ; les pièces maîtresses
-    // penchent vers le grand, et nulle découpe ne dépasse 85 % de la toile
+    // des inclinaisons franches, et, en tableau imprimé (les dessins ne sont pas les originaux), des
+    // tailles qui varient nettement d'un dessin à l'autre (de 0,6 à 1,45 fois, dans la limite de
+    // qualité d'impression) ; les pièces maîtresses penchent vers le grand (0,9 à 1,45), et nulle
+    // découpe ne dépasse 85 % de la toile
     // les dessins tournent franchement, tous : de ≈ 15° à 45° d'amplitude selon le tirage, pièces
     // maîtresses, sujets posés au sol et styles à cibles (Nuage, Frise, Courtepointe, Vitrail,
     // Tournesol…) compris ; chaque dessin tire son inclinaison, dans un sens ou dans l'autre
@@ -722,7 +722,7 @@
       let f = 1;
       if (vary) {
         const star = stars.has(p);
-        f = star ? 0.95 + R() * 0.35 : 0.75 + R() * 0.55;
+        f = star ? 0.9 + R() * 0.55 : 0.6 + R() * 0.85;
         f = Math.min(f, o.maxGrow || 1, (0.85 * W) / p.wcm, (0.85 * H) / p.hcm);
         f = Math.max(f, 0.5);
       }

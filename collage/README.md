@@ -646,7 +646,7 @@ cd collage && python3 -m http.server 8000
      Courtepointe, Vitrail, Tournesol…) compris ; seuls les dessins dans les cases de la Galerie et
      du Pop art, et la Scène composée par Claude, restent d'aplomb — ; et,
      en tableau imprimé seulement (`o.flat` ; les originaux d'un
-     collage gardent leur taille), des tailles qui varient d'un dessin à l'autre (de 0,75 à 1,3 fois,
+     collage gardent leur taille), des tailles qui varient nettement d'un dessin à l'autre (de 0,6 à 1,45 fois,
      les pièces maîtresses penchant vers le grand, jamais au-delà du plafond de qualité d'impression
      — au plafond, un dessin ne grandit plus mais peut encore être réduit — ni de 85 % de la toile ;
      `L.scale`, dont `fillFrame` et `growIntoGaps` tiennent compte) ;
