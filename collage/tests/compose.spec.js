@@ -213,7 +213,8 @@ test.describe('Compositions', () => {
     // les facteurs de taille diffèrent entre dessins d'un même tirage, et entre tirages pour un même dessin
     const factors = sizes.map((w) => w.map((x) => x[1]));
     expect(factors.some((f) => new Set(f).size > 1)).toBe(true);
-    expect(new Set(factors.map((f) => f[0])).size).toBeGreaterThan(1);
+    // (pour un même dessin : n'importe lequel — le premier peut buter sur sa taille maximale à chaque tirage)
+    expect(factors[0].some((_, i) => new Set(factors.map((f) => f[i])).size > 1)).toBe(true);
     expect(new Set(rots.map((r) => r.toFixed(3))).size).toBeGreaterThan(1);
     // Paysage : les dessins tournent franchement — un tirage penche un sujet de plus de ≈ 10°
     const free = () => page.evaluate(() => {

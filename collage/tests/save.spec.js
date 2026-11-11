@@ -516,7 +516,10 @@ test.describe('Réouverture fidèle des retouches', () => {
     expect(await page.evaluate(() => !!window.ExtractLegacy && AtelierGribouille.state.drawings.every((d) => d.extract === window.ExtractLegacy))).toBe(true);
     const relu = await piece();
     expect(relu.edited).toBe(false);
-    expect(Math.abs(relu.opaque - auto.opaque) / auto.opaque).toBeLessThan(0.1);
+    // la découpe de l'époque est serrée (marge ≈ 2,7 mm) ; celle d'aujourd'hui, large (≈ 9 mm) : la
+    // pièce relue est plus petite, mais c'est bien le même sujet
+    expect(relu.opaque).toBeLessThan(auto.opaque * 0.95);
+    expect(relu.opaque).toBeGreaterThan(auto.opaque * 0.3);
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 });
