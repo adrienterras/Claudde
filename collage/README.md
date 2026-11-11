@@ -229,12 +229,18 @@ cd collage && python3 -m http.server 8000
      (`atelier.decoupe`, datées dans `atelier.decoupe-date`) et proposées tout de suite aux autres dessins du lot
      (« Appliquer aux N autres dessins », qui refait leurs découpes puis les propositions ; les
      dessins déjà retouchés et les objets détourés sont gardés tels quels). Avec un compte, elles
-     sont aussi enregistrées dans le profil (métadonnées `decoupe` : `{ prefs, at }`, `prefs` nul pour
-     la découpe d'office) et reprises par les autres appareils connectés à l'arrivée (`syncCutPrefs`) :
-     la version la plus récente gagne, une remise à zéro comprise — sans cela, un iPhone qui avait
-     appris des retouches découpait autrement que l'iPad ou l'ordinateur du même compte. Le panneau
-     Compte décrit ce qui est appris (`#cut-sync`, valeurs exactes entre crochets) et offre « Revenir à
-     la découpe d'office ». Les préférences sont
+     peuvent aussi être enregistrées dans le profil (métadonnées `decoupe` : `{ prefs, at }`, `prefs`
+     nul pour la découpe d'office) et reprises par les autres appareils connectés à l'arrivée
+     (`syncCutPrefs`), **prudemment** : une retouche apprise reste sur son appareil (« locale »,
+     `atelier.decoupe-locale`) tant que l'utilisateur n'a pas choisi « Appliquer à tous mes
+     appareils » (dans l'avis de la retouche ou le panneau Compte) ; un appareil sans réglages locaux
+     suit le compte (la version la plus récente, une remise à zéro comprise) ; un appareil qui a ses
+     propres réglages locaux et reçoit du compte des réglages différents ne les adopte pas sans
+     demander (`#cut-remote`, en tête de la colonne, sous le compte : « Adopter ceux du compte » ou « Garder les miens,
+     partout »). Sans cela, une retouche faite sur un iPad écrasait, à l'iPhone, des réglages appris
+     sur plus de 80 dessins. Le panneau Compte décrit ce qui est appris (`#cut-sync`, valeurs exactes
+     entre crochets) et offre « Revenir à la découpe d'office » (sur tous les appareils connectés).
+     Les préférences sont
      figées sur chaque dessin au moment de son analyse et sauvegardées avec lui : ses réanalyses
      (haute définition, orientation, « découpe automatique » dans la retouche, réouverture d'une
      œuvre) retrouvent exactement les mêmes pièces, et les retouches y sont rejouées au bon rang.

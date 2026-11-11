@@ -1147,6 +1147,8 @@ body.stage-full .scene-open { display: none; }
   .panel.tabbed[data-tab="more"] > .account, .panel.tabbed[data-tab="more"] > .brand-foot { display: flex; }
   .panel.tabbed > .cloud-sync { display: none; }
   .panel.tabbed[data-tab="more"] > .cloud-sync, .panel.tabbed[data-tab="import-section"] > .cloud-sync { display: grid; }
+  .panel.tabbed > .cut-remote { display: none; }
+  .panel.tabbed[data-tab="more"] > .cut-remote:not([hidden]), .panel.tabbed[data-tab="import-section"] > .cut-remote:not([hidden]) { display: block; }
   .panel.tabbed > .step.tab-on.collapsed > :not(h2) { display: revert !important; }
   .scene-open:not([hidden]) { display: none; } /* téléphone : la mise en scène est dans l'onglet Tailles */
   /* l'onglet dit déjà où l'on est : ni numéro ni titre de section */

@@ -122,6 +122,8 @@
     <div id="cloud-sync" class="cloud-sync" hidden>
       <p id="cloud-sync-status" class="hint"></p>
     </div>
+    <!-- réglages de découpe du compte différents de ceux appris ici (synchronisation prudente, voir app.js) -->
+    <p id="cut-remote" class="alert cut-remote" hidden><span></span> <button type="button" class="link" id="cut-remote-adopt">Adopter ceux du compte</button> <button type="button" class="link" id="cut-remote-mine">Garder les miens, partout</button></p>
 
 
     <!-- Mes œuvres : en tête, sans numéro (ce n'est pas une étape) -->
@@ -285,7 +287,7 @@
       <!-- tableau imprimé : la fiche n'a pas de taille réelle, la phrase le dit (setMode) -->
       <p class="hint" id="drawings-hint">Touchez un dessin pour régler son rôle et sa taille réelle.</p>
       <p id="aside-note" class="aside-note" hidden></p>
-      <p id="cut-learned" class="alert" hidden><span></span> <button type="button" class="link">Appliquer aux autres dessins</button><button type="button" id="cut-learned-close" class="lang-offer-close" aria-label="Fermer">×</button></p>
+      <p id="cut-learned" class="alert" hidden><span></span> <button type="button" class="link">Appliquer aux autres dessins</button> <button type="button" class="link" id="cut-learned-all" hidden>Appliquer à tous mes appareils</button><button type="button" id="cut-learned-close" class="lang-offer-close" aria-label="Fermer">×</button></p>
       <div id="detail" class="detail" hidden></div>
       <!-- les dessins, par type : arrière-plan (fonds), premier plan (découpes), non utilisés -->
       <div id="drawings" class="drawings-groups"></div>
@@ -407,7 +409,7 @@
             <button type="button" class="btn" id="acc-signout">Se déconnecter</button>
           </div>
         </form>
-        <p id="cut-sync" class="hint" hidden><span></span> <button type="button" class="link" id="cut-sync-reset">Revenir à la découpe d’office</button></p>
+        <p id="cut-sync" class="hint" hidden><span></span> <button type="button" class="link" id="cut-sync-push" hidden>Appliquer à tous mes appareils</button> <button type="button" class="link" id="cut-sync-reset">Revenir à la découpe d’office</button></p>
         <div class="danger-zone">
           <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte. Les œuvres de cet appareil ne sont pas touchées.</p>
           <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
