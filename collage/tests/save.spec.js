@@ -441,11 +441,11 @@ test.describe('Réouverture fidèle des retouches', () => {
   test('dessins importés en plusieurs fois : la retouche revient au même endroit, sinon elle n’est pas plaquée de travers', async ({ page }) => {
     test.setTimeout(240000);
     const { fixture } = require('./helpers');
-    // peu de mémoire : la résolution de travail dépend du nombre de dessins importés d'un coup
-    await page.addInitScript(() => Object.defineProperty(navigator, 'deviceMemory', { get: () => 0.2 }));
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
+    // petit budget de pages : la résolution de travail dépend du nombre de dessins importés d'un coup
+    await page.evaluate(() => { AtelierGribouille.state.sourceBudget = 20e6; });
     const ready = (n) => page.waitForFunction((n) => window.AtelierGribouille && AtelierGribouille.state.drawings.length === n && AtelierGribouille.state.comp && document.getElementById('progress').hidden, n, { timeout: 120000 });
     await page.setInputFiles('#file', [fixture('page-cutout.png')]);
     await ready(1);

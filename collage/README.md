@@ -512,11 +512,16 @@ cd collage && python3 -m http.server 8000
    - **curseur au maximum** : tous les dessins chargés entrent dans l'œuvre — plus de plafond de
      couverture, un sujet sans place libre se pose au moins mauvais endroit, et les feuilles pâles
      sont découpées comme les autres ; la rotation des découpes est fixe (réglage retiré) ;
-   - **résolution d'import** : chaque page est conservée à la plus haute résolution que l'appareil
-     permet (de 1400 à 2800 px de grand côté ; sur téléphone, de 900 à 2000 px, avec un budget fixe
-     de 110 Mo pour toutes les pages : Safari sur iPhone plafonne la mémoire totale des canvas et,
-     au-delà, rend des canvas vides sans rien dire — vignettes et pages noires), calculée d'après le
-     nombre de pages ; l'analyse des sujets se fait sur une grille réduite, mais les découpes
+   - **résolution d'import** : chaque page est conservée à la même résolution de travail sur tous les
+     appareils (`sourceMax` : de 900 à 2000 px de grand côté selon le nombre de pages, avec un budget
+     fixe de 110 Mo pour toutes les pages, celui qu'impose Safari sur iPhone, qui plafonne la mémoire
+     totale des canvas et, au-delà, rend des canvas vides sans rien dire — vignettes et pages
+     noires). La découpe n'est pas tout à fait indifférente à la taille de la page reçue (grain du
+     papier, traits fins, miettes) : quand l'ordinateur et l'iPad Pro 13" travaillaient de 1400 à
+     2800 px, une même série de dessins s'y découpait autrement que sur iPhone (feuilles à plusieurs
+     sujets gardées d'un bloc, contours rognés) ; la résolution commune rend la découpe identique
+     partout, et l'impression n'y perd rien (relecture haute définition à l'export, voir plus bas).
+     L'analyse des sujets se fait sur une grille réduite, mais les découpes
      et les pages de fond gardent cette résolution à l'écran ; sur téléphone, une page rouverte ne
      garde pas son image d'origine en mémoire (relue du fichier au besoin, `originalOf`), les
      vignettes libèrent leur canvas et le cache du fond est plus léger ;

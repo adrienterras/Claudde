@@ -2,20 +2,21 @@
 (function () {
   'use strict';
 
-  // Résolution conservée pour chaque page scannée (plus grand côté) : la plus haute possible, selon
-  // le nombre de pages et la mémoire de l'appareil, pour que les découpes gardent tout leur détail à
-  // l'impression. Chaque page garde environ 1,6 toile pleine en mémoire (page, texture ou découpes).
-  // Téléphone : Safari (iPhone) plafonne la mémoire totale des canvas et, au-delà, rend des canvas
-  // vides sans rien dire (vignettes noires, pages de fond noires) ; le budget y est fixe et prudent,
-  // et les pages descendent jusqu'à 900 px quand les dessins sont nombreux.
-  const SOURCE_MIN = 1400, SOURCE_MIN_PHONE = 900, SOURCE_CAP = 2800, SOURCE_CAP_PHONE = 2000, PHONE_BUDGET = 110e6;
+  // Résolution de travail de chaque page importée (plus grand côté), la même sur tous les appareils :
+  // la découpe n'est pas tout à fait indifférente à la taille de la page qu'elle reçoit (grain du
+  // papier, traits fins, miettes), et une même série de dessins donnait des découpes différentes sur
+  // iPhone (pages de 900 à 2000 px) et sur ordinateur ou iPad Pro 13" (1400 à 2800 px). Le budget
+  // est celui du téléphone, fixe et prudent (Safari sur iPhone plafonne la mémoire totale des canvas
+  // et, au-delà, rend des canvas vides sans rien dire) : 110 Mo pour toutes les pages, chacune
+  // gardant environ 1,6 toile pleine en mémoire (page, texture ou découpes), de 900 px quand les
+  // dessins sont nombreux à 2000 px. L'impression n'y perd rien : à l'export, chaque dessin est relu
+  // en haute définition depuis son fichier (hydrateHD). state.sourceBudget, sans interface, sert aux
+  // tests (imports successifs à des résolutions différentes).
+  const SOURCE_MIN = 900, SOURCE_CAP = 2000, SOURCE_BUDGET = 110e6;
   function sourceMax(nPages) {
-    const mobile = navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900;
-    const mem = Math.min(8, navigator.deviceMemory || 8); // Go
-    const budget = mobile ? PHONE_BUDGET : mem * 0.1 * 1e9; // octets accordés aux pages
     const perPagePx = 1.6 * 4 * 0.71; // octets par pixel² de grand côté (format ≈ 1/√2)
-    const long = Math.sqrt(budget / (Math.max(1, nPages) * perPagePx));
-    return Math.round(Math.max(mobile ? SOURCE_MIN_PHONE : SOURCE_MIN, Math.min(mobile ? SOURCE_CAP_PHONE : SOURCE_CAP, long)));
+    const long = Math.sqrt((state.sourceBudget || SOURCE_BUDGET) / (Math.max(1, nPages) * perPagePx));
+    return Math.round(Math.max(SOURCE_MIN, Math.min(SOURCE_CAP, long)));
   }
   const $ = (id) => document.getElementById(id);
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
