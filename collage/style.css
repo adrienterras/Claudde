@@ -43,49 +43,50 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  /* mode sombre « ardoise » : gris anthracite froid (ni brun ni olive), texte crème, accent sauge */
   :root:not([data-theme="light"]) {
-    --wall: #1c1b15;
-    --stage: #1c1b15;
-    --stage-2: #15140f;
-    --surface: #25241d;
-    --surface-2: #2e2d25;
-    --ink: #f3eee4;
-    --ink-2: #ddd5c6;
-    --muted: #a8a08f;
-    --line: #3b392e;
+    --wall: #15181b;
+    --stage: #15181b;
+    --stage-2: #0f1214;
+    --surface: #1f2327;
+    --surface-2: #282d32;
+    --ink: #f1f0ea;
+    --ink-2: #d9d8d0;
+    --muted: #9ea39f;
+    --line: #353b40;
     --accent: #9fbcab;
     --accent-soft: rgba(159, 188, 171, 0.16);
-    --wall-2: #27261f;
-    --primary: #f3eee4;
-    --on-primary: #1c1b15;
-    --on-ink: #1c1b15;
+    --wall-2: #22272b;
+    --primary: #f1f0ea;
+    --on-primary: #15181b;
+    --on-ink: #15181b;
     --texture: #a3a77f;
     --danger: #f09a84;
-    --danger-soft: #3b2620;
-    --glass: rgba(37, 36, 29, 0.84);
+    --danger-soft: #3a2524;
+    --glass: rgba(31, 35, 39, 0.84);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --wall: #1c1b15;
-  --stage: #1c1b15;
-  --stage-2: #15140f;
-  --surface: #25241d;
-  --surface-2: #2e2d25;
-  --ink: #f3eee4;
-  --ink-2: #ddd5c6;
-  --muted: #a8a08f;
-  --line: #3b392e;
+  --wall: #15181b;
+  --stage: #15181b;
+  --stage-2: #0f1214;
+  --surface: #1f2327;
+  --surface-2: #282d32;
+  --ink: #f1f0ea;
+  --ink-2: #d9d8d0;
+  --muted: #9ea39f;
+  --line: #353b40;
   --accent: #9fbcab;
   --accent-soft: rgba(159, 188, 171, 0.16);
-  --wall-2: #27261f;
-  --primary: #f3eee4;
-  --on-primary: #1c1b15;
-  --on-ink: #1c1b15;
+  --wall-2: #22272b;
+  --primary: #f1f0ea;
+  --on-primary: #15181b;
+  --on-ink: #15181b;
   --texture: #a3a77f;
   --danger: #f09a84;
-  --danger-soft: #3b2620;
-  --glass: rgba(37, 36, 29, 0.84);
+  --danger-soft: #3a2524;
+  --glass: rgba(31, 35, 39, 0.84);
   color-scheme: dark;
 }
 
@@ -1267,7 +1268,7 @@ body.stage-full .scene-open { display: none; }
 .cloud-sync .hint { margin: 0; font-size: 0.76rem; }
 .cloud-sync[hidden] { display: none !important; }
 .import-account { margin-top: 8px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
-.camera-stage { position: relative; min-height: 0; background: #15140f; overflow: hidden; }
+.camera-stage { position: relative; min-height: 0; background: #0f1214; overflow: hidden; }
 .camera-stage video, .camera-review { position: absolute; inset: 0; width: 100%; height: 100%; }
 .camera-stage video { object-fit: contain; display: block; }
 .camera-review img { width: 100%; height: 100%; object-fit: contain; display: block; }

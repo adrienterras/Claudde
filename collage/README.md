@@ -901,6 +901,12 @@ n'est mémorisé).
   les finitions de cadre du panier sont des `role="radio"` ; sur téléphone, l'en-tête est un `<header>`
   avec le titre de niveau 1. Sur le site, les deux `<nav>` sont nommées (« Navigation principale »,
   « Pied de page »). Les contrastes et les couleurs ne sont pas modifiés.
+- **Le mode sombre** (réglage du système, ou `data-theme="dark"` sur `<html>`) repose sur une palette
+  « ardoise » : fond anthracite froid (`--wall` #15181b, cartes #1f2327 / #282d32, filets #353b40),
+  texte crème (#f1f0ea / #d9d8d0, gris #9ea39f pour les mentions) et le même accent sauge qu'en mode
+  clair ; ni brun ni olive, pour ne pas ressembler aux interfaces sombres « chaudes » des assistants.
+  Les deux blocs de `style.css` (`prefers-color-scheme: dark` et `[data-theme="dark"]`) portent les
+  mêmes valeurs.
 
 ## Qualité pour l’impression (`js/quality.js`)
 
