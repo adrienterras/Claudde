@@ -639,4 +639,65 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#acc-status')).toContainText('Compte supprimé');
     expect(await page.evaluate((uid) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(uid + '/')).length, uid)).toBe(0);
   });
+
+  test('découpe apprise synchronisée par le compte : apprise ici, reprise sur un autre appareil, remise à zéro partout', async ({ acc }) => {
+    const { page } = acc;
+    test.setTimeout(240000);
+    await signUpAndIn(page, 'decoupe@example.org', 'Rouge-Soleil-42', 'Découpe');
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // la retouche : la baguette sélectionne le corps rouge, on le gomme → « sujets voisins séparés »
+    const k = await page.evaluate(() => { const ps = AtelierGribouille.state.drawings[0].analysis.pieces; return ps.indexOf(ps.reduce((a, b) => (a.canvas.width * a.canvas.height > b.canvas.width * b.canvas.height ? a : b))); });
+    const pts = await page.evaluate((k) => {
+      const d = AtelierGribouille.state.drawings[0], p = d.analysis.pieces[k], c = p.canvas;
+      const px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) { const i = (y * c.width + x) * 4; if (px[i + 3] > 250 && px[i] > 180 && px[i + 1] < 90 && px[i + 2] < 90) return { x: p.src.x + x, y: p.src.y + y }; }
+      return null;
+    }, k);
+    expect(pts).not.toBeNull();
+    await page.evaluate((k) => AtelierGribouille.editPiece(AtelierGribouille.state.drawings[0].analysis.pieces[k]), k);
+    await page.locator('#editor [data-tool="wand"]').click();
+    await page.locator('#ed-tol').fill('40');
+    expect(await page.evaluate(({ x, y }) => Editor.wand(x, y), pts)).toBeGreaterThan(0);
+    await page.locator('#ed-sel-erase').click();
+    await page.locator('#ed-apply').click();
+    await expect(page.locator('#cut-learned')).toBeVisible();
+    const close = await page.evaluate(() => Extract.cutPrefs().close);
+    expect(close).toBeLessThan(0.03);
+    // enregistrée dans le profil, datée
+    await page.waitForFunction((c) => { const u = Account.user(); const d = u && u.user_metadata && u.user_metadata.decoupe; return !!(d && d.prefs && Math.abs(d.prefs.close - c) < 1e-9 && d.at > 0); }, close);
+    const at = await page.evaluate(() => Account.user().user_metadata.decoupe.at);
+    expect(+(await page.evaluate(() => localStorage.getItem('atelier.decoupe-date')))).toBe(at);
+    // le panneau Compte la décrit, avec ses valeurs exactes
+    await page.locator('#acc-menu').click();
+    await expect(page.locator('#cut-sync')).toBeVisible();
+    await expect(page.locator('#cut-sync span')).toContainText('sujets voisins séparés');
+    await expect(page.locator('#cut-sync span')).toContainText('dans votre compte');
+    await expect(page.locator('#cut-sync span')).toContainText(`c ${close.toFixed(4)}`);
+    await page.locator('#acc-close').click();
+    // un autre appareil (même compte, rien d'appris ici) : la découpe apprise est reprise à l'arrivée
+    await page.evaluate(() => { localStorage.removeItem('atelier.decoupe'); localStorage.removeItem('atelier.decoupe-date'); });
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
+    await page.waitForFunction((c) => Math.abs(Extract.cutPrefs().close - c) < 1e-9, close);
+    expect(+(await page.evaluate(() => localStorage.getItem('atelier.decoupe-date')))).toBe(at);
+    expect(await page.evaluate(() => Account.user().user_metadata.decoupe.at)).toBe(at); // (rien renvoyé : même date)
+    // retour à la découpe d'office depuis cet appareil : le compte le sait, l'autre appareil suivra
+    await page.locator('#acc-menu').click();
+    await page.locator('#cut-sync-reset').click();
+    expect(await page.evaluate(() => Extract.cutIsDefault())).toBe(true);
+    await expect(page.locator('#cut-sync')).toBeHidden();
+    await page.waitForFunction((at) => { const d = Account.user().user_metadata.decoupe; return d && d.prefs === null && d.at > at; }, at);
+    await page.locator('#acc-close').click();
+    // l'ancien appareil, qui a encore les préférences apprises, plus anciennes : il les abandonne
+    await page.evaluate((c) => { localStorage.setItem('atelier.decoupe', JSON.stringify(Object.assign(Extract.CUT_DEFAULT, { close: c }))); localStorage.setItem('atelier.decoupe-date', '5'); }, close);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
+    await page.waitForFunction(() => Extract.cutIsDefault());
+    expect(await page.evaluate(() => localStorage.getItem('atelier.decoupe'))).toBeNull();
+    // déconnecté, les préférences restent celles du navigateur
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    expect(await page.evaluate(() => Extract.cutIsDefault())).toBe(true);
+  });
 });

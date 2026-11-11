@@ -3909,11 +3909,45 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // (Extract.learnCut) : la marge de papier, la sensibilité aux traits pâles et les traits reliés en
   // sont déduits, mémorisés dans ce navigateur et appliqués aux analyses suivantes. L'utilisateur peut
   // les appliquer tout de suite aux autres dessins.
-  function saveCutPrefs() {
-    try { if (Extract.cutIsDefault()) localStorage.removeItem('atelier.decoupe'); else localStorage.setItem('atelier.decoupe', JSON.stringify(Extract.cutPrefs())); } catch (e) { /* ignoré */ }
+  // Avec un compte, elles sont aussi enregistrées dans le profil (métadonnées, datées) et reprises par
+  // les autres appareils connectés : la version la plus récente gagne (une remise à zéro aussi). Sans
+  // cela, l'iPhone qui avait appris des retouches découpait autrement que l'iPad ou l'ordinateur.
+  const CUT_KEY = 'atelier.decoupe', CUT_AT_KEY = 'atelier.decoupe-date';
+  const cutAt = () => +(lsGet(CUT_AT_KEY) || 0);
+  function saveCutPrefs(opts) {
+    const at = (opts && opts.at) || Date.now();
+    lsSet(CUT_KEY, Extract.cutIsDefault() ? null : JSON.stringify(Extract.cutPrefs()));
+    lsSet(CUT_AT_KEY, String(at));
+    renderCutSync();
+    if (!(opts && opts.quiet)) pushCutPrefs(at);
   }
   function loadCutPrefs() {
-    try { const v = localStorage.getItem('atelier.decoupe'); if (v) Extract.setCutPrefs(JSON.parse(v)); } catch (e) { /* ignoré */ }
+    try { const v = lsGet(CUT_KEY); if (v) { Extract.setCutPrefs(JSON.parse(v)); if (!cutAt()) lsSet(CUT_AT_KEY, '1'); } } catch (e) { /* ignoré */ }
+  }
+  function pushCutPrefs(at) {
+    const A = window.Account;
+    if (!A || !A.enabled || !A.user()) return;
+    const decoupe = { prefs: Extract.cutIsDefault() ? null : Extract.cutPrefs(), at };
+    Promise.resolve().then(() => A.updateProfile({ decoupe })).catch((e) => console.warn('découpe apprise non enregistrée dans le compte', e));
+  }
+  function syncCutPrefs(u) {
+    if (!u) { renderCutSync(); return; }
+    const remote = (u.user_metadata && u.user_metadata.decoupe) || null, localAt = cutAt();
+    if (remote && remote.at > localAt) {
+      Extract.setCutPrefs(remote.prefs || null);
+      saveCutPrefs({ at: remote.at, quiet: true });
+    } else if (localAt > ((remote && remote.at) || 0) && (remote || !Extract.cutIsDefault())) pushCutPrefs(localAt);
+    else renderCutSync();
+  }
+  // le panneau Compte dit ce qui a été appris (et le rend lisible : valeurs exactes entre crochets)
+  function renderCutSync() {
+    const el = $('cut-sync');
+    if (!el) return;
+    if (Extract.cutIsDefault()) { el.hidden = true; return; }
+    const c = Extract.cutPrefs(), A = window.Account, signed = !!(A && A.enabled && A.user());
+    const raw = `[m ${c.margin.toFixed(4)} · c ${c.close.toFixed(4)} · s ${c.smooth.toFixed(4)} · i ${c.ink.toFixed(2)}]`;
+    el.querySelector('span').textContent = `${tr`Découpe apprise de vos retouches : ${cutPrefsText()}.`} ${signed ? tr('Enregistrée dans votre compte, reprise sur vos autres appareils connectés.') : tr('Mémorisée dans ce navigateur.')} ${raw}`;
+    el.hidden = false;
   }
   function cutPrefsText() {
     const c = Extract.cutPrefs(), D = Extract.CUT_DEFAULT, parts = [];
@@ -3921,7 +3955,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (c.ink < D.ink - 1e-6) parts.push(tr('traits pâles gardés'));
     if (c.ink > D.ink + 1e-6) parts.push(tr('traces grises ignorées'));
     if (c.close < D.close - 1e-6) parts.push(tr('sujets voisins séparés'));
-    return parts.join(' · ');
+    if (c.close > D.close + 1e-6) parts.push(tr('sujets voisins reliés'));
+    return parts.join(' · ') || tr('réglages ajustés');
   }
   // les dessins dont la découpe automatique peut être refaite (pas de retouche à garder, pas un objet détouré)
   const recuttable = (d) => roleOf(d) === 'cutout' && !d.analysis.objectAlpha && !(d.analysis.pieces || []).some((q) => q.edited);
@@ -3968,6 +4003,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   $('cut-learned-close').onclick = () => { $('cut-learned').hidden = true; };
   loadCutPrefs();
+  renderCutSync();
+  if ($('cut-sync-reset')) $('cut-sync-reset').onclick = () => { Extract.setCutPrefs(null); saveCutPrefs(); notice(tr('Découpe d’office rétablie : elle servira aux prochains dessins.')); };
+  if (window.Account && window.Account.enabled) window.Account.onChange((u) => syncCutPrefs(u));
 
   /*
    * Historique : avant chaque action sur l'œuvre (déplacer, tourner, retourner, devant/derrière,

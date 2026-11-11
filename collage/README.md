@@ -220,10 +220,15 @@ cd collage && python3 -m http.server 8000
      pleines d'encre faible : plus sensible ; zones effacées pleines de traces grises : moins) et
      les traits reliés (un sujet voisin effacé, coloré : rayon de fermeture réduit) en sont déduits.
      Ces préférences servent aux analyses suivantes, sont mémorisées dans le navigateur
-     (`atelier.decoupe`), affichées dans la section Dessins (« Découpe apprise de vos retouches »,
-     avec « Revenir à la découpe d'office ») et proposées tout de suite aux autres dessins du lot
+     (`atelier.decoupe`, datées dans `atelier.decoupe-date`) et proposées tout de suite aux autres dessins du lot
      (« Appliquer aux N autres dessins », qui refait leurs découpes puis les propositions ; les
-     dessins déjà retouchés et les objets détourés sont gardés tels quels). Les préférences sont
+     dessins déjà retouchés et les objets détourés sont gardés tels quels). Avec un compte, elles
+     sont aussi enregistrées dans le profil (métadonnées `decoupe` : `{ prefs, at }`, `prefs` nul pour
+     la découpe d'office) et reprises par les autres appareils connectés à l'arrivée (`syncCutPrefs`) :
+     la version la plus récente gagne, une remise à zéro comprise — sans cela, un iPhone qui avait
+     appris des retouches découpait autrement que l'iPad ou l'ordinateur du même compte. Le panneau
+     Compte décrit ce qui est appris (`#cut-sync`, valeurs exactes entre crochets) et offre « Revenir à
+     la découpe d'office ». Les préférences sont
      figées sur chaque dessin au moment de son analyse et sauvegardées avec lui : ses réanalyses
      (haute définition, orientation, « découpe automatique » dans la retouche, réouverture d'une
      œuvre) retrouvent exactement les mêmes pièces, et les retouches y sont rejouées au bon rang.
