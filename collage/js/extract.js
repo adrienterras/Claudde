@@ -17,8 +17,14 @@
   // Préférences de découpe, apprises des retouches de l'utilisateur (voir learnCut), en fraction du
   // grand côté de la page : marge de papier gardée autour de l'encre, rayon de fermeture (traits
   // distants de moins de 2 × close font un même sujet), lissage du contour ; ink : sensibilité aux
-  // traits pâles (1 = normale ; < 1 : seuils plus bas, plus de traits pâles gardés)
-  const CUT_DEFAULT = { margin: 0.009, close: 0.03, smooth: 0.008, ink: 1 };
+  // traits pâles (1 = normale ; < 1 : seuils plus bas, plus de traits pâles gardés).
+  // D'office, la marge est large (0,03 ≈ 9 mm sur un A4, comme un papier découpé généreusement aux
+  // ciseaux) : les lettres d'un mot et les sujets à moins de ≈ 18 mm font une même pièce. Ce sont les
+  // valeurs apprises des retouches d'Adrien sur l'iPhone, jugées les meilleures sur plus de 80 dessins.
+  // La découpe serrée (marge 0,009 ≈ 2,7 mm, sujets à 1,5 cm séparés) reste accessible par
+  // l'apprentissage, et les tests de la mécanique de découpe (ponts, creux, quadrillages) la posent.
+  const CUT_DEFAULT = { margin: 0.03, close: 0.035, smooth: 0.008, ink: 1 };
+  const CUT_TIGHT = { margin: 0.009, close: 0.03, smooth: 0.008, ink: 1 };
   let CUT = Object.assign({}, CUT_DEFAULT);
   function setCutPrefs(p) {
     CUT = Object.assign({}, CUT_DEFAULT, p || {});
@@ -3137,5 +3143,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, rotated, rotateCanvas, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();

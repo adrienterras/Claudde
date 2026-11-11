@@ -1,6 +1,11 @@
 const { test, expect, fixture } = require('./helpers');
 const fs = require('fs');
 
+// La découpe d'office garde une large marge de papier (≈ 9 mm sur un A4 : les sujets voisins font une
+// même pièce). Les tests de la mécanique de découpe (ponts, creux, quadrillages, sujets à 1,5 cm) la
+// décrivent avec la marge serrée, que l'apprentissage des retouches peut toujours donner.
+const tight = (page) => page.evaluate(() => Extract.setCutPrefs(Extract.CUT_TIGHT));
+
 // Analyse d'une image par le module Extract, directement dans la page.
 async function analyze(page, name, opts) {
   const data = 'data:image/png;base64,' + fs.readFileSync(fixture(name)).toString('base64');
@@ -145,6 +150,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('une page de cahier (lignes de texte, carreaux, cadre) n’est pas posée entière : le sujet est découpé seul', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       const W = 1400, H = 1000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
       x.fillStyle = 'rgb(250,249,246)'; x.fillRect(0, 0, W, H);
@@ -203,6 +209,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('une planche en quatre cases (traits de partage pâles et décalés, collines) : les sujets de chaque case se détachent', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       // une feuille à l'italienne ; le trait vertical traverse la page, l'horizontal est fait de deux
       // moitiés décalées et plus pâles ; dans chaque case, une ligne de collines relie deux sujets
@@ -242,6 +249,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('une feuille de couleur froissée (carotte peinte sur papier vert) : les ombres des plis restent du papier, la découpe suit le sujet', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       // une feuille vert anis photographiée, gondolée par la peinture : des ombres de plis (le même
       // vert, plus sombre), une carotte orange peinte, des feuilles au crayon noir, une étiquette blanche
@@ -278,6 +286,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('petits sujets : trois cœurs de 1 cm au crayon de couleur et un trait fin de feutre jaune pâle sont des pièces ; une poussière de 2 mm, non', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       // une feuille A4 (≈ 70 px par cm) : un grand personnage, trois petits cœurs violets, un « A » au
       // feutre jaune clair (trait fin) devant « LMA » en couleurs vives, une poussière grise
@@ -309,6 +318,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('page de cahier quadrillé : les lignes du quadrillage ne sont pas du dessin, chaque sujet est découpé au ras', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       // un quadrillage 5 mm bleu pâle (traits de 2 px) sur toute la feuille ; deux sujets au feutre
       const W = 1480, H = 2100, cm = H / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
@@ -357,6 +367,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('sujets voisins : un personnage, son lit et une fenêtre à 1,5 cm les uns des autres sont trois pièces ; son chapeau détaché reste avec lui', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       const W = 1480, H = 2100, cm = H / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
       x.fillStyle = 'rgb(251,250,246)'; x.fillRect(0, 0, W, H);
@@ -385,6 +396,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('une tête séparée du corps par un col blanc de 8 mm (chemise aux traits très pâles) reste un seul personnage ; une fenêtre à 1,5 cm au-dessus du lit reste à part', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       const W = 1480, H = 2100, cm = H / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
       x.fillStyle = 'rgb(251,250,246)'; x.fillRect(0, 0, W, H);
@@ -416,6 +428,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('des lignes ondulées au feutre jaune sur toute la feuille (un fond) ne relient pas les sujets : le personnage et la table sont découpés chacun, sans la feuille entière', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       const W = 1480, H = 2100, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
       x.fillStyle = 'rgb(251,250,246)'; x.fillRect(0, 0, W, H);
@@ -523,6 +536,7 @@ test.describe('Analyse des pages (Extract)', () => {
   });
 
   test('la coupe suit le dessin au plus près : un creux ouvert (entre les jambes) est découpé, un chapeau détaché est relié par un pont', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       // une feuille A4 (≈ 70 px par cm) ; un bonhomme au feutre : corps fermé, deux jambes au contour fermé
       // séparées par un creux de 1 cm ouvert vers le bas, un chapeau détaché à 6 mm au-dessus de la tête
@@ -560,6 +574,32 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.hat).toBeGreaterThan(200); expect(r.bridge).toBeGreaterThan(200);
     expect(r.beside).toBe(0); expect(r.under).toBe(0);
     expect(r.head2).toBeGreaterThan(200); expect(r.pocket).toBe(0);
+  });
+
+  test('découpe d’office à marge large : deux ronds et les lettres d’un mot à 1,5 cm font une même pièce ; à 2 cm, ou en découpe serrée, ils se séparent', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const out = {};
+      for (const gapCm of [1.5, 2]) {
+        for (const mode of ['default', 'tight']) {
+          Extract.setCutPrefs(mode === 'tight' ? Extract.CUT_TIGHT : null);
+          const W = 1400, H = 1000, px = W / 29.7, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+          x.fillStyle = 'rgb(250,250,250)'; x.fillRect(0, 0, W, H);
+          // deux ronds pleins de 4 cm, et le mot « BON » en lettres de 3 cm, espacés de gapCm
+          x.fillStyle = '#c33'; x.beginPath(); x.arc(300, 300, 2 * px, 0, 7); x.fill();
+          x.fillStyle = '#36c'; x.beginPath(); x.arc(300 + 4 * px + gapCm * px, 300, 2 * px, 0, 7); x.fill();
+          x.fillStyle = '#2a7'; x.font = `bold ${Math.round(3 * px)}px sans-serif`; x.textBaseline = 'top';
+          let cx = 200; for (const ch of 'BON') { x.fillText(ch, cx, 650); cx += x.measureText(ch).width + gapCm * px; }
+          out[`${gapCm}-${mode}`] = (Extract.analyze(c, 0, {}).pieces || []).length;
+        }
+      }
+      Extract.setCutPrefs(null);
+      return Object.assign(out, { defaults: Extract.cutIsDefault(), margin: Extract.CUT_DEFAULT.margin, tight: Extract.CUT_TIGHT.margin });
+    });
+    expect(r.margin).toBe(0.03); expect(r.tight).toBe(0.009); expect(r.defaults).toBe(true);
+    expect(r['1.5-default']).toBe(2);  // les deux ronds d'un côté, le mot de l'autre
+    expect(r['1.5-tight']).toBe(5);    // chaque rond, chaque lettre
+    expect(r['2-default']).toBe(5);
+    expect(r['2-tight']).toBe(5);
   });
 
   test('découpe apprise d’une retouche : marge resserrée et traits pâles gardés, appliqués aux découpes suivantes', async ({ app }) => {
@@ -613,6 +653,7 @@ test.describe('Analyse des pages (Extract)', () => {
 
 test.describe('Précision de la découpe', () => {
   test('l’ombre d’un pli et un bord ombré sont corrigés ; un aplat noir et une feutrine bleue restent', async ({ app }) => {
+    await tight(app.page); // la mécanique de découpe est décrite avec la marge serrée (voir CUT_TIGHT)
     const r = await app.page.evaluate(() => {
       const c = Extract.makeCanvas(1000, 1400), x = c.getContext('2d');
       x.fillStyle = 'rgb(246,244,238)'; x.fillRect(0, 0, 1000, 1400);

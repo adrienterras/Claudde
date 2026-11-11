@@ -146,7 +146,13 @@ cd collage && python3 -m http.server 8000
    change son rôle) : chaque page est classée automatiquement
    - *fond* : page entièrement peinte → papier collé en arrière-plan ;
    - *découpe* : dessin sur papier → sujets détourés avec une marge de papier blanc, **comme aux
-     ciseaux** : les traits distants de moins de ≈ 6 % de la page font un même sujet — sauf les
+     ciseaux**. D'office, la marge est **large** (`CUT_DEFAULT` : 0,03 du grand côté, ≈ 9 mm sur un
+     A4, fermeture 0,035) : les lettres d'un mot et les sujets à moins de ≈ 18 mm font une même pièce,
+     découpée généreusement, comme Adrien le préfère après plus de 80 dessins (valeurs apprises de
+     ses retouches sur l'iPhone, devenues le réglage d'usine). La **découpe serrée** (`CUT_TIGHT` :
+     marge 0,009 ≈ 2,7 mm, fermeture 0,03) reste accessible par l'apprentissage des retouches, et
+     c'est avec elle que sont décrites, ci-dessous et dans `tests/extract.spec.js`, la mécanique de
+     regroupement et de coupe : les traits distants de moins de ≈ 6 % de la page font un même sujet — sauf les
      **voisins qui ne se touchent pas** (`splitNeighbours` : chaque partie d'au moins ≈ 3 × 3 cm qui
      se détache des autres à ≈ 6,5 mm près devient un sujet à part, un personnage, son lit, une fenêtre ;
      les petits détails, un chapeau, un rayon, restent avec la partie la plus proche ; une feuille
@@ -549,7 +555,7 @@ cd collage && python3 -m http.server 8000
      (à la résolution de la page, jusqu'à 3000 px de côté) avec un seuil d'encre à deux niveaux : les zones pâles (crayon léger,
      couleurs claires, dégradés) reliées à un trait net restent dans le dessin, le grain du papier non ;
      une couleur pâle sur papier blanc (jaune clair, rose) compte aussi par sa saturation ;
-     la coupe suit le dessin à quelques millimètres (≈ 3 mm sur un A4), creux ouverts compris.
+     la coupe suit le dessin à la marge choisie (≈ 9 mm sur un A4 d’office, ≈ 3 mm en découpe serrée), creux ouverts compris.
      Les sujets sont repérés sur une grille de 640 px, complétée pour les traits fins de couleur par
      une copie à 1600 px (un « A » au feutre jaune clair y est encore visible), sans les points de
      poussière ; **les petits sujets** (un cœur de 1 cm, une étoile, un animal noir de 1,5 cm) sont
