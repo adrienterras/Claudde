@@ -362,7 +362,7 @@
     'Que voulez-vous créer ?': 'What would you like to create?',
     'Impression': 'Print',
     'Originaux': 'Originals',
-    'Affiche ou tableau encadré, dès 14,90 €': 'Poster or framed print, from €14.90',
+    'Création imprimée et encadrée': 'Printed and framed creation',
     'Vos dessins découpés et collés : guide ou kit DIY': 'Your drawings cut out and glued: guide or DIY kit',
     'Cadres standard du marché': 'Standard frame sizes',
     '{0} × {1} px pour un tableau imprimé de {2} × {3} cm{4}{5}': '{0} × {1} px for a {2} × {3} cm printed artwork{4}{5}',
