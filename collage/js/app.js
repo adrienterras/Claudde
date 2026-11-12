@@ -7257,6 +7257,8 @@ Réponds uniquement avec ce JSON :
         once = true;
         if (mobileQuery.matches) { setStageFull(false); selectTab('more'); if (!u) openPanel(true); }
         else openPanel(true);
+        // une fois fait, l'adresse l'oublie : actualiser la page ne rouvre pas le compte
+        try { const url = new URL(location.href); url.searchParams.delete('connexion'); url.searchParams.delete('compte'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
       });
     }
     $('acc-close').onclick = () => openPanel(false);

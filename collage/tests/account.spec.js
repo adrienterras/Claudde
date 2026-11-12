@@ -654,6 +654,12 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#account-section')).toBeVisible();
     await expect(page.locator('#profile-box')).toBeVisible();
     await expect(page.locator('#profile-title')).toContainText('Tête');
+    // l'adresse l'oublie : actualiser ne rouvre pas le compte
+    await expect.poll(() => page.evaluate(() => location.search)).not.toMatch(/compte/);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
+    await page.waitForTimeout(800);
+    await expect(page.locator('#account-section')).toBeHidden();
     // téléphone : le tiroir s'ouvre sur l'onglet Compte (connecté : pas de panneau par-dessus)
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('index.html?compte');
