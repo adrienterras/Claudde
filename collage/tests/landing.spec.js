@@ -77,3 +77,30 @@ test('accueil : « Se connecter » dans l’en-tête, ou la pastille et le prén
   expect(await page3.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await ctx3.close();
 });
+
+// Le choix de langue flotte en bas à droite de l'accueil, sur téléphone comme sur ordinateur, et
+// reste en place quand on défile ; il traduit la page.
+test('accueil : le choix de langue flotte en bas à droite, sur téléphone et sur ordinateur', async ({ browser }) => {
+  for (const opts of [{ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, { viewport: { width: 1280, height: 800 } }]) {
+    const ctx = await browser.newContext(opts);
+    const page = await ctx.newPage();
+    await page.route('http://accueil.test/**', (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.startsWith('/atelier/')) return route.fulfill({ status: 404, body: '' });
+      return route.fulfill({ path: path.join(LANDING, url.pathname === '/' ? 'index.html' : url.pathname) });
+    });
+    await page.addInitScript(() => localStorage.setItem('atelier-gribouille:lang', 'fr'));
+    await page.goto('http://accueil.test/');
+    const sw = page.locator('.lang-float');
+    await expect(sw).toBeVisible();
+    await expect(page.locator('header .lang-switch')).toHaveCount(0);
+    const where = () => sw.evaluate((e) => { const r = e.getBoundingClientRect(); return { right: Math.round(innerWidth - r.right), bottom: Math.round(innerHeight - r.bottom) }; });
+    expect(await where()).toEqual({ right: 16, bottom: 16 });
+    await page.evaluate(() => window.scrollTo(0, 1500));
+    expect(await where()).toEqual({ right: 16, bottom: 16 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(opts.viewport.width);
+    await sw.locator('[data-lang="en"]').click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await ctx.close();
+  }
+});
