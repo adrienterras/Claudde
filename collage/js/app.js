@@ -5586,6 +5586,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }));
   $('empty-change').addEventListener('click', () => emptyChoice(false));
   $('empty-drop').addEventListener('click', () => $('file').click());
+  // Importer : Photothèque et Fichiers (Prendre une photo : camera-open, plus haut)
+  $('import-photos').addEventListener('click', () => $('file').click());
+  $('import-files').addEventListener('click', () => $('file-docs').click());
   // téléphone : « Ajouter des dessins » ouvre le choix — Photothèque (le sélecteur du téléphone),
   // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (les PDF, dans Fichiers)
   (() => {

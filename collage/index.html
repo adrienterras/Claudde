@@ -152,16 +152,18 @@
     <section id="import-section" class="step">
       <h2><span class="num">01</span> Importer</h2>
       <p id="draft-offer" class="alert" hidden><span></span> <button type="button" id="draft-resume" class="link" hidden>Reprendre</button> <button type="button" id="draft-forget" class="link" hidden>Ne pas la rouvrir</button></p>
-      <!-- sur téléphone seulement (style.css) : photographier un dessin, avant le dépôt de fichiers -->
-      <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
-      <label id="drop" class="drop">
+      <!-- l'ajout de dessins : les mêmes choix qu'au premier import — Photothèque (le sélecteur de l'appareil),
+           Prendre une photo (l'appareil photo de l'atelier, écran tactile seulement), Fichiers (les PDF) ;
+           des fichiers déposés sur la page sont aussi importés -->
+      <div id="drop" class="import-choices">
         <input id="file" type="file" multiple accept="application/pdf,image/*,image/heic,image/heif" hidden>
-        <!-- « Fichiers » du choix d'ajout (téléphone) : les PDF seulement, pour qu'iOS ouvre Fichiers et non la photothèque -->
+        <!-- « Fichiers » : les PDF seulement, pour qu'iOS ouvre Fichiers et non la photothèque -->
         <input id="file-docs" type="file" multiple accept="application/pdf,.pdf" hidden>
-        <svg class="ico ico-lg"><use href="#i-upload"/></svg>
-        <strong>Déposez les photos ou les scans des dessins</strong>
-        <span>PDF de plusieurs pages, JPG ou PNG</span>
-      </label>
+        <button type="button" id="import-photos" class="btn btn-primary"><svg class="ico"><use href="#i-frame"/></svg><span>Photothèque</span></button>
+        <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Prendre une photo</span></button>
+        <button type="button" id="import-files" class="btn"><svg class="ico"><use href="#i-file"/></svg><span>Fichiers</span></button>
+        <p class="hint">Photothèque : photos ou scans déjà sur l’appareil · Fichiers : PDF de plusieurs pages</p>
+      </div>
       <!-- « Importer une meilleure version » d'un dessin (fiche du dessin) -->
       <input id="replace-file" type="file" accept="application/pdf,image/*,image/heic,image/heif" hidden>
       <p id="import-account" class="hint import-account" hidden>Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier ou exporter, et il garde vos œuvres sur tous vos appareils.</p>

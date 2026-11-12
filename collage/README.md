@@ -102,9 +102,12 @@ cd collage && python3 -m http.server 8000
    fichiers) ; photographier depuis l'atelier, exporter ou commander ouvre la fenêtre
    de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
    fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
-1. **Importer** les scans : PDF multipages, JPG ou PNG (glisser-déposer), ou **photographier les
-   dessins depuis l'atelier** (`js/camera.js`, bouton « Photographier un dessin » au-dessus de la
-   zone de dépôt, sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,
+1. **Importer** les scans : PDF multipages, JPG ou PNG. La section Importer propose les mêmes choix
+   qu'au premier import (`#drop`, `.import-choices`) : « Photothèque » (`#import-photos`, le sélecteur
+   de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, les PDF) ; des fichiers
+   glissés-déposés sur la page sont aussi importés. **Photographier les
+   dessins depuis l'atelier** (`js/camera.js`, bouton « Prendre une photo », `#camera-open`,
+   sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,
    iPad en paysage compris : la visée y reste en plein écran) ; pas sur un ordinateur sans écran
    tactile — et quand le navigateur donne accès à l'appareil photo ; les conseils de prise de vue sont dans les questions fréquentes de l'accueil) : d'abord une fenêtre de conseil (« Avant de photographier » : le dessin bien à plat sur un fond clair et uni, bonne lumière, sans ombre portée ; « Ne plus afficher ce conseil » la retient, `atelier.conseil-photo-vu`), puis pendant la visée, chaque image est jugée sur
    **l'éclairage** et l'écran ne donne qu'**une consigne à la fois** (« Ombre sur la feuille :

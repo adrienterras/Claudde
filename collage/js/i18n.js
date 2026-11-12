@@ -48,7 +48,6 @@
     'Enregistrer': 'Save',
     'Se déconnecter': 'Sign out',
     'Importer': 'Import',
-    'Déposez les photos ou les scans des dessins': 'Drop the photos or scans of the drawings',
     'PDF de plusieurs pages, JPG ou PNG': 'Multi-page PDF, JPG or PNG',
     // prise de photo dans l'atelier
     'Photographier un dessin': 'Photograph a drawing',

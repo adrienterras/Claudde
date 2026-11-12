@@ -22,6 +22,12 @@ test.describe('Interface', () => {
     await expect(page.locator('#import-section')).toBeVisible();
     await page.locator('#import-section > h2').click();
     await expect(page.locator('#drop')).toBeVisible();
+    // les mêmes choix qu'au premier import : Photothèque, Fichiers (Prendre une photo : écran tactile seulement)
+    await expect(page.locator('#import-photos')).toBeVisible();
+    await expect(page.locator('#import-files')).toBeVisible();
+    await expect(page.locator('#camera-open')).toBeHidden();
+    const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#import-files').click()]);
+    expect(await ch.element().getAttribute('accept')).not.toContain('image');
     await page.locator('#import-section > h2').click();
     await expect(page.locator('#sizes-section')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#compose-section')).not.toHaveClass(/collapsed/);
