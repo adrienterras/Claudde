@@ -107,7 +107,6 @@
     'Exemple chargé : des dessins de démonstration. Ajoutez vos scans, ou': 'Sample loaded: demonstration drawings. Add your scans, or',
     'repartez de zéro': 'start over',
     'Propositions': 'Proposals',
-    'Choisissez une proposition : elle s’affiche sur la toile, prête à retoucher ou à télécharger.': 'Pick a proposal: it appears on the canvas, ready to adjust or download.',
     'Nouvelles propositions': 'New proposals',
     'Réglages avancés': 'Advanced settings',
     'feuilles pâles': 'pale sheets',
