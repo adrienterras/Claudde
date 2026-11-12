@@ -96,15 +96,11 @@
       .nav nav a.nav-account { font-size: .8rem; gap: 4px; }
       .nav nav a.nav-account svg { width: 17px; height: 17px; }
     }
-    /* téléphone étroit : la marque plus compacte (logo seul au-dessus de 480 px de large, rien ne doit
-       pousser le choix de langue hors de l'écran) */
+    /* téléphone étroit : rien ne doit pousser le choix de langue hors de l'écran (la marque, « Atelier
+       Gribouille », reste entière) */
     @media (max-width: 480px) {
       .nav .wrap { width: calc(100% - 24px); gap: 8px; }
       .nav nav { gap: 7px; }
-      .brand { gap: 8px; }
-      .brand img { width: 28px; height: 28px; }
-      .brand b { font-size: 1.05rem; }
-      .brand small { display: none; }
       .nav nav a.nav-account { font-size: .74rem; }
       .nav nav .btn-sm { padding: 8px 10px; font-size: .76rem; }
       .lang-switch button { padding: 5px 6px; font-size: .68rem; }
