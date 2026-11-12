@@ -1255,6 +1255,14 @@ body.stage-full .scene-open { display: none; }
 }
 .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 520px; margin-top: 6px; pointer-events: auto; }
 .empty-import { display: grid; gap: 10px; width: 100%; max-width: 420px; margin-top: 6px; pointer-events: auto; justify-items: stretch; }
+/* téléphone : un seul bouton « Ajouter des dessins » (le choix s'ouvre dans une fenêtre) ; ordinateur et iPad : déposer, et photographier si tactile */
+.empty-add { display: none; }
+@media (max-width: 860px) {
+  .empty-import #empty-drop, .empty-import #empty-camera { display: none !important; }
+  .empty-import .empty-add { display: inline-flex; }
+}
+.import-pick-card .btn { width: 100%; justify-content: center; margin: 0; }
+.import-pick-card .acc-title { margin: 0 0 4px; }
 .empty-import .hint { margin: 0; }
 .empty-import .link { justify-self: center; font-size: 0.82rem; color: var(--ink-2); }
 .mode-pick-title { grid-column: 1 / -1; margin: 0; font-weight: 600; color: var(--ink); }

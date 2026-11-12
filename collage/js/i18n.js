@@ -52,6 +52,11 @@
     'PDF de plusieurs pages, JPG ou PNG': 'Multi-page PDF, JPG or PNG',
     // prise de photo dans l'atelier
     'Photographier un dessin': 'Photograph a drawing',
+    'Ajouter des dessins': 'Add drawings',
+    'Photothèque': 'Photo library',
+    'Prendre une photo': 'Take a photo',
+    'Fichiers': 'Files',
+    'Photothèque : photos ou scans déjà sur le téléphone · Fichiers : PDF de plusieurs pages': 'Photo library: photos or scans already on the phone · Files: multi-page PDFs',
     'Flash': 'Flash',
     'Changer de caméra': 'Switch camera',
     'Prendre la photo': 'Take the photo',

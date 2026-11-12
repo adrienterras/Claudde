@@ -1853,6 +1853,7 @@ test.describe('Couleur du fond', () => {
   });
 
   test('sur téléphone, à l’arrivée et après « nouvelle œuvre », le tiroir est baissé ; une carte, un onglet ou les dessins le remontent', async ({ browser }) => {
+    test.setTimeout(240000);
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await ctx.newPage();
@@ -1865,8 +1866,33 @@ test.describe('Couleur du fond', () => {
     await p.locator('#mode-pick [data-mode="toile"]').click();
     await expect(p.locator('body')).toHaveClass(/stage-full/);
     await expect(p.locator('#empty-import')).toBeVisible();
-    await expect(p.locator('#empty-drop')).toBeVisible();
-    await expect(p.locator('#empty-camera')).toBeVisible();
+    // téléphone : un seul bouton, qui ouvre le choix (photothèque, appareil photo de l'atelier, fichiers)
+    await expect(p.locator('#empty-add')).toBeVisible();
+    await expect(p.locator('#empty-drop')).toBeHidden();
+    await expect(p.locator('#empty-camera')).toBeHidden();
+    await p.locator('#empty-add').click();
+    await expect(p.locator('#import-pick')).toBeVisible();
+    await expect(p.locator('#pick-photos')).toBeVisible();
+    await expect(p.locator('#pick-camera')).toBeVisible();
+    await expect(p.locator('#pick-files')).toBeVisible();
+    // « Fichiers » : le sélecteur de fichiers, limité aux PDF (iOS ouvre alors Fichiers, pas la photothèque)
+    const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pick-files').click()]);
+    expect(chooser.isMultiple()).toBe(true);
+    expect(await chooser.element().getAttribute('accept')).toContain('application/pdf');
+    expect(await chooser.element().getAttribute('accept')).not.toContain('image');
+    await expect(p.locator('#import-pick')).toBeHidden();
+    // « Photothèque » : le sélecteur habituel (photos et PDF)
+    await p.locator('#empty-add').click();
+    const [chooser2] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pick-photos').click()]);
+    expect(await chooser2.element().getAttribute('id')).toBe('file');
+    await expect(p.locator('#import-pick')).toBeHidden();
+    // « Prendre une photo » : l'appareil photo de l'atelier (le conseil d'abord), pas celui du téléphone
+    await p.locator('#empty-add').click();
+    await p.locator('#pick-camera').click();
+    await expect(p.locator('#import-pick')).toBeHidden();
+    await expect(p.locator('#camera-advice')).toBeVisible();
+    await p.locator('#camera-advice [data-close]').click(); // (le conseil se ferme sans ouvrir l'appareil)
+    await expect(p.locator('#camera-advice')).toBeHidden();
     // les premiers dessins : le tiroir se ferme entièrement, l'œuvre prend l'écran ; l'onglet Tailles
     // (une toile : les tailles des feuilles à vérifier) est prêt pour quand on le remonte
     await p.setInputFiles('#file', [fixture('page-cutout.png')]);

@@ -157,6 +157,8 @@
       <button type="button" id="camera-open" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
       <label id="drop" class="drop">
         <input id="file" type="file" multiple accept="application/pdf,image/*,image/heic,image/heif" hidden>
+        <!-- « Fichiers » du choix d'ajout (téléphone) : les PDF seulement, pour qu'iOS ouvre Fichiers et non la photothèque -->
+        <input id="file-docs" type="file" multiple accept="application/pdf,.pdf" hidden>
         <svg class="ico ico-lg"><use href="#i-upload"/></svg>
         <strong>Déposez les photos ou les scans des dessins</strong>
         <span>PDF de plusieurs pages, JPG ou PNG</span>
@@ -485,6 +487,8 @@
         <!-- le type choisi : les cartes laissent la place aux boutons d'import (l'étape Importer du menu reste, pour en ajouter ensuite) -->
         <div id="empty-import" class="empty-import" hidden>
           <p class="mode-pick-title" id="empty-import-title"></p>
+          <!-- téléphone : un seul bouton, qui ouvre le choix (photothèque, appareil photo de l'atelier, fichiers) -->
+          <button type="button" id="empty-add" class="btn btn-primary empty-add"><svg class="ico"><use href="#i-plus"/></svg><span>Ajouter des dessins</span></button>
           <button type="button" id="empty-drop" class="btn btn-primary"><svg class="ico"><use href="#i-upload"/></svg><span>Déposer les photos ou les scans des dessins</span></button>
           <button type="button" id="empty-camera" class="btn camera-open" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Photographier un dessin</span></button>
           <p class="hint">PDF de plusieurs pages, JPG ou PNG</p>
@@ -534,8 +538,21 @@
   </section>
 
   <!-- « Photographier un dessin » : un conseil avant d'ouvrir l'appareil photo (fond clair) -->
+  <!-- téléphone : le choix d'ajout des dessins (photothèque, appareil photo de l'atelier, fichiers) -->
+  <section id="import-pick" class="account-modal resume-modal" hidden role="dialog" aria-modal="true" aria-labelledby="import-pick-title">
+    <div class="acc-card resume-card import-pick-card">
+      <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
+      <h2 id="import-pick-title" class="acc-title">Ajouter des dessins</h2>
+      <button type="button" id="pick-photos" class="btn btn-primary"><svg class="ico"><use href="#i-frame"/></svg><span>Photothèque</span></button>
+      <button type="button" id="pick-camera" class="btn" hidden><svg class="ico"><use href="#i-camera"/></svg><span>Prendre une photo</span></button>
+      <button type="button" id="pick-files" class="btn"><svg class="ico"><use href="#i-file"/></svg><span>Fichiers</span></button>
+      <p class="hint resume-note">Photothèque : photos ou scans déjà sur le téléphone · Fichiers : PDF de plusieurs pages</p>
+    </div>
+  </section>
+
   <section id="camera-advice" class="account-modal resume-modal" hidden role="dialog" aria-modal="true" aria-labelledby="camera-advice-title">
     <div class="acc-card resume-card">
+      <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
       <h2 id="camera-advice-title" class="acc-title">Avant de photographier</h2>
       <p class="hint resume-text">Pour un résultat optimal, posez le dessin bien à plat sur un fond clair et uni (table claire, drap, grande feuille blanche), dans une pièce bien éclairée, sans ombre portée.</p>
       <button type="button" id="camera-advice-go" class="btn btn-primary"><svg class="ico"><use href="#i-camera"/></svg><span>Ouvrir l’appareil photo</span></button>

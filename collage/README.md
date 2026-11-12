@@ -20,8 +20,12 @@ cd collage && python3 -m http.server 8000
    ligne centrée — à la première visite et après « Commencer une nouvelle œuvre », aucune
    carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
    interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
-   « Tester » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer ;
-   photographier sur téléphone ; « Changer de type d'œuvre » ramène les cartes — `emptyChoice`),
+   « Tester » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer, et
+   photographier sur iPad ; sur téléphone, un seul bouton « Ajouter des dessins » (`#empty-add`) ouvre
+   le choix (`#import-pick`) : « Photothèque » (le sélecteur du téléphone, `#file`), « Prendre une
+   photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF
+   seulement, pour qu'iOS ouvre Fichiers et non la photothèque) ; « Changer de type d'œuvre » ramène
+   les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
    le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).
    - **Création imprimée à partir de vos dessins** (atelier « impression » dans le code : `mode=impression` ; le produit s'appelle « tableau imprimé ») : l'œuvre est composée à la taille exacte de l'impression d'un des

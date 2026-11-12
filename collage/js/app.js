@@ -5512,6 +5512,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const openCamera = requireAccount(tr('photographier vos dessins'), cameraTip);
     $('camera-open').addEventListener('click', openCamera);
     $('empty-camera').addEventListener('click', openCamera);
+    // « Prendre une photo » du choix d'ajout (téléphone) : l'appareil photo de l'atelier, jamais celui d'iOS
+    $('pick-camera').hidden = false;
+    $('pick-camera').addEventListener('click', (e) => { closeModal($('import-pick')); openCamera(e); });
   }
   ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
@@ -5565,6 +5568,19 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }));
   $('empty-change').addEventListener('click', () => emptyChoice(false));
   $('empty-drop').addEventListener('click', () => $('file').click());
+  // téléphone : « Ajouter des dessins » ouvre le choix — Photothèque (le sélecteur du téléphone),
+  // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (les PDF, dans Fichiers)
+  (() => {
+    const el = $('import-pick');
+    if (!el) return;
+    $('empty-add').addEventListener('click', () => openModal(el));
+    el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
+    el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) closeModal(el); });
+    $('pick-photos').onclick = () => { closeModal(el); $('file').click(); };
+    $('pick-files').onclick = () => { closeModal(el); $('file-docs').click(); };
+    $('file-docs').addEventListener('change', (e) => { const files = Array.from(e.target.files); e.target.value = ''; importUserFiles(files); });
+  })();
   initMode();
   $('export-margin').querySelectorAll('[data-margin]').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); updateExportInfo(); }));
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
@@ -7724,7 +7740,7 @@ Réponds uniquement avec ce JSON :
   })();
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
   const closeModal = (el) => { el.hidden = true; };
-  ['cart-add', 'cart', 'shortcuts'].forEach((id) => {
+  ['cart-add', 'cart', 'shortcuts', 'camera-advice'].forEach((id) => { // (le conseil photo se ferme aussi sans ouvrir l'appareil)
     const el = $(id);
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
     el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
