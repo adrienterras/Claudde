@@ -193,6 +193,7 @@
       .hero { grid-template-columns: 1fr; padding-top: 40px; gap: 36px; }
       .hero-art { order: -1; padding: 0 10px; }
       .hero-cta-sm { display: flex; width: calc(100% - 20px); margin: 34px auto 0; justify-content: center; }
+      .hero-cta-lg { display: none; } /* (téléphone : « Créer une œuvre » est sous l'image) */
       .video-band + .hero { padding-top: 40px; }
       .scenes, .steps, .styles { grid-template-columns: 1fr; }
       .duo-sec { grid-template-columns: 1fr; gap: 36px; }
@@ -259,6 +260,7 @@
         <h1>Les dessins d’enfants deviennent <em>des œuvres d’art</em></h1>
         <p class="lead">Scannez ou prenez en photo les dessins qui s’accumulent. L’atelier les découpe comme avec des ciseaux et compose une œuvre unique : à imprimer, ou à réaliser à la main avec les dessins originaux, pour l’accrocher chez vous.</p>
         <div class="actions">
+          <a class="btn btn-primary hero-cta-lg" href="atelier/?nouveau" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>Créer une œuvre</a>
           <a class="btn btn-ghost" href="atelier/?exemple" target="_blank" rel="noopener">Tester avec un exemple</a>
         </div>
         <p class="reassure">Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.</p>
