@@ -5576,9 +5576,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const el = $('import-pick');
     if (!el) return;
     $('empty-add').addEventListener('click', () => openModal(el));
-    el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
-    el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) closeModal(el); });
+    // fermé sans rien choisir (croix, fond, Échap) : retour aux deux cartes du choix d'atelier
+    const dismiss = () => { closeModal(el); if (mobileQuery.matches && !state.drawings.length && !$('empty').hidden) emptyChoice(false); };
+    el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = dismiss));
+    el.addEventListener('click', (e) => { if (e.target === el) dismiss(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) dismiss(); });
     $('pick-photos').onclick = () => { closeModal(el); $('file').click(); };
     $('pick-files').onclick = () => { closeModal(el); $('file-docs').click(); };
     $('file-docs').addEventListener('change', (e) => { const files = Array.from(e.target.files); e.target.value = ''; importUserFiles(files); });

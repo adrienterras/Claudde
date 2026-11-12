@@ -22,7 +22,8 @@ cd collage && python3 -m http.server 8000
    interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
    « Tester avec un exemple » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer, et
    photographier sur iPad ; sur téléphone, le choix d'ajout (`#import-pick`) s'ouvre dès la carte
-   touchée, et un seul bouton « Ajouter des dessins » (`#empty-add`) le rouvre : « Photothèque » (le sélecteur du téléphone, `#file`), « Prendre une
+   touchée (fermé sans rien choisir, retour aux deux cartes), et un seul bouton « Ajouter des
+   dessins » (`#empty-add`) le rouvre : « Photothèque » (le sélecteur du téléphone, `#file`), « Prendre une
    photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF
    seulement, pour qu'iOS ouvre Fichiers et non la photothèque) ; « Changer de type d'œuvre » ramène
    les cartes — `emptyChoice`),

@@ -1865,25 +1865,29 @@ test.describe('Couleur du fond', () => {
     // une carte : les boutons d'import prennent sa place au milieu (déposer, photographier), le tiroir reste baissé
     await p.locator('#mode-pick [data-mode="toile"]').click();
     await expect(p.locator('body')).toHaveClass(/stage-full/);
-    // téléphone : la carte choisie, le choix d'ajout s'ouvre tout de suite ; fermé, un seul bouton le rouvre
-    await expect(p.locator('#import-pick')).toBeVisible();
-    await p.locator('#import-pick [data-close]').click();
-    await expect(p.locator('#import-pick')).toBeHidden();
-    await expect(p.locator('#empty-import')).toBeVisible();
-    await expect(p.locator('#empty-add')).toBeVisible();
-    await expect(p.locator('#empty-drop')).toBeHidden();
-    await expect(p.locator('#empty-camera')).toBeHidden();
-    await p.locator('#empty-add').click();
+    // téléphone : la carte choisie, le choix d'ajout s'ouvre tout de suite ; fermé sans rien choisir,
+    // retour aux deux cartes
     await expect(p.locator('#import-pick')).toBeVisible();
     await expect(p.locator('#pick-photos')).toBeVisible();
     await expect(p.locator('#pick-camera')).toBeVisible();
     await expect(p.locator('#pick-files')).toBeVisible();
+    await p.locator('#import-pick [data-close]').click();
+    await expect(p.locator('#import-pick')).toBeHidden();
+    await expect(p.locator('#mode-pick')).toBeVisible();
+    await expect(p.locator('#empty-import')).toBeHidden();
+    await p.locator('#mode-pick [data-mode="toile"]').click();
+    await expect(p.locator('#import-pick')).toBeVisible();
     // « Fichiers » : le sélecteur de fichiers, limité aux PDF (iOS ouvre alors Fichiers, pas la photothèque)
     const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pick-files').click()]);
     expect(chooser.isMultiple()).toBe(true);
     expect(await chooser.element().getAttribute('accept')).toContain('application/pdf');
     expect(await chooser.element().getAttribute('accept')).not.toContain('image');
     await expect(p.locator('#import-pick')).toBeHidden();
+    // un choix fait (même annulé par le téléphone) : les boutons d'import restent, un seul, qui rouvre le choix
+    await expect(p.locator('#empty-import')).toBeVisible();
+    await expect(p.locator('#empty-add')).toBeVisible();
+    await expect(p.locator('#empty-drop')).toBeHidden();
+    await expect(p.locator('#empty-camera')).toBeHidden();
     // « Photothèque » : le sélecteur habituel (photos et PDF)
     await p.locator('#empty-add').click();
     const [chooser2] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pick-photos').click()]);
