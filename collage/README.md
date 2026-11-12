@@ -366,7 +366,7 @@ cd collage && python3 -m http.server 8000
      fichier a le sien), l'article les garde (`it.size`, `it.margin`, finition papier) et son libellé
      les dit (« Fichier HD 40 × 50 cm, avec une bordure blanche de 3 cm ») ; un CTA « Commander » bien en vue, avec l'icône d'un sac (sur ordinateur, en bas à droite de l'œuvre, juste
      au-dessus de la barre de zoom ; sur
-     téléphone, petit, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils) ouvre le choix du produit pour la composition affichée (avec
+     téléphone, petit, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils, tiroir baissé compris : `body.stage-full .stage-cta`) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » en haut à
      droite de la zone d'édition, en face de « Mettre en scène » (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
      présente, avec le compteur en pastille) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou

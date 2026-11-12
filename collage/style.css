@@ -1167,6 +1167,8 @@ body.stage-full .scene-open { display: none; }
   body.stage-full .stage canvas { height: calc(100% - 60px - 44px - env(safe-area-inset-top, 0px)); }
   /* le curseur « Nombre de dessins » reste, en bas de l'œuvre agrandie (l'œuvre lui laisse sa place) */
   body.stage-full .density-bar { display: flex; bottom: 6px; }
+  /* « Commander » reste visible tiroir baissé : au-dessus du curseur, à gauche (les pastilles sont à droite) */
+  body.stage-full .stage-cta { display: block; left: 10px; bottom: 60px; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
   .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }

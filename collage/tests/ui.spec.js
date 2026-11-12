@@ -1474,6 +1474,11 @@ test.describe('Plein écran sur téléphone', () => {
     const dens = await page.locator('#density-bar').boundingBox();
     expect(dens.y + dens.height).toBeLessThanOrEqual(tabs.y + 1);
     expect(dens.y).toBeGreaterThanOrEqual(canvas.y + canvas.height - 1);
+    // « Commander » aussi, juste au-dessus du curseur, à gauche (les pastilles rondes sont à droite)
+    await expect(page.locator('.order-cta-desk')).toBeVisible();
+    const cta = await page.locator('.order-cta-desk').boundingBox(), fab = await page.locator('#stage-generate').boundingBox();
+    expect(cta.y + cta.height).toBeLessThanOrEqual(dens.y + 1);
+    expect(cta.x + cta.width).toBeLessThan(fab.x);
     await expect(page.locator('#sheet-tabs [data-tab="drawings-section"]')).toBeVisible();
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
     await expect(page.locator('body')).not.toHaveClass(/stage-full/);
