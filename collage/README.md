@@ -16,7 +16,7 @@ cd collage && python3 -m http.server 8000
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs (`?connexion` et `?compte`, depuis
    le lien compte de leur en-tête, ouvrent le panneau du compte à l'arrivée — voir docs/COMPTES.md), sinon les deux cartes au
    milieu de l'atelier vide, côte à côte, chacune avec une photo de l'accueil du site recadrée en 4:3
-   (`assets/mode-impression.jpg` : la création encadrée dans la chambre ; `assets/mode-originaux.jpg` :
+   (`assets/mode-impression.jpg` : la création encadrée au-dessus du buffet du salon, cadre entier ; `assets/mode-originaux.jpg` :
    la toile de dessins collés dans le salon), un titre court (« Impression », « Originaux ») et une
    ligne centrée — à la première visite et après « Commencer une nouvelle œuvre », aucune
    carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
