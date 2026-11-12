@@ -2130,8 +2130,13 @@ test.describe('Mettre en scène', () => {
         await expect(page.locator('#scene-format')).toBeHidden();
         await expect(page.locator('#scene-orient')).toBeHidden();
         expect(await page.locator('#scene-canvas').evaluate((c) => c.clientWidth)).toBeGreaterThan(600);
-        // (plus de bouton « Télécharger la mise en scène »)
-        await expect(page.locator('#scene-save')).toHaveCount(0);
+        // la mise en scène se télécharge en JPEG, 2000 × 1500 px
+        const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#scene-save').click()]);
+        expect(dl.suggestedFilename()).toBe('mise-en-scene-atelier-gribouille.jpg');
+        const buf = require('fs').readFileSync(await dl.path());
+        expect(buf[0]).toBe(0xff); expect(buf[1]).toBe(0xd8);
+        const dims = await page.evaluate((b64) => new Promise((res) => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.src = 'data:image/jpeg;base64,' + b64; }), buf.toString('base64'));
+        expect(dims).toEqual([2000, 1500]);
         // « Commander l'œuvre » : la fenêtre se ferme, le choix du produit s'ouvre
         await page.locator('#scene-order').click();
         await expect(page.locator('#scene-modal')).toBeHidden();

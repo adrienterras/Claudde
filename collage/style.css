@@ -946,6 +946,9 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
 body.mode-toile .scene-modal .scene-room [data-room="salle"] { grid-column: 1 / -1; }
 /* le bouton de téléchargement tient sur une ligne dans la colonne des réglages (iPad, petit écran) */
 /* « Commander l'œuvre » : dans la fenêtre seulement (sur téléphone, le bouton flottant s'en charge) */
+.scene-save { justify-content: center; }
+/* le bouton de téléchargement tient sur une ligne dans la colonne des réglages (iPad, petit écran) */
+.scene-modal #scene-save { white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; }
 .scene-order { display: none; }
 .scene-modal .scene-order { display: inline-flex; white-space: nowrap; font-size: 0.88rem; padding-left: 14px; padding-right: 14px; justify-content: center; }
 .scene-modal .scene-frame { margin: 0; width: min(100%, calc((100vh - 170px) * 4 / 3)); }
