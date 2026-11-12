@@ -6078,6 +6078,15 @@ Réponds uniquement avec ce JSON :
   };
   // une nouvelle visite (adresse tapée, lien, onglet rouvert) ; ni une actualisation ni un retour en
   // arrière, ni le retour d'une connexion (code ou jeton dans l'adresse)
+  // retire un paramètre de l'adresse sans recharger (window.history : « history » est ici celui de Défaire)
+  function forgetParam(...names) {
+    try {
+      const url = new URL(location.href);
+      if (!names.some((n) => url.searchParams.has(n))) return;
+      names.forEach((n) => url.searchParams.delete(n));
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    } catch (e) { /* ignoré */ }
+  }
   function newVisit() {
     let type = '';
     try { const e = performance.getEntriesByType('navigation')[0]; type = e ? e.type : ''; } catch (e) { type = ''; }
@@ -6116,11 +6125,15 @@ Réponds uniquement avec ce JSON :
     // « Créer mon œuvre » (atelier/?nouveau) ou « Tester » (atelier/?exemple) depuis
     // l'accueil : l'atelier s'ouvre vide (puis avec les seuls dessins d'exemple), l'œuvre affichée la
     // dernière fois est seulement proposée, jamais mélangée à l'exemple
-    const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
     // « Créer mon œuvre » depuis l'accueil (atelier/?nouveau) : la même fenêtre qu'à une nouvelle
     // visite — reprendre l'œuvre en cours, ou en commencer une nouvelle (l'exemple garde son message,
     // puisqu'un exemple s'affiche derrière)
-    if (/[?&]nouveau\b/.test(location.search) && !crashed && !manual) { offerResume(rec); return; }
+    // (une actualisation ne redemande pas : l'adresse oublie « nouveau » dès qu'il a servi, et la question
+    // n'est posée qu'à une vraie arrivée — voir newVisit ; actualiser rouvre l'œuvre comme d'habitude)
+    const nouveau = /[?&]nouveau\b/.test(location.search);
+    if (nouveau) forgetParam('nouveau');
+    const fresh = /[?&]exemple\b/.test(location.search) || (nouveau && newVisit());
+    if (nouveau && !crashed && !manual && newVisit()) { offerResume(rec); return; }
     if ((crashed || fresh) && !manual) {
       box.querySelector('span').textContent = fresh
         ? tr`Votre dernière œuvre (${rec.drawings.length} dessins) est gardée dans Mes œuvres.`

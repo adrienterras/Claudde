@@ -397,6 +397,16 @@ test.describe('Réouverture fidèle des retouches', () => {
     // Reprendre : l'œuvre revient
     await page.locator('#resume-yes').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // l'adresse a oublié « nouveau » : actualiser rouvre l'œuvre sans redemander
+    expect(await page.evaluate(() => location.search)).not.toContain('nouveau');
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3, null, { timeout: 120000 });
+    await expect(page.locator('#resume-modal')).toBeHidden();
+    // actualiser une adresse qui a encore « nouveau » (un ancien onglet) ne redemande pas non plus
+    await page.evaluate(() => window.history.replaceState(null, '', location.pathname + '?nouveau'));
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3, null, { timeout: 120000 });
+    await expect(page.locator('#resume-modal')).toBeHidden();
     // sans le paramètre, une nouvelle visite demande d'abord : reprendre, ou nouvelle œuvre
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
