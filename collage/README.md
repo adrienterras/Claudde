@@ -17,7 +17,7 @@ cd collage && python3 -m http.server 8000
    milieu de l'atelier vide — à la première visite et après « Commencer une nouvelle œuvre », aucune
    carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
    interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
-   « Voir un exemple » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer ;
+   « Tester » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer ;
    photographier sur téléphone ; « Changer de type d'œuvre » ramène les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
    le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).
@@ -87,7 +87,7 @@ cd collage && python3 -m http.server 8000
      (`state.formatManual`), son choix est gardé pour toutes les propositions, jusqu'à une nouvelle
      œuvre ou un changement d'atelier ; une composition rouverte garde sa toile.
 1. **Compte requis pour photographier, pas pour importer** (quand les comptes sont actifs,
-   `config.js`) : sans être connecté, on peut voir et manipuler l'exemple (« Voir un exemple »,
+   `config.js`) : sans être connecté, on peut voir et manipuler l'exemple (« Tester »,
    `?exemple`) et importer ses propres dessins (zone d'import, glisser-déposer, sélecteur de
    fichiers) ; photographier depuis l'atelier, exporter ou commander ouvre la fenêtre
    de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
@@ -762,7 +762,7 @@ cd collage && python3 -m http.server 8000
      entièrement (`setStageFull(true)` : l'œuvre prend l'écran, la pastille « Nouvelles propositions »
      dans l'angle), l'onglet prêt pour quand on le remonte (Propositions pour un tableau imprimé,
      Tailles pour un collage) ; l'étape Importer ne propose plus l'exemple ni
-     « commencer une nouvelle œuvre » en phrases (le bouton « Voir un exemple » de l'accueil vide et le
+     « commencer une nouvelle œuvre » en phrases (le bouton « Tester » de l'accueil vide et le
      bouton « Commencer une nouvelle œuvre » suffisent : au-dessus du titre « 01 Importer » sur
      ordinateur, sous le consentement de détourage dans Importer sur téléphone — `placeNewWork`) ;
    - **fond de toile** : au choix, la toile nue (lin ; en Impression, « sans couleur » : blanc pur) ou un aplat d'acrylique dans les teintes

@@ -6094,7 +6094,7 @@ Réponds uniquement avec ce JSON :
     }
     let crashed = false;
     try { crashed = Date.now() - Number(localStorage.getItem(RESUME_KEY) || 0) < 15 * 60e3; } catch (e) { crashed = false; }
-    // « Créer mon œuvre » (atelier/?nouveau) ou « Voir un exemple » (atelier/?exemple) depuis
+    // « Créer mon œuvre » (atelier/?nouveau) ou « Tester » (atelier/?exemple) depuis
     // l'accueil : l'atelier s'ouvre vide (puis avec les seuls dessins d'exemple), l'œuvre affichée la
     // dernière fois est seulement proposée, jamais mélangée à l'exemple
     const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
