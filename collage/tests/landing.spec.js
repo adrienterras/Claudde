@@ -106,3 +106,53 @@ test('accueil et Tarifs : le choix de langue flotte en bas à droite, sur télé
     await ctx.close();
   }
 });
+
+// Sur téléphone, l'accueil a un menu à trois traits : les sections de la page et les autres pages ;
+// il se referme en choisissant un lien, par Échap ou en touchant ailleurs. Pas de menu sur ordinateur.
+test('accueil : menu à trois traits sur téléphone, avec les sections et les pages du site', async ({ browser }) => {
+  const serve = (page) => page.route('http://accueil.test/**', (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith('/atelier/')) return route.fulfill({ status: 404, body: '' });
+    return route.fulfill({ path: path.join(LANDING, url.pathname === '/' ? 'index.html' : url.pathname) });
+  });
+  const ctx = await browser.newContext(PHONE);
+  const page = await ctx.newPage();
+  await serve(page);
+  await page.addInitScript(() => localStorage.setItem('atelier-gribouille:lang', 'fr'));
+  await page.goto('http://accueil.test/');
+  const burger = page.locator('#nav-burger');
+  const menu = page.locator('#nav-menu');
+  await expect(burger).toBeVisible();
+  await expect(menu).toBeHidden();
+  await burger.click();
+  await expect(menu).toBeVisible();
+  await expect(burger).toHaveAttribute('aria-expanded', 'true');
+  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'Les styles', 'Chez vous', 'L’atelier', 'Tarifs', 'Idées', 'Photographier les dessins', 'Contact']);
+  const hrefs = await menu.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+  expect(hrefs).toEqual(['#comment', '#styles', '#chez-vous', 'atelier/', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'mailto:bonjour@atelier-gribouille.com']);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  // un lien de section : on y va, le menu se referme
+  await menu.locator('a[href="#styles"]').click();
+  await expect(menu).toBeHidden();
+  await expect(burger).toHaveAttribute('aria-expanded', 'false');
+  // Échap, puis toucher ailleurs
+  await burger.click();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await burger.click();
+  await page.mouse.click(200, 700);
+  await expect(menu).toBeHidden();
+  // en anglais : traduit
+  await page.goto('http://accueil.test/?lang=en');
+  await page.locator('#nav-burger').click();
+  await expect(page.locator('#nav-menu a').nth(6)).toHaveText('Photographing drawings');
+  await ctx.close();
+  // sur ordinateur : pas de menu, les sections restent dans l'en-tête
+  const ctx2 = await browser.newContext(DESK);
+  const page2 = await ctx2.newPage();
+  await serve(page2);
+  await page2.goto('http://accueil.test/');
+  await expect(page2.locator('#nav-burger')).toBeHidden();
+  await expect(page2.locator('header .wrap a[href="#styles"]')).toBeVisible();
+  await ctx2.close();
+});
