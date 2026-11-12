@@ -177,6 +177,27 @@ test.describe('Interface', () => {
     await ctx.close();
   });
 
+  // le curseur « Nombre de dessins » ne passe jamais sous le bouton rond, et son texte ne déborde pas,
+  // même sur un petit téléphone (sa largeur dépend du rendu de la police)
+  test('téléphone, tiroir baissé : le curseur « Nombre de dessins » tient à côté du bouton rond, de 320 à 390 px', async ({ browser }) => {
+    for (const width of [320, 360, 390]) {
+      const ctx = await browser.newContext({ viewport: { width, height: 800 }, isMobile: true, hasTouch: true });
+      const page = await ctx.newPage();
+      await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+      await page.goto('index.html?exemple');
+      await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
+      await page.evaluate(() => document.fonts.ready);
+      await page.evaluate(() => { document.body.classList.remove('sheet-tall', 'sheet-detail'); document.body.classList.add('stage-full'); });
+      const fab = page.locator('#stage-generate'), bar = page.locator('#density-bar');
+      await expect(fab).toBeVisible();
+      await expect(bar).toBeVisible();
+      const [a, b] = [await fab.boundingBox(), await bar.boundingBox()];
+      expect(b.x + b.width, `${width} px : le curseur s'arrête avant le bouton`).toBeLessThanOrEqual(a.x - 4);
+      // rien ne dépasse de la pastille du curseur
+      expect(await bar.evaluate((el) => el.scrollWidth <= el.clientWidth + 1), `${width} px : rien ne déborde`).toBe(true);
+      await ctx.close();
+    }
+  });
   test('téléphone, tiroir baissé : un bouton rond « Nouvelles propositions » dans l’angle bas droit de l’œuvre ; absent tiroir ouvert et sur ordinateur', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();

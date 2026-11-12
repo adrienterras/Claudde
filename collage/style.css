@@ -1185,7 +1185,9 @@ body.stage-full .scene-open { display: none; }
   body.stage-full .stage { bottom: var(--sheet); }
   body.stage-full .stage canvas { inset: calc(96px + env(safe-area-inset-top, 0px)) 0 auto 0; height: calc(100% - 96px - 44px - env(safe-area-inset-top, 0px)); } /* (96 : barre d'outils + « Mettre en scène ») */
   /* le curseur « Nombre de dessins » reste, en bas de l'œuvre agrandie (l'œuvre lui laisse sa place) */
-  body.stage-full .density-bar { display: flex; bottom: 6px; }
+  body.stage-full .density-bar { display: flex; bottom: 6px; max-width: calc(100% - 10px - 8px - 52px - 8px); } /* (jamais sous le bouton rond : 52 px à 8 px du bord, 8 px d'écart) */
+  body.stage-full .density-bar input[type=range] { flex: 1 1 100px; width: auto; min-width: 48px; }
+  body.stage-full .density-bar label { white-space: nowrap; }
   /* « Commander » reste visible tiroir baissé : au-dessus du curseur, à gauche (les pastilles sont à droite) */
   body.stage-full .stage-cta { display: block; left: 10px; bottom: 60px; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
@@ -1221,6 +1223,11 @@ body.stage-full .scene-open { display: none; }
   .density-bar input[type=range] { width: 100px; }
   .brand-name { font-size: 2.2rem; }
 
+}
+/* très petit téléphone : le curseur « Nombre de dessins » se resserre pour tenir à côté du bouton rond */
+@media (max-width: 340px) {
+  body.stage-full .density-bar { gap: 6px; padding: 6px 10px; }
+  body.stage-full .density-bar input[type=range] { min-width: 36px; }
 }
 
 /* ---------- Mes œuvres ---------- */
