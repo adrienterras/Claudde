@@ -35,7 +35,10 @@ def inline_assets(text):
 head = html[:html.find('</head>')]
 title = re.search(r'<title>.*?</title>', head).group(0)
 icons = re.findall(r'<link rel="(?:icon|apple-touch-icon)"[^>]*>', head)
-fonts = re.findall(r'<link rel="preconnect"[^>]*>|<link rel="stylesheet" href="https://fonts[^"]*">', head)
+# les polices : le site les sert lui-même (fonts/fonts.css) ; l'artefact, hébergé ailleurs et qui n'accepte de
+# feuilles de style externes que de Google Fonts, garde le lien Google (aperçu seulement, pas le site public)
+assert 'fonts/fonts.css' in head, 'index.html ne charge plus fonts/fonts.css'
+fonts = ['<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Montserrat:wght@400;500;600&display=swap">']
 parts = [title] + [inline_assets(l) for l in icons] + fonts + ['<style>\n' + inline_assets(css) + '\n</style>']
 # le corps, sans les balises de scripts (remises en ligne plus bas)
 body = html[html.find('<body'):]

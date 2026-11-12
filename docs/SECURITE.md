@@ -70,9 +70,6 @@ bas ; il reste quelques réglages à faire dans les tableaux de bord Supabase et
 - Le jeton de session Supabase est gardé dans `localStorage` (comportement par défaut de la
   librairie) : une injection de script le lirait. C'est pourquoi l'échappement HTML ci-dessus
   compte, et pourquoi aucune extension tierce n'est chargée en dehors d'Umami.
-- Google Fonts est chargé depuis les serveurs Google (adresse IP transmise). Toléré par la CNIL,
-  mais auto-héberger les deux polices serait plus propre ; à faire si on veut un site sans
-  aucun appel à Google.
 - jsPDF 2.5 (création du guide) tourne uniquement dans le navigateur de l'utilisateur sur ses
   propres données ; les vulnérabilités connues (déni de service par expression régulière) n'ont
   pas d'impact ici.
@@ -123,6 +120,7 @@ Corrigé :
   les tarifs, l'article et la page de confidentialité : scripts limités au site et à Umami (aucun
   script inline sauf celui de la page de confidentialité, autorisé par son empreinte), connexions
   limitées au site, à Supabase et à Umami, images au site, aux data/blob et aux avatars Google,
+  polices et feuilles de style au site seul (les polices sont auto-hébergées, voir plus bas),
   `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`. Une injection de script ne
   s'exécuterait plus et ne pourrait rien envoyer ailleurs : c'est la protection qui manquait au
   jeton de session gardé dans `localStorage`. Test `tests/csp.spec.js` : politique présente partout,
@@ -192,3 +190,15 @@ et la correction tient en une ligne par page.
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.
 - `grep -n "innerHTML" collage/js/app.js` : chaque interpolation de donnée passe par `esc()`.
 - `npm test` dans `collage/` : 98 tests, dont l'absence d'erreur de page et `tests/csp.spec.js`.
+
+## Polices auto-hébergées (novembre 2026)
+
+Montserrat et Playfair Display ne viennent plus de Google Fonts : le site les sert lui-même
+(`collage/fonts/`, publié sous `/atelier/fonts/`, avec `fonts.css` et les licences SIL OFL 1.1).
+Aucune page n'appelle plus `fonts.googleapis.com` ni `fonts.gstatic.com`, et la CSP ne les autorise
+plus : l'adresse IP des visiteurs n'est plus transmise à Google pour afficher les polices (risque
+RGPD relevé par la jurisprudence allemande de 2022 et par la CNIL). Seuls les sous-ensembles latin
+et latin étendu sont gardés (français, anglais), soit six fichiers woff2, environ 200 Ko. Test
+`tests/fonts.spec.js` : polices chargées sur chaque page, aucune requête vers Google. L'artefact
+d'aperçu (`tools/artefact.py`), hébergé ailleurs et qui n'accepte que Google Fonts comme feuille
+externe, garde le lien Google : il n'est pas le site public.

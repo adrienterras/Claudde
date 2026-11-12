@@ -1001,6 +1001,9 @@ taille réelle, son rôle et son orientation, et les autres dessins ne bougent p
 - `assets/` : éléments de la charte Atelier Gribouille (monogramme détouré, motif de crayons, pictogrammes).
   Palette : craie #F8F5EF, lin #DCCBB8, blush #D9A7A0, argile #C26F56, olive #6B6F4E ; typographies
   Playfair Display et Montserrat.
+- `fonts/` : les polices du site, Montserrat et Playfair Display (SIL OFL 1.1), servies par le site
+  lui-même et non par Google Fonts (`fonts.css`, sous-ensembles latin et latin étendu) ; l'accueil les
+  charge depuis `atelier/fonts/fonts.css`. Voir `docs/SECURITE.md`.
 - `vendor/` : [pdf.js](https://mozilla.github.io/pdf.js/) 3.11 (Apache 2.0) pour lire les PDF,
   [jsPDF](https://github.com/parallax/jsPDF) 2.5 (MIT) pour écrire le guide. Chargés à la demande
   (premier PDF importé, premier PDF exporté) : la page s'ouvre sans ces 680 Ko.
