@@ -75,7 +75,9 @@
     /* le compte : l'icône et « Se connecter », ou le prénom une fois connecté (compte.js) */
     .nav nav a.nav-account { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
     .nav nav a.nav-account svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-    .nav nav a.nav-account.on { color: var(--ink); font-weight: 600; }
+    /* connecté : la pastille et le prénom dans un contour fin, comme le compte de l'atelier (.acc-chip) */
+    .nav nav a.nav-account.on { color: var(--ink); font-weight: 600; gap: 8px; padding: 5px 14px 5px 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+    .nav nav a.nav-account.on:hover { border-color: var(--accent); }
     /* connecté : la pastille du compte, comme dans l'atelier (la photo, sinon l'initiale) */
     .nav nav a.nav-account .acc-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent) center / cover no-repeat; color: #f8f5ef; display: grid; place-items: center; font-style: normal; font-weight: 600; font-size: .72rem; line-height: 1; flex: none; }
     .nav nav a.nav-account svg[hidden] { display: none; }
@@ -213,6 +215,7 @@
       .nav nav a.nav-account { font-size: .8rem; gap: 4px; }
       .nav nav a.nav-account svg { width: 17px; height: 17px; }
       .nav nav a.nav-account .acc-avatar { width: 22px; height: 22px; font-size: .68rem; }
+      .nav nav a.nav-account.on { gap: 6px; padding: 4px 11px 4px 4px; }
     }
     /* téléphone étroit : l'en-tête tient sur l'écran (la marque, « Atelier Gribouille », reste entière) */
     @media (max-width: 480px) {
