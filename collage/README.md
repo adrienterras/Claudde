@@ -706,7 +706,9 @@ cd collage && python3 -m http.server 8000
      chaque touche en main eux-mêmes : pas de geste natif, chaque appui compte ; le pincement et le
      défilement restent possibles) ;
    - **« Nouvelles propositions » sur téléphone** : aussi un bouton rond noir (`#stage-generate`,
-     icône seule) au ras de l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
+     icône seule : la baguette magique `#i-wand`, comme le bouton et l'onglet Propositions ; l'étincelle
+     `#i-spark` reste à l'exemple, à la reprise et au réglage automatique des couleurs) au ras de
+     l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
      seule la barre d'onglets reste), qui fait la même chose ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
