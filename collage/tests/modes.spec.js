@@ -272,7 +272,19 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#cart-add input[value="print"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="hd"]')).toBeVisible();
     await expect(page.locator('#cart-add input[value="kit"]')).toBeHidden();
-    await expect(page.locator('.cart-what-size')).toContainText('tableau imprimé de 21 × 29,7 cm');
+    // le sous-titre suit le choix : la taille et la finition choisies, ou le fichier HD
+    await expect(page.locator('.cart-what-size')).toHaveText(/· (tableau encadré|affiche) de 21 × 30 cm$/);
+    const finish0 = await page.locator('#cart-add [data-finish].on').getAttribute('data-finish');
+    await page.locator('#cart-add [data-finish="cadre"]').click();
+    await page.locator('#cart-add .cart-print-sizes [data-size="40x50"]').click();
+    await expect(page.locator('.cart-what-size')).toHaveText(/· tableau encadré de 40 × 50 cm$/);
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await expect(page.locator('.cart-what-size')).toHaveText(/· affiche de 40 × 50 cm$/);
+    await page.locator('#cart-add input[value="hd"]').check();
+    await expect(page.locator('.cart-what-size')).toHaveText(/· fichier HD de \d/);
+    await page.locator('#cart-add input[value="print"]').check();
+    await page.locator(`#cart-add [data-finish="${finish0}"]`).click(); // (la finition de départ, celle de la mise en scène)
+    await page.locator('#cart-add .cart-print-sizes [data-size="21x30"]').click();
     // la taille proposée est le cadre choisi ; les quatre tailles, avec leur prix
     await expect(page.locator('#cart-add .cart-print-sizes [data-size="21x30"]')).toHaveClass(/on/);
     expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add .cart-print-sizes [data-size]')].map((b) => b.dataset.size))).toEqual(['21x30', '30x40', '40x50', '50x70', '70x100']);

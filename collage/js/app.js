@@ -7822,7 +7822,6 @@ Réponds uniquement avec ce JSON :
     const box = $('cart-add'), { comp } = pending;
     box.querySelector('.cart-what img').src = pending.thumb;
     box.querySelector('.cart-what-name').textContent = pending.title;
-    box.querySelector('.cart-what-size').textContent = printMode() ? tr`${pending.styleName} · tableau imprimé de ${fmt(comp.W)} × ${fmt(comp.H)} cm` : tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`;
     // seuls les produits de l'atelier en cours (impression ou toile)
     const products = MODE_PRODUCTS[modeOf()];
     if (!products.includes(choice.product)) choice.product = products[0];
@@ -7849,6 +7848,13 @@ Réponds uniquement avec ce JSON :
     // encadré avec passe-partout : pas de 21 × 30 (l'impression n'y ferait que 13 × 18) ; le 30 × 40 le remplace
     const noSmall = framed && !!choice.mat;
     if (noSmall && choice.size === '21x30') choice.size = '30x40';
+    // le sous-titre suit le choix : tableau encadré ou affiche à la taille choisie, fichier HD à sa
+    // taille d'impression ; en collage, la toile à la taille de l'œuvre
+    const hdSub = Object.assign({ W: comp.W, H: comp.H }, choice, { finish: 'papier', mat: false });
+    box.querySelector('.cart-what-size').textContent = !printMode() ? tr`${pending.styleName} · toile de ${fmt(comp.W)} × ${fmt(comp.H)} cm`
+      : choice.product === 'hd' ? tr`${pending.styleName} · fichier HD de ${printSizeOf(hdSub)}`
+        : choice.finish === 'cadre' ? tr`${pending.styleName} · tableau encadré de ${sizeLabel(choice.size, comp.W, comp.H)}`
+          : tr`${pending.styleName} · affiche de ${sizeLabel(choice.size, comp.W, comp.H)}`;
     box.querySelectorAll('[data-size]').forEach((b) => {
       b.hidden = noSmall && b.dataset.size === '21x30';
       b.classList.toggle('on', b.dataset.size === choice.size);
