@@ -734,10 +734,10 @@ cd collage && python3 -m http.server 8000
    - **« Mettre en scène » en haut à gauche** de la zone d'édition sur ordinateur, sous la barre
      d'outils (celle qui commence par Défaire) ; `layoutLabel` n'a plus à le placer ; un second
      bouton (`#scene-open-side`) l'ouvre aussi depuis la section Tailles, sous l'orientation ; sur
-     téléphone, tiroir baissé, un bouton rond (`#stage-scene`, icône du cadre) empilé au-dessus de la
-     pastille « Nouvelles propositions » remonte le tiroir sur Tailles, où vit la mise en scène
-     (`#scene-box`), et y fait défiler ; il n'est pas là tant que les tailles des feuilles sont à
-     vérifier (`size-gate-on`) ; sur
+     téléphone, le même bouton, en plus petit, en haut à gauche sous la barre d'outils (tiroir baissé
+     compris ; caché tiroir agrandi), remonte le tiroir sur Tailles, où vit la mise en scène
+     (`#scene-box`), et y fait défiler (`openSceneModal`) ; il n'est pas là tant que les tailles des
+     feuilles sont à vérifier (`size-gate-on`) ; sur
      ordinateur, cette section n'a plus le choix du passe-partout (il se fait dans la mise en scène) ;
    - **collage et mise en scène** : pas de scène « entrée » (la chambre d'enfant la remplace si elle
      était mémorisée, `sceneRoom`) ; sur ordinateur, la fenêtre de mise en scène n'a ni taille ni

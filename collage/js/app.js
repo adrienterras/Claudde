@@ -2942,7 +2942,6 @@
     $('toolbar').hidden = !state.comp;
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
     if ($('stage-generate')) $('stage-generate').hidden = !state.comp; // (téléphone : le bouton rond « Nouvelles propositions »)
-    if ($('stage-scene')) $('stage-scene').hidden = !state.comp; // (téléphone : le bouton rond « Mettre en scène »)
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;
@@ -5456,6 +5455,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   });
   function openSceneModal() {
     if (!state.comp) return;
+    // téléphone : la mise en scène vit dans l'onglet Tailles (tiroir déplié en grand), on y va
+    if (mobileQuery.matches) {
+      setStageFull(false);
+      selectTab('sizes-section');
+      const box = $('scene-box');
+      if (box && !box.hidden) requestAnimationFrame(() => box.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+      return;
+    }
     syncSceneFormat();
     openModal($('scene-modal'));
     requestAnimationFrame(() => drawRoomScene());
@@ -5541,14 +5548,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   // téléphone : le bouton rond dans l'angle de l'œuvre fait la même chose
   if ($('stage-generate')) $('stage-generate').onclick = () => $('generate').click();
-  // téléphone : la mise en scène est dans l'onglet Tailles (tiroir déplié en grand), on y va
-  if ($('stage-scene')) $('stage-scene').onclick = () => {
-    if (!state.comp) return;
-    setStageFull(false);
-    selectTab('sizes-section');
-    const box = $('scene-box');
-    if (box && !box.hidden) requestAnimationFrame(() => box.scrollIntoView({ block: 'start', behavior: 'smooth' }));
-  };
   ['pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
   // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose
   $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));
