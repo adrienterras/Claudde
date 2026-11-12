@@ -17,7 +17,7 @@ cd collage && python3 -m http.server 8000
    le lien compte de leur en-tête, ouvrent le panneau du compte à l'arrivée — voir docs/COMPTES.md), sinon les deux cartes au
    milieu de l'atelier vide, côte à côte, chacune avec une photo de l'accueil du site recadrée en 4:3
    (`assets/mode-impression.jpg` : la création encadrée au-dessus du buffet du salon, cadre entier ; `assets/mode-originaux.jpg` :
-   la toile de dessins collés dans le salon), un titre court (« Impression », « Originaux ») et une
+   la toile de dessins collés dans le salon, entre les moulures), un titre court (« Impression », « Originaux ») et une
    ligne centrée — à la première visite et après « Commencer une nouvelle œuvre », aucune
    carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
    interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
