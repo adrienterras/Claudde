@@ -3254,8 +3254,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   const sceneSalleOk = () => {
     let w, h;
     if (printMode()) { const fc = formatCm(); w = fc.frameW || fc.w; h = fc.frameH || fc.h; } else if (state.comp) { w = state.comp.W; h = state.comp.H; } else return false;
-    return Math.min(w, h) >= 40 - 1e-6 && Math.max(w, h) >= 50 - 1e-6;
+    return salleFits(w, h);
   };
+  const salleFits = (w, h) => Math.min(w, h) >= 40 - 1e-6 && Math.max(w, h) >= 50 - 1e-6;
   const sceneRoom = () => { let v = null; try { v = localStorage.getItem('atelier.piece'); } catch (e) { /* ignoré */ } return SCENES[v] && (v !== 'hall' || printMode()) && (v !== 'salle' || sceneSalleOk()) ? v : 'chambre'; };
   const sceneImgs = {};
   let sceneTimer = 0;
@@ -7946,9 +7947,14 @@ Réponds uniquement avec ce JSON :
   function drawCartScene() {
     const cv = $('cart-scene');
     if (!pending || !cv || $('cart-add').hidden || !cv.clientWidth) return;
-    const room = sceneRoom();
+    // la pièce de la mise en scène, sauf la salle à manger pour une taille choisie ici plus petite que
+    // 40 × 50 (posée au sol, elle y paraîtrait perdue) : la chambre d'enfant à la place
+    const spec = cartSceneSpec();
+    let room = sceneRoom();
+    if (room === 'salle' && !salleFits(spec.Fw, spec.Fh)) room = 'chambre';
     if (!roomReady(room)) return; // (redessinée quand les images de la pièce sont là : scheduleScene)
-    paintRoom(cv, null, room, cartSceneSpec());
+    cv.dataset.room = room;
+    paintRoom(cv, null, room, spec);
   }
   function openCartAdd(comp, title, styleName) {
     const n = loadCart().reduce((t, it) => t + it.qty, 0);

@@ -1013,7 +1013,7 @@ test.describe('Panier', () => {
     await expect(page.locator('#cart .cart-item').nth(1).locator('.cart-qty output')).toHaveText('1');
     await expect(page.locator('#cart .cart-item').nth(1).locator('[data-qty="-1"]')).toBeDisabled();
     await page.locator('#cart .cart-item').nth(1).locator('[data-qty="1"]').click();
-    expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 29.8, 2);
+    expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 2 * 29.9, 2);
     await page.locator('#cart .cart-item').nth(1).locator('[data-qty="-1"]').click();
     expect(euros(await page.locator('#cart .cart-total b').textContent())).toBeCloseTo(258 + 29.9, 2);
     await expect(page.locator('.cart-btn-desk .cart-count')).toHaveText('3');

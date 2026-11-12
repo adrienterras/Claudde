@@ -632,7 +632,9 @@ cd collage && python3 -m http.server 8000
      l'œuvre n'est pas accrochée mais **posée au sol**, adossée au banc, centrée entre ses pieds
      (`floor`), avec une ombre douce à son pied, proposée seulement pour une œuvre d'au moins 40 × 50
      (le cadre en tableau imprimé, la toile en collage : `sceneSalleOk`, sinon le bouton disparaît et
-     la chambre d'enfant reprend) ; l'échelle, 7 px par cm, est calée sur un cadre 50 × 70
+     la chambre d'enfant reprend ; dans « Ajouter au panier », c'est la taille choisie au panier qui
+     compte : plus petite que 40 × 50, la mise en scène du panier passe à la chambre d'enfant, sans
+     toucher à la pièce choisie, `salleFits`) ; l'échelle, 7 px par cm, est calée sur un cadre 50 × 70
      photographié à cet endroit ; la vue est cadrée en 4 : 3 autour de l'œuvre (`aspect`), sans carte de
      lumière ; l'entrée (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
