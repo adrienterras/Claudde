@@ -99,7 +99,9 @@ L'en-tête de l'accueil et de la page Tarifs porte un lien compte (`landing/comp
 Supabase, il lit dans le stockage local du navigateur la session que l'atelier y garde (même origine,
 clé `sb-<projet>-auth-token`) : connecté, il affiche le prénom et mène à `atelier/?compte` (le panneau
 Mon compte s'ouvre à l'arrivée) ; sinon « Se connecter » mène à `atelier/?connexion` (le panneau de
-connexion s'ouvre). Rien n'est envoyé nulle part : c'est une simple lecture locale.
+connexion s'ouvre). Sur téléphone, c'est le tiroir de l'atelier qui s'ouvre, sur l'onglet Compte (le
+panneau de connexion par-dessus s'il faut encore se connecter). Rien n'est envoyé nulle part : c'est
+une simple lecture locale.
 
 ## Ce qui demande un compte
 

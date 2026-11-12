@@ -654,6 +654,22 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#account-section')).toBeVisible();
     await expect(page.locator('#profile-box')).toBeVisible();
     await expect(page.locator('#profile-title')).toContainText('Tête');
+    // téléphone : le tiroir s'ouvre sur l'onglet Compte (connecté : pas de panneau par-dessus)
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('index.html?compte');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
+    await expect(page.locator('body')).not.toHaveClass(/stage-full/);
+    await expect.poll(() => page.evaluate(() => document.querySelector('.panel').dataset.tab)).toBe('more');
+    await expect(page.locator('#acc-menu')).toBeVisible();
+    await expect(page.locator('#account-section')).toBeHidden();
+    // pas connecté : l'onglet Compte, et le panneau de connexion par-dessus
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await page.goto('index.html?connexion');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await expect.poll(() => page.evaluate(() => document.querySelector('.panel').dataset.tab)).toBe('more');
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#auth-form')).toBeVisible();
   });
 
   test('découpe apprise, synchronisation prudente : locale jusqu’à « Appliquer à tous mes appareils », reprise ailleurs, conflit demandé, remise à zéro partout', async ({ acc }) => {

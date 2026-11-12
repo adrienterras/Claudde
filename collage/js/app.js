@@ -7248,7 +7248,17 @@ Réponds uniquement avec ce JSON :
     window.openAccount = (hint) => { openPanel(true); if (hint) status(hint); };
     // venu de l'en-tête du site (« Se connecter », ou le prénom) : le panneau s'ouvre à l'arrivée, sur
     // la connexion ou sur le profil selon l'état du compte
-    if (/[?&](connexion|compte)\b/.test(location.search)) { let once = false; A.onChange(() => { if (once) return; once = true; openPanel(true); }); }
+    // sur téléphone, c'est le tiroir qui s'ouvre, sur l'onglet Compte (et le panneau de connexion par-dessus
+    // s'il faut encore se connecter)
+    if (/[?&](connexion|compte)\b/.test(location.search)) {
+      let once = false;
+      A.onChange((u) => {
+        if (once) return;
+        once = true;
+        if (mobileQuery.matches) { setStageFull(false); selectTab('more'); if (!u) openPanel(true); }
+        else openPanel(true);
+      });
+    }
     $('acc-close').onclick = () => openPanel(false);
     sec.addEventListener('click', (e) => { if (e.target === sec) openPanel(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sec.hidden) openPanel(false); });
