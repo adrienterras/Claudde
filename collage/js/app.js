@@ -7452,13 +7452,16 @@ Réponds uniquement avec ce JSON :
   }
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
-  const TAB_OF = { more: ['saved-section'] };
+  // téléphone : pas d'onglet Exporter ; son contenu vit dans l'onglet Compte, sous le nom du compte
+  const TAB_OF = { more: ['export-section', 'saved-section'] };
+  const TAB_ALIAS = { 'export-section': 'more' };
   let autoTall = false; // le tiroir a été agrandi par l'onglet Tailles (et non par un geste)
   function selectTab(id) {
     const panel = document.querySelector('.panel');
     const tabs = $('sheet-tabs');
     if (!panel || !tabs) return;
     if (!mobileQuery.matches) { panel.classList.remove('tabbed'); panel.removeAttribute('data-tab'); return; }
+    id = TAB_ALIAS[id] || id;
     const btn = tabs.querySelector(`[data-tab="${id}"]`);
     if (!btn || ($(id) && $(id).hidden)) return;
     btn.disabled = false;

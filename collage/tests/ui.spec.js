@@ -302,7 +302,7 @@ test.describe('Téléphone, onglets', () => {
     await p.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await expect(p.locator('body')).not.toHaveClass(/sheet-tall/);
     // ni dans les autres onglets
-    for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'export-section']) {
+    for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'more']) { // (plus d'onglet Exporter : il est dans Compte)
       await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
       await expect(p.locator('#new-work')).toBeHidden();
     }
@@ -1456,6 +1456,25 @@ test.describe('Panier sur téléphone', () => {
 
 test.describe('Plein écran sur téléphone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test('pas d’onglet Exporter : son contenu est dans l’onglet Compte, juste sous le nom du compte', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png']);
+    await expect(page.locator('#sheet-tabs [data-tab="export-section"]')).toHaveCount(0);
+    expect(await page.locator('#sheet-tabs button').count()).toBe(5);
+    await page.locator('#sheet-tabs [data-tab="more"]').click();
+    await expect(page.locator('#export-section')).toBeVisible();
+    await expect(page.locator('#export-section > h2')).toBeVisible();
+    await expect(page.locator('#export-section > h2')).toContainText('Exporter');
+    await expect(page.locator('#export-section > h2 .num')).toBeHidden();
+    await expect(page.locator('#export')).toBeVisible();
+    // l'ordre : le compte (absent ici : pas de service de comptes dans ce test), puis Exporter, puis Mes œuvres
+    const ex = await page.locator('#export-section').boundingBox(), mine = await page.locator('#saved-section').boundingBox();
+    expect(mine.y).toBeGreaterThan(ex.y);
+    expect(await page.evaluate(() => { const o = (id) => +getComputedStyle(document.getElementById(id)).order; return o('account') < o('export-section') && o('export-section') < o('saved-section'); })).toBe(true);
+    // une demande d'aller à Exporter (reprise d'une œuvre « pour télécharger ») ouvre l'onglet Compte
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await expect(page.locator('#export-section')).toBeHidden();
+  });
   test('le tiroir descend jusqu’à la barre des sections ; une section touchée le fait remonter', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);

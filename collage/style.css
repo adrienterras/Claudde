@@ -915,7 +915,9 @@ body.mode-toile #scene-room [data-room="hall"] { display: none !important; }
 body.mode-toile .scene-modal .scene-size { display: none !important; }
 @media (max-width: 860px) { .scene-open-side { display: none !important; } }
 .scene-frame { position: relative; border-radius: 10px; overflow: hidden; background: #efe6d6; aspect-ratio: 4 / 3; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(40, 30, 20, 0.12); }
-.scene-canvas { width: 100%; height: 100%; display: block; }
+/* la photo déborde d'un pixel de chaque côté (le cadre arrondi la coupe) : sur iPhone, un cadre de hauteur
+   fractionnaire (268,5 px) laissait voir un trait du fond beige sous la photo */
+.scene-canvas { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); display: block; }
 .scene-mat { margin-bottom: 6px; }
 .scene-finish, .scene-margin { margin: 0; }
 .scene-finish button, .scene-margin button { padding: 7px 4px; font-size: 0.8rem; }
@@ -1130,7 +1132,7 @@ body.stage-full .scene-open { display: none; }
   .panel .brand { display: none; }
   /* la barre d'onglets est fixée au bord haut du tiroir (pas de « sticky », que Safari perd parfois) */
   .sheet-tabs {
-    display: grid; grid-template-columns: repeat(6, 1fr); position: fixed; left: 0; right: 0; bottom: calc(var(--sheet) - var(--tabs)); height: var(--tabs); z-index: 7; margin: 0; padding: 6px 6px 0; box-sizing: border-box; transition: bottom .3s ease; touch-action: none;
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: calc(var(--sheet) - var(--tabs)); height: var(--tabs); z-index: 7; margin: 0; padding: 6px 6px 0; box-sizing: border-box; transition: bottom .3s ease; touch-action: none;
     background: var(--surface); border-bottom: 1px solid var(--line); border-radius: 18px 18px 0 0;
   }
   .sheet-tabs::before { content: ""; position: absolute; top: 4px; left: 50%; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: var(--muted); opacity: .55; }
@@ -1160,6 +1162,12 @@ body.stage-full .scene-open { display: none; }
   .panel.tabbed > .step.tab-on > h2 { display: none; }
   .account { margin-top: 0; }
   .panel.tabbed[data-tab="more"] > .account { margin-top: 18px; } /* onglet Compte : de l'air sous la barre d'onglets */
+  /* onglet Compte : Exporter juste sous le nom du compte (le tiroir est une colonne flex : order), avec
+     son titre, sans numéro ni repli ; puis l'enregistrement et Mes œuvres */
+  .panel.tabbed[data-tab="more"] > .account { order: -3; }
+  .panel.tabbed[data-tab="more"] > #export-section { order: -2; }
+  .panel.tabbed[data-tab="more"] > #export-section > h2 { display: flex; margin: 0; pointer-events: none; }
+  .panel.tabbed[data-tab="more"] > #export-section > h2 .num, .panel.tabbed[data-tab="more"] > #export-section > h2 .chev { display: none; }
   /* plein écran : le tiroir glisse vers le bas, il ne reste que la barre des sections (un toucher
      sur l'une d'elles le fait remonter) ; l'œuvre prend toute la hauteur au-dessus */
   body.stage-full, body.stage-full.sheet-tall, body.stage-full.sheet-detail { --sheet: calc(var(--tabs) + env(safe-area-inset-bottom, 0px)); }

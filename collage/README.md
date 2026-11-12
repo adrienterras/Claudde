@@ -139,7 +139,9 @@ cd collage && python3 -m http.server 8000
 2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, puis Tailles et Propositions —
    Tailles d'abord pour un collage, où la taille réelle des feuilles décide de la toile ; Propositions
    d'abord pour un tableau imprimé (`orderSteps`, numéros à la suite) —, Dessins, Exporter, et en tête,
-   sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone, où l'import ouvre
+   sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone — sauf Exporter, qui n'y
+   a pas d'onglet : son contenu est dans l'onglet Compte, juste sous le nom du compte, avec son titre
+   (`TAB_OF.more`, `TAB_ALIAS` : une demande d'aller à Exporter ouvre Compte) —, où l'import ouvre
    l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
    pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là
