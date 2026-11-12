@@ -5565,6 +5565,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {
     setMode(b.dataset.mode); state.formatManual = false;
     emptyChoice(true);
+    // téléphone : la carte choisie, le choix d'ajout s'ouvre tout de suite (fermé, le bouton reste)
+    if (mobileQuery.matches && $('import-pick')) openModal($('import-pick'));
   }));
   $('empty-change').addEventListener('click', () => emptyChoice(false));
   $('empty-drop').addEventListener('click', () => $('file').click());

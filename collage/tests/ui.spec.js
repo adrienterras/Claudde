@@ -1865,8 +1865,11 @@ test.describe('Couleur du fond', () => {
     // une carte : les boutons d'import prennent sa place au milieu (déposer, photographier), le tiroir reste baissé
     await p.locator('#mode-pick [data-mode="toile"]').click();
     await expect(p.locator('body')).toHaveClass(/stage-full/);
+    // téléphone : la carte choisie, le choix d'ajout s'ouvre tout de suite ; fermé, un seul bouton le rouvre
+    await expect(p.locator('#import-pick')).toBeVisible();
+    await p.locator('#import-pick [data-close]').click();
+    await expect(p.locator('#import-pick')).toBeHidden();
     await expect(p.locator('#empty-import')).toBeVisible();
-    // téléphone : un seul bouton, qui ouvre le choix (photothèque, appareil photo de l'atelier, fichiers)
     await expect(p.locator('#empty-add')).toBeVisible();
     await expect(p.locator('#empty-drop')).toBeHidden();
     await expect(p.locator('#empty-camera')).toBeHidden();
