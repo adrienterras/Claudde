@@ -14,7 +14,10 @@ cd collage && python3 -m http.server 8000
 
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
    `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, sinon les deux cartes au
-   milieu de l'atelier vide — à la première visite et après « Commencer une nouvelle œuvre », aucune
+   milieu de l'atelier vide, côte à côte, chacune avec une photo de l'accueil du site recadrée en 4:3
+   (`assets/mode-impression.jpg` : la création encadrée dans la chambre ; `assets/mode-originaux.jpg` :
+   la toile de dessins collés dans le salon), un titre court (« Impression », « Originaux ») et une
+   ligne centrée — à la première visite et après « Commencer une nouvelle œuvre », aucune
    carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
    interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
    « Tester » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer ;

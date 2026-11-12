@@ -477,8 +477,9 @@
         <p id="empty-resume" class="empty-loading" hidden>Réouverture de votre œuvre…</p>
         <div id="mode-pick" class="mode-pick">
           <p class="mode-pick-title">Que voulez-vous créer ?</p>
-          <button type="button" data-mode="impression"><b>Création imprimée à partir de vos dessins</b><small>Affiche ou tableau encadré, aux tailles de cadres standard. Dès 14,90 € en fichier HD.</small></button>
-          <button type="button" data-mode="toile"><b>Collage avec les dessins originaux</b><small>Les dessins originaux, découpés et collés par vous : guide pas à pas ou kit DIY.</small></button>
+          <!-- deux cartes côte à côte, chacune avec une photo de l'accueil du site (chambre encadrée, toile du salon) -->
+          <button type="button" data-mode="impression"><img src="assets/mode-impression.jpg" alt="" width="640" height="480"><span class="mode-card-text"><b>Impression</b><small>Affiche ou tableau encadré, dès 14,90 €</small></span></button>
+          <button type="button" data-mode="toile"><img src="assets/mode-originaux.jpg" alt="" width="640" height="480"><span class="mode-card-text"><b>Originaux</b><small>Vos dessins découpés et collés : guide ou kit DIY</small></span></button>
         </div>
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Tester</span></button>
         <!-- le type choisi : les cartes laissent la place aux boutons d'import (l'étape Importer du menu reste, pour en ajouter ensuite) -->
