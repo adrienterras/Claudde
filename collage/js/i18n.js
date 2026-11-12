@@ -298,7 +298,7 @@
     '16 dessins': '16 drawings',
     'Les grands souvenirs commencent par un gribouillage': 'Great memories start with a scribble',
     'Importez les dessins, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à huit propositions, à imprimer ou à réaliser avec les originaux.': 'Import the drawings, scanned or photographed: the studio cuts them out and composes up to eight proposals, to print or to make with the originals.',
-    'Tester': 'Try it',
+    'Tester avec un exemple': 'Try it with an example',
     'Votre œuvre': 'Your artwork',
     'Enregistrer l’image': 'Save the image',
     'Sur téléphone : appuyez longuement sur l’image, puis « Enregistrer l’image ». Sur ordinateur : clic droit → « Enregistrer l’image sous… ».': 'On a phone: press and hold the image, then “Save image”. On a computer: right-click → “Save image as…”.',

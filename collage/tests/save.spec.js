@@ -405,7 +405,7 @@ test.describe('Réouverture fidèle des retouches', () => {
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3, null, { timeout: 120000 });
   });
 
-  test('atelier/?exemple (« Tester ») : les dessins d’exemple seuls, l’œuvre en cours seulement proposée', async ({ page }) => {
+  test('atelier/?exemple (« Tester avec un exemple ») : les dessins d’exemple seuls, l’œuvre en cours seulement proposée', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
