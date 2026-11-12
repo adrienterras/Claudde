@@ -722,7 +722,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
     width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: #1d1c18; color: #fff; cursor: pointer;
     box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .7);
   }
-  .stage-fab .ico { width: 24px; height: 24px; }
+  .stage-fab .ico { width: 26px; height: 26px; }
   .stage-fab:active { transform: scale(.94); }
   body.stage-full .stage-fab[hidden] { display: none; }
 }
