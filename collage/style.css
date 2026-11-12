@@ -1276,6 +1276,7 @@ body.stage-full .scene-open { display: none; }
   .empty-import .empty-add { display: inline-flex; }
 }
 .import-pick-card .btn { width: 100%; justify-content: center; margin: 0; }
+@media (min-width: 861px) { html:not(.touch) #pick-camera { display: none !important; } } /* ordinateur sans écran tactile : pas de photo (comme le bouton photo) */
 .import-pick-card .acc-title { margin: 0 0 4px; }
 .empty-import .hint { margin: 0; }
 .empty-import .link { justify-self: center; font-size: 0.82rem; color: var(--ink-2); }

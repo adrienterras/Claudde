@@ -10,6 +10,18 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#mode-pick')).toBeVisible();
     expect(await page.evaluate(() => document.querySelectorAll('#mode-pick button.on').length)).toBe(0);
     await page.locator('#mode-pick [data-mode="impression"]').click();
+    // comme sur téléphone : la carte choisie, le choix d'ajout s'ouvre ; fermé sans rien choisir, retour aux cartes
+    await expect(page.locator('#import-pick')).toBeVisible();
+    await expect(page.locator('#pick-photos')).toBeVisible();
+    await expect(page.locator('#pick-files')).toBeVisible();
+    await expect(page.locator('#pick-camera')).toBeHidden(); // (ordinateur sans écran tactile : pas de photo)
+    await page.locator('#import-pick [data-close]').click();
+    await expect(page.locator('#mode-pick')).toBeVisible();
+    await page.locator('#mode-pick [data-mode="impression"]').click();
+    // un choix fait (le sélecteur de fichiers s'ouvre, ici refermé sans rien) : les boutons d'import, au milieu
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-photos').click()]);
+    await chooser.setFiles([]);
+    await expect(page.locator('#import-pick')).toBeHidden();
     // le type choisi : les cartes (et l'exemple) laissent la place aux boutons d'import, au milieu
     await expect(page.locator('#mode-pick')).toBeHidden();
     await expect(page.locator('#empty-sample')).toBeHidden();

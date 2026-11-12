@@ -5500,6 +5500,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // de photo depuis l'atelier demande d'être connecté (voir camera-open), comme exporter ou sauvegarder
   function importUserFiles(files) {
     if (!files.length) return;
+    if ($('import-pick') && !$('import-pick').hidden) closeModal($('import-pick')); // (des fichiers déposés pendant le choix d'ajout)
     if (state.drawings.some((d) => d.sample)) {
       state.drawings = state.drawings.filter((d) => !d.sample);
       state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
@@ -5580,8 +5581,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   document.querySelectorAll('#mode-pick button').forEach((b) => b.addEventListener('click', () => {
     setMode(b.dataset.mode); state.formatManual = false;
     emptyChoice(true);
-    // téléphone : la carte choisie, le choix d'ajout s'ouvre tout de suite (fermé, le bouton reste)
-    if (mobileQuery.matches && $('import-pick')) openModal($('import-pick'));
+    // la carte choisie, le choix d'ajout s'ouvre tout de suite (téléphone, tablette et ordinateur)
+    if ($('import-pick')) openModal($('import-pick'));
   }));
   $('empty-change').addEventListener('click', () => emptyChoice(false));
   $('empty-drop').addEventListener('click', () => $('file').click());
@@ -5592,7 +5593,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!el) return;
     $('empty-add').addEventListener('click', () => openModal(el));
     // fermé sans rien choisir (croix, fond, Échap) : retour aux deux cartes du choix d'atelier
-    const dismiss = () => { closeModal(el); if (mobileQuery.matches && !state.drawings.length && !$('empty').hidden) emptyChoice(false); };
+    const dismiss = () => { closeModal(el); if (!state.drawings.length && !$('empty').hidden) emptyChoice(false); };
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = dismiss));
     el.addEventListener('click', (e) => { if (e.target === el) dismiss(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) dismiss(); });

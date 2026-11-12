@@ -56,7 +56,7 @@
     'Photothèque': 'Photo library',
     'Prendre une photo': 'Take a photo',
     'Fichiers': 'Files',
-    'Photothèque : photos ou scans déjà sur le téléphone · Fichiers : PDF de plusieurs pages': 'Photo library: photos or scans already on the phone · Files: multi-page PDFs',
+    'Photothèque : photos ou scans déjà sur l’appareil · Fichiers : PDF de plusieurs pages': 'Photo library: photos or scans already on the device · Files: multi-page PDFs',
     'Flash': 'Flash',
     'Changer de caméra': 'Switch camera',
     'Prendre la photo': 'Take the photo',
