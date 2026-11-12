@@ -1869,9 +1869,19 @@ test.describe('Couleur du fond', () => {
     await expect(p.locator('body')).toHaveClass(/stage-full/);
     await expect(p.locator('#stage-generate')).toBeVisible();
     expect(await p.evaluate(() => document.querySelector('.panel').dataset.tab)).toBe('sizes-section');
-    await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    // « Mettre en scène », empilé au-dessus de la pastille : l'onglet Tailles, où vit la mise en scène
+    const fab = await p.locator('#stage-generate').boundingBox(), fab2 = await p.locator('#stage-scene').boundingBox();
+    expect(fab2.y + fab2.height).toBeLessThanOrEqual(fab.y + 1);
+    expect(Math.abs(fab2.x - fab.x)).toBeLessThan(2);
+    await p.locator('#stage-scene').click();
     await expect(p.locator('body')).not.toHaveClass(/stage-full/);
     await expect(p.locator('#sizes-section')).toBeVisible();
+    await expect(p.locator('#scene-box')).toBeVisible();
+    await expect(p.locator('#stage-scene')).toBeHidden();
+    await p.locator('#zoom-full').click();
+    await expect(p.locator('body')).toHaveClass(/stage-full/);
+    await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    await expect(p.locator('body')).not.toHaveClass(/stage-full/);
     // « nouvelle œuvre » : le tiroir redescend
     await p.evaluate(() => { window.confirm = () => true; });
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();

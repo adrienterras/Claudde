@@ -725,6 +725,10 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   .stage-fab .ico { width: 26px; height: 26px; }
   .stage-fab:active { transform: scale(.94); }
   body.stage-full .stage-fab[hidden] { display: none; }
+  /* « Mettre en scène », empilé au-dessus ; pas tant que les tailles des feuilles sont à vérifier */
+  body.stage-full .stage-fab.stage-fab-up { bottom: 68px; }
+  body.stage-full .stage-fab.stage-fab-up .ico { width: 24px; height: 24px; }
+  body.size-gate-on .stage-fab-up { display: none !important; }
 }
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;
