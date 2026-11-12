@@ -47,17 +47,25 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
 
 ## Administration
 
-Le compte `adrien@terras.me` voit les œuvres de tous les comptes, en lecture seule, dans
+Le compte de l'éditeur voit les œuvres de tous les comptes, en lecture seule, dans
 « Toutes les œuvres » (sous Mes œuvres, visible pour ce compte seulement), groupées par e-mail.
 « Ouvrir une copie » rouvre l'œuvre dans l'atelier comme une copie : elle rejoint le compte de
 l'administrateur au premier changement ; l'original n'est ni modifié ni effacé. Côté serveur
-(`supabase/schema.sql`, section « Administration ») : la fonction `is_admin()` compare l'e-mail du
-jeton signé par Supabase à cette adresse, les règles « admin reads all » lui ouvrent la lecture des
-lignes `compositions` et des fichiers du bucket `drawings`, et `admin_owners(ids)` lui rend les
-e-mails des propriétaires. Les exports et le panier des autres comptes ne sont pas concernés. Pour
-changer l'adresse : la fonction `is_admin()` dans le SQL (le serveur), et `adminEmail` dans
-`collage/config.js` (la vue ; par défaut la même adresse). La politique de confidentialité mentionne
-cet accès.
+(`supabase/schema.sql`, section « Administration ») : l'administrateur est désigné par un rôle,
+`atelier_role = admin`, dans `app_metadata` (que seul le serveur peut écrire, jamais le navigateur ni
+l'utilisateur) ; la fonction `is_admin()` lit ce rôle dans le jeton signé par Supabase, les règles
+« admin reads all » lui ouvrent la lecture des lignes `compositions` et des fichiers du bucket
+`drawings`, et `admin_owners(ids)` lui rend les e-mails des propriétaires. Les exports des autres
+comptes ne sont pas concernés. Ni l'adresse ni le nom de l'administrateur ne figurent dans le code de
+l'atelier (`Account.isAdmin` lit le même rôle).
+
+Mise en place : exécuter la section « Administration » de `supabase/schema.sql` dans l'éditeur SQL de
+Supabase ; elle donne le rôle au compte de l'éditeur (`update auth.users …`). Le rôle prend effet à la
+connexion suivante (se déconnecter puis se reconnecter), ou dans l'heure, quand le jeton se renouvelle.
+Pour changer d'administrateur : retirer le rôle à l'ancien compte, le donner au nouveau (même requête,
+autre adresse). Une œuvre rouverte est toujours nettoyée (`cleanSaved` : nombres forcés, textes
+vérifiés) : la ligne d'un autre compte peut avoir été écrite à la main. La politique de confidentialité
+mentionne cet accès.
 
 ## E-mails envoyés aux utilisateurs (expéditeur et modèles)
 

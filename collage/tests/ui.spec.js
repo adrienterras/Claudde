@@ -1097,6 +1097,10 @@ test.describe('Panier relu du navigateur', () => {
     await page.addInitScript(() => localStorage.setItem('atelier-gribouille:panier', JSON.stringify([
       { id: 'a1', recId: 'panier-a1', refs: [], title: '<img src=x onerror=alert(1)>', styleName: 'Frise', thumb: 'javascript:alert(1)', W: 36, H: 25, product: 'print', finish: 'cadre', size: '50x70', qty: '3abc', unit: 1 },
       { id: 'a2', recId: 'panier-a2', title: 'cassé', W: 36, H: 25, product: 'print', finish: 'or', size: '1x1', qty: 2, unit: 1 },
+      // une clé héritée (« constructor ») et des tailles impossibles (le prix du kit en dépend) : écartés
+      { id: 'a3', recId: 'panier-a3', title: 'clé', W: 36, H: 25, product: 'print', finish: 'constructor', size: 'constructor', qty: 1, unit: 1 },
+      { id: 'a4', recId: 'panier-a4', title: 'mini', W: 1, H: 1, product: 'kit', qty: 1, unit: 1 },
+      { id: 'a5', recId: 'panier-a5', title: 'négatif', W: -50, H: 40, product: 'kit', qty: 1, unit: 1 },
       'n’importe quoi',
     ])));
     const errors = [];

@@ -533,3 +533,60 @@ test.describe('Réouverture fidèle des retouches', () => {
     await page.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase('atelier-gribouille'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
   });
 });
+
+// Une œuvre relue est une donnée, jamais du HTML : sa ligne peut être écrite à la main (avec le jeton
+// de son propriétaire, ou dans le stockage du navigateur), et l'administrateur rouvre celles des
+// autres comptes. Des valeurs piégées (compteurs de la composition, réglages de couleur, source de la
+// taille) ne doivent rien insérer dans la page : elles sont ramenées à des nombres ou écartées.
+test.describe('Œuvre relue piégée', () => {
+  test('des valeurs HTML dans une œuvre sauvegardée ne s’insèrent pas dans la page', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png']);
+    await openStep(page, 'compose-section');
+    await page.locator('#save-comp').click();
+    await expect(page.locator('#freeze-status')).toContainText('enregistrée dans Mes œuvres');
+    // l'œuvre enregistrée, piégée directement dans le stockage du navigateur
+    const n = await page.evaluate(() => new Promise((res) => {
+      const q = indexedDB.open('atelier-gribouille');
+      q.onsuccess = () => {
+        const st = q.result.transaction('compositions', 'readwrite').objectStore('compositions');
+        const all = st.getAll();
+        all.onsuccess = () => {
+          const recs = all.result.filter((r) => r.id !== 'brouillon' && r.comp);
+          recs.forEach((r) => {
+            r.comp.kept = '<i id="pwn1">piège</i>';
+            r.comp.total = '<i id="pwn2">piège</i>';
+            r.drawings.forEach((d) => {
+              d.tone = { b: '"><i id="pwn3">piège</i>', c: 0, s: 0 };
+              d.sheet = Object.assign({ id: 'feuille-piege', sizeCm: 29.7, sizeMode: 'auto' }, d.sheet || {}, { physCm: 21, physSource: '<i id="pwn4">piège</i>' });
+              d.sizeMode = 'auto';
+            });
+            st.put(r);
+          });
+          st.transaction.oncomplete = () => res(recs.length);
+        };
+      };
+    }));
+    expect(n).toBeGreaterThan(0);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.evaluate(() => { const s = document.getElementById('saved-section'); if (s && s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    await page.locator('#saved-list .saved:not(.current)').first().click();
+    await expect(page.locator('#saved-status')).toContainText('rouverte', { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const pwned = () => page.evaluate(() => document.querySelectorAll('[id^="pwn"]').length);
+    expect(await pwned()).toBe(0);
+    // la composition et les réglages relus sont des nombres
+    const st = await page.evaluate(() => { const A = AtelierGribouille.state; return { kept: typeof A.comp.kept, total: typeof A.comp.total, tone: A.drawings.map((d) => (d.tone ? typeof d.tone.b : 'none')) }; });
+    expect(st.kept).not.toBe('string');
+    expect(st.total).not.toBe('string');
+    expect(st.tone.every((t) => t === 'number' || t === 'none')).toBe(true);
+    // la fiche du dessin (réglages de couleur, source de la taille) non plus
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    await page.locator('#drawings .thumb').first().focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#detail')).toBeVisible();
+    expect(await pwned()).toBe(0);
+    expect(await page.locator('#detail').innerText()).not.toContain('piège');
+  });
+});

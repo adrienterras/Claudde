@@ -208,9 +208,10 @@
    * (cloudGet lit la ligne et les fichiers du dossier du propriétaire, que les règles lui ouvrent),
    * sans rien changer ni effacer chez les autres. Côté navigateur, l'adresse ne sert qu'à montrer la
    * vue : ce sont les règles du serveur qui donnent, ou non, les lignes et les fichiers.
+   * L'administrateur est désigné par un rôle dans app_metadata (atelier_role = admin), que seul le
+   * serveur peut écrire : ni son adresse ni son nom ne figurent dans le code.
    */
-  const ADMIN_EMAIL = cfg.adminEmail || 'adrien@terras.me';
-  const isAdmin = () => !!(user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  const isAdmin = () => !!(user && user.app_metadata && user.app_metadata.atelier_role === 'admin');
   // toutes les œuvres des autres comptes (sans le panier ni l'ancien brouillon unique), des plus
   // récentes aux plus anciennes, avec l'e-mail de leur propriétaire
   async function adminList() {
@@ -223,7 +224,7 @@
     if (!rows.length) {
       const { data: ok, error: e3 } = await client.rpc('is_admin');
       if (e3) throw new Error(tr('les règles d’administration ne sont pas installées sur le serveur : exécutez la section « Administration » de supabase/schema.sql dans l’éditeur SQL de Supabase'));
-      if (!ok) throw new Error(tr('le serveur ne reconnaît pas ce compte comme administrateur (adresse différente de celle de la fonction is_admin)'));
+      if (!ok) throw new Error(tr('le serveur ne reconnaît pas ce compte comme administrateur : rôle absent du jeton, reconnectez-vous après avoir exécuté la section « Administration » de supabase/schema.sql'));
     }
     const ids = [...new Set(rows.map((r) => r.user_id))];
     const emails = new Map();

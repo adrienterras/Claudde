@@ -185,6 +185,40 @@ et la correction tient en une ligne par page.
   calculé dans le navigateur (à vérifier avant d'encaisser). Les œuvres gardées dans le navigateur
   ne sont rattachées à aucun compte (appareil partagé : visibles par le suivant).
 
+## Audit du 12 novembre 2026 (vue administrateur, comptes, pages du site)
+
+Relu : tout le code publié, le schéma Supabase, les workflows, les bibliothèques et l'historique Git
+complet. Aucun secret, aucune fuite entre comptes. Corrigé :
+- **Œuvre relue piégée** : l'affirmation plus haut (« toutes les insertions passent par `esc()` »)
+  n'était plus vraie. Trois valeurs d'une œuvre relue (compteurs de la composition, réglages de couleur
+  d'un dessin, source de la taille du scan) étaient insérées telles quelles ; or la ligne d'un compte
+  peut être écrite à la main avec son jeton, et l'administrateur rouvre celles des autres. Sans script
+  possible (CSP), du HTML pouvait s'afficher dans la session de l'administrateur. Toute œuvre relue est
+  maintenant nettoyée (`cleanSaved` : nombres bornés, textes vérifiés) et les trois insertions sont
+  échappées. Test `save.spec.js` « Œuvre relue piégée ».
+- **Administrateur par rôle serveur** : `is_admin()` lit `app_metadata.atelier_role = 'admin'`, que
+  seul le serveur peut écrire, au lieu de l'e-mail du jeton (qui ne tenait qu'à la confirmation des
+  e-mails). L'adresse n'est plus dans le code de l'atelier. À rejouer : section « Administration » de
+  `supabase/schema.sql`, puis se reconnecter.
+- **CSP** : images limitées à `lh3.googleusercontent.com` (photos des comptes Google) au lieu de tous
+  les domaines `*.googleusercontent.com` ; ancien domaine d'Umami retiré. La photo de profil n'est
+  acceptée que de cet hôte, dans l'atelier comme sur l'accueil.
+- **Panier** : seules les clés du catalogue sont acceptées (plus « constructor »), tailles de l'œuvre
+  bornées de 5 à 400 cm (le prix du kit en dépend).
+- **Publication** : les dossiers d'outils (`/tools`, `/atelier/tools`, scripts des dessins d'exemple)
+  ne sont plus publiés.
+
+À faire par l'éditeur (hors du code) :
+- protéger la branche publiée (ni force-push ni suppression) et limiter l'environnement
+  `github-pages` à cette branche ;
+- faire tourner la clé `service_role` dans Supabase (elle a été présente une semaine dans un workflow
+  en octobre), puis supprimer le secret `SUPABASE_SERVICE_ROLE_KEY` du dépôt ;
+- les réglages Supabase, GitHub, Spaceship et Umami déjà listés plus haut.
+
+Restent connus : script Umami chargé depuis son serveur, pas de quota de stockage par compte côté
+serveur, pas de protection contre l'affichage en cadre (impossible en balise meta), total des
+commandes à recalculer avant d'encaisser.
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.

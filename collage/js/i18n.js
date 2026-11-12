@@ -234,7 +234,7 @@
     'Ouvrir une copie': 'Open a copy',
     'Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Compte administrateur : sans limite de nombre ; les œuvres sont gardées {0} jours après leur dernier changement.': 'Your artworks save themselves to your account: find them on all your devices. Administrator account: no limit on their number; artworks are kept {0} days after their last change.',
     'les règles d’administration ne sont pas installées sur le serveur : exécutez la section « Administration » de supabase/schema.sql dans l’éditeur SQL de Supabase': 'the administration rules are not installed on the server: run the “Administration” section of supabase/schema.sql in the Supabase SQL editor',
-    'le serveur ne reconnaît pas ce compte comme administrateur (adresse différente de celle de la fonction is_admin)': 'the server does not recognise this account as administrator (address different from the one in the is_admin function)',
+    'le serveur ne reconnaît pas ce compte comme administrateur : rôle absent du jeton, reconnectez-vous après avoir exécuté la section « Administration » de supabase/schema.sql': 'the server does not recognise this account as administrator: role missing from the token, sign in again after running the “Administration” section of supabase/schema.sql',
     'Chaque fichier téléchargé est aussi gardé dans votre compte : retéléchargez-le d’ici, depuis n’importe quel appareil.': 'Every downloaded file is also kept in your account: download it again from here, on any device.',
     'Mise en scène': 'Room view',
     'Mettre en scène': 'See it on a wall',

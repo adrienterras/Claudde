@@ -68,12 +68,17 @@ test('accueil : « Se connecter » dans l’en-tête, ou la pastille et le prén
   await serve(page3);
   await page3.addInitScript(() => {
     localStorage.setItem('atelier-gribouille:lang', 'fr');
-    localStorage.setItem('sb-fakeproj-auth-token', JSON.stringify({ access_token: 'x', refresh_token: 'y', expires_at: Math.floor(Date.now() / 1000) + 3600, user: { email: 'lou@example.org', user_metadata: { name: 'Lou', avatar_url: 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=' } } }));
+    if (!localStorage.getItem('sb-fakeproj-auth-token')) localStorage.setItem('sb-fakeproj-auth-token', JSON.stringify({ access_token: 'x', refresh_token: 'y', expires_at: Math.floor(Date.now() / 1000) + 3600, user: { email: 'lou@example.org', user_metadata: { name: 'Lou', avatar_url: 'https://lh3.googleusercontent.com/a/photo-de-lou=s96-c' } } }));
   });
   await page3.goto('http://accueil.test/');
   const av = page3.locator('a.nav-account .acc-avatar');
   await expect(av).toHaveText('');
-  expect(await av.evaluate((e) => e.style.backgroundImage)).toContain('data:image/gif');
+  expect(await av.evaluate((e) => e.style.backgroundImage)).toContain('lh3.googleusercontent.com/a/photo-de-lou');
+  // une adresse d'image qui n'est pas une photo de compte Google : refusée, l'initiale à la place
+  await page3.evaluate(() => { const k = 'sb-fakeproj-auth-token'; const s = JSON.parse(localStorage.getItem(k)); s.user.user_metadata.avatar_url = 'https://evil.example/x.png"); background: red; ("'; localStorage.setItem(k, JSON.stringify(s)); });
+  await page3.reload();
+  await expect(page3.locator('a.nav-account .acc-avatar')).toHaveText('L');
+  expect(await page3.locator('a.nav-account .acc-avatar').evaluate((e) => e.style.backgroundImage)).toBe('');
   expect(await page3.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await ctx3.close();
 });

@@ -39,7 +39,9 @@
       a.insertBefore(av, a.firstChild);
     }
     var m = u.user_metadata || {};
+    // la photo du compte Google seulement (le seul hôte que la CSP ouvre aux images), sinon l'initiale
     var pic = m.avatar_url || m.picture || '';
+    if (typeof pic !== 'string' || !/^https:\/\/lh3\.googleusercontent\.com\/[^"'\\()\s]+$/.test(pic)) pic = '';
     av.textContent = pic ? '' : (n.charAt(0) || '?').toUpperCase();
     av.style.backgroundImage = pic ? 'url("' + String(pic).replace(/["\\]/g, '') + '")' : '';
     if (icon) icon.setAttribute('hidden', '');

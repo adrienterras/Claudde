@@ -26,7 +26,7 @@
     signUp({ email, password, options }) {
       if (db.users[email]) return ko('User already registered');
       if (password.length < 8) return ko('Password should be at least 8 characters');
-      const u = { id: 'u-' + Math.random().toString(36).slice(2, 8), email, password, confirmed: !window.__FAKE_CONFIRM, user_metadata: (options && options.data) || {}, app_metadata: { provider: 'email' } };
+      const u = { id: 'u-' + Math.random().toString(36).slice(2, 8), email, password, confirmed: !window.__FAKE_CONFIRM, user_metadata: (options && options.data) || {}, app_metadata: Object.assign({ provider: 'email' }, (window.__FAKE_ADMINS || []).includes(email) ? { atelier_role: 'admin' } : {}) };
       db.users[email] = u; persist();
       if (!u.confirmed) return ok({ session: null, user: u });
       setSession(u); return ok({ session: db.session, user: u });
@@ -49,7 +49,7 @@
       const uid = db.session && db.session.user.id;
       if (!uid) return ko('JWT expired');
       // (comme les règles RLS : ses propres lignes ; l'administrateur lit aussi celles des autres)
-      const admin = q.op === 'select' && db.session.user.email === 'adrien@terras.me';
+      const admin = q.op === 'select' && isAdm(db.session.user);
       let rows = db.rows.filter((r) => (admin || r.user_id === uid) && (r.__table || 'compositions') === table);
       // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
@@ -77,11 +77,13 @@
     async remove(paths) { paths.forEach((p) => { delete db.files[p]; }); persist(); return { data: paths, error: null }; },
     async createSignedUrl(path) { return db.files[path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'fichier absent' } }; },
   }) };
+  // (comme is_admin() : le rôle écrit côté serveur dans app_metadata, jamais l'e-mail)
+  const isAdm = (u) => !!(u && u.app_metadata && u.app_metadata.atelier_role === 'admin');
   const rpc = (name, args) => {
-    if (name === 'is_admin') { const u = db.session && db.session.user; return ok(!!(u && u.email === 'adrien@terras.me')); }
+    if (name === 'is_admin') return ok(isAdm(db.session && db.session.user));
     if (name === 'admin_owners') {
       const u = db.session && db.session.user;
-      if (!u || u.email !== 'adrien@terras.me') return ok([]);
+      if (!isAdm(u)) return ok([]);
       return ok(Object.values(db.users).filter((x) => (args.ids || []).includes(x.id)).map((x) => ({ id: x.id, email: x.email })));
     }
     if (name !== 'delete_account') return ko('unknown function');

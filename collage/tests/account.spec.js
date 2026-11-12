@@ -299,7 +299,7 @@ test.describe('Comptes utilisateurs', () => {
     expect(files.every((id) => id === w2)).toBe(true);
   });
 
-  test('administration : adrien@terras.me voit les œuvres de tous les comptes (par e-mail) et les ouvre en copie dans son compte, sans toucher à l’original ; un autre compte ne voit rien de tel', async ({ acc }) => {
+  test('administration : le compte qui a le rôle administrateur (écrit côté serveur, pas son e-mail) voit les œuvres de tous les comptes (par e-mail) et les ouvre en copie dans son compte, sans toucher à l’original ; un autre compte ne voit rien de tel', async ({ acc }) => {
     test.setTimeout(240000);
     const { page } = acc;
     // Lou fait une œuvre, qui part dans son compte
@@ -314,8 +314,15 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#admin-box')).toBeHidden(); // (un compte ordinaire : pas de vue d'administration)
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
     await expect(page.locator('#acc-open')).toBeVisible();
-    // l'administrateur se connecte : la vue liste l'œuvre de Lou, sous son e-mail
+    // l'adresse de l'éditeur sans le rôle : un compte ordinaire (le rôle seul compte, pas l'e-mail)
     await signUpAndIn(page, 'adrien@terras.me', 'Rouge-Soleil-42', 'Adrien');
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#admin-box')).toBeHidden();
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    // l'administrateur (rôle donné côté serveur) se connecte : la vue liste l'œuvre de Lou, sous son e-mail
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
     await openStep(page, 'saved-section');
     await expect(page.locator('#admin-box')).toBeVisible();
     await expect(page.locator('#saved-hint')).toContainText('sans limite de nombre'); // (pas de plafond de 15 œuvres pour ce compte)
@@ -338,7 +345,7 @@ test.describe('Comptes utilisateurs', () => {
     const lou = rows.find((r) => r.id === w1), mine = rows.find((r) => r.id !== w1);
     expect(lou.owner).toBe('lou@example.org');
     expect(JSON.parse(before).find((r) => r[0] === w1)[2]).toBe(lou.date);
-    expect(mine.owner).toBe('adrien@terras.me');
+    expect(mine.owner).toBe('admin@example.org');
     expect(mine.n).toBe(2);
   });
 

@@ -46,6 +46,9 @@ jobs:
           rm -rf _site/atelier/README.md _site/atelier/tests _site/atelier/node_modules _site/atelier/package.json _site/atelier/package-lock.json _site/atelier/playwright.config.js _site/atelier/.gitignore
           cp -r landing/. _site/
           cp collage/confidentialite.html _site/confidentialite.html
+          # pas d'outils de fabrication en ligne (scripts et données de travail : vidéo, artefact, dessins d'exemple)
+          rm -rf _site/tools _site/atelier/tools
+          rm -f _site/atelier/samples/*.py
           # Chaque déploiement change l'adresse des scripts et de la feuille de style : les navigateurs
           # (Safari surtout) ne gardent plus une vieille version en cache après une mise à jour.
           V="${GITHUB_SHA:0:8}"

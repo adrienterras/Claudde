@@ -880,7 +880,8 @@ avec retéléchargement et suppression. Chaque fichier téléchargé porte le no
 hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)
 limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à
 l'utilisateur d'effacer lui-même tout son compte. **Administration** : le compte de l'éditeur
-(`adrien@terras.me`, `is_admin()` côté serveur, `Account.isAdmin` côté vue) voit sous Mes œuvres
+(désigné par le rôle `atelier_role = admin` dans `app_metadata`, écrit côté serveur seulement ;
+`is_admin()` côté serveur, `Account.isAdmin` côté vue) voit sous Mes œuvres
 « Toutes les œuvres », les œuvres de tous les autres comptes groupées par e-mail (`adminList`,
 fonction SQL `admin_owners`), en lecture seule : « Ouvrir une copie » les rouvre en copie dans son
 compte (comme une œuvre figée), l'original n'est ni modifié ni effacé ; les exports et le panier des

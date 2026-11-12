@@ -1621,7 +1621,7 @@
         </label>`}
         ${main ? '' : `<div class="tone" role="group" aria-label="${tr('Luminosité, contraste et saturation')}">
           ${[['b', tr('Luminosité')], ['c', tr('Contraste')], ['s', tr('Saturation')]].map(([k, label]) => `<label class="row"><span>${label}</span>
-            <input type="range" min="-50" max="50" step="1" value="${(d.tone && d.tone[k]) || 0}" data-tone="${k}"><output>${toneText((d.tone && d.tone[k]) || 0)}</output></label>`).join('')}
+            <input type="range" min="-50" max="50" step="1" value="${Number(d.tone && d.tone[k]) || 0}" data-tone="${k}"><output>${toneText(Number(d.tone && d.tone[k]) || 0)}</output></label>`).join('')}
           <div class="tone-actions">
             <button type="button" class="btn btn-sm tone-auto" data-tone-auto title="${tr('Régler luminosité, contraste et saturation d’après l’analyse du dessin')}"><svg class="ico"><use href="#i-spark"/></svg><span>${tr('Ajuster automatiquement')}</span></button>
             <button type="button" class="link" data-tone-reset ${hasTone(d) ? '' : 'hidden'}>${tr('Rétablir')}</button>
@@ -1636,7 +1636,7 @@
             ? tr('Photo gardée entière, avec le sol ou la table. <button class="link" data-photo="auto">Retirer le fond</button>')
             : tr('Dessin photographié sur un sol, une table, du bois ? <button class="link" data-photo="force">Retirer le fond autour du dessin</button>')}</p>`}
         ${qualityBlock(d)}
-        ${print ? '' : `<p class="hint">${sz.sizeMode === 'auto' ? (sz.physCm ? tr`Taille lue dans le scan (${sz.physSource || 'PDF'}).` : sz.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
+        ${print ? '' : `<p class="hint">${sz.sizeMode === 'auto' ? (sz.physCm ? tr`Taille lue dans le scan (${esc(sz.physSource || 'PDF')}).` : sz.calibrated ? tr('Taille déduite des feuilles que vous avez corrigées.') : tr('Taille estimée d’après le scan — corrigez-la si besoin.')) : tr('Taille saisie.')}
           ${tr`Sur l’œuvre : ${fmt(aw)} × ${fmt(ah)} cm, à sa taille réelle.`}</p>`}
       </div>`;
     box.querySelector('.detail-close').onclick = () => {
@@ -3015,7 +3015,7 @@
       b.className = `proposal${i === state.active ? ' on' : ''}`;
       b.setAttribute('aria-pressed', i === state.active ? 'true' : 'false');
       const t = titleFor(pr.style.id);
-      const sub = t ? `« ${esc(t)} »` : (pr.comp.total ? tr`${pr.comp.kept} dessins sur ${pr.comp.total}` : pr.style.hint);
+      const sub = t ? `« ${esc(t)} »` : (pr.comp.total ? tr`${esc(pr.comp.kept)} dessins sur ${esc(pr.comp.total)}` : pr.style.hint);
       b.innerHTML = `<img src="${thumbOfComp(pr.comp)}" alt=""><b>${pr.style.name}</b><small>${sub}</small>`;
       b.onclick = () => selectProposal(i);
       // (pas d'icône panier sur les propositions : on commande l'œuvre affichée, par « Commander » ou l'étape Exporter)
@@ -7090,6 +7090,33 @@ Réponds uniquement avec ce JSON :
     catch (e) { state.restoring = false; console.error(e); savedStatus(tr`La réouverture a échoué : ${(e && e.message) || e}`); notice(tr`L’œuvre n’a pas pu être rouverte : ${(e && e.message) || e}`); return null; }
     finally { busyOff(); await tick(); release(); }
   }
+  /*
+   * Une œuvre relue (de ce navigateur, du compte, ou celle d'un autre compte que l'administrateur
+   * rouvre en copie) est une donnée, jamais du HTML : sa ligne peut avoir été écrite à la main avec le
+   * jeton de son propriétaire. Les nombres sont forcés en nombres (bornés), les textes affichés
+   * vérifiés contre une liste fermée ; le reste de l'affichage échappe déjà ses valeurs (esc).
+   */
+  function cleanSaved(rec) {
+    const num = (v, lo, hi, def) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def; };
+    const c = rec.comp;
+    if (c && typeof c === 'object') {
+      ['W', 'H'].forEach((k) => { if (k in c) c[k] = num(c[k], 1, 1000, 30); });
+      ['kept', 'total'].forEach((k) => { if (k in c) c[k] = Math.round(num(c[k], 0, 100000, 0)); });
+    }
+    (rec.drawings || []).forEach((sd) => {
+      if (!sd || typeof sd !== 'object') return;
+      if (sd.tone != null) sd.tone = typeof sd.tone === 'object' ? { b: num(sd.tone.b, -50, 50, 0), c: num(sd.tone.c, -50, 50, 0), s: num(sd.tone.s, -50, 50, 0) } : null;
+      if (sd.sizeCm != null) sd.sizeCm = num(sd.sizeCm, 1, 1000, 29.7);
+      const sh = sd.sheet;
+      if (sh != null && typeof sh !== 'object') sd.sheet = null;
+      else if (sh) {
+        sh.physSource = typeof sh.physSource === 'string' && /^(\d{2,4} dpi|PDF)$/.test(sh.physSource) ? sh.physSource : null;
+        sh.physCm = sh.physCm == null ? null : num(sh.physCm, 8, 150, null);
+        ['sizeCm', 'origLong', 'origShort'].forEach((k) => { if (sh[k] != null) sh[k] = num(sh[k], 0, 100000, 0); });
+      }
+    });
+    return rec;
+  }
   async function restoreCompositionInner(id) {
     savedStatus(tr('Lecture de l’œuvre…'));
     const fromCloud = typeof id === 'string' && id.startsWith('cloud:');
@@ -7099,6 +7126,7 @@ Réponds uniquement avec ce JSON :
     if (rec && rec.name && id !== DRAFT_ID) $('busy-title').textContent = tr`Réouverture de « ${rec.name} »`;
     if (!rec) { savedStatus(fromCloud ? tr('Œuvre introuvable dans votre compte.') : tr('Œuvre introuvable dans ce navigateur.')); return null; }
     if (!rec.drawings || !rec.drawings.length) { savedStatus(tr('Cette œuvre ne contient aucun dessin.')); return null; }
+    cleanSaved(rec);
     const got = new Map(); // (les sujets d'une même feuille partagent son image : lue une fois)
     for (const sd of rec.drawings) {
       if (sd.ref && !sd.data) {
@@ -7398,7 +7426,10 @@ Réponds uniquement avec ce JSON :
         const name = A.displayName(u);
         $('acc-menu').querySelector('.acc-name').textContent = name;
         const av = $('acc-menu').querySelector('.acc-avatar');
-        const pic = u.user_metadata && (u.user_metadata.avatar_url || u.user_metadata.picture);
+        // la photo du compte Google seulement (le seul hôte que la CSP ouvre aux images), sans guillemets
+        // ni barres obliques inverses : sinon l'initiale
+        const raw = u.user_metadata && (u.user_metadata.avatar_url || u.user_metadata.picture);
+        const pic = typeof raw === 'string' && /^https:\/\/lh3\.googleusercontent\.com\/[^"'\\()\s]+$/.test(raw) ? raw : '';
         [av, $('profile-avatar')].forEach((a) => { a.textContent = pic ? '' : (name[0] || '?').toUpperCase(); a.style.backgroundImage = pic ? `url("${pic}")` : ''; });
         $('profile-title').textContent = name ? tr`Bonjour ${name}` : tr('Mon compte');
         $('profile-name').value = name;
@@ -7717,9 +7748,13 @@ Réponds uniquement avec ce JSON :
   }
   // (le panier est relu du navigateur : chaque article est vérifié, et son prix toujours recalculé
   // d'après le catalogue — jamais celui qui a été stocké)
+  // (seulement les clés du catalogue, pas celles héritées comme « constructor » ; des tailles d'œuvre
+  // plausibles, en cm : le prix du kit en dépend)
+  const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+  const inCm = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 5 && n <= 400; };
   const validItem = (it) => it && typeof it === 'object' && typeof it.recId === 'string' && /^(panier-[a-z0-9]+|cloud:[0-9a-f-]{8,40})$/.test(it.recId)
-    && ['print', 'hd', 'guide', 'kit'].includes(it.product) && (it.product !== 'print' || (PRICES.print[it.finish] && SIZES[it.size]))
-    && Number.isFinite(Number(it.W)) && Number.isFinite(Number(it.H));
+    && ['print', 'hd', 'guide', 'kit'].includes(it.product) && (it.product !== 'print' || (own(PRICES.print, it.finish) && own(SIZES, it.size)))
+    && inCm(it.W) && inCm(it.H);
   // une œuvre faite avec les dessins originaux n'existe qu'en un exemplaire : guide et kit se
   // commandent à l'unité ; le tableau imprimé et le fichier HD, en plusieurs exemplaires
   const ONE_OFF = ['guide', 'kit'];

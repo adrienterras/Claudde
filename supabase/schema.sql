@@ -81,19 +81,25 @@ revoke all on function public.delete_account() from public;
 revoke execute on function public.delete_account() from anon;
 grant execute on function public.delete_account() to authenticated;
 
--- Administration (8 novembre 2026) : le compte adrien@terras.me lit les œuvres de tous les comptes,
--- en lecture seule (il les rouvre en copie dans son propre compte ; il ne modifie ni n'efface rien
--- chez les autres). L'adresse est lue dans le jeton signé par Supabase : infalsifiable depuis le
--- navigateur. Les exports et le panier des autres comptes ne sont pas concernés.
+-- Administration (8 novembre 2026, rôle serveur depuis le 12 novembre) : le compte administrateur lit
+-- les œuvres de tous les comptes, en lecture seule (il les rouvre en copie dans son propre compte ; il
+-- ne modifie ni n'efface rien chez les autres). Il est désigné par un rôle dans app_metadata, que seul
+-- le serveur peut écrire (ni le navigateur, ni l'utilisateur) : ni un e-mail, ni un nom ne suffisent.
+-- Les exports et le panier des autres comptes ne sont pas concernés.
 create or replace function public.is_admin()
 returns boolean
 language sql
 stable
 as $$
-  select coalesce((select auth.jwt() ->> 'email'), '') = 'adrien@terras.me';
+  select coalesce((select auth.jwt() -> 'app_metadata' ->> 'atelier_role'), '') = 'admin';
 $$;
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to authenticated;
+-- Le rôle est donné au compte de l'éditeur (une fois ; il prend effet à la prochaine connexion, ou dans
+-- l'heure, quand le jeton se renouvelle). Pour le retirer : « - 'atelier_role' » au lieu de « || ».
+update auth.users
+  set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"atelier_role": "admin"}'::jsonb
+  where email = 'adrien@terras.me';
 
 drop policy if exists "compositions: admin reads all" on public.compositions;
 create policy "compositions: admin reads all" on public.compositions
