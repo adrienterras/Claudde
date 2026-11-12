@@ -67,6 +67,9 @@
     .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; line-height: 1.2; }
     .lang-switch button:hover { color: var(--ink); }
     .lang-switch button.on { background: var(--ink); color: var(--craie); cursor: default; }
+    /* flottant en bas à droite, au-dessus de tout, hors de la barre du navigateur (encoche, barre d'accueil) */
+    .lang-float { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px)); z-index: 30; box-shadow: 0 6px 20px rgba(43, 42, 34, .16); }
+    .lang-float button { padding: 9px 13px; font-size: .78rem; }
     .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
     .btn:hover { transform: translateY(-1px); }
     .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
@@ -103,24 +106,19 @@
       .nav nav a.nav-account .acc-avatar { width: 22px; height: 22px; font-size: .68rem; }
       .nav nav a.nav-account.on { gap: 6px; padding: 4px 11px 4px 4px; }
     }
-    /* téléphone étroit : rien ne doit pousser le choix de langue hors de l'écran (la marque, « Atelier
-       Gribouille », reste entière) */
+    /* téléphone étroit : l'en-tête tient sur l'écran (la marque, « Atelier Gribouille », reste entière) */
     @media (max-width: 480px) {
       .nav .wrap { width: calc(100% - 24px); gap: 8px; }
       .nav nav { gap: 7px; }
       .nav nav a.nav-account { font-size: .74rem; }
       .nav nav .btn-sm { padding: 8px 10px; font-size: .76rem; }
-      .lang-switch button { padding: 5px 6px; font-size: .68rem; }
     }
     @media (max-width: 380px) {
       .nav .wrap { width: calc(100% - 24px); gap: 8px; }
       .nav nav { gap: 8px; }
       .nav nav .btn-sm { padding: 8px 10px; }
-      .lang-switch button { padding: 5px 6px; }
       .brand img { width: 30px; height: 30px; }
       .brand small { display: none; }
-      .lang-switch { flex: none; }
-      .lang-switch button { padding: 5px 7px; font-size: .68rem; letter-spacing: .05em; }
       .brand b { font-size: 1.15rem; }
     }
     
@@ -183,7 +181,6 @@
         <a class="hide-sm" href="./#chez-vous">Chez vous</a>
         <a class="hide-sm" href="./#comment">Comment ça marche</a>
         <a class="nav-account" id="nav-account" href="atelier/?connexion" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Se connecter</span></a>
-        <span class="lang-switch" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
       </nav>
     </div>
   </header>
@@ -314,6 +311,8 @@
       <span>© Atelier Gribouille</span>
     </div>
   </footer>
+  <!-- le choix de langue flotte en bas à droite, sur téléphone comme sur ordinateur (comme sur l’accueil) -->
+  <span class="lang-switch lang-float" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
   <script src="compte.js"></script>
   <script src="i18n.js"></script>
   <script src="atelier/config.js"></script>

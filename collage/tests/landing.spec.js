@@ -78,16 +78,18 @@ test('accueil : « Se connecter » dans l’en-tête, ou la pastille et le prén
   await ctx3.close();
 });
 
-// Le choix de langue flotte en bas à droite de l'accueil, sur téléphone comme sur ordinateur, et
+const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
+const DESK = { viewport: { width: 1280, height: 800 } };
+// Le choix de langue flotte en bas à droite de l'accueil et de la page Tarifs, sur téléphone comme sur ordinateur, et
 // reste en place quand on défile ; il traduit la page.
-test('accueil : le choix de langue flotte en bas à droite, sur téléphone et sur ordinateur', async ({ browser }) => {
-  for (const opts of [{ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }, { viewport: { width: 1280, height: 800 } }]) {
+test('accueil et Tarifs : le choix de langue flotte en bas à droite, sur téléphone et sur ordinateur', async ({ browser }) => {
+  for (const [page0, opts] of [['index.html', PHONE], ['index.html', DESK], ['tarifs.html', PHONE], ['tarifs.html', DESK]]) {
     const ctx = await browser.newContext(opts);
     const page = await ctx.newPage();
     await page.route('http://accueil.test/**', (route) => {
       const url = new URL(route.request().url());
       if (url.pathname.startsWith('/atelier/')) return route.fulfill({ status: 404, body: '' });
-      return route.fulfill({ path: path.join(LANDING, url.pathname === '/' ? 'index.html' : url.pathname) });
+      return route.fulfill({ path: path.join(LANDING, url.pathname === '/' ? page0 : url.pathname) });
     });
     await page.addInitScript(() => localStorage.setItem('atelier-gribouille:lang', 'fr'));
     await page.goto('http://accueil.test/');
