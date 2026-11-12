@@ -93,6 +93,14 @@ e-mails par heure. Pour qu'ils partent d'Atelier Gribouille, en français :
 Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exemple l'ajout de la table
 `exports`), ré-exécutez-le tel quel dans le SQL Editor. Les objets existants sont conservés.
 
+## Le compte depuis le site
+
+L'en-tête de l'accueil et de la page Tarifs porte un lien compte (`landing/compte.js`). Sans charger
+Supabase, il lit dans le stockage local du navigateur la session que l'atelier y garde (même origine,
+clé `sb-<projet>-auth-token`) : connecté, il affiche le prénom et mène à `atelier/?compte` (le panneau
+Mon compte s'ouvre à l'arrivée) ; sinon « Se connecter » mène à `atelier/?connexion` (le panneau de
+connexion s'ouvre). Rien n'est envoyé nulle part : c'est une simple lecture locale.
+
 ## Ce qui demande un compte
 
 Sans être connecté, on peut voir l'exemple et le manipuler (propositions, retouches, couleur du

@@ -13,7 +13,8 @@ cd collage && python3 -m http.server 8000
 ```
 
 0. **Choisir l'atelier** : deux ateliers dans la même page (`state.mode`, mémorisé dans le navigateur,
-   `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs, sinon les deux cartes au
+   `?mode=impression` ou `?mode=toile` depuis l'accueil et la page Tarifs (`?connexion` et `?compte`, depuis
+   le lien compte de leur en-tête, ouvrent le panneau du compte à l'arrivée — voir docs/COMPTES.md), sinon les deux cartes au
    milieu de l'atelier vide, côte à côte, chacune avec une photo de l'accueil du site recadrée en 4:3
    (`assets/mode-impression.jpg` : la création encadrée dans la chambre ; `assets/mode-originaux.jpg` :
    la toile de dessins collés dans le salon), un titre court (« Impression », « Originaux ») et une

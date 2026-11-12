@@ -7247,6 +7247,9 @@ Réponds uniquement avec ce JSON :
     $('acc-open').onclick = () => openPanel(true);
     $('acc-menu').onclick = () => openPanel(sec.hidden);
     window.openAccount = (hint) => { openPanel(true); if (hint) status(hint); };
+    // venu de l'en-tête du site (« Se connecter », ou le prénom) : le panneau s'ouvre à l'arrivée, sur
+    // la connexion ou sur le profil selon l'état du compte
+    if (/[?&](connexion|compte)\b/.test(location.search)) { let once = false; A.onChange(() => { if (once) return; once = true; openPanel(true); }); }
     $('acc-close').onclick = () => openPanel(false);
     sec.addEventListener('click', (e) => { if (e.target === sec) openPanel(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sec.hidden) openPanel(false); });

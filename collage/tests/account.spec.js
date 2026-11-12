@@ -640,6 +640,22 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate((uid) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(uid + '/')).length, uid)).toBe(0);
   });
 
+  test('venu de l’en-tête du site : ?connexion ouvre le panneau de connexion ; ?compte, connecté, le profil', async ({ acc }) => {
+    const { page } = acc;
+    await page.goto('index.html?connexion');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#auth-form')).toBeVisible();
+    await page.locator('#acc-close').click();
+    await expect(page.locator('#account-section')).toBeHidden();
+    await signUpAndIn(page, 'tete@example.org', 'Rouge-Soleil-42', 'Tête');
+    await page.goto('index.html?compte');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#profile-box')).toBeVisible();
+    await expect(page.locator('#profile-title')).toContainText('Tête');
+  });
+
   test('découpe apprise, synchronisation prudente : locale jusqu’à « Appliquer à tous mes appareils », reprise ailleurs, conflit demandé, remise à zéro partout', async ({ acc }) => {
     const { page } = acc;
     test.setTimeout(240000);
