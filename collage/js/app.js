@@ -432,10 +432,12 @@
       ['drawings-section', 'sizes-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
       $('new-work').hidden = false;
-      if (mobileQuery.matches) setStageFull(false); // le tiroir remonte avec les premiers dessins
-      // téléphone : après un import, l'onglet Propositions pour un tableau imprimé ; Tailles (tiroir
-      // déplié en grand, pour vérifier les tailles des feuilles) pour un collage
+      // téléphone : avec les dessins, le tiroir se ferme entièrement (seule sa barre d'onglets reste,
+      // l'œuvre prend l'écran, la pastille « Nouvelles propositions » est dans l'angle) ; un onglet ou
+      // un glissé le remontent, sur Propositions pour un tableau imprimé, sur Tailles (tiroir déplié
+      // en grand, pour vérifier les tailles des feuilles) pour un collage
       if (!state.restoring) selectTab(printMode() ? 'compose-section' : 'sizes-section');
+      if (mobileQuery.matches) setStageFull(true);
       // sur ordinateur, l'étape Importer est faite : on la replie (un clic sur son titre la rouvre) ;
       // pas pour l'exemple, qui invite justement à importer ses propres dessins
       if (!mobileQuery.matches && $('import-section')._collapse && !(opts && opts.sample) && !state.drawings.some((d) => d.sample)) $('import-section')._collapse();
@@ -3774,7 +3776,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('zoom-fit').onclick = resetZoom;
   // plein écran : sur téléphone, le tiroir baissé (seule sa barre d'onglets reste) ; aussi l'état de
   // l'atelier vide à l'arrivée et après « nouvelle œuvre » (l'accueil et le choix du type d'œuvre
-  // prennent tout l'écran) ; le tiroir remonte avec le choix d'une carte, un onglet ou les premiers dessins
+  // prennent tout l'écran), et à nouveau dès que les dessins sont importés ou l'œuvre rouverte (elle
+  // prend l'écran) ; le tiroir remonte avec un onglet, un glissé, la fiche d'un dessin ou une proposition
   function setStageFull(on) {
     if (document.body.classList.contains('stage-full') === on) return;
     document.body.classList.toggle('stage-full', on);

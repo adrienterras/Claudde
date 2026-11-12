@@ -754,7 +754,10 @@ cd collage && python3 -m http.server 8000
      tant qu'aucune composition n'est affichée ; sur téléphone, le tiroir est baissé (`stage-full`,
      seule sa barre d'onglets reste) à l'arrivée et après « nouvelle œuvre », pour que l'accueil et le
      choix du type d'œuvre prennent tout l'écran ; il remonte sur Importer avec le choix d'une carte
-     (ou d'un onglet), et avec les premiers dessins (`setStageFull`) ; l'étape Importer ne propose plus l'exemple ni
+     (ou d'un onglet) ; dès que les dessins sont importés, ou l'œuvre rouverte, il se referme
+     entièrement (`setStageFull(true)` : l'œuvre prend l'écran, la pastille « Nouvelles propositions »
+     dans l'angle), l'onglet prêt pour quand on le remonte (Propositions pour un tableau imprimé,
+     Tailles pour un collage) ; l'étape Importer ne propose plus l'exemple ni
      « commencer une nouvelle œuvre » en phrases (le bouton « Voir un exemple » de l'accueil vide et le
      bouton « Commencer une nouvelle œuvre » suffisent : au-dessus du titre « 01 Importer » sur
      ordinateur, sous le consentement de détourage dans Importer sur téléphone — `placeNewWork`) ;

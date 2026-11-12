@@ -1862,10 +1862,16 @@ test.describe('Couleur du fond', () => {
     await expect(p.locator('#empty-import')).toBeVisible();
     await expect(p.locator('#empty-drop')).toBeVisible();
     await expect(p.locator('#empty-camera')).toBeVisible();
-    // les premiers dessins : le tiroir remonte, sur Propositions
+    // les premiers dessins : le tiroir se ferme entièrement, l'œuvre prend l'écran ; l'onglet Tailles
+    // (une toile : les tailles des feuilles à vérifier) est prêt pour quand on le remonte
     await p.setInputFiles('#file', [fixture('page-cutout.png')]);
     await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(p.locator('body')).toHaveClass(/stage-full/);
+    await expect(p.locator('#stage-generate')).toBeVisible();
+    expect(await p.evaluate(() => document.querySelector('.panel').dataset.tab)).toBe('sizes-section');
+    await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
     await expect(p.locator('body')).not.toHaveClass(/stage-full/);
+    await expect(p.locator('#sizes-section')).toBeVisible();
     // « nouvelle œuvre » : le tiroir redescend
     await p.evaluate(() => { window.confirm = () => true; });
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
