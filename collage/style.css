@@ -1159,6 +1159,7 @@ body.stage-full .scene-open { display: none; }
   /* l'onglet dit déjà où l'on est : ni numéro ni titre de section */
   .panel.tabbed > .step.tab-on > h2 { display: none; }
   .account { margin-top: 0; }
+  .panel.tabbed[data-tab="more"] > .account { margin-top: 18px; } /* onglet Compte : de l'air sous la barre d'onglets */
   /* plein écran : le tiroir glisse vers le bas, il ne reste que la barre des sections (un toucher
      sur l'une d'elles le fait remonter) ; l'œuvre prend toute la hauteur au-dessus */
   body.stage-full, body.stage-full.sheet-tall, body.stage-full.sheet-detail { --sheet: calc(var(--tabs) + env(safe-area-inset-bottom, 0px)); }
