@@ -7828,7 +7828,7 @@ Réponds uniquement avec ce JSON :
     if (!products.includes(choice.product)) choice.product = products[0];
     box.querySelectorAll('[data-mode]').forEach((el) => { el.hidden = el.dataset.mode !== modeOf(); });
     box.querySelectorAll('input[name="cart-prod"]').forEach((r) => { r.checked = r.value === choice.product; r.closest('.cart-prod').classList.toggle('on', r.checked); });
-    box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(PRICES.print.papier['30x40'])}`;
+    box.querySelector('[data-price="print"]').textContent = tr`dès ${euros(Math.min(...Object.values(PRICES.print.papier)))}`;
     ['hd', 'guide'].forEach((k) => { box.querySelector(`[data-price="${k}"]`).textContent = euros(PRICES[k]); });
     box.querySelector('[data-price="kit"]').textContent = euros(kitPrice({ W: comp.W, H: comp.H, kit: choice.kit }));
     box.querySelector('input[value="kit"]').closest('label').querySelector('b').textContent = tr`Kit DIY ${fmt(comp.W)} × ${fmt(comp.H)}`;

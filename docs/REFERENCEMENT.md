@@ -12,11 +12,15 @@
 - **Données structurées** (schema.org) : Organisation, FAQ (accueil), 
   Article et fil d'Ariane (idées), application web (atelier).
 - **FAQ visible** sur l'accueil (8 questions) et **article de conseils**
-  `idees-dessins-enfants.html` (« Que faire des dessins de ses enfants ? 9 idées »).
+  `idees-dessins-enfants.html` (« Que faire des dessins de ses enfants ? 5 idées »).
 - **Partage** : aperçus Open Graph et Twitter complets (image, dimensions, langue).
 - **Vitesse** : images des compositions réduites (−40 %), chargées à la demande, avec dimensions
   (pas de saut de page) ; bibliothèques PDF chargées seulement quand elles servent.
-- **Plan du site** `sitemap.xml` (avec les versions anglaises) et `robots.txt`.
+- **Plan du site** `sitemap.xml` (avec les versions anglaises, articles compris : `?lang=en`, déclarées
+  par `hreflang`) et `robots.txt`.
+- **En-tête commun** : Tarifs, Idées et Photographier ont l'en-tête de l'accueil (compte, menu à trois
+  traits sur téléphone `menu.js`, choix de langue flottant) et le bouton « Créer une œuvre » en haut ;
+  les deux articles sont traduits en anglais (`i18n.js`).
 - Contrôle automatique : `collage/tests/seo.spec.js` (titre, description, canonique, données
   structurées, textes de remplacement des images, plan du site, langue par défaut).
 

@@ -51,13 +51,13 @@ test.describe('langues', () => {
   });
 });
 
-// La page d'accueil et la page Tarifs (landing/) ont le bouton FR / EN : tout leur texte doit avoir une
+// La page d'accueil, la page Tarifs et les deux articles (landing/) ont le bouton FR / EN : tout leur texte doit avoir une
 // traduction — on compare la page en français et en anglais, texte par texte, avec le vrai mécanisme
 test.describe('page d’accueil en anglais', () => {
-  test('tout le texte de l’accueil et de la page Tarifs est traduit', async ({ browser }) => {
+  test('tout le texte de l’accueil, de la page Tarifs et des articles est traduit', async ({ browser }) => {
     const path = require('path');
     const LANDING = path.resolve(__dirname, '..', '..', 'landing');
-    const ALLOW = new Set(['Atelier', 'Gribouille', 'Atelier Gribouille', '© Atelier Gribouille', 'ateliergribouille.art', 'FR', 'EN', '×', 'This site is also available in English.', 'View in English', 'Contact', 'Instagram', 'Pop art', 'Menu']);
+    const ALLOW = new Set(['Atelier', 'Gribouille', 'Atelier Gribouille', '© Atelier Gribouille', 'ateliergribouille.art', 'FR', 'EN', '×', 'This site is also available in English.', 'View in English', 'Contact', 'Instagram', 'Pop art', 'Menu', 'Guide']);
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     const collect = () => page.evaluate(() => {
@@ -70,7 +70,7 @@ test.describe('page d’accueil en anglais', () => {
       }
       return out;
     });
-    for (const f of ['index.html', 'tarifs.html']) {
+    for (const f of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html']) {
       await page.goto(`file://${LANDING}/${f}?lang=fr`);
       const fr = await collect();
       await page.goto(`file://${LANDING}/${f}?lang=en`);
@@ -79,6 +79,12 @@ test.describe('page d’accueil en anglais', () => {
       expect(en.length, `${f} : même nombre de textes`).toBe(fr.length);
       const left = fr.filter((t, i) => t === en[i] && !ALLOW.has(t) && !/^[\d\s€×,.:%+·|–—-]+(cm)?$/.test(t) && !/^[A-Z]{1,3}$/.test(t));
       expect(left, `${f} : textes restés en français`).toEqual([]);
+      // le titre et la description (moteurs de recherche, partage) aussi
+      const meta = () => page.evaluate(() => [document.title, ...['meta[name="description"]', 'meta[property="og:title"]', 'meta[property="og:description"]'].map((q) => (document.querySelector(q) || {}).content || '')]);
+      const metaEn = await meta();
+      await page.goto(`file://${LANDING}/${f}?lang=fr`);
+      const metaFr = await meta();
+      expect(metaFr.filter((t, i) => t && t === metaEn[i]), `${f} : titre et description restés en français`).toEqual([]);
     }
     await ctx.close();
   });

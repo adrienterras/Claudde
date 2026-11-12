@@ -83,7 +83,7 @@ const DESK = { viewport: { width: 1280, height: 800 } };
 // Le choix de langue flotte en bas à droite de l'accueil et de la page Tarifs, sur téléphone comme sur ordinateur, et
 // reste en place quand on défile ; il traduit la page.
 test('accueil et Tarifs : le choix de langue flotte en bas à droite, sur téléphone et sur ordinateur', async ({ browser }) => {
-  for (const [page0, opts] of [['index.html', PHONE], ['index.html', DESK], ['tarifs.html', PHONE], ['tarifs.html', DESK]]) {
+  for (const [page0, opts] of [['index.html', PHONE], ['index.html', DESK], ['tarifs.html', PHONE], ['tarifs.html', DESK], ['idees-dessins-enfants.html', PHONE], ['photographier-les-dessins.html', DESK]]) {
     const ctx = await browser.newContext(opts);
     const page = await ctx.newPage();
     await page.route('http://accueil.test/**', (route) => {
@@ -155,4 +155,48 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await expect(page2.locator('#nav-burger')).toBeHidden();
   await expect(page2.locator('header .wrap a[href="#styles"]')).toBeVisible();
   await ctx2.close();
+});
+
+// Tarifs, Idées et Photographier ont l'en-tête de l'accueil (compte, menu à trois traits sur téléphone,
+// choix de langue flottant) et, en haut, le bouton « Créer une œuvre » de l'accueil.
+test('Tarifs, Idées, Photographier : l’en-tête de l’accueil et « Créer une œuvre » en haut', async ({ browser }) => {
+  for (const f of ['tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html']) {
+    const ctx = await browser.newContext(PHONE);
+    const page = await ctx.newPage();
+    await page.route('http://accueil.test/**', (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.startsWith('/atelier/')) return route.fulfill({ status: 404, body: '' });
+      return route.fulfill({ path: path.join(LANDING, url.pathname.slice(1)) });
+    });
+    await page.addInitScript(() => localStorage.setItem('atelier-gribouille:lang', 'fr'));
+    await page.goto(`http://accueil.test/${f}`);
+    await expect(page.locator('a.nav-account'), f).toHaveText('Se connecter');
+    await expect(page.locator('.lang-float'), f).toBeVisible();
+    await page.locator('#nav-burger').click();
+    await expect(page.locator('#nav-menu a'), f).toHaveCount(8);
+    await page.keyboard.press('Escape');
+    const cta = page.locator('.page-cta a');
+    await expect(cta, f).toHaveText('Créer une œuvre');
+    expect(await cta.getAttribute('href')).toBe('atelier/?nouveau');
+    // en haut : visible sans défiler, sous le titre
+    const box = await cta.boundingBox(), h1 = await page.locator('h1').boundingBox();
+    expect(box.y, f).toBeGreaterThan(h1.y);
+    expect(box.y + box.height, f).toBeLessThan(844);
+    expect(box.width, `${f} : pleine largeur sur téléphone`).toBeGreaterThan(300);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), f).toBeLessThanOrEqual(390);
+    // en anglais aussi
+    await page.goto(`http://accueil.test/${f}?lang=en`);
+    await expect(page.locator('.page-cta a'), f).toHaveText('Create an artwork');
+    await ctx.close();
+  }
+});
+
+// La page Idées ne parle que de ce que fait l'atelier : ni calendrier, ni cartes, ni papier cadeau.
+test('Idées : ni calendrier, ni cartes, ni papier cadeau ; cinq idées', async ({ page }) => {
+  await page.goto(`file://${LANDING}/idees-dessins-enfants.html`);
+  const text = (await page.locator('body').innerText()) + (await page.title());
+  expect(text).not.toMatch(/calendrier|cartes? de vœux|papier cadeau|faire-part|imprimeur en ligne/i);
+  await expect(page.locator('.idea')).toHaveCount(5);
+  await expect(page.locator('.toc li')).toHaveCount(5);
+  expect(await page.title()).toContain('5 idées');
 });

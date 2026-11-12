@@ -52,22 +52,6 @@
     .nav nav a { text-decoration: none; color: var(--ink-2); }
     .nav nav a:hover { color: var(--ink); }
     .nav nav a.btn-primary, .nav nav a.btn-primary:hover { color: var(--craie); }
-    /* le compte : l'icône et « Se connecter », ou le prénom une fois connecté (compte.js) */
-    .nav nav a.nav-account { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-    .nav nav a.nav-account svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-    /* connecté : la pastille et le prénom dans un contour fin, comme le compte de l'atelier (.acc-chip) */
-    .nav nav a.nav-account.on { color: var(--ink); font-weight: 600; gap: 8px; padding: 5px 14px 5px 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
-    .nav nav a.nav-account.on:hover { border-color: var(--accent); }
-    /* connecté : la pastille du compte, comme dans l'atelier (la photo, sinon l'initiale) */
-    .nav nav a.nav-account .acc-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent) center / cover no-repeat; color: #f8f5ef; display: grid; place-items: center; font-style: normal; font-weight: 600; font-size: .72rem; line-height: 1; flex: none; }
-    .nav nav a.nav-account svg[hidden] { display: none; }
-    .lang-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
-    .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; line-height: 1.2; }
-    .lang-switch button:hover { color: var(--ink); }
-    .lang-switch button.on { background: var(--ink); color: var(--craie); cursor: default; }
-    /* flottant en bas à droite, au-dessus de tout, hors de la barre du navigateur (encoche, barre d'accueil) */
-    .lang-float { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px)); z-index: 30; box-shadow: 0 6px 20px rgba(43, 42, 34, .16); }
-    .lang-float button { padding: 9px 13px; font-size: .78rem; }
     .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
     .btn:hover { transform: translateY(-1px); }
     .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
@@ -99,16 +83,11 @@
       .nav nav { gap: 10px; }
       .nav nav .btn-sm { white-space: nowrap; padding: 8px 12px; font-size: .8rem; }
       .nav nav .btn-sm .full { display: none; }
-      .nav nav a.nav-account { font-size: .8rem; gap: 4px; }
-      .nav nav a.nav-account svg { width: 17px; height: 17px; }
-      .nav nav a.nav-account .acc-avatar { width: 22px; height: 22px; font-size: .68rem; }
-      .nav nav a.nav-account.on { gap: 6px; padding: 4px 11px 4px 4px; }
     }
     /* téléphone étroit : l'en-tête tient sur l'écran (la marque, « Atelier Gribouille », reste entière) */
     @media (max-width: 480px) {
       .nav .wrap { width: calc(100% - 24px); gap: 8px; }
       .nav nav { gap: 7px; }
-      .nav nav a.nav-account { font-size: .74rem; }
       .nav nav .btn-sm { padding: 8px 10px; font-size: .76rem; }
     }
     @media (max-width: 380px) {
@@ -169,6 +148,44 @@
       .grid-prices th { font-size: .6rem; letter-spacing: .06em; }
       .grid-prices td.p { font-size: 1.02rem; }
     }
+    /* ---- l'en-tête, comme sur l'accueil : compte, menu à trois traits sur téléphone (menu.js), choix
+       de langue flottant en bas à droite ---- */
+    .nav nav a.nav-account { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .nav nav a.nav-account svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .nav nav a.nav-account.on { color: var(--ink); font-weight: 600; gap: 8px; padding: 5px 14px 5px 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+    .nav nav a.nav-account.on:hover { border-color: var(--accent); }
+    .nav nav a.nav-account .acc-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent) center / cover no-repeat; color: #f8f5ef; display: grid; place-items: center; font-style: normal; font-weight: 600; font-size: .72rem; line-height: 1; flex: none; }
+    .nav nav a.nav-account svg[hidden] { display: none; }
+    .nav-burger { display: none; appearance: none; padding: 0; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); place-items: center; cursor: pointer; flex: none; }
+    .nav-burger svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+    .nav-burger .close, .nav-burger[aria-expanded="true"] .open { display: none; }
+    .nav-burger[aria-expanded="true"] .close { display: block; }
+    .nav-menu { border-top: 1px solid var(--line); }
+    .nav .nav-menu nav { display: flex; flex-direction: column; align-items: stretch; gap: 0; width: calc(100% - 32px); margin: 0 auto; padding: 6px 0 14px; font-size: 1rem; }
+    .nav .nav-menu nav a { display: block; padding: 13px 2px; border-bottom: 1px solid var(--line); color: var(--ink); }
+    .nav .nav-menu nav a:last-child { border-bottom: 0; }
+    .lang-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+    .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; line-height: 1.2; }
+    .lang-switch button:hover { color: var(--ink); }
+    .lang-switch button.on { background: var(--ink); color: var(--craie); cursor: default; }
+    .lang-float { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px)); z-index: 30; box-shadow: 0 6px 20px rgba(43, 42, 34, .16); }
+    .lang-float button { padding: 9px 13px; font-size: .78rem; }
+    /* « Créer une œuvre », en haut de la page, comme sur l'accueil */
+    .page-cta { margin: 26px 0 0; }
+    @media (max-width: 900px) {
+      .nav-burger { display: grid; }
+      .nav .wrap > nav { margin-left: auto; }
+      .nav nav a.nav-account { font-size: .8rem; gap: 4px; }
+      .nav nav a.nav-account svg { width: 17px; height: 17px; }
+      .nav nav a.nav-account .acc-avatar { width: 22px; height: 22px; font-size: .68rem; }
+      .nav nav a.nav-account.on { gap: 6px; padding: 4px 11px 4px 4px; }
+      .page-cta .btn { display: flex; width: 100%; justify-content: center; }
+    }
+    @media (max-width: 480px) {
+      .nav .wrap { width: calc(100% - 24px); gap: 8px; }
+      .nav nav { gap: 7px; }
+      .nav nav a.nav-account { font-size: .74rem; }
+    }
   </style>
 </head>
 <body>
@@ -176,9 +193,24 @@
     <div class="wrap">
       <a class="brand" href="./"><img src="img/logo-mark-80.png" width="36" height="36" alt=""><span><small>Atelier</small><b>Gribouille</b></span></a>
       <nav aria-label="Navigation principale">
-        <a class="hide-sm" href="./#chez-vous">Chez vous</a>
         <a class="hide-sm" href="./#comment">Comment ça marche</a>
+        <a class="hide-sm" href="./#styles">Les styles</a>
+        <a class="hide-sm" href="./#chez-vous">Chez vous</a>
         <a class="nav-account" id="nav-account" href="atelier/?connexion" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Se connecter</span></a>
+      </nav>
+      <!-- téléphone : le menu (menu.js) -->
+      <button type="button" class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false" aria-controls="nav-menu"><svg class="open" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="nav-menu" id="nav-menu" hidden>
+      <nav aria-label="Menu">
+        <a href="./#comment">Comment ça marche</a>
+        <a href="./#styles">Les styles</a>
+        <a href="./#chez-vous">Chez vous</a>
+        <a href="atelier/" target="_blank" rel="noopener">L’atelier</a>
+        <a href="tarifs.html">Tarifs</a>
+        <a href="idees-dessins-enfants.html">Idées</a>
+        <a href="photographier-les-dessins.html">Photographier les dessins</a>
+        <a href="mailto:bonjour@atelier-gribouille.com">Contact</a>
       </nav>
     </div>
   </header>
@@ -189,6 +221,7 @@
         <p class="kicker">Tarifs</p>
         <h1>Composer est gratuit. <em>Le reste est simple</em></h1>
         <p>Importez, composez et prévisualisez autant que vous voulez. Vous ne payez que lorsque vous voulez emporter votre œuvre : en fichier, imprimée chez vous, ou à réaliser vous-même avec les dessins originaux.</p>
+        <div class="page-cta"><a class="btn btn-primary" href="atelier/?nouveau" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/></svg>Créer une œuvre</a></div>
       </div>
 
       <div class="doors">
@@ -313,6 +346,7 @@
   <span class="lang-switch lang-float" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
   <script src="compte.js"></script>
   <script src="i18n.js"></script>
+  <script src="menu.js"></script>
   <script src="atelier/config.js"></script>
   <script src="atelier/js/analytics.js"></script>
 </body>

@@ -30,11 +30,31 @@
   </url>
   <url>
     <loc>https://ateliergribouille.art/idees-dessins-enfants.html</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-12</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/idees-dessins-enfants.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/idees-dessins-enfants.html?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/idees-dessins-enfants.html"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/idees-dessins-enfants.html?lang=en</loc>
+    <lastmod>2026-11-12</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/idees-dessins-enfants.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/idees-dessins-enfants.html?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/idees-dessins-enfants.html"/>
   </url>
   <url>
     <loc>https://ateliergribouille.art/photographier-les-dessins.html</loc>
-    <lastmod>2026-10-12</lastmod>
+    <lastmod>2026-11-12</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/photographier-les-dessins.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/photographier-les-dessins.html?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/photographier-les-dessins.html"/>
+  </url>
+  <url>
+    <loc>https://ateliergribouille.art/photographier-les-dessins.html?lang=en</loc>
+    <lastmod>2026-11-12</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/photographier-les-dessins.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/photographier-les-dessins.html?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/photographier-les-dessins.html"/>
   </url>
   <url>
     <loc>https://ateliergribouille.art/confidentialite.html</loc>

@@ -38,6 +38,8 @@ test.describe('Ajouter au panier : mise en scène', () => {
     await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:40x50'; f.dispatchEvent(new Event('change')); });
     await page.evaluate(() => document.getElementById('add-cart').click());
     await expect(page.locator('#cart-add')).toBeVisible();
+    // le prix de départ de l'impression : le plus petit, l'affiche 21 × 30 à 29 €
+    await expect(page.locator('#cart-add [data-price="print"]')).toHaveText(/^dès 29,00\s€$/);
     const room = () => page.locator('#cart-scene').getAttribute('data-room');
     await page.locator('#cart-add [data-finish="cadre"]').click();
     const sizes = '#cart-add .cart-print-sizes';
