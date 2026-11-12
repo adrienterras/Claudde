@@ -678,6 +678,27 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#auth-form')).toBeVisible();
   });
 
+  test('se déconnecter pendant que l’atelier relit le compte : aucune erreur', async ({ acc }) => {
+    const { page, errors } = acc;
+    await signUpAndIn(page, 'deco@example.org', 'Rouge-Soleil-42', 'Déco');
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    // la relecture du compte commence (elle attend la liste, puis la base locale), et l'on se déconnecte
+    // pendant ces attentes : plusieurs délais, pour tomber au milieu
+    for (const ms of [0, 2, 5, 10, 20, 40, 80]) {
+      await page.evaluate((ms) => new Promise((res) => { AtelierGribouille.checkWorks(); setTimeout(() => Account.signOut().then(res, res), ms); }), ms);
+      await page.waitForTimeout(400);
+      await page.evaluate(() => Account.signInEmail('deco@example.org', 'Rouge-Soleil-42'));
+      await page.waitForFunction(() => Account.user());
+    }
+    await page.evaluate(() => Account.signOut());
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#fatal')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
   test('découpe apprise, synchronisation prudente : locale jusqu’à « Appliquer à tous mes appareils », reprise ailleurs, conflit demandé, remise à zéro partout', async ({ acc }) => {
     const { page } = acc;
     test.setTimeout(240000);

@@ -6378,7 +6378,7 @@ Réponds uniquement avec ce JSON :
     lsSet('atelier.brouillon-compte-vu', null); lsSet('atelier.brouillon-compte', null);
     if (!old || !cloudWorks) return;
     for (const c of cloudWorks.filter((x) => x.legacyDraft && x.date === old)) {
-      try { await window.Account.cloud.del(c.id); cloudWorks = cloudWorks.filter((x) => x !== c); } catch (e) { console.warn('ancienne œuvre en cours du compte non effacée', e); }
+      try { await window.Account.cloud.del(c.id); if (cloudWorks) cloudWorks = cloudWorks.filter((x) => x !== c); } catch (e) { console.warn('ancienne œuvre en cours du compte non effacée', e); }
     }
   }
   // la page se ferme ou passe en arrière-plan : on n'attend pas le délai ; elle revient après une
@@ -6454,12 +6454,15 @@ Réponds uniquement avec ce JSON :
     try {
       await renderSaved({ refresh: true });
       if (!cloudWorks) return;
+      // la liste lue maintenant : une déconnexion pendant les attentes ci-dessous remet cloudWorks à null
+      const works = cloudWorks;
       await restoreChain; // la réouverture de l'œuvre d'ici, si elle est en cours
       const draft = await dbGet(DRAFT_ID).catch(() => null);
+      if (!signedIn()) return; // (déconnecté entre-temps : plus rien à rapprocher du compte)
       const here = !!(draft && draft.drawings && draft.drawings.length) || (state.drawings.length > 0 && !onlySamples());
       const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
       if (!here && !fresh && lsGet(NEW_KEY) !== '1' && !state.drawings.length) {
-        const latest = cloudWorks.filter((c) => !c.ordered && !c.frozen).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+        const latest = works.filter((c) => !c.ordered && !c.frozen).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         if (latest) {
           const entry = { workId: latest.workId, cloud: latest };
           if (opts && opts.arrival && newVisit()) { offerResume(latest, () => openWork(entry)); return; }
@@ -6469,15 +6472,15 @@ Réponds uniquement avec ce JSON :
       }
       // l'ancienne œuvre en cours d'ici et celle du compte (d'avant « Mes œuvres ») ne font qu'une
       if (state.workLegacy && state.workId) {
-        const old = cloudWorks.find((c) => c.legacyDraft);
+        const old = works.find((c) => c.legacyDraft);
         if (old && old.date !== lsGet('atelier.brouillon-compte-vu')) { state.workLegacy = false; } // (une autre version : les deux restent)
       }
-      const cur = state.workId && cloudWorks.find((c) => c.workId === state.workId);
+      const cur = state.workId && works.find((c) => c.workId === state.workId);
       if (cur) await checkCurrentWork({ date: cur.date, device: cur.device });
       // les œuvres d'ici pas encore dans le compte (faites hors connexion, ou avant de se connecter)
       const locals = (await dbAll().catch(() => [])).filter((r) => r.work && r.workId && UUID.test(r.workId));
       locals.forEach((r) => {
-        const c = cloudWorks.find((x) => x.workId === r.workId), seen = seenOf(r.workId);
+        const c = works.find((x) => x.workId === r.workId), seen = seenOf(r.workId);
         if ((!c && !seen) || (c && c.date === seen && r.date !== seen)) { if (!cloudQueue.some((q) => q.workId === r.workId)) cloudQueue.push(r); }
       });
       if (state.workId && !state.copyOf && !cur && !seenOf(state.workId) && !pendingCloud) { state.workPrint = null; state.workBaseline = false; scheduleDraft(); }
