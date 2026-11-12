@@ -97,7 +97,8 @@ Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exe
 
 L'en-tête de l'accueil et de la page Tarifs porte un lien compte (`landing/compte.js`). Sans charger
 Supabase, il lit dans le stockage local du navigateur la session que l'atelier y garde (même origine,
-clé `sb-<projet>-auth-token`) : connecté, il affiche le prénom et mène à `atelier/?compte` (le panneau
+clé `sb-<projet>-auth-token`) : connecté, il affiche la pastille du compte, comme dans l'atelier (la photo du compte, sinon
+l'initiale du prénom, à la place de l'icône), et le prénom, et mène à `atelier/?compte` (le panneau
 Mon compte s'ouvre à l'arrivée) ; sinon « Se connecter » mène à `atelier/?connexion` (le panneau de
 connexion s'ouvre). Sur téléphone, c'est le tiroir de l'atelier qui s'ouvre, sur l'onglet Compte (le
 panneau de connexion par-dessus s'il faut encore se connecter). Rien n'est envoyé nulle part : c'est

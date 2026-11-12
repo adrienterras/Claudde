@@ -1,7 +1,8 @@
 /*
  * Le compte dans l'en-tête du site : l'atelier (même origine) garde sa session Supabase dans le
  * stockage local (clé « sb-<projet>-auth-token ») ; sans charger Supabase, on y lit si quelqu'un est
- * connecté et son prénom. Connecté : « Prénom » → atelier/?compte (le panneau Mon compte) ; sinon
+ * connecté et son prénom. Connecté : la pastille du compte, comme dans l'atelier (la photo du compte,
+ * sinon l'initiale), et « Prénom » → atelier/?compte (le panneau Mon compte) ; sinon
  * « Se connecter » → atelier/?connexion (le panneau de connexion). Chargé avant i18n.js, pour que le
  * libellé soit traduit avec le reste de la page.
  */
@@ -22,10 +23,32 @@
     var m = u.user_metadata || {};
     return (m.name || m.full_name || (u.email ? u.email.split('@')[0] : '') || '').trim();
   }
+  // la pastille du compte, comme dans l'atelier (.acc-avatar) : la photo du compte, sinon l'initiale
+  function avatar(a, u, n) {
+    var icon = a.querySelector('svg');
+    var av = a.querySelector('.acc-avatar');
+    if (!u) {
+      if (av) av.remove();
+      if (icon) icon.removeAttribute('hidden');
+      return;
+    }
+    if (!av) {
+      av = document.createElement('i');
+      av.className = 'acc-avatar';
+      av.setAttribute('aria-hidden', 'true');
+      a.insertBefore(av, a.firstChild);
+    }
+    var m = u.user_metadata || {};
+    var pic = m.avatar_url || m.picture || '';
+    av.textContent = pic ? '' : (n.charAt(0) || '?').toUpperCase();
+    av.style.backgroundImage = pic ? 'url("' + String(pic).replace(/["\\]/g, '') + '")' : '';
+    if (icon) icon.setAttribute('hidden', '');
+  }
   function run() {
     var u = session();
     document.querySelectorAll('a.nav-account').forEach(function (a) {
       var label = a.querySelector('span');
+      avatar(a, u, u ? name(u) : '');
       if (u) {
         var n = name(u);
         a.href = 'atelier/?compte';
