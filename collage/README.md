@@ -387,7 +387,7 @@ cd collage && python3 -m http.server 8000
      métal, celle de la mise en scène par défaut — et avec ou sans passe-partout — avec, pas de 21 × 30,
      remplacé par le 30 × 40 —, avec en clair la taille du
      cadre et celle de l'impression, `printSizeOf` ; fichier HD 29,90 €, impression papier / encadrée / toile en 21 × 30,
-     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 24,90 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (17 à 79 € selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office, le kit complet 50 × 70 à 89 € (`kitPrice`, options gardées avec l'article)),
+     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 29,90 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (17 à 79 € selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office, le kit complet 50 × 70 à 89 € (`kitPrice`, options gardées avec l'article)),
      et la quantité. À gauche des options (au-dessus sur téléphone), **la mise en scène de l'article
      choisi** (`drawCartScene`, même dessin que « Mettre en scène » : `paintRoom`) : le tableau à la
      taille d'impression choisie, encadré (couleur du cadre, passe-partout) ou sur papier ; une
