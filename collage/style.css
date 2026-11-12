@@ -1165,14 +1165,15 @@ body.stage-full .scene-open { display: none; }
   body.stage-full .panel { z-index: 41; overflow: hidden; padding-bottom: 0; }
   body.stage-full .sheet-tabs { z-index: 42; }
   body.stage-full .stage { bottom: var(--sheet); }
-  body.stage-full .stage canvas { height: calc(100% - 60px - 44px - env(safe-area-inset-top, 0px)); }
+  body.stage-full .stage canvas { inset: calc(96px + env(safe-area-inset-top, 0px)) 0 auto 0; height: calc(100% - 96px - 44px - env(safe-area-inset-top, 0px)); } /* (96 : barre d'outils + « Mettre en scène ») */
   /* le curseur « Nombre de dessins » reste, en bas de l'œuvre agrandie (l'œuvre lui laisse sa place) */
   body.stage-full .density-bar { display: flex; bottom: 6px; }
   /* « Commander » reste visible tiroir baissé : au-dessus du curseur, à gauche (les pastilles sont à droite) */
   body.stage-full .stage-cta { display: block; left: 10px; bottom: 60px; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
-  .stage canvas { inset: 56px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 56px - var(--sheet) - 44px)); }
+  /* (92 px en haut : la barre d'outils, puis « Mettre en scène », qui ne doit pas couvrir l'œuvre) */
+  .stage canvas { inset: 92px 46px calc(var(--sheet) + 44px) 0; width: calc(100% - 46px); height: max(0px, calc(100% - 92px - var(--sheet) - 44px)); }
   body.stage-full .stage { padding-bottom: 0; }
   /* l'accueil vide : centré quand il tient, sinon il défile (les cartes du choix restent atteignables) */
   .empty { bottom: var(--sheet); padding: 16px; display: flex; overflow-y: auto; }
