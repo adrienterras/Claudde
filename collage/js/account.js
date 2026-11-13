@@ -174,15 +174,20 @@
   // changement : au-delà, elles sont effacées à la lecture suivante de la liste (cloudPrune).
   const WORK_MAX = 15, WORK_KEEP_DAYS = 60;
   async function cloudPrune() {
-    const { data, error } = await client.from('compositions').select('id, created_at, date:meta->>date').is('meta->>cart', null);
+    if (!user) return 0;
+    const { data, error } = await client.from('compositions').select('id, created_at, date:meta->>date').eq('user_id', user.id).is('meta->>cart', null);
     err(error);
     const limit = Date.now() - WORK_KEEP_DAYS * 86400e3;
     const old = (data || []).filter((row) => new Date(row.date || row.created_at).getTime() < limit);
     for (const row of old) await cloudDel(`cloud:${row.id}`);
     return old.length;
   }
+  // (toujours limitées au compte connecté : les règles du serveur ouvrent aussi à l'administrateur la
+  // lecture des œuvres des autres comptes ; sans ce filtre, elles se mêlaient à ses propres œuvres,
+  // à son panier et au ménage des œuvres anciennes, et leur suppression échouait sans message)
   async function cloudList(from, count) {
-    let q = client.from('compositions').select(LIST_COLS).is('meta->>cart', null).order('created_at', { ascending: false });
+    if (!user) return [];
+    let q = client.from('compositions').select(LIST_COLS).eq('user_id', user.id).is('meta->>cart', null).order('created_at', { ascending: false });
     if (count) q = q.range(from || 0, (from || 0) + count - 1);
     const { data, error } = await q;
     err(error);
@@ -447,7 +452,8 @@
   // ---------- Panier dans le compte ----------
   // Un article du panier est une composition marquée meta.cart (produit, finition, taille, quantité…).
   async function cloudCart() {
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').not('meta->>cart', 'is', null).order('created_at', { ascending: false });
+    if (!user) return [];
+    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').eq('user_id', user.id).not('meta->>cart', 'is', null).order('created_at', { ascending: false });
     err(error);
     return (data || [])
       .map((row) => Object.assign({ id: row.id, recId: `cloud:${row.id}`, refs: [], title: row.name, thumb: row.thumb, date: row.created_at }, row.meta.cart))

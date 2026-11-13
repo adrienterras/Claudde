@@ -329,6 +329,10 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#admin-list .admin-owner')).toContainText('lou@example.org');
     await expect(page.locator('#admin-list .saved')).toHaveCount(1);
     await expect(page.locator('#admin-list .saved .saved-meta')).toContainText('2 dessins');
+    // ses propres œuvres et son panier ne mêlent pas celles des autres comptes (les règles lui ouvrent leur
+    // lecture : sans filtre, l'œuvre de Lou apparaissait dans Mes œuvres et sa suppression échouait)
+    expect(await page.evaluate(async (id) => (await window.Account.cloud.list()).some((e) => String(e.id).includes(id)), w1)).toBe(false);
+    expect(await page.evaluate(async () => (await window.Account.cloud.cart()).length)).toBe(0);
     const before = await page.evaluate(() => JSON.stringify(window.__fake.db.rows.map((r) => [r.id, r.user_id, r.meta.date])));
     // ouverte en copie : les dessins de Lou, une copie qui ne rejoint le compte qu'au premier changement
     await page.locator('#admin-list .saved .saved-copy').click();
@@ -347,6 +351,10 @@ test.describe('Comptes utilisateurs', () => {
     expect(JSON.parse(before).find((r) => r[0] === w1)[2]).toBe(lou.date);
     expect(mine.owner).toBe('admin@example.org');
     expect(mine.n).toBe(2);
+    // il supprime sa propre œuvre ; celle de Lou reste
+    await page.evaluate(async (id) => window.Account.cloud.del('cloud:' + id), mine.id);
+    const left = await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta.work).map((r) => r.id));
+    expect(left).toEqual([w1]);
   });
 
   test('nouvelle visite, rien sur l’appareil, une œuvre dans le compte : la fenêtre « Reprendre / Nouvelle œuvre » avant tout téléchargement', async ({ acc }) => {
