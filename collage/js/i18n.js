@@ -934,6 +934,7 @@
     'Lecture des œuvres de votre compte…': 'Reading the artworks in your account…',
     'Les œuvres de votre compte n’ont pas pu être lues ({0}).': 'The artworks in your account could not be read ({0}).',
     'Réessayer': 'Try again',
+    'pas de réponse du serveur en 30 secondes': 'no answer from the server in 30 seconds',
   };
 
   const KEY = 'atelier-gribouille:lang';

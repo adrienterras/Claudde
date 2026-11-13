@@ -357,6 +357,34 @@ test.describe('Comptes utilisateurs', () => {
     expect(left).toEqual([w1]);
   });
 
+  test('administration : sans réponse du serveur, « Toutes les œuvres » ne reste pas sur « Lecture… » : un message et « Réessayer »', async ({ acc }) => {
+    test.setTimeout(150000);
+    const { page } = acc;
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#admin-box')).toBeVisible();
+    // le serveur ne répond plus : la lecture suivante (à la reconnexion) reste sans réponse
+    await page.evaluate(() => { window.__realAdminList = window.Account.adminList; window.Account.adminList = () => new Promise(() => {}); });
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await page.locator('#acc-open').click();
+    await page.locator('.auth-tabs [data-mode="signin"]').click();
+    await page.fill('#auth-email', 'admin@example.org');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-menu')).toBeVisible();
+    await openStep(page, 'saved-section');
+    const st = page.locator('#admin-status');
+    await expect(st).toContainText('Lecture des œuvres');
+    await expect(st).toContainText('pas de réponse du serveur', { timeout: 45000 });
+    // le serveur répond de nouveau : « Réessayer » affiche la liste
+    await page.evaluate(() => { window.Account.adminList = window.__realAdminList; });
+    await st.locator('button').click();
+    await expect(st).toBeHidden({ timeout: 30000 });
+    await expect(page.locator('#admin-list')).toContainText('Aucune œuvre dans les autres comptes');
+  });
+
   test('nouvelle visite, rien sur l’appareil, une œuvre dans le compte : la fenêtre « Reprendre / Nouvelle œuvre » avant tout téléchargement', async ({ acc }) => {
     test.setTimeout(240000);
     const { page } = acc;

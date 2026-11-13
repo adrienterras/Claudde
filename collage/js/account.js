@@ -26,7 +26,9 @@
       if (event === 'PASSWORD_RECOVERY') recovering = true;
       if (event === 'SIGNED_OUT') recovering = false;
       if (event === 'SIGNED_IN') cleanAuthUrl();
-      notify();
+      // hors du rappel de Supabase (sa recommandation) : un appel au serveur lancé pendant ce rappel
+      // (liste des œuvres, « Toutes les œuvres »…) peut rester bloqué sur le verrou de la session
+      setTimeout(notify, 0);
     });
     client.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; cleanAuthUrl(); notify(); });
     return true;

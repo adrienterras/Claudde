@@ -6972,14 +6972,34 @@ Réponds uniquement avec ce JSON :
    * œuvre figée) : l'original n'est ni modifié ni effacé.
    */
   const adminStatus = (t) => { const el = $('admin-status'); if (!el) return; el.textContent = t || ''; el.hidden = !t; };
+  let adminRun = 0; // (seule la dernière lecture lancée met la vue à jour)
   async function renderAdmin() {
     const box = $('admin-box'), list = $('admin-list');
     const A = window.Account;
     if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; return; }
     box.hidden = false;
     let rows = [];
+    const run = ++adminRun;
     adminStatus(tr('Lecture des œuvres de tous les comptes…'));
-    try { rows = await A.adminList(); adminStatus(''); } catch (e) { console.error(e); adminStatus(tr`Œuvres indisponibles : ${e.message}`); return; }
+    // jamais bloquée sur « Lecture… » : sans réponse en 30 s, un message et « Réessayer »
+    let timer = 0;
+    const timeout = new Promise((_, ko) => { timer = setTimeout(() => ko(new Error(tr('pas de réponse du serveur en 30 secondes'))), 30000); });
+    try {
+      rows = await Promise.race([A.adminList(), timeout]);
+      clearTimeout(timer);
+      if (run !== adminRun) return;
+      adminStatus('');
+    } catch (e) {
+      clearTimeout(timer);
+      if (run !== adminRun) return;
+      console.error(e);
+      adminStatus(tr`Œuvres indisponibles : ${e.message}`);
+      const el = $('admin-status'), again = document.createElement('button');
+      again.type = 'button'; again.className = 'link'; again.textContent = tr('Réessayer');
+      again.onclick = () => renderAdmin();
+      el.append(' ', again);
+      return;
+    }
     $('admin-count').textContent = rows.length ? `(${rows.length})` : '';
     list.innerHTML = '';
     if (!rows.length) { list.innerHTML = `<p class="hint">${tr('Aucune œuvre dans les autres comptes pour l’instant.')}</p>`; return; }
