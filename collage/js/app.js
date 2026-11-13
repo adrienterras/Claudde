@@ -4337,7 +4337,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (state.selected) hintSeen = true;
     const seen = hintSeen;
     const newer = $('work-newer');
-    const show = !!state.comp && !state.selected && !seen && !(newer && !newer.hidden) && !document.body.classList.contains('stage-full');
+    // (aussi tiroir fermé sur téléphone : après un import ou un rechargement, l'œuvre est en grand)
+    const show = !!state.comp && !state.selected && !seen && !(newer && !newer.hidden);
     if (show) el.textContent = mobileQuery.matches
       ? tr('Touchez un des dessins pour le modifier')
       : tr('Cliquez sur un des dessins pour le modifier');

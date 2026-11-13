@@ -105,6 +105,37 @@ test.describe('Interface', () => {
     await expect(page.locator('#edit-hint')).toBeVisible();
   });
 
+  test('téléphone : l’astuce « Touchez un des dessins » s’affiche aussi tiroir fermé, après l’import et après un rechargement', async ({ browser }) => {
+    test.setTimeout(180000);
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    const { fixture } = require('./helpers');
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const hint = page.locator('#edit-hint');
+    const check = async () => {
+      await expect(page.locator('body')).toHaveClass(/stage-full/); // (tiroir entièrement fermé)
+      await expect(hint).toBeVisible();
+      await expect(hint).toHaveText('Touchez un des dessins pour le modifier');
+      // sur l'œuvre, dans l'écran, sans couvrir le bouton rond ni la colonne de zoom
+      const [h, fab, zoom] = await Promise.all([hint.boundingBox(), page.locator('#stage-generate').boundingBox(), page.locator('.zoom').boundingBox()]);
+      expect(h.y).toBeGreaterThan(0); expect(h.y + h.height).toBeLessThan(844); expect(h.x + h.width).toBeLessThanOrEqual(390);
+      const over = (a, b) => b && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      expect(over(h, fab)).toBe(false);
+      expect(over(h, zoom)).toBe(false);
+    };
+    await check();
+    // rechargement : l'œuvre revient, tiroir fermé, et l'astuce avec elle
+    await waitDraft(page);
+    await page.reload();
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await check();
+    await ctx.close();
+  });
+
   test('sur ordinateur, Dessins est repliée à chaque visite et à chaque nouvelle œuvre ; un dessin cliqué sur l’œuvre l’ouvre', async ({ app }) => {
     test.setTimeout(180000);
     const { page } = app;
