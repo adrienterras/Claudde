@@ -55,7 +55,7 @@
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
       q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'is' ? x == v : op === 'not-is' ? x != v : op === 'neq' ? x !== v : x === v; }); });
       if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
-      if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(null); }
+      if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(rows.map((r) => ({ id: r.id }))); } // (comme .delete().select() : les lignes supprimées)
       if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }
       if (q.order) rows.sort((a, b) => (a[q.order] < b[q.order] ? 1 : -1));
       if (q.single) return rows.length ? ok(rows[0]) : ko('Row not found');
@@ -74,7 +74,7 @@
     async upload(path, blob) { db.files[path] = b64(await blob.arrayBuffer()); persist(); window.__fake.calls.push(['upload', path]); return { data: { path }, error: null }; },
     async download(path) { const f = db.files[path]; if (!f) return { data: null, error: { message: `fichier absent : ${path}` } }; return { data: new Blob([unb64(f)]), error: null }; },
     async list(prefix) { return { data: Object.keys(db.files).filter((p) => p.startsWith(prefix + '/')).map((p) => ({ name: p.slice(prefix.length + 1) })), error: null }; },
-    async remove(paths) { paths.forEach((p) => { delete db.files[p]; }); persist(); return { data: paths, error: null }; },
+    async remove(paths) { if (window.__FAKE_REMOVE_FAIL) return { data: null, error: { message: 'réseau coupé' } }; paths.forEach((p) => { delete db.files[p]; }); persist(); return { data: paths, error: null }; }, // (__FAKE_REMOVE_FAIL : l'effacement des fichiers échoue)
     async createSignedUrl(path) { return db.files[path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'fichier absent' } }; },
   }) };
   // (comme is_admin() : le rôle écrit côté serveur dans app_metadata, jamais l'e-mail)

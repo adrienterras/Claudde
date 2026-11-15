@@ -357,6 +357,31 @@ test.describe('Comptes utilisateurs', () => {
     expect(left).toEqual([w1]);
   });
 
+  test('suppression : si l’effacement des fichiers échoue, l’œuvre reste (fiche et dessins) et la suppression se relance ; ensuite tout est effacé', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
+    await page.setInputFiles('#file', ['page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 2);
+    const w = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work), w);
+    const state = () => page.evaluate((id) => { const uid = window.__fake.db.session.user.id; return { row: window.__fake.db.rows.some((r) => r.id === id), files: Object.keys(window.__fake.db.files).filter((p) => p.startsWith(`${uid}/${id}/`)).length }; }, w);
+    const before = await state();
+    expect(before.row).toBe(true);
+    expect(before.files).toBeGreaterThan(0);
+    // le réseau coupe pendant l'effacement des fichiers : erreur, rien n'est perdu de vue
+    await page.evaluate(() => { window.__FAKE_REMOVE_FAIL = true; });
+    const msg = await page.evaluate(async (id) => { try { await window.Account.cloud.del('cloud:' + id); return ''; } catch (e) { return e.message; } }, w);
+    expect(msg).toContain('réseau coupé');
+    expect(await state()).toEqual(before);
+    // le réseau revient : la suppression relancée efface la fiche et tous les dessins
+    await page.evaluate(() => { window.__FAKE_REMOVE_FAIL = false; });
+    await page.evaluate(async (id) => window.Account.cloud.del('cloud:' + id), w);
+    expect(await state()).toEqual({ row: false, files: 0 });
+  });
+
   test('administration : sans réponse du serveur, « Toutes les œuvres » ne reste pas sur « Lecture… » : un message et « Réessayer »', async ({ acc }) => {
     test.setTimeout(150000);
     const { page } = acc;

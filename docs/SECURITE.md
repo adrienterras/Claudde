@@ -219,6 +219,16 @@ Restent connus : script Umami chargé depuis son serveur, pas de quota de stocka
 serveur, pas de protection contre l'affichage en cadre (impossible en balise meta), total des
 commandes à recalculer avant d'encaisser.
 
+## 15 novembre 2026 : suppressions fiables
+
+Relevé par une relecture externe : la suppression d'une œuvre ou d'un export effaçait les fichiers sans
+vérifier le résultat, puis la fiche ; un échec réseau laissait les dessins stockés alors que l'œuvre
+avait disparu de l'écran (fichiers restés privés, balayés à la suppression du compte). Désormais la
+fiche n'est supprimée que si les fichiers le sont, et sa disparition est vérifiée (une suppression
+refusée par les règles du serveur ne renvoie pas d'erreur) ; sinon « Suppression impossible », l'œuvre
+reste et la suppression se relance. Test `account.spec.js` « suppression : si l'effacement des
+fichiers échoue ».
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.

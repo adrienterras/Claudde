@@ -446,9 +446,9 @@
     return dl.data;
   }
   async function exportDel(id, path) {
-    if (path) await client.storage.from(BUCKET).remove([path]);
-    const { error } = await client.from('exports').delete().eq('id', id);
-    err(error);
+    // (le fichier d'abord ; la fiche seulement s'il est bien effacé, voir cloudDel)
+    if (path) { const { error: e1 } = await client.storage.from(BUCKET).remove([path]); err(e1); }
+    await delRow('exports', id);
   }
 
   // ---------- Panier dans le compte ----------
@@ -489,14 +489,28 @@
     const id = cloudId.replace(/^cloud:/, '');
     const store = client.storage.from(BUCKET);
     const base = `${user.id}/${id}`;
-    const { data: rows } = await client.from('compositions').select('id, meta').eq('id', id);
-    const { data: files } = await store.list(base, { limit: 1000 });
+    // les fichiers d'abord, et seulement s'ils sont bien effacés la fiche : sinon (réseau coupé…) les
+    // dessins resteraient stockés alors que l'œuvre aurait disparu ; l'erreur remonte, l'œuvre reste
+    // dans la liste et la suppression peut être relancée
+    const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);
+    err(e0);
+    const { data: files, error: e1 } = await store.list(base, { limit: 1000 });
+    err(e1);
     const paths = new Set((files || []).map((f) => `${base}/${f.name}`));
     pathsOf(((rows || [])[0] || {}).meta).forEach((p) => paths.add(p)); // (ancien brouillon : un autre dossier)
-    if (paths.size) await store.remove([...paths]);
+    if (paths.size) { const { error: e2 } = await store.remove([...paths]); err(e2); }
     workFiles.delete(id);
-    const { error } = await client.from('compositions').delete().eq('id', id);
+    await delRow('compositions', id);
+  }
+  // Supprime une ligne et vérifie qu'elle a disparu : une suppression refusée par les règles du serveur
+  // (la ligne d'un autre compte) ne renvoie pas d'erreur, seulement aucune ligne supprimée
+  async function delRow(table, id) {
+    const { data: gone, error } = await client.from(table).delete().eq('id', id).select('id');
     err(error);
+    if (gone && gone.length) return;
+    const { data: still, error: e2 } = await client.from(table).select('id').eq('id', id);
+    err(e2);
+    if (still && still.length) throw new Error(tr('le serveur a refusé la suppression'));
   }
 
   window.Account = {
