@@ -214,6 +214,10 @@
       body { font-size: 15px; }
       main h1, main h1 + p, main .kicker:has(+ h1) { text-align: center; }
       main h1 + p { margin-left: auto; margin-right: auto; }
+      /* paragraphes et boutons à la même taille (celle du texte courant) ; l'accroche de l'accueil, les
+         prix, les citations et les petites lignes gardent la leur */
+      main .lead, main p:not([class]), main li, main .promise li, main .duo-steps li, main .faq-more, main .btn { font-size: 15px; }
+      main .hero .lead { font-size: 1.1rem; }
     }
   </style>
 </head>
