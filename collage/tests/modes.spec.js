@@ -19,6 +19,12 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#pick-camera')).toBeHidden();
     await page.locator('#import-pick [data-close]').click();
     await expect(page.locator('#mode-pick')).toBeVisible();
+    // le sélecteur de fichiers refermé sans rien choisir (« Annuler ») : retour aux deux cartes aussi
+    await page.locator('#mode-pick [data-mode="impression"]').click();
+    const [cancelled] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-files').click()]);
+    await cancelled.element().evaluate((inp) => inp.dispatchEvent(new Event('cancel')));
+    await expect(page.locator('#mode-pick')).toBeVisible();
+    await expect(page.locator('#empty-import')).toBeHidden();
     await page.locator('#mode-pick [data-mode="impression"]').click();
     // un choix fait (le sélecteur de fichiers s'ouvre, ici refermé sans rien) : les boutons d'import, au milieu
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-files').click()]);

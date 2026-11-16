@@ -2183,6 +2183,19 @@
   }
   // l'accueil vide : les deux cartes (et l'exemple), ou, le type choisi, les boutons d'import au milieu
   // (déposer ; photographier sur téléphone) — l'étape Importer du menu reste pour en ajouter ensuite
+  // l'atelier encore vide, le choix d'ajout annulé (sélecteur ou appareil photo refermé sans rien) :
+  // retour aux deux cartes du choix d'atelier
+  const backToCards = () => { if (!state.drawings.length && !$('empty').hidden) emptyChoice(false); };
+  // le sélecteur ouvert depuis la fenêtre « Ajouter des dessins » : refermé sans fichier (« cancel »),
+  // retour aux cartes
+  let pickPending = false;
+  const pickOpen = (input) => { pickPending = true; input.click(); };
+  ['file', 'file-docs'].forEach((id) => {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    inp.addEventListener('cancel', () => { if (pickPending) { pickPending = false; backToCards(); } });
+    inp.addEventListener('change', () => { pickPending = false; });
+  });
   function emptyChoice(done) {
     $('mode-pick').hidden = done;
     // les cartes affichées : aucune n'est présélectionnée, le choix revient à l'utilisateur (le dernier
@@ -5642,7 +5655,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   if (window.Camera && Camera.supported()) {
     $('camera-open').hidden = false;
     $('empty-camera').hidden = false;
-    const startCamera = () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); }, onError: (msg) => notice(msg) });
+    const startCamera = () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); else backToCards(); }, onError: (msg) => notice(msg) });
     // avant l'appareil photo, un conseil (fond clair et uni, bonne lumière) ; « Ne plus afficher » le retient
     const TIP_KEY = 'atelier.conseil-photo-vu';
     const cameraTip = () => {
@@ -5719,8 +5732,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = dismiss));
     el.addEventListener('click', (e) => { if (e.target === el) dismiss(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) dismiss(); });
-    $('pick-photos').onclick = () => { closeModal(el); $('file').click(); };
-    $('pick-files').onclick = () => { closeModal(el); $('file-docs').click(); };
+    $('pick-photos').onclick = () => { closeModal(el); pickOpen($('file')); };
+    $('pick-files').onclick = () => { closeModal(el); pickOpen($('file-docs')); };
     $('file-docs').addEventListener('change', (e) => { const files = Array.from(e.target.files); e.target.value = ''; importUserFiles(files); });
   })();
   /*
@@ -5737,7 +5750,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         $(photos).hidden = true;
         $(files).classList.add('btn-primary');
       });
-      $('pick-files').onclick = () => { closeModal($('import-pick')); $('file').click(); };
+      $('pick-files').onclick = () => { closeModal($('import-pick')); pickOpen($('file')); };
       document.querySelectorAll('#drop .hint, #import-pick .resume-note').forEach((p) => { p.textContent = tr('Photos, scans ou PDF de plusieurs pages ; vous pouvez aussi les glisser ici.'); });
       return;
     }
