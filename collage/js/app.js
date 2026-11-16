@@ -2186,15 +2186,19 @@
   // l'atelier encore vide, le choix d'ajout annulé (sélecteur ou appareil photo refermé sans rien) :
   // retour aux deux cartes du choix d'atelier
   const backToCards = () => { if (!state.drawings.length && !$('empty').hidden) emptyChoice(false); };
-  // le sélecteur ouvert depuis la fenêtre « Ajouter des dessins » : refermé sans fichier (« cancel »),
-  // retour aux cartes
+  // le sélecteur ouvert depuis la fenêtre « Ajouter des dessins », l'atelier encore vide : les cartes
+  // reviennent tout de suite en arrière-plan (iOS ne signale pas toujours un menu refermé sans rien
+  // choisir : on ne compte pas dessus) ; des fichiers choisis, l'écran d'import revient le temps de
+  // l'analyse
   let pickPending = false;
-  const pickOpen = (input) => { pickPending = true; input.click(); };
+  const pickOpen = (input) => { pickPending = true; backToCards(); input.click(); };
+  const pickedFiles = () => { if (!state.drawings.length && !$('empty').hidden) emptyChoice(true); };
   ['file', 'file-docs'].forEach((id) => {
     const inp = document.getElementById(id);
     if (!inp) return;
-    inp.addEventListener('cancel', () => { if (pickPending) { pickPending = false; backToCards(); } });
-    inp.addEventListener('change', () => { pickPending = false; });
+    inp.addEventListener('cancel', () => { pickPending = false; });
+    // (en capture : avant l'import, qui vide le champ)
+    inp.addEventListener('change', () => { if (pickPending && inp.files && inp.files.length) pickedFiles(); pickPending = false; }, true);
   });
   function emptyChoice(done) {
     $('mode-pick').hidden = done;
@@ -5655,7 +5659,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   if (window.Camera && Camera.supported()) {
     $('camera-open').hidden = false;
     $('empty-camera').hidden = false;
-    const startCamera = () => Camera.open({ onDone: (files) => { if (files.length) importUserFiles(files); else backToCards(); }, onError: (msg) => notice(msg) });
+    const startCamera = () => Camera.open({ onDone: (files) => { if (files.length) { pickedFiles(); importUserFiles(files); } else backToCards(); }, onError: (msg) => notice(msg) });
     // avant l'appareil photo, un conseil (fond clair et uni, bonne lumière) ; « Ne plus afficher » le retient
     const TIP_KEY = 'atelier.conseil-photo-vu';
     const cameraTip = () => {
@@ -5669,7 +5673,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     $('empty-camera').addEventListener('click', openCamera);
     // « Prendre une photo » du choix d'ajout (téléphone) : l'appareil photo de l'atelier, jamais celui d'iOS
     $('pick-camera').hidden = false;
-    $('pick-camera').addEventListener('click', (e) => { closeModal($('import-pick')); openCamera(e); });
+    $('pick-camera').addEventListener('click', (e) => { closeModal($('import-pick')); backToCards(); openCamera(e); });
   }
   ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));

@@ -1971,18 +1971,22 @@ test.describe('Couleur du fond', () => {
     expect(await chooser.element().getAttribute('accept')).toContain('application/pdf');
     expect(await chooser.element().getAttribute('accept')).not.toContain('image');
     await expect(p.locator('#import-pick')).toBeHidden();
-    // un choix fait (même annulé par le téléphone) : les boutons d'import restent, un seul, qui rouvre le choix
-    await expect(p.locator('#empty-import')).toBeVisible();
-    await expect(p.locator('#empty-add')).toBeVisible();
-    await expect(p.locator('#empty-drop')).toBeHidden();
-    await expect(p.locator('#empty-camera')).toBeHidden();
+    // le sélecteur ouvert : les deux cartes reviennent derrière lui (refermé sans rien choisir, le menu
+    // d'iOS ne le signale pas toujours : on est déjà revenu au choix)
+    await expect(p.locator('#mode-pick')).toBeVisible();
+    await expect(p.locator('#empty-import')).toBeHidden();
     // « Photothèque » : le sélecteur habituel (photos et PDF)
-    await p.locator('#empty-add').click();
+    await p.locator('#mode-pick [data-mode="toile"]').click();
     const [chooser2] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pick-photos').click()]);
     expect(await chooser2.element().getAttribute('id')).toBe('file');
     await expect(p.locator('#import-pick')).toBeHidden();
+    await expect(p.locator('#mode-pick')).toBeVisible();
+    // l'écran d'import (après une carte, derrière la fenêtre d'ajout) : un seul bouton, qui rouvre le choix
+    await p.locator('#mode-pick [data-mode="toile"]').click();
+    await expect(p.locator('#empty-import')).toBeVisible();
+    await expect(p.locator('#empty-drop')).toBeHidden();
+    await expect(p.locator('#empty-camera')).toBeHidden();
     // « Prendre une photo » : l'appareil photo de l'atelier (le conseil d'abord), pas celui du téléphone
-    await p.locator('#empty-add').click();
     await p.locator('#pick-camera').click();
     await expect(p.locator('#import-pick')).toBeHidden();
     await expect(p.locator('#camera-advice')).toBeVisible();

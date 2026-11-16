@@ -19,20 +19,22 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await expect(page.locator('#pick-camera')).toBeHidden();
     await page.locator('#import-pick [data-close]').click();
     await expect(page.locator('#mode-pick')).toBeVisible();
-    // le sélecteur de fichiers refermé sans rien choisir (« Annuler ») : retour aux deux cartes aussi
+    // le sélecteur de fichiers ouvert : les cartes reviennent aussitôt derrière lui ; refermé sans rien
+    // choisir (« Annuler », ou le menu d'iOS fermé, qui ne le signale pas toujours), on y reste
     await page.locator('#mode-pick [data-mode="impression"]').click();
-    const [cancelled] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-files').click()]);
-    await cancelled.element().evaluate((inp) => inp.dispatchEvent(new Event('cancel')));
-    await expect(page.locator('#mode-pick')).toBeVisible();
-    await expect(page.locator('#empty-import')).toBeHidden();
-    await page.locator('#mode-pick [data-mode="impression"]').click();
-    // un choix fait (le sélecteur de fichiers s'ouvre, ici refermé sans rien) : les boutons d'import, au milieu
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-files').click()]);
     expect(await chooser.element().getAttribute('accept')).toContain('image');
     expect(await chooser.element().getAttribute('accept')).toContain('application/pdf');
-    await chooser.setFiles([]);
     await expect(page.locator('#import-pick')).toBeHidden();
-    // le type choisi : les cartes (et l'exemple) laissent la place aux boutons d'import, au milieu
+    await expect(page.locator('#mode-pick')).toBeVisible();
+    await expect(page.locator('#empty-import')).toBeHidden();
+    expect(await page.evaluate(() => document.querySelectorAll('#mode-pick button.on').length)).toBe(0);
+    await chooser.setFiles([]);
+    await expect(page.locator('#mode-pick')).toBeVisible();
+    // le type choisi reste le réglage ; l'adresse ?mode= ouvre l'écran d'import : les cartes (et
+    // l'exemple) laissent la place aux boutons d'import, au milieu
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#mode-pick')).toBeHidden();
     await expect(page.locator('#empty-sample')).toBeHidden();
     await expect(page.locator('#empty-import')).toBeVisible();
@@ -61,6 +63,18 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.setInputFiles('#file', [fixture('page-cutout.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#mode-pick')).toBeHidden();
+  });
+
+  test('depuis les cartes : des fichiers choisis dans la fenêtre d’ajout s’importent (l’écran d’import le temps de l’analyse)', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.locator('#mode-pick [data-mode="toile"]').click();
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-files').click()]);
+    await chooser.setFiles([fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#mode-pick')).toBeHidden();
+    expect(await page.evaluate(() => localStorage.getItem('atelier.mode'))).toBe('toile');
   });
 
   test('Impression : changer de cadre garde l’œuvre telle quelle (à l’échelle) ; changer d’orientation la tourne d’un quart de tour', async ({ page }) => {
