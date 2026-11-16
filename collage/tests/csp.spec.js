@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { test, expect, fixture, openStep } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html'];
+const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html', 'landing/a-propos.html'];
 const cspOf = (html) => { const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/); return m && m[1]; };
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim().split(/\s+/)).find((d) => d[0] === name) || []).slice(1);
 

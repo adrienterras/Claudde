@@ -132,9 +132,9 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await burger.click();
   await expect(menu).toBeVisible();
   await expect(burger).toHaveAttribute('aria-expanded', 'true');
-  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'Les styles', 'Chez vous', 'L’atelier', 'Tarifs', 'Idées', 'Photographier les dessins', 'Contact']);
+  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'Les styles', 'Chez vous', 'L’atelier', 'Tarifs', 'Idées', 'Photographier les dessins', 'À propos', 'Contact']);
   const hrefs = await menu.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  expect(hrefs).toEqual(['#comment', '#styles', '#chez-vous', 'atelier/', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'mailto:bonjour@atelier-gribouille.com']);
+  expect(hrefs).toEqual(['#comment', '#styles', '#chez-vous', 'atelier/', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'a-propos.html', 'mailto:bonjour@atelier-gribouille.com']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   // un lien de section : on y va, le menu se referme
   await menu.locator('a[href="#styles"]').click();
@@ -165,7 +165,7 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
 // Tarifs, Idées et Photographier ont l'en-tête de l'accueil (compte, menu à trois traits sur téléphone,
 // choix de langue flottant) et, en haut, le bouton « Créer une œuvre » de l'accueil.
 test('Tarifs, Idées, Photographier : l’en-tête de l’accueil et « Créer une œuvre » en haut', async ({ browser }) => {
-  for (const f of ['tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html']) {
+  for (const f of ['tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'a-propos.html']) {
     const ctx = await browser.newContext(PHONE);
     const page = await ctx.newPage();
     await page.route('http://accueil.test/**', (route) => {
@@ -178,7 +178,7 @@ test('Tarifs, Idées, Photographier : l’en-tête de l’accueil et « Créer u
     await expect(page.locator('a.nav-account'), f).toHaveText('Se connecter');
     await expect(page.locator('.lang-float'), f).toBeVisible();
     await page.locator('#nav-burger').click();
-    await expect(page.locator('#nav-menu a'), f).toHaveCount(8);
+    await expect(page.locator('#nav-menu a'), f).toHaveCount(9);
     await page.keyboard.press('Escape');
     const cta = page.locator('.page-cta a');
     await expect(cta, f).toHaveText('Créer une œuvre');

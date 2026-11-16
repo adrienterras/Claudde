@@ -21,7 +21,7 @@ async function checkFonts(page) {
   expect(loaded).toContain('Playfair Display');
 }
 
-for (const file of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html']) {
+for (const file of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'a-propos.html']) {
   test(`polices servies par le site, sans Google : accueil, ${file}`, async ({ page }) => {
     const google = [];
     page.on('request', (r) => { if (/fonts\.(googleapis|gstatic)\.com/.test(r.url())) google.push(r.url()); });

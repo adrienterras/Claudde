@@ -70,7 +70,7 @@ test.describe('page d’accueil en anglais', () => {
       }
       return out;
     });
-    for (const f of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html']) {
+    for (const f of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'a-propos.html']) {
       await page.goto(`file://${LANDING}/${f}?lang=fr`);
       const fr = await collect();
       await page.goto(`file://${LANDING}/${f}?lang=en`);

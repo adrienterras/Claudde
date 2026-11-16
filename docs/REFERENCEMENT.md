@@ -70,3 +70,9 @@ Le second atelier (`livre/`, publié sous `/livre/`) est retiré du site à la d
 dossier, tests, déploiement, liens, FAQ et plan du site. Il reste dans l'historique Git (commit
 précédent) si on veut le remettre. L'adresse `/livre/` répond désormais 404 : si Google l'avait
 indexée, elle disparaît d'elle-même.
+
+## Page « À propos » (16 novembre 2026)
+
+`a-propos.html` : l'histoire d'Atelier Gribouille (trois amis, sans nom), ce à quoi nous tenons, pour
+qui. Données structurées `AboutPage` et fil d'Ariane ; version anglaise (`?lang=en`) dans
+`landing/i18n.js` ; dans le plan du site, le menu à trois traits et le pied de page de toutes les pages.

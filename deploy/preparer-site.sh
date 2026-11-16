@@ -21,7 +21,7 @@ rm -f _site/atelier/samples/*.py
 # Chaque déploiement change l'adresse des scripts et des feuilles de style : les navigateurs
 # (Safari surtout) ne gardent plus une vieille version en cache après une mise à jour.
 sed -i -E "s#(src=\"(js/[a-z0-9-]+|config)\.js)\"#\1?v=$V\"#g; s#href=\"style\.css\"#href=\"style.css?v=$V\"#" _site/atelier/index.html
-sed -i -E "s#(src=\"[a-z0-9-]+\.js)\"#\1?v=$V\"#g; s#(href=\"[a-z0-9-]+\.css)\"#\1?v=$V\"#g" _site/index.html _site/tarifs.html _site/idees-dessins-enfants.html _site/photographier-les-dessins.html
+sed -i -E "s#(src=\"[a-z0-9-]+\.js)\"#\1?v=$V\"#g; s#(href=\"[a-z0-9-]+\.css)\"#\1?v=$V\"#g" _site/index.html _site/tarifs.html _site/idees-dessins-enfants.html _site/photographier-les-dessins.html _site/a-propos.html
 touch _site/.nojekyll
 # En-têtes HTTP (Cloudflare Pages les applique ; GitHub Pages les ignore) : ce qu'une balise meta ne
 # peut pas faire — interdire l'affichage du site dans le cadre d'un autre site (clickjacking), imposer

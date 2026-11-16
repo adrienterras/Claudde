@@ -12,6 +12,7 @@ const PAGES = {
   'tarifs.html': 'landing/tarifs.html',
   'idees-dessins-enfants.html': 'landing/idees-dessins-enfants.html',
   'photographier-les-dessins.html': 'landing/photographier-les-dessins.html',
+  'a-propos.html': 'landing/a-propos.html',
   'atelier/': 'collage/index.html',
   'confidentialite.html': 'collage/confidentialite.html',
 };
