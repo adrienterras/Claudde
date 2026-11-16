@@ -60,9 +60,10 @@
     .acc-pop a:hover, .acc-pop button:hover { background: var(--surface-2); }
     .acc-pop a:focus, .acc-pop button:focus { outline: none; }
     .acc-pop a:focus-visible, .acc-pop button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-    .acc-pop a.cart { display: flex; align-items: center; gap: 9px; }
-    .acc-pop a.cart svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-    .acc-pop .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: auto; box-sizing: border-box; border-radius: 999px; background: var(--ink); color: var(--craie); font-size: .7rem; font-weight: 600; }
+    .acc-pop a.cart { display: flex; align-items: center; gap: 12px; }
+    .acc-pop .cart-ico { position: relative; display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; }
+    .acc-pop .cart-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .acc-pop .cart-count { position: absolute; top: -6px; right: -8px; display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: var(--ink); color: var(--craie); font-size: .62rem; font-weight: 600; line-height: 1; }
     .acc-modal { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(43, 42, 34, .45); overflow-y: auto; font-family: var(--f-body); }
     .acc-modal[hidden] { display: none; }
     .acc-modal .card { position: relative; width: min(420px, 100%); margin: auto; padding: 28px 24px 22px; background: var(--craie); border-radius: 22px; box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .6); display: grid; gap: 12px; }
@@ -197,9 +198,12 @@
     // le panier, comme dans l'atelier : l'icône du chariot et le nombre d'articles ; il s'ouvre dans l'atelier
     const items = cartCount();
     const cart = el('a', { role: 'menuitem', class: 'cart', href: `atelier/?panier${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', 'aria-label': items ? trFn`Mon panier : ${items} article(s)` : t('Mon panier') });
-    cart.innerHTML = CART_ICON;
+    // le texte, puis à droite le chariot avec le nombre d'articles dans son coin (comme dans l'atelier)
     cart.appendChild(el('span', { text: t('Mon panier') }));
-    if (items) cart.appendChild(el('b', { class: 'cart-count', text: String(items) }));
+    const ico = el('span', { class: 'cart-ico', 'aria-hidden': 'true' });
+    ico.innerHTML = CART_ICON;
+    if (items) ico.appendChild(el('b', { class: 'cart-count', text: String(items) }));
+    cart.appendChild(ico);
     pop.appendChild(cart);
     const out = el('button', { type: 'button', role: 'menuitem', text: t('Se déconnecter') });
     out.addEventListener('click', () => {
