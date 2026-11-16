@@ -158,8 +158,9 @@
     if (error && /signups? not allowed|otp_disabled|user not found/i.test(`${error.message} ${error.code || ''}`)) return;
     err(error);
   }
-  async function resetPassword(email) {
-    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: redirectTo(), captchaToken: await captchaToken() });
+  // redirect : la page où revenir choisir le mot de passe (depuis le site : l'atelier, qui a le formulaire)
+  async function resetPassword(email, redirect) {
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: redirect || redirectTo(), captchaToken: await captchaToken() });
     err(error);
   }
   async function updatePassword(password) {

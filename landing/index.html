@@ -244,6 +244,19 @@
     }
     @media (min-width: 901px) and (max-width: 1100px) { .scenes, .styles { grid-template-columns: repeat(2, 1fr); } }
   </style>
+  <style>
+    /* le logo de l'en-tête : « Atelier » collé à « Gribouille » */
+    .brand > span { line-height: 1; }
+    .brand b { display: block; line-height: 1.05; }
+    .brand small { margin-bottom: 1px; }
+    /* téléphone : le premier titre et le premier paragraphe centrés (avec la petite ligne au-dessus du
+       titre), le texte courant un peu plus petit */
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      main h1, main h1 + p, main .kicker:has(+ h1) { text-align: center; }
+      main h1 + p { margin-left: auto; margin-right: auto; }
+    }
+  </style>
 </head>
 <body>
   <header class="nav">
@@ -267,6 +280,7 @@
         <a href="tarifs.html">Tarifs</a>
         <a href="idees-dessins-enfants.html">Idées</a>
         <a href="photographier-les-dessins.html">Photographier les dessins</a>
+        <a href="#questions">Questions fréquentes</a>
         <a href="a-propos.html">À propos</a>
         <a href="mailto:bonjour@atelier-gribouille.com">Contact</a>
       </nav>
@@ -441,7 +455,7 @@
     <section class="cta wrap">
       <h2>Les grands souvenirs commencent par un gribouillage</h2>
       <div class="actions">
-        <a class="btn btn-primary" href="atelier/?nouveau&amp;mode=impression" target="_blank" rel="noopener">Création imprimée à partir de vos dessins</a>
+        <a class="btn btn-primary" href="atelier/?nouveau&amp;mode=impression" target="_blank" rel="noopener">Impression à partir de vos dessins</a>
         <a class="btn btn-primary" href="atelier/?nouveau&amp;mode=toile" target="_blank" rel="noopener">Collage avec les dessins originaux</a>
         <a class="btn btn-ghost" href="atelier/?exemple" target="_blank" rel="noopener">Essayer avec des dessins d’exemple</a>
       </div>

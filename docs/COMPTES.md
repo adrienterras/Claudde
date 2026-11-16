@@ -141,15 +141,23 @@ Le fichier `supabase/schema.sql` est idempotent : après une évolution (par exe
 
 ## Le compte depuis le site
 
-L'en-tête de l'accueil et de la page Tarifs porte un lien compte (`landing/compte.js`). Sans charger
-Supabase, il lit dans le stockage local du navigateur la session que l'atelier y garde (même origine,
-clé `sb-<projet>-auth-token`) : connecté, il affiche la pastille du compte, comme dans l'atelier (la photo du compte, sinon
-l'initiale du prénom, à la place de l'icône), et le prénom, dans un contour fin comme le compte de
-l'atelier, et mène à `atelier/?compte` (le panneau
-Mon compte s'ouvre à l'arrivée) ; sinon « Se connecter » mène à `atelier/?connexion` (le panneau de
-connexion s'ouvre). Sur téléphone, c'est le tiroir de l'atelier qui s'ouvre, sur l'onglet Compte (le
-panneau de connexion par-dessus s'il faut encore se connecter). Rien n'est envoyé nulle part : c'est
-une simple lecture locale.
+L'en-tête de toutes les pages du site (accueil, Tarifs, Idées, Photographier, À propos) porte une
+pastille ronde (`landing/compte.js`) : l'icône de profil sans session ; la photo du compte (ou
+l'initiale du prénom) une fois connecté, sans le prénom. À l'arrivée, rien n'est chargé : la page lit
+seulement, dans le stockage local, la session que l'atelier y garde (même origine, clé
+`sb-<projet>-auth-token`).
+
+- **Non connecté** : la pastille ouvre, sur la page même, la fenêtre de connexion (Google, e-mail et
+  mot de passe, création de compte, lien par e-mail, mot de passe oublié). On reste sur la page : le
+  client Supabase (`atelier/vendor/supabase.js`) et le module des comptes de l'atelier
+  (`atelier/js/account.js`) se chargent à ce moment-là, et la session est la même que dans l'atelier.
+  Les retours de Google et des liens reçus par e-mail reviennent sur la page d'où l'on est parti
+  (`?code=…`, échangé puis retiré de l'adresse) ; le lien « mot de passe oublié » ramène dans
+  l'atelier, qui a le formulaire du nouveau mot de passe.
+- **Connecté** : la pastille ouvre un menu, « Mon compte » (`atelier/?compte` : le tiroir du compte,
+  ouvert en grand sur téléphone) et « Se déconnecter » (sur la page).
+
+Les adresses de retour de Supabase (`https://ateliergribouille.art/**`) couvrent déjà toutes les pages.
 
 ## Ce qui demande un compte
 

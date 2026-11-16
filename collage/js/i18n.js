@@ -721,6 +721,7 @@
     'Ou saisissez cette clé dans l’application :': 'Or enter this key in the app:',
     'Code à 6 chiffres': '6-digit code',
     'Afficher les œuvres suivantes': 'Show more artworks',
+    'Photos, scans ou PDF de plusieurs pages ; vous pouvez aussi les glisser ici.': 'Photos, scans or multi-page PDFs; you can also drag them here.',
     'Nouveau mot de passe enregistré.': 'New password saved.',
     'nom enregistré': 'name saved',
     'un lien de confirmation a été envoyé à {0}': 'a confirmation link was sent to {0}',

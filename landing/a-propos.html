@@ -188,6 +188,19 @@
     .values-list b { color: var(--ink); font-weight: 600; }
     .closing { margin: 22px 0 0; font-family: var(--f-display); font-size: clamp(1.3rem, 2.4vw, 1.6rem); color: var(--accent); }
   </style>
+  <style>
+    /* le logo de l'en-tête : « Atelier » collé à « Gribouille » */
+    .brand > span { line-height: 1; }
+    .brand b { display: block; line-height: 1.05; }
+    .brand small { margin-bottom: 1px; }
+    /* téléphone : le premier titre et le premier paragraphe centrés (avec la petite ligne au-dessus du
+       titre), le texte courant un peu plus petit */
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      main h1, main h1 + p, main .kicker:has(+ h1) { text-align: center; }
+      main h1 + p { margin-left: auto; margin-right: auto; }
+    }
+  </style>
 </head>
 <body>
   <header class="nav">
@@ -211,6 +224,7 @@
         <a href="tarifs.html">Tarifs</a>
         <a href="idees-dessins-enfants.html">Idées</a>
         <a href="photographier-les-dessins.html">Photographier les dessins</a>
+        <a href="./#questions">Questions fréquentes</a>
         <a href="a-propos.html">À propos</a>
         <a href="mailto:bonjour@atelier-gribouille.com">Contact</a>
       </nav>

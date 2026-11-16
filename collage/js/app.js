@@ -5706,7 +5706,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('empty-drop').addEventListener('click', () => $('file').click());
   // Importer : Photothèque et Fichiers (Prendre une photo : camera-open, plus haut)
   $('import-photos').addEventListener('click', () => $('file').click());
-  $('import-files').addEventListener('click', () => $('file-docs').click());
+  // (Fichiers : les PDF sur écran tactile, où Photothèque ouvre les images ; tout sur ordinateur, voir plus bas)
+  $('import-files').addEventListener('click', () => (navigator.maxTouchPoints > 0 ? $('file-docs') : $('file')).click());
   // téléphone : « Ajouter des dessins » ouvre le choix — Photothèque (le sélecteur du téléphone),
   // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (les PDF, dans Fichiers)
   (() => {
@@ -5721,6 +5722,32 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     $('pick-photos').onclick = () => { closeModal(el); $('file').click(); };
     $('pick-files').onclick = () => { closeModal(el); $('file-docs').click(); };
     $('file-docs').addEventListener('change', (e) => { const files = Array.from(e.target.files); e.target.value = ''; importUserFiles(files); });
+  })();
+  /*
+   * Les choix d'ajout selon l'appareil (dans la fenêtre « Ajouter des dessins » et dans l'étape Importer) :
+   * - écran tactile (téléphone, iPad) avec appareil photo : « Prendre une photo » en premier, mis en
+   *   avant, puis Photothèque et Fichiers ;
+   * - ordinateur sans écran tactile : pas de Photothèque (elle n'y est que le sélecteur de fichiers) ;
+   *   « Fichiers », mis en avant, ouvre les photos, les scans et les PDF.
+   */
+  (() => {
+    const pairs = [['drop', 'camera-open', 'import-photos', 'import-files'], ['import-pick', 'pick-camera', 'pick-photos', 'pick-files']];
+    if (!(navigator.maxTouchPoints > 0)) {
+      pairs.forEach(([, , photos, files]) => {
+        $(photos).hidden = true;
+        $(files).classList.add('btn-primary');
+      });
+      $('pick-files').onclick = () => { closeModal($('import-pick')); $('file').click(); };
+      document.querySelectorAll('#drop .hint, #import-pick .resume-note').forEach((p) => { p.textContent = tr('Photos, scans ou PDF de plusieurs pages ; vous pouvez aussi les glisser ici.'); });
+      return;
+    }
+    if (!(window.Camera && Camera.supported())) return;
+    pairs.forEach(([, camera, photos]) => {
+      const cam = $(camera), ph = $(photos);
+      ph.parentNode.insertBefore(cam, ph);
+      cam.classList.add('btn-primary');
+      ph.classList.remove('btn-primary');
+    });
   })();
   initMode();
   $('export-margin').querySelectorAll('[data-margin]').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); updateExportInfo(); }));
@@ -7552,7 +7579,8 @@ Réponds uniquement avec ce JSON :
       A.onChange((u) => {
         if (once) return;
         once = true;
-        if (mobileQuery.matches) { setStageFull(false); selectTab('more'); if (!u) openPanel(true); }
+        // (le tiroir s'ouvre en grand : « Mon compte » se voit en entier)
+        if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u) openPanel(true); }
         else openPanel(true);
         // une fois fait, l'adresse l'oublie : actualiser la page ne rouvre pas le compte
         try { const url = new URL(location.href); url.searchParams.delete('connexion'); url.searchParams.delete('compte'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }

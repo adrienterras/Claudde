@@ -22,12 +22,14 @@ test.describe('Interface', () => {
     await expect(page.locator('#import-section')).toBeVisible();
     await page.locator('#import-section > h2').click();
     await expect(page.locator('#drop')).toBeVisible();
-    // les mêmes choix qu'au premier import : Photothèque, Fichiers (Prendre une photo : écran tactile seulement)
-    await expect(page.locator('#import-photos')).toBeVisible();
+    // les mêmes choix qu'au premier import ; ordinateur sans écran tactile : « Fichiers » seul (photos,
+    // scans et PDF), ni Photothèque ni photo
+    await expect(page.locator('#import-photos')).toBeHidden();
     await expect(page.locator('#import-files')).toBeVisible();
     await expect(page.locator('#camera-open')).toBeHidden();
+    await expect(page.locator('#drop .hint')).toContainText('Photos, scans ou PDF');
     const [ch] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#import-files').click()]);
-    expect(await ch.element().getAttribute('accept')).not.toContain('image');
+    expect(await ch.element().getAttribute('accept')).toContain('image');
     await page.locator('#import-section > h2').click();
     await expect(page.locator('#sizes-section')).not.toHaveClass(/collapsed/);
     await expect(page.locator('#compose-section')).not.toHaveClass(/collapsed/);
@@ -1952,6 +1954,11 @@ test.describe('Couleur du fond', () => {
     await expect(p.locator('#pick-photos')).toBeVisible();
     await expect(p.locator('#pick-camera')).toBeVisible();
     await expect(p.locator('#pick-files')).toBeVisible();
+    // « Prendre une photo » en premier, mis en avant ; puis Photothèque et Fichiers
+    expect(await p.locator('#import-pick .btn').evaluateAll((bs) => bs.map((b) => b.id))).toEqual(['pick-camera', 'pick-photos', 'pick-files']);
+    await expect(p.locator('#pick-camera')).toHaveClass(/btn-primary/);
+    await expect(p.locator('#pick-photos')).not.toHaveClass(/btn-primary/);
+    expect(await p.locator('#drop .btn').evaluateAll((bs) => bs.map((b) => b.id))).toEqual(['camera-open', 'import-photos', 'import-files']);
     await p.locator('#import-pick [data-close]').click();
     await expect(p.locator('#import-pick')).toBeHidden();
     await expect(p.locator('#mode-pick')).toBeVisible();
