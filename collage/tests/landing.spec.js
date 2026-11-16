@@ -70,8 +70,19 @@ test('accueil : la pastille du compte, ronde, l’icône sans session, la photo 
   await acc2.click();
   const pop = page2.locator('.acc-pop');
   await expect(pop).toBeVisible();
-  await expect(pop.locator('[role="menuitem"]')).toHaveText(['Mon compte', 'Se déconnecter']);
-  expect(await pop.locator('a').getAttribute('href')).toBe('atelier/?compte');
+  await expect(pop.locator('[role="menuitem"]')).toHaveText(['Mon compte', 'Mon panier', 'Se déconnecter']);
+  expect(await pop.locator('a').first().getAttribute('href')).toBe('atelier/?compte');
+  // « Mon panier » : l'icône du chariot, pas de nombre sans article ; ouvre le panier dans l'atelier
+  const cart = pop.locator('a.cart');
+  expect(await cart.getAttribute('href')).toBe('atelier/?panier');
+  await expect(cart.locator('svg')).toBeVisible();
+  await expect(cart.locator('.cart-count')).toHaveCount(0);
+  await page2.keyboard.press('Escape');
+  // deux articles (quantités 2 et 1) dans le panier de l'atelier : « 3 »
+  await page2.evaluate(() => localStorage.setItem('atelier-gribouille:panier', JSON.stringify([{ qty: 2 }, { qty: 1 }])));
+  await acc2.click();
+  await expect(pop.locator('a.cart .cart-count')).toHaveText('3');
+  await expect(pop.locator('a.cart')).toHaveAttribute('aria-label', 'Mon panier : 3 article(s)');
   expect(page2.url()).toBe('http://accueil.test/');
   await page2.keyboard.press('Escape');
   await expect(pop).toBeHidden();

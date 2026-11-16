@@ -8473,6 +8473,16 @@ Réponds uniquement avec ce JSON :
     });
   }
   document.querySelectorAll('.cart-btn').forEach((b) => (b.onclick = () => openCart()));
+  // venu du menu du compte du site (« Mon panier », ?panier) : le panier s'ouvre à l'arrivée (une fois la
+  // session connue, pour qu'il soit relu depuis le compte), puis l'adresse l'oublie
+  if (/[?&]panier\b/.test(location.search)) {
+    const go = () => {
+      openCart();
+      try { const url = new URL(location.href); url.searchParams.delete('panier'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
+    };
+    const A = window.Account;
+    if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); } else setTimeout(go, 0);
+  }
 
   // Commander : compositions sauvegardées dans le compte, puis message de commande prêt à envoyer.
   async function placeOrder() {

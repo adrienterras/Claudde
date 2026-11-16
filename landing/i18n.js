@@ -302,6 +302,8 @@
     "Vous avez un scanner, ou l’application Notes de l’iPhone et son mode « Scanner un document » ? Ils redressent la feuille et donnent des traits encore plus nets, utiles pour un grand format. Mais pour la plupart des tableaux, la photo bien prise fait très bien l’affaire.": "Do you have a scanner, or the iPhone Notes app with its “Scan Documents” mode? They straighten the sheet and give even sharper lines, useful for a large format. But for most artworks, a well-taken photo does the job very well.",
     "Vos photos sont prêtes ?": "Are your photos ready?",
     "Importez-les dans l’atelier : il découpe chaque dessin à sa taille réelle et compose huit propositions de tableau, gratuitement.": "Import them into the studio: it cuts out each drawing at its real size and composes eight artwork suggestions, for free.",
+    "Mon panier": "My cart",
+    "Mon panier : {0} article(s)": "My cart: {0} item(s)",
     // page À propos
     "À propos : l’histoire d’Atelier Gribouille | Atelier Gribouille": "About: the story of Atelier Gribouille | Atelier Gribouille",
     "Trois amis, des montagnes de dessins d’enfants et une même question : qu’en faire ? L’histoire d’Atelier Gribouille et ce à quoi nous tenons.": "Three friends, mountains of children’s drawings and one shared question: what do we do with them? The story of Atelier Gribouille and what we care about.",

@@ -39,6 +39,10 @@
     } catch (e) { /* stockage inaccessible ou illisible : non connecté */ }
     return null;
   }
+  // le nombre d'articles du panier, tel que l'atelier le garde sur cet appareil (copie du panier du compte)
+  const cartCount = () => {
+    try { const items = JSON.parse(localStorage.getItem('atelier-gribouille:panier') || '[]'); return Array.isArray(items) ? items.reduce((a, it) => a + (Number(it && it.qty) > 0 ? Math.round(Number(it.qty)) : 0), 0) : 0; } catch (e) { return 0; }
+  };
   const nameOf = (u) => { const m = (u && u.user_metadata) || {}; return (m.name || m.full_name || (u && u.email ? u.email.split('@')[0] : '') || '').trim(); };
   // la photo du compte Google seulement (le seul hôte que la CSP ouvre aux images), sinon l'initiale
   const picOf = (u) => { const m = (u && u.user_metadata) || {}; const p = m.avatar_url || m.picture || ''; return typeof p === 'string' && /^https:\/\/lh3\.googleusercontent\.com\/[^"'\\()\s]+$/.test(p) ? p : ''; };
@@ -54,6 +58,9 @@
     .acc-pop .who { padding: 8px 10px 6px; font-size: .78rem; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .acc-pop a, .acc-pop button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-radius: 9px; background: none; font: inherit; font-size: .9rem; color: var(--ink); text-decoration: none; cursor: pointer; }
     .acc-pop a:hover, .acc-pop button:hover { background: var(--surface-2); }
+    .acc-pop a.cart { display: flex; align-items: center; gap: 9px; }
+    .acc-pop a.cart svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .acc-pop .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: auto; box-sizing: border-box; border-radius: 999px; background: var(--ink); color: var(--craie); font-size: .7rem; font-weight: 600; }
     .acc-modal { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(43, 42, 34, .45); overflow-y: auto; font-family: var(--f-body); }
     .acc-modal[hidden] { display: none; }
     .acc-modal .card { position: relative; width: min(420px, 100%); margin: auto; padding: 28px 24px 22px; background: var(--craie); border-radius: 22px; box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .6); display: grid; gap: 12px; }
@@ -83,6 +90,7 @@
     .acc-modal .legal { margin: 2px 0 0; font-size: .74rem; color: var(--muted); text-align: center; }
     #auth-captcha[hidden] { display: none; }
   `;
+  const CART_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.1 10.4a1.5 1.5 0 0 0 1.5 1.2h8.4a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.4"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>';
   const GOOGLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.6 12.2c0-.7-.1-1.3-.2-1.9H12v3.7h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z" fill="#4285F4" stroke="none"/><path d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z" fill="#34A853" stroke="none"/><path d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6z" fill="#FBBC05" stroke="none"/><path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335" stroke="none"/></svg>';
   function addStyle() {
     if (document.getElementById('acc-style')) return;
@@ -183,6 +191,13 @@
     const n = nameOf(user);
     if (n || user.email) pop.appendChild(el('p', { class: 'who', text: user.email || n }));
     pop.appendChild(el('a', { role: 'menuitem', href: `atelier/?compte${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', text: t('Mon compte') }));
+    // le panier, comme dans l'atelier : l'icône du chariot et le nombre d'articles ; il s'ouvre dans l'atelier
+    const items = cartCount();
+    const cart = el('a', { role: 'menuitem', class: 'cart', href: `atelier/?panier${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', 'aria-label': items ? trFn`Mon panier : ${items} article(s)` : t('Mon panier') });
+    cart.innerHTML = CART_ICON;
+    cart.appendChild(el('span', { text: t('Mon panier') }));
+    if (items) cart.appendChild(el('b', { class: 'cart-count', text: String(items) }));
+    pop.appendChild(cart);
     const out = el('button', { type: 'button', role: 'menuitem', text: t('Se déconnecter') });
     out.addEventListener('click', () => {
       out.disabled = true;
