@@ -246,6 +246,10 @@ fichiers échoue ».
 - **Commandes** : les œuvres commandées ne sont plus purgées et gardent le détail de la commande.
 - **Appareil partagé** : « Se déconnecter et effacer cet appareil » ; la suppression du compte
   efface aussi l'appareil.
+- **Métadonnées des photos** (signalé par une contre-expertise) : une image importée était gardée
+  telle quelle, avec sa position GPS, sa date et son appareil. `stripMetadata` (app.js) les retire
+  avant tout enregistrement, sans recompression ; seuls l'orientation et la résolution sont gardées
+  dans un EXIF minimal (`tests/metadonnees.spec.js`).
 
 Le schéma a été rejoué deux fois sur une base PostgreSQL qui imite Supabase (rôles, `auth.jwt()`,
 `storage.objects`) : lecture refusée sans `aal2`, journal écrit, fichiers ouverts après l'ouverture

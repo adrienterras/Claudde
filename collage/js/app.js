@@ -294,6 +294,122 @@
     return null;
   }
 
+  /*
+   * Les métadonnées d'une image importée ne sont jamais enregistrées (ni sur l'appareil, ni dans le
+   * compte) : une photo de téléphone porte souvent la position GPS (le domicile), la date, le modèle
+   * et le numéro de l'appareil. Les pixels ne sont pas touchés (aucune recompression) :
+   * - JPEG : segments APP1 (EXIF, XMP), APP13 (IPTC), APP3 à APP13, APP15 et commentaires retirés ;
+   *   gardés : JFIF, profil de couleur (APP2), Adobe (APP14), et un EXIF minimal refait avec les
+   *   seules orientation et résolution, dont l'atelier a besoin (sens de la photo, taille réelle) ;
+   * - PNG : textes (tEXt, zTXt, iTXt), date (tIME) et EXIF (eXIf) retirés ;
+   * - WebP : blocs EXIF et XMP retirés.
+   * Un fichier illisible est rendu tel quel (le décodeur de l'atelier l'a déjà accepté).
+   */
+  function stripMetadata(buf) {
+    try {
+      const b = new DataView(buf), n = b.byteLength, u8 = new Uint8Array(buf);
+      if (n > 4 && b.getUint16(0) === 0xffd8) {
+        const parts = [u8.subarray(0, 2)];
+        let keep = null; // { orient, xres:[num,den], yres:[num,den], unit }
+        let p = 2;
+        for (; p + 4 <= n;) {
+          if (b.getUint8(p) !== 0xff) return buf;
+          const marker = b.getUint8(p + 1);
+          if (marker === 0xff) { p++; continue; } // (octet de remplissage)
+          if (marker === 0xda) break; // début des données d'image : la suite est gardée telle quelle
+          const len = b.getUint16(p + 2), end = p + 2 + len;
+          if (end > n) return buf;
+          if (marker === 0xe1 && !keep && p + 14 <= n && b.getUint32(p + 4) === 0x45786966) keep = exifEssentials(b, p + 10, end);
+          const drop = marker === 0xfe || (marker >= 0xe1 && marker <= 0xef && marker !== 0xe2 && marker !== 0xee);
+          if (!drop) parts.push(u8.subarray(p, end));
+          p = end;
+        }
+        if (p >= n) return buf;
+        const exif = keep ? minimalExif(keep) : null;
+        if (exif) parts.splice(parts.length > 1 && b.getUint8(3) === 0xe0 ? 2 : 1, 0, exif); // (après JFIF, s'il y en a un)
+        parts.push(u8.subarray(p));
+        return concatBytes(parts);
+      }
+      if (n > 24 && b.getUint32(0) === 0x89504e47) {
+        const parts = [u8.subarray(0, 8)];
+        for (let p = 8; p + 12 <= n;) {
+          const len = b.getUint32(p), end = p + 12 + len;
+          if (end > n) return buf;
+          const type = String.fromCharCode(u8[p + 4], u8[p + 5], u8[p + 6], u8[p + 7]);
+          if (!/^(tEXt|zTXt|iTXt|tIME|eXIf)$/.test(type)) parts.push(u8.subarray(p, end));
+          p = end;
+          if (type === 'IEND') break;
+        }
+        return concatBytes(parts);
+      }
+      if (n > 20 && b.getUint32(0) === 0x52494646 && b.getUint32(8) === 0x57454250) { // RIFF … WEBP
+        const parts = [];
+        for (let p = 12; p + 8 <= n;) {
+          const type = String.fromCharCode(u8[p], u8[p + 1], u8[p + 2], u8[p + 3]);
+          const len = b.getUint32(p + 4, true), end = Math.min(n, p + 8 + len + (len & 1));
+          if (type === 'VP8X') { const c = u8.slice(p, end); c[8] &= ~0x0c; parts.push(c); } // (drapeaux EXIF et XMP effacés)
+          else if (type !== 'EXIF' && type !== 'XMP ') parts.push(u8.subarray(p, end));
+          p = end;
+        }
+        const body = concatBytes(parts), out = new Uint8Array(12 + body.byteLength);
+        out.set(u8.subarray(0, 12));
+        out.set(new Uint8Array(body), 12);
+        new DataView(out.buffer).setUint32(4, out.byteLength - 8, true);
+        return out.buffer;
+      }
+    } catch (e) { console.warn('métadonnées non retirées', e); }
+    return buf;
+  }
+  function concatBytes(parts) {
+    const out = new Uint8Array(parts.reduce((s, x) => s + x.byteLength, 0));
+    let o = 0;
+    parts.forEach((x) => { out.set(x, o); o += x.byteLength; });
+    return out.buffer;
+  }
+  // orientation et résolution d'un EXIF (TIFF à t), rien d'autre
+  function exifEssentials(b, t, end) {
+    const le = b.getUint16(t) === 0x4949;
+    const u16 = (o) => b.getUint16(o, le), u32 = (o) => b.getUint32(o, le);
+    const ifd = t + u32(t + 4);
+    if (ifd + 2 > end) return null;
+    const out = {};
+    const rational = (e) => { const off = t + u32(e + 8); return off + 8 <= end ? [u32(off), u32(off + 4)] : null; };
+    for (let i = 0, cnt = u16(ifd); i < cnt && ifd + 2 + i * 12 + 12 <= end; i++) {
+      const e = ifd + 2 + i * 12, tag = u16(e), type = u16(e + 2);
+      if (tag === 0x0112 && type === 3) out.orient = u16(e + 8);
+      if (tag === 0x011a && type === 5) out.xres = rational(e);
+      if (tag === 0x011b && type === 5) out.yres = rational(e);
+      if (tag === 0x0128 && type === 3) out.unit = u16(e + 8);
+    }
+    return Object.keys(out).length ? out : null;
+  }
+  // un segment APP1 « Exif » neuf : TIFF petit-boutiste, un seul répertoire, ces seules valeurs
+  function minimalExif(k) {
+    const entries = [];
+    if (k.orient >= 1 && k.orient <= 8) entries.push([0x0112, 3, k.orient]);
+    if (k.xres && k.xres[1]) entries.push([0x011a, 5, k.xres]);
+    if (k.yres && k.yres[1]) entries.push([0x011b, 5, k.yres]);
+    if (k.unit === 2 || k.unit === 3) entries.push([0x0128, 3, k.unit]);
+    if (!entries.length) return null;
+    const ifdSize = 2 + entries.length * 12 + 4, rats = entries.filter((x) => x[1] === 5).length;
+    const tiffLen = 8 + ifdSize + rats * 8, segLen = 2 + 6 + tiffLen;
+    const out = new Uint8Array(2 + segLen), v = new DataView(out.buffer);
+    v.setUint16(0, 0xffe1); v.setUint16(2, segLen);
+    out.set([0x45, 0x78, 0x69, 0x66, 0, 0], 4); // « Exif\0\0 »
+    const t = 10;
+    out.set([0x49, 0x49, 0x2a, 0x00], t); v.setUint32(t + 4, 8, true);
+    v.setUint16(t + 8, entries.length, true);
+    let data = 8 + ifdSize;
+    entries.forEach(([tag, type, val], i) => {
+      const e = t + 10 + i * 12;
+      v.setUint16(e, tag, true); v.setUint16(e + 2, type, true); v.setUint32(e + 4, 1, true);
+      if (type === 3) v.setUint16(e + 8, val, true);
+      else { v.setUint32(e + 8, data, true); v.setUint32(t + data, val[0], true); v.setUint32(t + data + 4, val[1], true); data += 8; }
+    });
+    v.setUint32(t + 10 + entries.length * 12, 0, true); // (pas d'autre répertoire)
+    return out;
+  }
+
   // Empreinte d'un fichier (taille + début du contenu) : reconnaît un fichier déjà importé, même
   // renommé (copie « … 2.JPG » faite par le téléphone ou l'ordinateur).
   async function fileKey(f) {
@@ -6526,7 +6642,8 @@ Réponds uniquement avec ce JSON :
   const HD_SAVE = 3508; // page de PDF sauvegardée à 300 dpi sur un A4
   async function sourceBytes(d) {
     const src = d.source;
-    if (src && src.file && src.file.type && src.file.type.startsWith('image/') && !isHeic(src.file)) return { data: await src.file.arrayBuffer(), type: src.file.type };
+    // (l'image d'origine, sans ses métadonnées : position GPS, date, appareil ; voir stripMetadata)
+    if (src && src.file && src.file.type && src.file.type.startsWith('image/') && !isHeic(src.file)) return { data: stripMetadata(await src.file.arrayBuffer()), type: src.file.type };
     // une photo HEIC est sauvegardée en JPEG (lisible partout, y compris sur un autre ordinateur),
     // convertie une seule fois
     if (d.savedJpeg) return d.savedJpeg;
