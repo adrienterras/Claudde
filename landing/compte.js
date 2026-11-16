@@ -58,6 +58,8 @@
     .acc-pop .who { padding: 8px 10px 6px; font-size: .78rem; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .acc-pop a, .acc-pop button { display: block; width: 100%; text-align: left; padding: 10px; border: 0; border-radius: 9px; background: none; font: inherit; font-size: .9rem; color: var(--ink); text-decoration: none; cursor: pointer; }
     .acc-pop a:hover, .acc-pop button:hover { background: var(--surface-2); }
+    .acc-pop a:focus, .acc-pop button:focus { outline: none; }
+    .acc-pop a:focus-visible, .acc-pop button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     .acc-pop a.cart { display: flex; align-items: center; gap: 9px; }
     .acc-pop a.cart svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
     .acc-pop .cart-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: auto; box-sizing: border-box; border-radius: 999px; background: var(--ink); color: var(--craie); font-size: .7rem; font-weight: 600; }
@@ -172,12 +174,13 @@
         a.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (user) togglePop(a); else openModal();
+          // (au clavier seulement, le curseur passe sur la première entrée du menu : e.detail vaut 0)
+          if (user) togglePop(a, e.detail === 0); else openModal();
         });
       }
     });
   }
-  function togglePop(a) {
+  function togglePop(a, keyboard) {
     if (!pop) {
       pop = el('div', { class: 'acc-pop', role: 'menu', hidden: '' });
       document.body.appendChild(pop);
@@ -212,7 +215,7 @@
     pop.hidden = false;
     a.setAttribute('aria-expanded', 'true');
     const first = pop.querySelector('[role="menuitem"]');
-    if (first) first.focus();
+    if (first && keyboard) first.focus();
   }
   function closePop() {
     if (!pop || pop.hidden) return;

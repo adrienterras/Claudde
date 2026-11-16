@@ -71,6 +71,8 @@ test('accueil : la pastille du compte, ronde, l’icône sans session, la photo 
   const pop = page2.locator('.acc-pop');
   await expect(pop).toBeVisible();
   await expect(pop.locator('[role="menuitem"]')).toHaveText(['Mon compte', 'Mon panier', 'Se déconnecter']);
+  // ouvert au doigt ou à la souris : aucune entrée ne prend le curseur (pas de contour)
+  expect(await page2.evaluate(() => !!document.activeElement.closest('.acc-pop'))).toBe(false);
   expect(await pop.locator('a').first().getAttribute('href')).toBe('atelier/?compte');
   // « Mon panier » : l'icône du chariot, pas de nombre sans article ; ouvre le panier dans l'atelier
   const cart = pop.locator('a.cart');
