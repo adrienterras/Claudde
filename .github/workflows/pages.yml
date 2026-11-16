@@ -1,30 +1,41 @@
 # Publie l'application Atelier Gribouille (dossier collage/) sur GitHub Pages.
 # Déclenché à chaque push sur la branche de l'application, ou à la main depuis l'onglet Actions.
+# La suite de tests passe d'abord (tests.yml) : si un seul test échoue, rien n'est publié.
 name: Publier sur GitHub Pages
 
 on:
   push:
     branches: [claude/children-drawings-art-app-kr5f77]
-    paths: [collage/**, landing/**, deploy/**, .github/workflows/pages.yml]
+    paths: [collage/**, landing/**, deploy/**, .github/workflows/pages.yml, .github/workflows/tests.yml]
   workflow_dispatch:
 
+# (droits donnés job par job : les tests n'ont que la lecture)
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+    permissions:
+      contents: read
   deploy:
+    needs: tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Activer Pages si besoin
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
         with:
@@ -33,6 +44,11 @@ jobs:
       # on ne déploie que si ce commit est encore la pointe de la branche.
       - name: Vérifier que le commit est le plus récent
         run: |
+          # (lancé à la main depuis une autre branche : refusé, seule la branche de production se publie)
+          if [ "$GITHUB_REF_NAME" != "claude/children-drawings-art-app-kr5f77" ]; then
+            echo "::error::Seule la branche de production se publie (ici : ${GITHUB_REF_NAME})."
+            exit 1
+          fi
           git fetch --quiet origin "${GITHUB_REF_NAME}"
           tip="$(git rev-parse "origin/${GITHUB_REF_NAME}")"
           if [ "$tip" != "$GITHUB_SHA" ]; then
@@ -59,4 +75,6 @@ jobs:
           timeout: 600000
           error_count: 20
       - id: deployment
-        run: echo "page_url=${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+        env:
+          PAGE_URL: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}
+        run: echo "page_url=$PAGE_URL" >> "$GITHUB_OUTPUT"

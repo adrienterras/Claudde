@@ -48,24 +48,62 @@ Sans réglage, l'app fonctionne sans compte (sauvegardes locales seulement).
 ## Administration
 
 Le compte de l'éditeur voit les œuvres de tous les comptes, en lecture seule, dans
-« Toutes les œuvres » (sous Mes œuvres, visible pour ce compte seulement), groupées par e-mail.
-« Ouvrir une copie » rouvre l'œuvre dans l'atelier comme une copie : elle rejoint le compte de
-l'administrateur au premier changement ; l'original n'est ni modifié ni effacé. Côté serveur
-(`supabase/schema.sql`, section « Administration ») : l'administrateur est désigné par un rôle,
-`atelier_role = admin`, dans `app_metadata` (que seul le serveur peut écrire, jamais le navigateur ni
-l'utilisateur) ; la fonction `is_admin()` lit ce rôle dans le jeton signé par Supabase, les règles
-« admin reads all » lui ouvrent la lecture des lignes `compositions` et des fichiers du bucket
-`drawings`, et `admin_owners(ids)` lui rend les e-mails des propriétaires. Les exports des autres
-comptes ne sont pas concernés. Ni l'adresse ni le nom de l'administrateur ne figurent dans le code de
-l'atelier (`Account.isAdmin` lit le même rôle).
+« Toutes les œuvres » (sous Mes œuvres, visible pour ce compte seulement), groupées par e-mail, par
+pages de 60. « Ouvrir une copie » rouvre l'œuvre dans l'atelier comme une copie : elle rejoint le
+compte de l'administrateur au premier changement ; l'original n'est ni modifié ni effacé.
 
-Mise en place : exécuter la section « Administration » de `supabase/schema.sql` dans l'éditeur SQL de
-Supabase ; elle donne le rôle au compte de l'éditeur (`update auth.users …`). Le rôle prend effet à la
-connexion suivante (se déconnecter puis se reconnecter), ou dans l'heure, quand le jeton se renouvelle.
-Pour changer d'administrateur : retirer le rôle à l'ancien compte, le donner au nouveau (même requête,
-autre adresse). Une œuvre rouverte est toujours nettoyée (`cleanSaved` : nombres forcés, textes
-vérifiés) : la ligne d'un autre compte peut avoir été écrite à la main. La politique de confidentialité
-mentionne cet accès.
+Côté serveur (`supabase/schema.sql`, section « Administration », depuis le 16 novembre 2026) :
+
+- l'administrateur est désigné par un rôle, `atelier_role = admin`, dans `app_metadata` (que seul le
+  serveur peut écrire) **et** doit s'être connecté avec la **double authentification** (jeton de
+  niveau `aal2`) : `is_admin()` vérifie les deux ;
+- il ne lit plus les tables directement : la liste passe par `admin_works(p_from, p_count)` (avec
+  l'e-mail des propriétaires), l'ouverture d'une œuvre par `admin_open(id)`, qui l'inscrit au
+  journal `admin_log` (qui, quoi, quand ; lisible dans Table Editor, jamais depuis le navigateur) ;
+- les fichiers d'un compte ne lui sont ouverts que dans l'heure qui suit l'ouverture d'une de ses
+  œuvres, et jamais ses exports ; ni le panier ni les exports des autres comptes ne lui sont ouverts.
+
+Dans l'atelier, la vue demande d'abord la double authentification : la première fois, « Activer la
+double authentification » affiche un code à scanner avec une application (Google Authenticator,
+Microsoft Authenticator, 1Password…) puis demande un premier code à 6 chiffres ; ensuite, à chaque
+connexion, le code est redemandé. Si le téléphone est perdu : dans Supabase, Authentication → Users →
+le compte → supprimer le facteur MFA, puis l'activer de nouveau depuis l'atelier.
+
+Mise en place : réexécuter tout `supabase/schema.sql` dans l'éditeur SQL de Supabase (idempotent). Le
+rôle se donne une fois, à la main, par l'identifiant du compte (Authentication → Users) :
+
+```sql
+update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"atelier_role": "admin"}'::jsonb
+  where id = '<identifiant du compte>';
+```
+
+Il prend effet à la connexion suivante. Pour le retirer : `- 'atelier_role'` au lieu de `|| …`. Une
+œuvre rouverte est toujours nettoyée (`cleanSaved` : nombres forcés, textes vérifiés) : la ligne d'un
+autre compte peut avoir été écrite à la main. La politique de confidentialité mentionne cet accès.
+
+## Limites côté serveur
+
+En plus de la limite de 15 œuvres et de la purge à 60 jours tenues par l'atelier (les œuvres
+commandées ne sont jamais purgées et ne comptent pas dans les 15), le serveur pose des plafonds larges
+qu'un script ne peut pas contourner : 300 lignes `compositions` et 1 000 exports par compte, 5 000
+fichiers et 3 Go par dossier, taille des champs (nom, vignette, fiche). Le compte administrateur n'est
+pas plafonné en nombre. Un dépassement renvoie « quota atteint ».
+
+## Vérification anti-robot (option)
+
+Pour bloquer les inscriptions en masse et l'épuisement du quota d'e-mails :
+
+1. Cloudflare → Turnstile → Add widget : domaine `ateliergribouille.art`, mode « Managed ». Noter la
+   clé du site (publique) et la clé secrète.
+2. Donner la **clé du site** (publique) : elle va dans `collage/config.js`, `captchaSiteKey`, et la
+   politique de sécurité de `collage/index.html` doit autoriser `https://challenges.cloudflare.com`
+   (`script-src` et `frame-src`). Publier.
+3. Ensuite seulement : Supabase → Authentication → Attack Protection → Enable Captcha protection →
+   Cloudflare Turnstile, coller la **clé secrète**.
+
+Dans cet ordre : sinon les connexions par mot de passe sont refusées le temps de la publication. Le
+lien de connexion par e-mail ne crée plus de compte (`shouldCreateUser: false`) et répond de la même
+façon pour une adresse inconnue.
 
 ## E-mails envoyés aux utilisateurs (expéditeur et modèles)
 

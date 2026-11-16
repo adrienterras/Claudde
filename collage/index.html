@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png?v=2">
   <meta name="theme-color" content="#f8f5ef">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cloud.umami.is; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://cloud.umami.is https://gateway.umami.is; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://gateway.umami.is; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Créer un tableau avec les dessins de vos enfants | Atelier Gribouille</title>
   <meta name="description" content="Importez les dessins de vos enfants, scannés ou pris en photo : l’atelier les découpe et compose jusqu’à huit propositions, à imprimer en 300 dpi ou à réaliser à la main.">
   <link rel="canonical" href="https://ateliergribouille.art/atelier/">
@@ -142,7 +142,23 @@
       <div id="admin-box" hidden>
         <h3>Toutes les œuvres <small id="admin-count"></small></h3>
         <p class="hint">Administration : les œuvres de tous les comptes, en lecture seule. Ouvrir une œuvre en fait une copie dans votre compte ; l’original n’est pas touché.</p>
+        <!-- double authentification exigée par le serveur avant toute lecture (voir supabase/schema.sql) -->
+        <div id="admin-mfa" class="admin-mfa" hidden>
+          <p class="hint" id="admin-mfa-text"></p>
+          <button type="button" class="btn" id="admin-mfa-start" hidden>Activer la double authentification</button>
+          <div id="admin-mfa-qr" hidden>
+            <img alt="Code à scanner avec l’application d’authentification" width="180" height="180">
+            <p class="hint">Ou saisissez cette clé dans l’application : <code></code></p>
+          </div>
+          <form id="admin-mfa-form" hidden>
+            <label class="field">Code à 6 chiffres
+              <input id="admin-mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7">
+            </label>
+            <button type="submit" class="btn btn-primary">Valider</button>
+          </form>
+        </div>
         <div id="admin-list" class="saved-list"></div>
+        <button type="button" class="link" id="admin-more" hidden>Afficher les œuvres suivantes</button>
         <p id="admin-status" class="save-status" role="status" hidden></p>
       </div>
     </section>
@@ -368,6 +384,7 @@
             <span class="pw"><input id="auth-password" type="password" autocomplete="current-password" minlength="10" required placeholder="Votre mot de passe"><button type="button" class="pw-eye" data-for="auth-password" aria-label="Afficher le mot de passe"><svg class="ico"><use href="#i-eye"/></svg></button></span>
             <span class="pw-meter" id="auth-meter" hidden><span class="pw-bar"><i></i></span><span class="pw-label"></span><span class="pw-tips"></span></span>
           </label>
+          <div id="auth-captcha" class="auth-captcha" hidden></div>
           <button type="submit" class="btn btn-primary btn-wide" id="auth-submit">Se connecter</button>
           <p class="acc-links"><button type="button" class="link" id="auth-forgot">Mot de passe oublié ?</button><span aria-hidden="true">·</span><button type="button" class="link" id="auth-magic">Lien de connexion par e-mail</button></p>
         </form>
@@ -409,10 +426,11 @@
             <button type="submit" class="btn btn-primary">Enregistrer</button>
             <button type="button" class="btn" id="acc-signout">Se déconnecter</button>
           </div>
+          <p class="hint">Appareil partagé ? <button type="button" class="link" id="acc-signout-wipe">Se déconnecter et effacer cet appareil</button></p>
         </form>
         <p id="cut-sync" class="hint" hidden><span></span> <button type="button" class="link" id="cut-sync-push" hidden>Appliquer à tous mes appareils</button> <button type="button" class="link" id="cut-sync-reset">Revenir à la découpe d’office</button></p>
         <div class="danger-zone">
-          <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte. Les œuvres de cet appareil ne sont pas touchées.</p>
+          <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte, ainsi que ceux de cet appareil.</p>
           <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
         </div>
       </div>

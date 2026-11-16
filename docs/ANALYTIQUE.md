@@ -10,13 +10,23 @@ place ; il reste à créer le compte et à coller l'identifiant du site dans `co
    par mois, 3 sites, un an d'historique, largement suffisant pour démarrer).
 2. « Add website » : nom *Atelier Gribouille*, domaine `ateliergribouille.art`.
 3. Ouvrir le site créé → **Edit** → **Tracking code** : copier la valeur de `data-website-id`
-   (une suite du type `3f2a…-…`). Ne pas copier le `<script>` entier : il est déjà dans les pages.
+   (une suite du type `3f2a…-…`). Ne pas copier le `<script>` : la page envoie elle-même les données (voir plus bas).
 4. Dans `collage/config.js`, coller cet identifiant dans `analytics.websiteId`, puis pousser.
    Le même réglage sert à la page d'accueil (`landing/index.html` charge `atelier/config.js`).
 5. Ouvrir le site : la visite apparaît dans le tableau de bord en temps réel.
 
 Si Umami propose une autre région d'hébergement (`eu.umami.is`), choisir celle-ci et reporter
 l'adresse dans `analytics.host`.
+
+## Sans script tiers (16 novembre 2026)
+
+Aucun script d'Umami n'est chargé : `collage/js/analytics.js` envoie lui-même la visite et les
+événements à l'adresse de collecte d'Umami Cloud (`https://gateway.umami.is/api/send`, réglable par
+`analytics.endpoint`), avec le chemin de la page sans « ?… », la provenance réduite à son site, la
+taille d'écran et la langue. Un script chargé depuis Umami tournerait avec les droits de la page, dont
+la session du compte. Si Umami change d'adresse de collecte : la mettre dans `analytics.endpoint` et
+dans `connect-src` des six pages. Après une publication, vérifier que les visites arrivent dans le
+tableau de bord (temps réel).
 
 ## Ce qui est mesuré
 
@@ -29,8 +39,8 @@ l'adresse dans `analytics.host`.
 
 ## Désactiver ou changer d'outil
 
-- Vider `analytics.websiteId` dans `collage/config.js` : plus aucun script n'est chargé, ni sur
-  l'accueil ni dans l'application.
+- Vider `analytics.websiteId` dans `collage/config.js` : plus rien n'est envoyé, ni depuis
+  l'accueil ni depuis l'application.
 - Plausible (payant, hébergé en Europe) est aussi pris en charge :
   `analytics: { provider: 'plausible', domain: 'ateliergribouille.art' }`.
 - Pensez à mettre à jour la section « Mesure d'audience » de `collage/confidentialite.html`.

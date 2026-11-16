@@ -229,6 +229,28 @@ refusée par les règles du serveur ne renvoie pas d'erreur) ; sinon « Suppress
 reste et la suppression se relance. Test `account.spec.js` « suppression : si l'effacement des
 fichiers échoue ».
 
+## 16 novembre 2026 : corrections de l'audit complet
+
+- **Publication** : `pages.yml` appelle la suite de tests (`tests.yml`, `workflow_call`) et ne
+  publie que si elle passe ; publication manuelle limitée à la branche de production ; droits par job.
+- **Mesure d'audience** : plus aucun script tiers ; la page envoie elle-même ses compteurs à Umami
+  (`script-src` réduit à `'self'` et aux empreintes, vérifié par `tests/csp.spec.js`).
+- **Administrateur** : double authentification exigée par le serveur (`aal2` dans `is_admin()`),
+  lecture par `admin_works` / `admin_open` seulement, journal `admin_log`, fichiers d'un compte ouverts
+  une heure après l'ouverture d'une de ses œuvres, ni panier ni exports ; rôle donné par identifiant
+  (plus d'adresse e-mail dans le schéma). Voir docs/COMPTES.md.
+- **Limites serveur** : plafonds de lignes par compte (déclencheurs), taille des champs (contraintes),
+  nombre et volume de fichiers par dossier (règle restrictive du stockage).
+- **Comptes** : vérification anti-robot Turnstile prête (activée par `captchaSiteKey`) ; lien de
+  connexion sans création de compte, même réponse pour une adresse inconnue.
+- **Commandes** : les œuvres commandées ne sont plus purgées et gardent le détail de la commande.
+- **Appareil partagé** : « Se déconnecter et effacer cet appareil » ; la suppression du compte
+  efface aussi l'appareil.
+
+Le schéma a été rejoué deux fois sur une base PostgreSQL qui imite Supabase (rôles, `auth.jwt()`,
+`storage.objects`) : lecture refusée sans `aal2`, journal écrit, fichiers ouverts après l'ouverture
+seulement, exports jamais, plafonds atteints refusés.
+
 ## Rejouer l'audit
 
 - `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.

@@ -881,9 +881,11 @@ hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (
 limitent chaque compte à ses propres lignes et fichiers, et la fonction `delete_account` permet à
 l'utilisateur d'effacer lui-même tout son compte. **Administration** : le compte de l'éditeur
 (désigné par le rôle `atelier_role = admin` dans `app_metadata`, écrit côté serveur seulement ;
-`is_admin()` côté serveur, `Account.isAdmin` côté vue) voit sous Mes œuvres
-« Toutes les œuvres », les œuvres de tous les autres comptes groupées par e-mail (`adminList`,
-fonction SQL `admin_owners`), en lecture seule : « Ouvrir une copie » les rouvre en copie dans son
+`is_admin()` côté serveur, qui exige aussi la double authentification, `Account.isAdmin` côté vue)
+voit sous Mes œuvres « Toutes les œuvres », après le code de son application d'authentification
+(`mfaState`, `mfaEnroll`, `mfaVerify`), les œuvres de tous les autres comptes groupées par e-mail,
+par pages de 60 (`adminList`, fonction SQL `admin_works` ; chaque ouverture passe par `admin_open`,
+inscrite au journal `admin_log`), en lecture seule : « Ouvrir une copie » les rouvre en copie dans son
 compte (comme une œuvre figée), l'original n'est ni modifié ni effacé ; les exports et le panier des
 autres comptes restent privés ; ce compte n'a pas de plafond de 15 œuvres (`workMax` → ∞), la
 durée de 60 jours s'applique comme ailleurs. Sans réglage dans `config.js`, rien n'apparaît et

@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { test, expect, fixture, openStep } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html'];
+const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html'];
 const cspOf = (html) => { const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/); return m && m[1]; };
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim().split(/\s+/)).find((d) => d[0] === name) || []).slice(1);
 
@@ -25,9 +25,11 @@ test.describe('Politique de sécurité du contenu', () => {
       expect(directive(csp, 'object-src'), p).toEqual(["'none'"]);
       expect(directive(csp, 'base-uri'), p).toEqual(["'self'"]);
       const scripts = directive(csp, 'script-src');
-      // Umami Cloud : script sur cloud.umami.is, données envoyées à gateway.umami.is (docs Umami, « Sending stats »)
-      expect(scripts, p).toContain('https://cloud.umami.is');
-      expect(directive(csp, 'connect-src'), p).toEqual(expect.arrayContaining(['https://cloud.umami.is', 'https://gateway.umami.is']));
+      // aucun script tiers (audit du 16 novembre 2026) : la mesure d'audience envoie elle-même ses
+      // données à gateway.umami.is (docs Umami, « Sending stats ») ; seuls 'self' et des empreintes
+      expect(scripts.filter((s) => s !== "'self'" && !/^'sha256-/.test(s)), p).toEqual([]);
+      expect(directive(csp, 'connect-src'), p).toContain('https://gateway.umami.is');
+      expect(directive(csp, 'connect-src'), p).not.toContain('https://cloud.umami.is');
       expect(scripts.filter((s) => /unsafe/.test(s)), p).toEqual([]);
       // chaque script inline (hors données JSON-LD) doit avoir son empreinte dans la politique
       for (const [, attrs, body] of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {

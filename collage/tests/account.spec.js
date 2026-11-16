@@ -44,6 +44,24 @@ async function signUpAndIn(page, email, pw, name) {
   await expect(page.locator('#acc-menu')).toBeVisible();
 }
 
+// l'administrateur valide la double authentification : activation (code à scanner) la première fois,
+// code seul ensuite ; le faux serveur attend le code 123456
+async function adminMfa(page, { enroll } = {}) {
+  const box = page.locator('#admin-mfa');
+  await expect(box).toBeVisible();
+  await expect(page.locator('#admin-list .saved')).toHaveCount(0);
+  if (enroll) {
+    await expect(box).toContainText('double authentification est obligatoire');
+    await page.locator('#admin-mfa-start').click();
+    await expect(page.locator('#admin-mfa-qr code')).toHaveText('JBSWY3DPEHPK3PXP');
+  } else {
+    await expect(page.locator('#admin-mfa-start')).toBeHidden();
+  }
+  await page.fill('#admin-mfa-code', '123456');
+  await page.locator('#admin-mfa-form button').click();
+  await expect(box).toBeHidden();
+}
+
 test.describe('Comptes utilisateurs', () => {
   test('sans réglage, aucune trace des comptes', async ({ browser }) => {
     const ctx = await browser.newContext();
@@ -112,13 +130,51 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('.social-btn[data-provider="google"]').click();
     await page.fill('#auth-email', 'x@example.org');
     await page.locator('#auth-magic').click();
-    await expect(page.locator('#acc-status')).toContainText('lien de connexion');
+    // (adresse inconnue : même réponse qu'une adresse connue, sans créer de compte)
+    await expect(page.locator('#acc-status')).toContainText('Si un compte existe');
     await page.locator('#auth-forgot').click();
     await expect(page.locator('#acc-status')).toContainText('nouveau mot de passe');
     const calls = await page.evaluate(() => window.__fake.calls);
     expect(calls.map((c) => c[0])).toEqual(['oauth', 'otp', 'reset']);
+    expect(calls[1][2]).toBe(false); // shouldCreateUser
+    expect(calls[1][3]).toBeUndefined(); // (sans clé de vérification anti-robot : pas de jeton)
     expect(calls[0][1]).toBe('google');
     expect(calls[0][2]).toMatch(/^http:\/\/localhost:\d+\/index\.html$/);
+  });
+
+  test('vérification anti-robot (Turnstile) activée par la clé du site : chaque demande au service des comptes porte un jeton', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await ctx.newPage();
+    await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: 'https://fake.supabase.co', supabaseAnonKey: 'anon', captchaSiteKey: 'cle-publique-test' };" }));
+    // (un faux Turnstile : le vrai script de Cloudflare n'est pas chargé dans les tests)
+    await page.addInitScript(() => {
+      let n = 0;
+      window.turnstile = { render: (el, o) => { window.__ts = o; setTimeout(() => o.callback(`jeton-${++n}`), 50); return n; }, remove() {} };
+    });
+    await page.addInitScript(FAKE);
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await page.locator('#acc-open').click();
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-email', 'robot@example.org');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-menu')).toBeVisible();
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-open')).toBeVisible();
+    await page.locator('#acc-open').click();
+    await page.fill('#auth-email', 'robot@example.org');
+    await page.locator('#auth-magic').click();
+    await expect(page.locator('#acc-status')).toContainText('Si un compte existe');
+    await page.locator('#auth-forgot').click();
+    await expect(page.locator('#acc-status')).toContainText('nouveau mot de passe');
+    const calls = await page.evaluate(() => window.__fake.calls);
+    expect(calls.find((c) => c[0] === 'captcha' && c[1] === 'signup')[2]).toMatch(/^jeton-/);
+    expect(calls.find((c) => c[0] === 'otp')[3]).toMatch(/^jeton-/);
+    expect(calls.find((c) => c[0] === 'reset')[2]).toMatch(/^jeton-/);
+    expect(await page.evaluate(() => window.__ts.sitekey)).toBe('cle-publique-test');
+    await ctx.close();
   });
 
   test('sans compte : l’exemple et l’import de fichiers sont libres ; seule la photo depuis l’atelier demande de se connecter', async ({ acc }) => {
@@ -230,6 +286,23 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
   });
 
+  test('une œuvre commandée n’est jamais effacée par la purge des 60 jours, et ne compte pas dans les 15', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'cmd@example.org', 'Rouge-Soleil-42', 'Cmd');
+    await page.evaluate(() => {
+      const uid = window.__fake.db.session.user.id;
+      const row = (i, daysAgo, extra) => { const date = new Date(Date.now() - daysAgo * 86400e3).toISOString(); return { id: `22222222-2222-4222-8222-${String(i).padStart(12, '0')}`, user_id: uid, created_at: date, name: `Œuvre ${i}`, thumb: null, __table: 'compositions', meta: Object.assign({ date, work: true, n: 0, drawings: [], comp: { style: 'nuage', W: 30, H: 40 }, settings: { mode: 'impression', format: 'cadre:30x40' } }, extra) }; };
+      window.__fake.db.rows.push(row(1, 90, { ordered: true }));
+      window.__fake.db.rows.push(Object.assign(row(2, 90, {}), { name: 'AG-260801-AB12 · Ancienne commande' }));
+      window.__fake.db.rows.push(row(3, 90, {}));
+    });
+    await page.evaluate(() => AtelierGribouille.renderSaved({ refresh: true }));
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.__table === 'compositions').map((r) => r.id.slice(-1)).sort())).toEqual(['1', '2']);
+    await expect(page.locator('#saved-hint')).toContainText('commandées sont gardées');
+  });
+
   test('Mes œuvres dans le compte : chaque œuvre part d’elle-même (une ligne, un dossier, chaque image une fois), revient sur un autre appareil, se supprime partout', async ({ acc }) => {
     test.setTimeout(240000); // deux imports et deux réouvertures depuis le compte : long sur une machine d'intégration lente
     const { page } = acc;
@@ -326,7 +399,24 @@ test.describe('Comptes utilisateurs', () => {
     await openStep(page, 'saved-section');
     await expect(page.locator('#admin-box')).toBeVisible();
     await expect(page.locator('#saved-hint')).toContainText('sans limite de nombre'); // (pas de plafond de 15 œuvres pour ce compte)
+    // le mot de passe seul ne suffit pas : rien n'est lu avant la double authentification, que le
+    // serveur exige aussi (un appel direct est refusé)
+    expect(await page.evaluate(async () => { try { await window.Account.adminList(0); return 'lu'; } catch (e) { return e.message; } })).toContain('double authentification');
+    // un code faux : refusé, la liste reste fermée ; le bon code l'ouvre
+    await page.locator('#admin-mfa-start').click();
+    await page.fill('#admin-mfa-code', '000000');
+    await page.locator('#admin-mfa-form button').click();
+    await expect(page.locator('#admin-status')).toContainText('Code incorrect');
+    await expect(page.locator('#admin-mfa')).toBeVisible();
+    await page.fill('#admin-mfa-code', '123456');
+    await page.locator('#admin-mfa-form button').click();
+    await expect(page.locator('#admin-mfa')).toBeHidden();
     await expect(page.locator('#admin-list .admin-owner')).toContainText('lou@example.org');
+    // les fichiers de Lou ne lui sont ouverts qu'une fois son œuvre ouverte (et inscrite au journal)
+    const louFile = await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.drawings[0].file, w1);
+    const canRead = () => page.evaluate(async (p) => !!(await window.supabase.createClient().storage.from('drawings').download(p)).data, louFile);
+    expect(await canRead()).toBe(false);
+    expect(await page.evaluate(() => window.__fake.adminLog.length)).toBe(0);
     await expect(page.locator('#admin-list .saved')).toHaveCount(1);
     await expect(page.locator('#admin-list .saved .saved-meta')).toContainText('2 dessins');
     // ses propres œuvres et son panier ne mêlent pas celles des autres comptes (les règles lui ouvrent leur
@@ -339,6 +429,8 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && AtelierGribouille.state.copyOf && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#cloud-sync-status')).toContainText('Copie');
     expect(await page.evaluate(() => JSON.stringify(window.__fake.db.rows.map((r) => [r.id, r.user_id, r.meta.date])))).toBe(before);
+    expect(await page.evaluate(() => window.__fake.adminLog.map((l) => l.id))).toEqual([w1]);
+    expect(await canRead()).toBe(true);
     // un changement : la copie devient une œuvre de l'administrateur ; celle de Lou n'a pas bougé
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
     await page.waitForFunction(() => AtelierGribouille.state.workId && !AtelierGribouille.state.copyOf);
@@ -355,6 +447,23 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(async (id) => window.Account.cloud.del('cloud:' + id), mine.id);
     const left = await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta.work).map((r) => r.id));
     expect(left).toEqual([w1]);
+  });
+
+  test('administration : la liste se lit par pages de 60, « Afficher les œuvres suivantes » charge la suite', async ({ acc }) => {
+    const { page } = acc;
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
+    await page.evaluate(() => {
+      const date = new Date().toISOString();
+      for (let i = 0; i < 65; i++) window.__fake.db.rows.push({ id: `44444444-4444-4444-8444-${String(i).padStart(12, '0')}`, user_id: 'u-autre', created_at: new Date(Date.now() - i * 1000).toISOString(), name: `Œuvre ${i}`, thumb: null, __table: 'compositions', meta: { date, work: true, n: 1, drawings: [], comp: { style: 'nuage', W: 30, H: 40 }, settings: { mode: 'impression' } } });
+    });
+    await openStep(page, 'saved-section');
+    await adminMfa(page, { enroll: true });
+    await expect(page.locator('#admin-list .saved')).toHaveCount(60);
+    await expect(page.locator('#admin-count')).toHaveText('(60)');
+    await page.locator('#admin-more').click();
+    await expect(page.locator('#admin-list .saved')).toHaveCount(65);
+    await expect(page.locator('#admin-more')).toBeHidden();
   });
 
   test('suppression : si l’effacement des fichiers échoue, l’œuvre reste (fiche et dessins) et la suppression se relance ; ensuite tout est effacé', async ({ acc }) => {
@@ -389,6 +498,8 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
     await openStep(page, 'saved-section');
     await expect(page.locator('#admin-box')).toBeVisible();
+    await adminMfa(page, { enroll: true });
+    await expect(page.locator('#admin-list')).toContainText('Aucune œuvre dans les autres comptes');
     // le serveur ne répond plus : la lecture suivante (à la reconnexion) reste sans réponse
     await page.evaluate(() => { window.__realAdminList = window.Account.adminList; window.Account.adminList = () => new Promise(() => {}); });
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
@@ -400,6 +511,8 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-menu')).toBeVisible();
     await openStep(page, 'saved-section');
+    // nouvelle connexion : le code de l'application est redemandé (l'application est déjà activée)
+    await adminMfa(page);
     const st = page.locator('#admin-status');
     await expect(st).toContainText('Lecture des œuvres');
     await expect(st).toContainText('pas de réponse du serveur', { timeout: 45000 });
@@ -587,9 +700,40 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#acc-delete').click();
     await expect(page.locator('#acc-delete')).toContainText('Confirmer');
     await page.locator('#acc-delete').click();
-    await expect(page.locator('#acc-status')).toContainText('Compte supprimé');
+    await expect(page.locator('#notice')).toContainText('Compte supprimé', { timeout: 30000 });
     await expect(page.locator('#acc-open')).toBeVisible();
     expect(await page.evaluate(() => Object.keys(window.__fake.db.users).length)).toBe(0);
+  });
+
+  test('appareil partagé : « Se déconnecter et effacer cet appareil » efface œuvres, panier et commandes de l’appareil (pas du compte), garde les préférences', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'parent@example.org', 'Rouge-Soleil-42', 'Parent');
+    await page.setInputFiles('#file', ['page-cutout.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    const w = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work), w);
+    await page.evaluate(() => {
+      localStorage.setItem('atelier-gribouille:commandes', JSON.stringify([{ ref: 'AG-1' }]));
+      localStorage.setItem('atelier-collage:taille:dessin.png:2000', '21');
+      localStorage.setItem('atelier.mode', 'impression');
+    });
+    await page.locator('#acc-menu').click();
+    const wipe = page.locator('#acc-signout-wipe');
+    await wipe.click();
+    await expect(wipe).toContainText('Confirmer');
+    await expect(page.locator('#acc-status')).toContainText('restent dans votre compte');
+    await wipe.click();
+    await expect(page.locator('#notice')).toContainText('effacées de cet appareil', { timeout: 30000 });
+    await page.waitForFunction(() => window.Account && window.Account.enabled);
+    await expect(page.locator('#acc-open')).toBeVisible();
+    expect(await hasDraft(page, 1)).toBe(false);
+    expect(await page.evaluate(() => [localStorage.getItem('atelier-gribouille:commandes'), localStorage.getItem('atelier-collage:taille:dessin.png:2000'), localStorage.getItem('atelier.mode')])).toEqual([null, null, 'impression']);
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(0);
+    // l'œuvre est toujours dans le compte
+    expect(await page.evaluate((id) => window.__fake.db.rows.some((r) => r.id === id), w)).toBe(true);
   });
 
   test('retour d’un lien « mot de passe oublié » : formulaire de nouveau mot de passe', async ({ acc }) => {
@@ -688,6 +832,11 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length)).toBe(0);
     const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
     expect(orders).toHaveLength(1);
+    // la trace de la commande reste dans la fiche de l'œuvre commandée (référence, produit, quantité, prix)
+    const trace = await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.ordered).map((r) => r.meta.order));
+    expect(trace).toHaveLength(1);
+    expect(trace[0]).toMatchObject({ ref: orders[0].ref, qty: 1 });
+    expect(trace[0].unit).toBeGreaterThan(0);
     await page.locator('#cart [data-close]').first().click();
     // la composition commandée est dans Mes œuvres, sous la référence de la commande, marquée « commandée »
     await page.evaluate(() => document.querySelector('#saved-section > h2') && document.querySelector('#saved-section').classList.contains('collapsed') && document.querySelector('#saved-section > h2').click());
@@ -704,8 +853,11 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#acc-menu').click();
     await page.locator('#acc-delete').click();
     await page.locator('#acc-delete').click();
-    await expect(page.locator('#acc-status')).toContainText('Compte supprimé');
+    // (l'appareil est nettoyé aussi : la page se recharge, vide, avec l'avis)
+    await expect(page.locator('#notice')).toContainText('Compte supprimé', { timeout: 30000 });
+    await page.waitForFunction(() => window.__fake);
     expect(await page.evaluate((uid) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(uid + '/')).length, uid)).toBe(0);
+    expect(await page.evaluate(() => localStorage.getItem('atelier-gribouille:commandes'))).toBeNull();
   });
 
   test('venu de l’en-tête du site : ?connexion ouvre le panneau de connexion ; ?compte, connecté, le profil', async ({ acc }) => {

@@ -59,6 +59,9 @@
       [/Unable to validate email|invalid format/i, tr('Cette adresse e-mail ne semble pas valide.')],
       [/same password/i, tr('Choisissez un mot de passe différent de l’actuel.')],
       [/Failed to fetch|NetworkError/i, tr('Pas de connexion au service des comptes. Vérifiez votre réseau.')],
+      [/captcha/i, tr('Vérification anti-robot refusée : réessayez.')],
+      [/Invalid TOTP|invalid.*code|code.*(invalid|expired)/i, tr('Code incorrect ou expiré : saisissez le code affiché maintenant par votre application.')],
+      [/reauthentication|reauthenticate|recent(ly)? log/i, tr('Pour des raisons de sécurité, reconnectez-vous (déconnexion puis connexion) avant de changer votre mot de passe.')],
     ];
     for (const [re, fr] of map) { const mm = m.match(re); if (mm) return fr.replace('$1', mm[1] || ''); }
     return m;
@@ -90,27 +93,73 @@
     return { ok: problems.length === 0, problems, score, label: labels[score] || '' };
   }
 
+  // ---------- Vérification anti-robot (Cloudflare Turnstile, option) ----------
+  /*
+   * Avec captchaSiteKey dans config.js (clé publique du widget Turnstile) et la protection activée
+   * dans Supabase (Authentication → Attack Protection, avec la clé secrète), chaque inscription,
+   * connexion par mot de passe, lien de connexion et mot de passe oublié porte un jeton à usage
+   * unique : un script ne peut plus créer de comptes en masse ni épuiser le quota d'e-mails. Le
+   * script de Cloudflare n'est chargé qu'à ce moment-là (jamais sans clé). Sans clé : rien ne change.
+   */
+  const captchaKey = typeof cfg.captchaSiteKey === 'string' ? cfg.captchaSiteKey : '';
+  let captchaLoad = null;
+  function loadCaptcha() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    if (!captchaLoad) {
+      captchaLoad = new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        s.async = true;
+        s.onload = () => res(window.turnstile);
+        s.onerror = () => { captchaLoad = null; rej(new Error(tr('La vérification anti-robot n’a pas pu se charger : vérifiez votre réseau, puis réessayez.'))); };
+        document.head.appendChild(s);
+      });
+    }
+    return captchaLoad;
+  }
+  // un jeton pour une seule demande (undefined sans clé) ; le widget ne se montre que s'il faut cliquer
+  async function captchaToken() {
+    if (!captchaKey) return undefined;
+    const ts = await loadCaptcha();
+    const box = document.getElementById('auth-captcha');
+    if (!box || !ts) throw new Error(tr('La vérification anti-robot n’a pas pu se charger : vérifiez votre réseau, puis réessayez.'));
+    if (box._wid != null) { try { ts.remove(box._wid); } catch (e) { /* ignoré */ } box._wid = null; }
+    box.hidden = false;
+    return new Promise((res, rej) => {
+      box._wid = ts.render(box, {
+        sitekey: captchaKey, appearance: 'interaction-only', size: 'flexible',
+        language: (window.I18n && window.I18n.lang) || 'fr',
+        callback: (t) => { box.hidden = true; res(t); },
+        'error-callback': () => { rej(new Error(tr('Vérification anti-robot échouée : réessayez.'))); },
+        'expired-callback': () => { rej(new Error(tr('Vérification anti-robot expirée : réessayez.'))); },
+      });
+    });
+  }
+
   // ---------- Authentification ----------
   async function signInWith(provider) {
     const { error } = await client.auth.signInWithOAuth({ provider, options: { redirectTo: redirectTo() } });
     err(error);
   }
   async function signInEmail(email, password) {
-    const { error } = await client.auth.signInWithPassword({ email, password });
+    const { error } = await client.auth.signInWithPassword({ email, password, options: { captchaToken: await captchaToken() } });
     err(error);
   }
   async function signUpEmail(email, password, name) {
-    const { data, error } = await client.auth.signUp({ email, password, options: { data: { name: name || '' }, emailRedirectTo: redirectTo() } });
+    const { data, error } = await client.auth.signUp({ email, password, options: { data: { name: name || '' }, emailRedirectTo: redirectTo(), captchaToken: await captchaToken() } });
     err(error);
     // avec confirmation d'e-mail activée, la session n'existe pas encore
     return { needsConfirm: !(data && data.session) };
   }
+  // (sans créer de compte : on s'inscrit avec le formulaire ou Google ; une adresse inconnue reçoit la
+  // même réponse qu'une adresse connue, pour ne pas révéler quels comptes existent)
   async function magicLink(email) {
-    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo(), shouldCreateUser: true } });
+    const { error } = await client.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo(), shouldCreateUser: false, captchaToken: await captchaToken() } });
+    if (error && /signups? not allowed|otp_disabled|user not found/i.test(`${error.message} ${error.code || ''}`)) return;
     err(error);
   }
   async function resetPassword(email) {
-    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() });
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: redirectTo(), captchaToken: await captchaToken() });
     err(error);
   }
   async function updatePassword(password) {
@@ -171,16 +220,18 @@
   // de chaque œuvre ne transite qu'à sa réouverture.
   const ORDER_NAME = /^AG-\d{6}-[A-Z0-9]{4} · /;
   // from, count : une page de la liste, des plus récentes aux plus anciennes (sans count : toute la liste)
-  // Chaque compte garde au plus WORK_MAX œuvres (Mes œuvres : œuvres en cours, figées, commandées ;
-  // les articles du panier ne comptent pas), pendant WORK_KEEP_DAYS jours après leur dernier
-  // changement : au-delà, elles sont effacées à la lecture suivante de la liste (cloudPrune).
+  // Chaque compte garde au plus WORK_MAX œuvres (Mes œuvres : œuvres en cours et figées ; ni les
+  // articles du panier ni les œuvres commandées ne comptent), pendant WORK_KEEP_DAYS jours après leur
+  // dernier changement : au-delà, elles sont effacées à la lecture suivante de la liste (cloudPrune),
+  // sauf les œuvres commandées, gardées.
   const WORK_MAX = 15, WORK_KEEP_DAYS = 60;
   async function cloudPrune() {
     if (!user) return 0;
-    const { data, error } = await client.from('compositions').select('id, created_at, date:meta->>date').eq('user_id', user.id).is('meta->>cart', null);
+    const { data, error } = await client.from('compositions').select('id, name, created_at, date:meta->>date, ordered:meta->>ordered').eq('user_id', user.id).is('meta->>cart', null);
     err(error);
     const limit = Date.now() - WORK_KEEP_DAYS * 86400e3;
-    const old = (data || []).filter((row) => new Date(row.date || row.created_at).getTime() < limit);
+    // (jamais une œuvre commandée : elle doit rester jusqu'à l'impression et au-delà, pour le suivi)
+    const old = (data || []).filter((row) => !(row.ordered || (row.meta && row.meta.ordered)) && !ORDER_NAME.test(row.name || '') && new Date(row.date || row.created_at).getTime() < limit);
     for (const row of old) await cloudDel(`cloud:${row.id}`);
     return old.length;
   }
@@ -210,36 +261,62 @@
 
   // ---------- Administration ----------
   /*
-   * Le compte administrateur (voir supabase/schema.sql : is_admin, les règles « admin reads all ») lit
-   * les œuvres de tous les comptes, en lecture seule : il les rouvre en copie dans son propre compte
-   * (cloudGet lit la ligne et les fichiers du dossier du propriétaire, que les règles lui ouvrent),
-   * sans rien changer ni effacer chez les autres. Côté navigateur, l'adresse ne sert qu'à montrer la
-   * vue : ce sont les règles du serveur qui donnent, ou non, les lignes et les fichiers.
-   * L'administrateur est désigné par un rôle dans app_metadata (atelier_role = admin), que seul le
-   * serveur peut écrire : ni son adresse ni son nom ne figurent dans le code.
+   * Le compte administrateur (voir supabase/schema.sql : is_admin, admin_works, admin_open) lit les
+   * œuvres des autres comptes, en lecture seule : il les rouvre en copie dans son propre compte, sans
+   * rien changer ni effacer chez les autres. Il est désigné par un rôle dans app_metadata
+   * (atelier_role = admin), que seul le serveur peut écrire, et le serveur exige en plus la double
+   * authentification (jeton de niveau aal2) : la vue la demande d'abord (mfaState, mfaEnroll,
+   * mfaVerify). Chaque œuvre ouverte est inscrite au journal du serveur (admin_log), qui n'ouvre ses
+   * fichiers que pendant l'heure qui suit. Côté navigateur, le rôle ne sert qu'à montrer la vue : ce
+   * sont les règles du serveur qui donnent, ou non, les lignes et les fichiers.
    */
   const isAdmin = () => !!(user && user.app_metadata && user.app_metadata.atelier_role === 'admin');
-  // toutes les œuvres des autres comptes (sans le panier ni l'ancien brouillon unique), des plus
-  // récentes aux plus anciennes, avec l'e-mail de leur propriétaire
-  async function adminList() {
-    if (!isAdmin()) return [];
-    const { data, error } = await client.from('compositions').select('user_id, ' + LIST_COLS).is('meta->>cart', null).neq('user_id', user.id).order('created_at', { ascending: false });
+  // 'none' : pas administrateur ; 'enroll' : double authentification à activer ; 'verify' : code à
+  // saisir pour cette connexion ; 'ok' : connecté avec la double authentification
+  async function mfaState() {
+    if (!isAdmin()) return 'none';
+    const { data: lvl, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
     err(error);
-    const rows = (data || []).filter((r) => !(r.draft || (r.meta && r.meta.draft)));
-    // liste vide : vraiment aucune œuvre ailleurs, ou le serveur qui n'ouvre pas les autres comptes
-    // (règles d'administration pas encore installées, ou ce compte qu'il ne reconnaît pas)
-    if (!rows.length) {
-      const { data: ok, error: e3 } = await client.rpc('is_admin');
-      if (e3) throw new Error(tr('les règles d’administration ne sont pas installées sur le serveur : exécutez la section « Administration » de supabase/schema.sql dans l’éditeur SQL de Supabase'));
-      if (!ok) throw new Error(tr('le serveur ne reconnaît pas ce compte comme administrateur : rôle absent du jeton, reconnectez-vous après avoir exécuté la section « Administration » de supabase/schema.sql'));
+    if (lvl && lvl.currentLevel === 'aal2') return 'ok';
+    const { data: f, error: e2 } = await client.auth.mfa.listFactors();
+    err(e2);
+    return ((f && f.totp) || []).some((x) => x.status === 'verified') ? 'verify' : 'enroll';
+  }
+  // une nouvelle application d'authentification : le code à scanner (image SVG) et la clé à saisir à la main
+  async function mfaEnroll() {
+    const { data: f } = await client.auth.mfa.listFactors();
+    for (const x of (f && f.all) || []) if (x.status !== 'verified') await client.auth.mfa.unenroll({ factorId: x.id });
+    const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Atelier Gribouille' });
+    err(error);
+    const qr = data && data.totp && typeof data.totp.qr_code === 'string' && data.totp.qr_code.startsWith('data:image/svg+xml') ? data.totp.qr_code : '';
+    return { factorId: data.id, qr, secret: (data.totp && data.totp.secret) || '' };
+  }
+  // le code à 6 chiffres : active l'application (factorId de mfaEnroll) ou valide cette connexion
+  async function mfaVerify(code, factorId) {
+    code = String(code || '').replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(code)) throw new Error(tr('Saisissez les 6 chiffres affichés par votre application.'));
+    if (!factorId) {
+      const { data: f, error } = await client.auth.mfa.listFactors();
+      err(error);
+      const v = ((f && f.totp) || []).find((x) => x.status === 'verified');
+      if (!v) throw new Error(tr('Aucune application d’authentification n’est activée sur ce compte.'));
+      factorId = v.id;
     }
-    const ids = [...new Set(rows.map((r) => r.user_id))];
-    const emails = new Map();
-    if (ids.length) {
-      const { data: owners, error: e2 } = await client.rpc('admin_owners', { ids });
-      if (e2) console.warn('e-mails des propriétaires', e2); else (owners || []).forEach((o) => emails.set(o.id, o.email));
+    const { error } = await client.auth.mfa.challengeAndVerify({ factorId, code });
+    err(error);
+  }
+  // les œuvres des autres comptes (sans le panier ni l'ancien brouillon unique), des plus récentes
+  // aux plus anciennes, par pages, avec l'e-mail de leur propriétaire
+  const adminOpenable = new Set(); // œuvres d'autres comptes : rouvertes par admin_open (inscrite au journal)
+  const ADMIN_PAGE = 60;
+  async function adminList(from) {
+    if (!isAdmin()) return [];
+    const { data, error } = await client.rpc('admin_works', { p_from: from || 0, p_count: ADMIN_PAGE });
+    if (error && /admin_works|function|schema cache/i.test(error.message || '') && !/réservé/.test(error.message || '')) {
+      throw new Error(tr('les règles d’administration ne sont pas à jour sur le serveur : exécutez supabase/schema.sql dans l’éditeur SQL de Supabase'));
     }
-    return rows.map((row) => Object.assign(entryOf(row), { owner: row.user_id, email: emails.get(row.user_id) || '' }));
+    err(error);
+    return (data || []).map((row) => { adminOpenable.add(row.id); return Object.assign(entryOf(row), { owner: row.user_id, email: row.email || '' }); });
   }
 
   async function cloudPut(rec, onProgress) {
@@ -282,6 +359,7 @@
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length };
     if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes œuvres » tant qu'il n'est pas commandé
     if (rec.ordered) meta.ordered = true; // composition commandée : figée, rouverte en copie
+    if (rec.order) meta.order = rec.order; // le détail de la commande (référence, produit, quantité, prix)
     const { error } = await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
     err(error);
     return `cloud:${id}`;
@@ -289,7 +367,11 @@
 
   async function cloudGet(cloudId, onProgress) {
     const id = cloudId.replace(/^cloud:/, '');
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').eq('id', id).single();
+    // (l'œuvre d'un autre compte, pour l'administrateur : par admin_open, qui l'inscrit au journal et
+    // lui ouvre ses fichiers pour une heure)
+    const { data, error } = adminOpenable.has(id)
+      ? await client.rpc('admin_open', { p_id: id }).then((r) => ({ data: r.data && r.data[0], error: r.error || (r.data && r.data.length ? null : { message: tr('œuvre introuvable') }) }))
+      : await client.from('compositions').select('id, name, created_at, thumb, meta').eq('id', id).single();
     err(error);
     if (!data) return null;
     const store = client.storage.from(BUCKET);
@@ -463,13 +545,18 @@
   }
   // quantité ou produit changés (cart), ou article commandé (cart : null, avec le nom de la commande) :
   // la composition reste, seule sa fiche change
-  async function cloudCartSet(cloudId, cart, name) {
+  // order : le détail de la commande, gardé dans la fiche (l'article quitte le panier, la trace reste)
+  async function cloudCartSet(cloudId, cart, name, order) {
     const id = cloudId.replace(/^cloud:/, '');
     const { data, error } = await client.from('compositions').select('meta').eq('id', id).single();
     err(error);
     const meta = Object.assign({}, data.meta);
     if (cart) meta.cart = cart;
-    else { delete meta.cart; if (name) meta.ordered = true; } // commandée : figée, rouverte en copie
+    else {
+      // commandée : figée, rouverte en copie
+      if (name) { meta.ordered = true; meta.order = Object.assign({}, meta.cart || {}, order || {}); }
+      delete meta.cart;
+    }
     const { error: e2 } = await client.from('compositions').update(name ? { meta, name } : { meta }).eq('id', id);
     err(e2);
   }
@@ -520,7 +607,7 @@
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet, prune: cloudPrune },
-    isAdmin, adminList,
+    isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     contactEmail: cfg.contactEmail || '',

@@ -5949,6 +5949,33 @@ Réponds uniquement avec ce JSON :
   const toBlob = (canvas, type, q) => new Promise((r) => canvas.toBlob(r, type, q));
 
   /*
+   * Nettoyer cet appareil (déconnexion « et effacer cet appareil », suppression du compte) : les
+   * œuvres et leurs images (IndexedDB), le panier, l'historique des commandes et les réglages liés aux
+   * dessins (tailles, tons, découpe : ils portent des noms de fichiers). Restent les préférences
+   * d'affichage (langue, type de création, cadre, pièce…). Sur un appareil partagé, la personne
+   * suivante ne voit rien des œuvres ni des commandes. La page se recharge ensuite, vide, avec le
+   * message en avis.
+   */
+  const WIPED_KEY = 'atelier-gribouille:appareil-efface';
+  const KEEP_PREFS = /^(atelier\.(mode|passe-partout|finition|piece|cadre|marge|flash|conseil-photo-vu|collapsed)|atelier-gribouille:(lang|lang-offer))$/;
+  async function clearDevice(message) {
+    state.wiping = true;
+    clearTimeout(draftTimer);
+    try {
+      Object.keys(localStorage).filter((k) => /^atelier/.test(k) && !KEEP_PREFS.test(k)).forEach((k) => localStorage.removeItem(k));
+    } catch (e) { /* ignoré */ }
+    await new Promise((res) => {
+      try {
+        const r = indexedDB.deleteDatabase(DB_NAME);
+        r.onsuccess = r.onerror = () => res();
+        r.onblocked = () => setTimeout(res, 1500); // (une autre page de l'atelier encore ouverte)
+      } catch (e) { res(); }
+    });
+    try { sessionStorage.setItem(WIPED_KEY, message || ''); } catch (e) { /* ignoré */ }
+    location.reload();
+  }
+
+  /*
    * Mes œuvres. Chaque œuvre s'enregistre d'elle-même pendant qu'on travaille : il n'y a rien à
    * sauvegarder. L'œuvre affichée est le brouillon (DRAFT_ID, rouvert au rechargement) ; les autres
    * sont rangées sous leur identifiant (rec.work), leurs images dans le magasin commun (FILES_STORE).
@@ -6003,14 +6030,15 @@ Réponds uniquement avec ce JSON :
 
   let draftTimer = 0, draftBusy = false, draftAgain = false, draftEpoch = 0;
   function scheduleDraft() {
-    if (!state.comp || !state.drawings.length || state.restoring || state.resuming) return;
+    if (!state.comp || !state.drawings.length || state.restoring || state.resuming || state.wiping) return;
     clearTimeout(draftTimer);
     draftTimer = setTimeout(saveDraft, 2500);
   }
   const onlySamples = () => state.drawings.length > 0 && state.drawings.every((d) => d.sample);
   async function saveDraft() {
-    // (pendant une réouverture, l'œuvre n'a pas encore son identité : rien ne s'enregistre)
-    if (!state.comp || !state.drawings.length || state.restoring || state.resuming) return;
+    // (pendant une réouverture, l'œuvre n'a pas encore son identité : rien ne s'enregistre ; pendant
+    // le nettoyage de l'appareil, plus rien ne s'écrit)
+    if (!state.comp || !state.drawings.length || state.restoring || state.resuming || state.wiping) return;
     if (onlySamples()) return; // l'exemple n'est jamais une œuvre
     if (draftBusy) { draftAgain = true; return; }
     draftBusy = true;
@@ -6352,7 +6380,7 @@ Réponds uniquement avec ce JSON :
         const rec = ok(pendingCloud) ? pendingCloud : cloudQueue.find(ok);
         if (!rec) break;
         // une œuvre de plus alors que le compte est plein : elle attend qu'on fasse de la place
-        if (cloudWorks && !inCloud(rec) && cloudWorks.filter((c) => !c.legacyDraft).length >= workMax()) { blocked.add(rec); cloudFull = true; continue; }
+        if (cloudWorks && !inCloud(rec) && cloudWorks.filter((c) => !c.legacyDraft && !c.ordered).length >= workMax()) { blocked.add(rec); cloudFull = true; continue; }
         await window.Account.cloud.workPut(rec, getBytes);
         if (pendingCloud === rec) pendingCloud = null;
         const i = cloudQueue.indexOf(rec);
@@ -6978,19 +7006,12 @@ Réponds uniquement avec ce JSON :
     const A = window.Account;
     if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; return; }
     box.hidden = false;
-    let rows = [];
     const run = ++adminRun;
-    adminStatus(tr('Lecture des œuvres de tous les comptes…'));
+    const mfa = $('admin-mfa');
     // jamais bloquée sur « Lecture… » : sans réponse en 30 s, un message et « Réessayer »
     let timer = 0;
-    const timeout = new Promise((_, ko) => { timer = setTimeout(() => ko(new Error(tr('pas de réponse du serveur en 30 secondes'))), 30000); });
-    try {
-      rows = await Promise.race([A.adminList(), timeout]);
-      clearTimeout(timer);
-      if (run !== adminRun) return;
-      adminStatus('');
-    } catch (e) {
-      clearTimeout(timer);
+    const timed = (p) => Promise.race([p, new Promise((_, ko) => { timer = setTimeout(() => ko(new Error(tr('pas de réponse du serveur en 30 secondes'))), 30000); })]).finally(() => clearTimeout(timer));
+    const failed = (e) => {
       if (run !== adminRun) return;
       console.error(e);
       adminStatus(tr`Œuvres indisponibles : ${e.message}`);
@@ -6998,12 +7019,43 @@ Réponds uniquement avec ce JSON :
       again.type = 'button'; again.className = 'link'; again.textContent = tr('Réessayer');
       again.onclick = () => renderAdmin();
       el.append(' ', again);
+    };
+    // le serveur n'ouvre rien sans la double authentification : on la demande d'abord
+    let st;
+    try { st = A.mfaState ? await timed(A.mfaState()) : 'ok'; } catch (e) { failed(e); return; }
+    if (run !== adminRun) return;
+    if (st !== 'ok') {
+      list.innerHTML = ''; $('admin-count').textContent = ''; $('admin-more').hidden = true; adminStatus('');
+      showAdminMfa(st);
       return;
     }
-    $('admin-count').textContent = rows.length ? `(${rows.length})` : '';
+    mfa.hidden = true;
+    adminStatus(tr('Lecture des œuvres de tous les comptes…'));
+    let rows = [];
+    try { rows = await timed(A.adminList(0)); } catch (e) { failed(e); return; }
+    if (run !== adminRun) return;
+    adminStatus('');
     list.innerHTML = '';
-    if (!rows.length) { list.innerHTML = `<p class="hint">${tr('Aucune œuvre dans les autres comptes pour l’instant.')}</p>`; return; }
-    // groupées par compte, le compte à l'œuvre la plus récente en tête
+    if (!rows.length) { $('admin-count').textContent = ''; $('admin-more').hidden = true; list.innerHTML = `<p class="hint">${tr('Aucune œuvre dans les autres comptes pour l’instant.')}</p>`; return; }
+    const all = [];
+    const show = (page) => {
+      all.push(...page);
+      $('admin-count').textContent = `(${all.length})`;
+      drawAdminRows(all);
+      // une page pleine : il y en a peut-être d'autres
+      const more = $('admin-more');
+      more.hidden = page.length < (A.adminPage || 60);
+      more.onclick = async () => {
+        more.disabled = true;
+        try { const next = await timed(A.adminList(all.length)); if (run === adminRun) show(next); } catch (e) { failed(e); } finally { more.disabled = false; }
+      };
+    };
+    show(rows);
+  }
+  // groupées par compte, le compte à l'œuvre la plus récente en tête
+  function drawAdminRows(rows) {
+    const list = $('admin-list');
+    list.innerHTML = '';
     const groups = new Map();
     rows.forEach((r) => { if (!groups.has(r.owner)) groups.set(r.owner, []); groups.get(r.owner).push(r); });
     groups.forEach((works, owner) => {
@@ -7017,7 +7069,8 @@ Réponds uniquement avec ce JSON :
         const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
         const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
         const tags = [r.ordered ? `<span class="saved-tag">${tr('commandée')}</span>` : '', r.frozen && !r.ordered ? `<span class="saved-tag">${tr('enregistrée')}</span>` : ''].join('');
-        const meta = [kind, st ? st.name : esc(comp.style || ''), r.nDrawings ? tr`${r.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(r.date)].filter(Boolean).join(' · ');
+        const n = Number(r.nDrawings) || 0;
+        const meta = [kind, st ? st.name : esc(comp.style || ''), n ? tr`${n} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(r.date)].filter(Boolean).join(' · ');
         const el = document.createElement('div');
         el.className = 'saved';
         el.innerHTML = `<img src="${safeData(r.thumb)}" alt=""><div><p class="saved-name"><span>${esc(r.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button type="button" class="saved-copy">${tr('Ouvrir une copie')}</button></span>`;
@@ -7025,6 +7078,47 @@ Réponds uniquement avec ce JSON :
         list.appendChild(el);
       });
     });
+  }
+  // la double authentification : l'activer (code à scanner, puis un premier code), ou saisir le code
+  // de cette connexion ; une fois validée, le jeton passe au niveau aal2 et la liste se lit
+  function showAdminMfa(st) {
+    const A = window.Account, mfa = $('admin-mfa');
+    const start = $('admin-mfa-start'), qr = $('admin-mfa-qr'), form = $('admin-mfa-form'), code = $('admin-mfa-code');
+    mfa.hidden = false;
+    let factorId = null;
+    qr.hidden = true;
+    code.value = '';
+    if (st === 'enroll') {
+      $('admin-mfa-text').textContent = tr('Pour voir les œuvres de tous les comptes, la double authentification est obligatoire : installez une application d’authentification (Google Authenticator, Microsoft Authenticator, 1Password…), puis activez-la ici.');
+      start.hidden = false; form.hidden = true;
+      start.onclick = async () => {
+        start.disabled = true;
+        try {
+          const r = await A.mfaEnroll();
+          factorId = r.factorId;
+          qr.querySelector('img').src = r.qr;
+          qr.querySelector('img').hidden = !r.qr;
+          qr.querySelector('code').textContent = r.secret;
+          qr.hidden = false; start.hidden = true; form.hidden = false;
+          $('admin-mfa-text').textContent = tr('Scannez ce code avec l’application, puis saisissez le code à 6 chiffres qu’elle affiche.');
+          code.focus();
+        } catch (e) { adminStatus(tr`Activation impossible : ${e.message}`); } finally { start.disabled = false; }
+      };
+    } else {
+      $('admin-mfa-text').textContent = tr('Double authentification : saisissez le code à 6 chiffres affiché par votre application d’authentification.');
+      start.hidden = true; form.hidden = false;
+    }
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      adminStatus('');
+      try {
+        await A.mfaVerify(code.value, factorId);
+        mfa.hidden = true;
+        renderAdmin();
+      } catch (err) { adminStatus(err.message); } finally { btn.disabled = false; }
+    };
   }
   // l'œuvre d'un autre compte, rouverte en copie : elle ne rejoint Mes œuvres (le compte de
   // l'administrateur) qu'au premier changement
@@ -7408,7 +7502,7 @@ Réponds uniquement avec ce JSON :
       }
     };
     $('auth-forgot').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status(tr('Indiquez d’abord votre e-mail.'), true); return; } busy(() => A.resetPassword(email), tr`Un lien pour choisir un nouveau mot de passe a été envoyé à ${email}.`); };
-    $('auth-magic').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status(tr('Indiquez d’abord votre e-mail.'), true); return; } busy(() => A.magicLink(email), tr`Un lien de connexion a été envoyé à ${email}. Ouvrez-le sur cet appareil.`); };
+    $('auth-magic').onclick = () => { const email = $('auth-email').value.trim(); if (!email) { status(tr('Indiquez d’abord votre e-mail.'), true); return; } busy(() => A.magicLink(email), tr`Si un compte existe pour ${email}, un lien de connexion vient d’y être envoyé : ouvrez-le sur cet appareil. Pas encore de compte ? Choisissez « Créer un compte ».`); };
     $('recover-form').onsubmit = (e) => { e.preventDefault(); const pw = $('recover-password').value; busy(async () => { strongOrThrow(pw, { email: (A.user() || {}).email }); await A.updatePassword(pw); }, tr('Nouveau mot de passe enregistré.')); };
     $('profile-form').onsubmit = (e) => {
       e.preventDefault();
@@ -7423,6 +7517,20 @@ Réponds uniquement avec ce JSON :
       }, null);
     };
     $('acc-signout').onclick = () => busy(() => A.signOut(), tr('Vous êtes déconnecté.'));
+    // appareil partagé : se déconnecter en nettoyant cet appareil (les œuvres restent dans le compte) ;
+    // en deux temps, et prévient si des œuvres ne sont pas encore parties dans le compte
+    const unsyncedWorks = () => (pendingCloud && !inCloud(pendingCloud) ? 1 : 0) + cloudQueue.filter((r) => !inCloud(r)).length;
+    const wipe = $('acc-signout-wipe');
+    wipe.onclick = () => {
+      if (!wipe.classList.contains('confirm')) {
+        const n = unsyncedWorks();
+        wipe.classList.add('confirm'); wipe.textContent = tr('Confirmer : se déconnecter et effacer');
+        status(n ? tr('Attention : des œuvres de cet appareil ne sont pas encore dans votre compte, elles seront perdues.') : tr('Vos œuvres restent dans votre compte ; cet appareil n’en gardera aucune trace.'), !!n);
+        setTimeout(() => { wipe.classList.remove('confirm'); wipe.textContent = tr('Se déconnecter et effacer cet appareil'); }, 6000);
+        return;
+      }
+      busy(async () => { await A.signOut(); await clearDevice(tr('Vous êtes déconnecté, et vos œuvres ont été effacées de cet appareil.')); }, null);
+    };
     const del = $('acc-delete');
     del.onclick = () => {
       if (!del.classList.contains('confirm')) {
@@ -7430,8 +7538,10 @@ Réponds uniquement avec ce JSON :
         setTimeout(() => { del.classList.remove('confirm'); del.textContent = tr('Supprimer mon compte'); }, 6000);
         return;
       }
-      busy(() => A.deleteAccount(), tr('Compte supprimé. Les œuvres de cet appareil sont conservées.'));
+      busy(async () => { await A.deleteAccount(); await clearDevice(tr('Compte supprimé, et ses œuvres effacées de cet appareil.')); }, null);
     };
+    // (après le nettoyage de l'appareil et le rechargement : le message)
+    try { const m = sessionStorage.getItem(WIPED_KEY); if (m !== null) { sessionStorage.removeItem(WIPED_KEY); if (m) notice(m); } } catch (e) { /* ignoré */ }
     const PROVIDERS = { google: 'Google', email: tr('votre e-mail') };
     let wasSigned = null;
     A.onChange((u, info) => {
@@ -7470,7 +7580,7 @@ Réponds uniquement avec ce JSON :
       $('saved-hint').textContent = signed
         ? (workMax() === Infinity
           ? tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Compte administrateur : sans limite de nombre ; les œuvres sont gardées ${workKeepDays()} jours après leur dernier changement.`
-          : tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Le compte garde jusqu’à ${workMax()} œuvres, pendant ${workKeepDays()} jours après leur dernier changement.`)
+          : tr`Vos œuvres s’enregistrent d’elles-mêmes dans votre compte : retrouvez-les sur tous vos appareils. Le compte garde jusqu’à ${workMax()} œuvres, pendant ${workKeepDays()} jours après leur dernier changement ; les œuvres commandées sont gardées en plus.`)
         : tr('Vos œuvres s’enregistrent d’elles-mêmes sur cet appareil. Connectez-vous pour les retrouver sur tous vos appareils.');
       if (signed) checkWorks({ arrival }); else { hideNewer(); renderSaved(); }
       workStatus();
@@ -8221,6 +8331,8 @@ Réponds uniquement avec ce JSON :
       const now = new Date();
       const ref = `AG-${now.toISOString().slice(2, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
       const lines = [];
+      // la trace de la commande gardée dans le compte avec l'œuvre
+      const orderOf = (it) => ({ ref, at: now.toISOString(), product: productLabel(it), W: it.W, H: it.H, qty: it.qty, unit: it.unit });
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         let saved = '';
@@ -8229,11 +8341,11 @@ Réponds uniquement avec ce JSON :
           const name = `${ref} · ${it.title}`.slice(0, 80);
           if (isCloudItem(it)) {
             // déjà dans le compte : la composition prend le nom de la commande et quitte le panier
-            await A.cloud.cartSet(it.recId, null, name);
+            await A.cloud.cartSet(it.recId, null, name, orderOf(it));
             saved = it.recId;
           } else {
             const rec = await cartRecForCloud(it);
-            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; saved = await A.cloud.put(rec); }
+            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; rec.order = orderOf(it); saved = await A.cloud.put(rec); }
           }
         }
         lines.push(`${i + 1}. ${it.title} (${it.styleName}, ${fmt(it.W)} × ${fmt(it.H)} cm) — ${productLabel(it)} × ${it.qty} = ${euros(it.unit * it.qty)}${saved ? ` [${saved}]` : ''}`);

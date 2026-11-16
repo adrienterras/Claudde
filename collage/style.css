@@ -273,6 +273,11 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 #exports-box h3, #admin-box h3 { margin: 0; }
 .admin-owner { margin: 6px 0 0; font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
 .admin-owner small { font-weight: 400; color: var(--muted); }
+.admin-mfa { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.admin-mfa form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+#admin-mfa-qr img { width: 180px; height: 180px; display: block; }
+#admin-mfa-qr code { word-break: break-all; }
+#admin-mfa-code { width: 9em; letter-spacing: .15em; }
 .saved .saved-copy { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; padding: 5px 9px; border-radius: 999px; font: inherit; font-size: 0.72rem; white-space: nowrap; }
 .saved .saved-copy:hover { border-color: var(--accent); color: var(--accent); }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
