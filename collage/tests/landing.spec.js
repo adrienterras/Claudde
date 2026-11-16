@@ -252,13 +252,22 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await page.locator('#nav-burger').click();
   await expect(page.locator('#nav-menu a').nth(6)).toHaveText('Photographing drawings');
   await ctx.close();
-  // sur ordinateur : pas de menu, les sections restent dans l'en-tête
+  // sur ordinateur : le même menu (les sections quittent l'en-tête), en carte sous le bouton, à droite
   const ctx2 = await browser.newContext(DESK);
   const page2 = await ctx2.newPage();
   await serve(page2);
   await page2.goto('http://accueil.test/');
-  await expect(page2.locator('#nav-burger')).toBeHidden();
-  await expect(page2.locator('header .wrap a[href="#styles"]')).toBeVisible();
+  await expect(page2.locator('#nav-burger')).toBeVisible();
+  await expect(page2.locator('header .wrap > nav a[href="#styles"]')).toBeHidden();
+  await page2.locator('#nav-burger').click();
+  const menu2 = page2.locator('#nav-menu');
+  await expect(menu2).toBeVisible();
+  expect(await menu2.locator('a').allTextContents()).toEqual(['Comment ça marche', 'Les styles', 'Chez vous', 'L’atelier', 'Tarifs', 'Idées', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
+  const box = await menu2.boundingBox(), btn = await page2.locator('#nav-burger').boundingBox();
+  expect(box.width).toBeLessThan(400);
+  expect(Math.abs(box.x + box.width - (btn.x + btn.width))).toBeLessThan(4);
+  await page2.keyboard.press('Escape');
+  await expect(menu2).toBeHidden();
   await ctx2.close();
 });
 

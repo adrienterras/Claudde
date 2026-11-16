@@ -220,6 +220,19 @@
       main .hero .lead { font-size: 1.1rem; }
     }
   </style>
+  <style>
+    /* le menu à trois traits aussi sur ordinateur, comme sur téléphone : les liens de l'en-tête y passent ;
+       sur grand écran, il s'ouvre en carte sous le bouton, à droite */
+    .nav-burger { display: grid; }
+    .nav nav a.hide-sm { display: none; }
+    .nav .wrap > nav { margin-left: auto; }
+    .nav .wrap { gap: 10px; }
+    @media (min-width: 901px) {
+      .nav-menu { position: absolute; top: calc(100% + 8px); right: max(20px, calc((100% - 1120px) / 2)); width: 300px; border: 1px solid var(--line); border-radius: 16px; background: var(--craie); box-shadow: 0 22px 50px -24px rgba(43, 42, 34, .45); }
+      .nav .nav-menu nav { width: auto; padding: 4px 18px 8px; font-size: .95rem; }
+      .nav .nav-menu nav a { padding: 11px 2px; }
+    }
+  </style>
 </head>
 <body>
   <header class="nav">
