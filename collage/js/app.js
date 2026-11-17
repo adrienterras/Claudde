@@ -528,6 +528,9 @@
           loadSize(x);
           loadOrient(x);
           loadTone(x);
+          // nouveau dessin : lumière et couleurs réglées d'office (voir autoToneNew), sauf si ce
+          // fichier a déjà un réglage enregistré, même remis à zéro
+          if (!sv && !state.restoring && !(opts && opts.sample) && !toneStored(x)) x.autoTonePending = true;
           if (sizes && sizes[x.name]) { x.sizeCm = clampCm(sizes[x.name]); x.sizeMode = 'manual'; }
           state.drawings.push(x);
         });
@@ -544,6 +547,7 @@
     state.drawings.forEach(ensureMaterial);
     curate();
     planCoverage();
+    state.drawings.forEach(autoToneNew);
     if (state.drawings.length) {
       ['drawings-section', 'sizes-section', 'compose-section', 'export-section'].forEach((id) => ($(id).hidden = false));
       $('empty').hidden = true;
@@ -877,9 +881,22 @@
   }
   function saveTone(d) {
     try {
-      if (hasTone(d)) localStorage.setItem(toneKey(d), JSON.stringify(d.tone));
-      else localStorage.removeItem(toneKey(d));
+      // remis à zéro : « 0 » est gardé, pour que le réglage automatique ne revienne pas au prochain import
+      localStorage.setItem(toneKey(d), hasTone(d) ? JSON.stringify(d.tone) : '0');
     } catch (e) { /* ignoré */ }
+  }
+  const toneStored = (d) => { try { return localStorage.getItem(toneKey(d)) !== null; } catch (e) { return false; } };
+  // À l'import, chaque nouveau dessin reçoit le réglage d'« Ajuster automatiquement » (blanc du
+  // papier, traits, couleurs ternes : voir Compose.autoTone), mesuré sur les pixels collés une fois
+  // son rôle choisi (découpes ou page de fond). « Rétablir » le retire.
+  function autoToneNew(d) {
+    if (!d.autoTonePending) return;
+    delete d.autoTonePending;
+    if (hasTone(d)) return;
+    try {
+      const t = Compose.autoTone(toneSources(d));
+      if (t.b || t.c || t.s) { d.tone = t; saveTone(d); }
+    } catch (e) { console.error(e); }
   }
 
   // Orientation retenue : celle de l'utilisateur, sinon droite, sauf une page de fond trop haute
@@ -1533,6 +1550,7 @@
     Object.assign(nd, { sizeCm: d.sizeCm, sizeMode: 'manual', role: d.role === 'auto' ? roleOf(d) : d.role, orient: d.orient, ai: d.ai || null });
     saveSize(nd);
     curateDrawing(nd);
+    autoToneNew(nd);
     applyOrientations();
     ensureMaterial(nd);
     if (comp) {

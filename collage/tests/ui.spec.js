@@ -912,7 +912,8 @@ test.describe('Luminosité, contraste et saturation', () => {
     await page.locator('#ed-apply').click();
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toBeUndefined();
     expect(Math.abs((await mean()) - m0)).toBeLessThan(0.5);
-    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(false);
+    // (« 0 » retenu : le réglage automatique ne reviendra pas au prochain import de ce fichier)
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('atelier-gribouille:tons:')).map((k) => localStorage.getItem(k)))).toEqual(['0']);
 
     // une page de fond n'a pas de fenêtre de retouche : ses curseurs restent dans la fiche
     await page.locator('#detail [data-role="texture"]').click();
@@ -955,6 +956,39 @@ test.describe('Réglage automatique de l’image', () => {
     expect(r.peint.b).toBe(0);
     expect(r.crayon.s).toBe(0);
     for (const t of [r.terne, r.crayon]) for (const k of ['b', 'c']) expect(Math.abs(t[k])).toBeLessThanOrEqual(35);
+  });
+
+  test('appliqué d’office à l’import ; « Rétablir » le retire et il ne revient pas pour ce fichier', async ({ page }) => {
+    const { fixture } = require('./helpers');
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    // page de fond un peu grise : réglée dès l'import, comme avec « Ajuster automatiquement »
+    await page.setInputFiles('#file', [fixture('page-texture.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const st = await page.evaluate(() => {
+      const d = AtelierGribouille.state.drawings[0];
+      return { tone: d.tone, auto: Compose.autoTone([d.analysis.texture ? d.analysis.texture.canvas : d.analysis.page]), pending: 'autoTonePending' in d };
+    });
+    expect(st.tone).toEqual(st.auto);
+    expect(st.tone.c).toBeGreaterThan(0);
+    expect(st.pending).toBe(false);
+    await page.locator('#drawings-section > h2').click();
+    await expect(page.locator('#drawings .thumb[data-i="0"] img')).toHaveCSS('filter', /contrast/);
+    await page.locator('#drawings .thumb[data-i="0"]').click();
+    await expect(page.locator('#detail [data-tone="c"]')).toHaveValue(String(st.tone.c));
+    // « Rétablir » : le dessin tel que scanné, et ce choix est retenu (« 0 ») pour un prochain import
+    await page.locator('#detail [data-tone-reset]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toBeUndefined();
+    const kept = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('atelier-gribouille:tons:')).map((k) => localStorage.getItem(k)));
+    expect(kept).toEqual(['0']);
+  });
+
+  test('pas de réglage d’office pour les dessins d’exemple', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?exemple');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.filter((d) => d.tone).length)).toBe(0);
   });
 });
 

@@ -279,7 +279,9 @@ cd collage && python3 -m http.server 8000
    scan). **« Ajuster automatiquement »** les règle d'après les pixels réellement collés :
    papier éclairci jusqu'au blanc (s'il y en a assez de visible, jamais assombri), traits pâles foncés
    d'un tiers, couleurs ternes ravivées (jamais sur le crayon gris, avec retenue si le papier a une
-   teinte) ; voir `Compose.autoTone`
+   teinte) ; voir `Compose.autoTone`. Ce réglage est **appliqué d'office à l'import** de chaque
+   nouveau dessin (`autoToneNew`, une fois son rôle choisi ; pas pour les exemples ni une œuvre
+   rouverte) ; « Rétablir » l'enlève et le retient (« 0 » mémorisé) pour un prochain import du même fichier
    ; pour une page de fond, **« Recadrer la page »** (`js/crop.js`) : la page entière s'affiche avec
    un cadre à tirer par les coins et les bords, ou à déplacer (au clavier : flèches, Maj+flèches pour
    sa taille) ; « Toute la page » prend la feuille entière, « Rétablir » le cadrage d'origine (la page
