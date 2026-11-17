@@ -342,6 +342,9 @@
     'Tourner à droite': 'Rotate right',
     'Auto': 'Auto',
     'Pincez pour zoomer · glissez à deux doigts pour vous déplacer': 'Pinch to zoom · drag with two fingers to move',
+    'Voir l’œuvre de près': 'See the artwork up close',
+    'La mise en scène, de près': 'The room view, up close',
+    'Pincez pour zoomer · touchez deux fois pour rapprocher': 'Pinch to zoom · double-tap to zoom in',
     'Changer de langue recharge la page : les dessins importés devront être réimportés. Continuer ?': 'Switching language reloads the page: the imported drawings will have to be imported again. Continue?',
 
     // ---------- app.js ----------

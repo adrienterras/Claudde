@@ -336,6 +336,56 @@ const waitDraft = async (page) => {
   throw new Error('brouillon jamais écrit');
 };
 
+test.describe('Mise en scène de près (téléphone)', () => {
+  test('la loupe ouvre la scène en plein écran, cadrée sur l’œuvre et refaite en grand ; deux touchers rapprochent ; Échap ferme', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html?mode=impression&exemple');
+    await p.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    await p.locator('#scene-canvas').scrollIntoViewIfNeeded();
+    await p.waitForFunction(() => !!document.getElementById('scene-canvas')._art);
+    const small = await p.locator('#scene-canvas').evaluate((c) => c.width);
+    await p.locator('#scene-zoom-open').click();
+    await expect(p.locator('#scene-zoom')).toBeVisible();
+    // refaite en grand, pour une œuvre nette de près
+    await p.waitForFunction((w) => document.getElementById('scene-zoom-canvas').width > 2 * w, small);
+    const view = () => p.evaluate(() => {
+      const c = document.getElementById('scene-zoom-canvas'), r = c.getBoundingClientRect();
+      const m = /scale\(([\d.]+)\)/.exec(c.style.transform);
+      return { z: Number(m && m[1]), left: r.left, right: r.right, w: r.width };
+    });
+    const v0 = await view();
+    expect(v0.z).toBeGreaterThan(1.5); // cadrée sur l'œuvre, pas sur toute la pièce
+    expect(v0.left).toBeLessThanOrEqual(0.5); // (l'image couvre toute la largeur, sans bande vide)
+    expect(v0.right).toBeGreaterThanOrEqual(389.5);
+    // deux touchers : plus près
+    for (let i = 0; i < 2; i++) { await p.mouse.click(195, 380); await p.waitForTimeout(60); }
+    const v1 = await view();
+    expect(v1.z).toBeGreaterThan(v0.z * 2);
+    // deux touchers encore : retour à l'œuvre entière
+    for (let i = 0; i < 2; i++) { await p.mouse.click(195, 380); await p.waitForTimeout(60); }
+    expect(Math.abs((await view()).z - v0.z)).toBeLessThan(0.01);
+    await p.keyboard.press('Escape');
+    await expect(p.locator('#scene-zoom')).toBeHidden();
+    expect(await p.locator('#scene-zoom-canvas').evaluate((c) => c.width)).toBe(0); // (mémoire rendue)
+    // toucher la photo de la scène ouvre aussi la vue de près ; la croix la ferme
+    await p.locator('#scene-canvas').click({ position: { x: 60, y: 60 } });
+    await expect(p.locator('#scene-zoom')).toBeVisible();
+    await p.locator('#scene-zoom-close').click();
+    await expect(p.locator('#scene-zoom')).toBeHidden();
+    await ctx.close();
+  });
+
+  test('ordinateur : pas de loupe sur la mise en scène', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression&exemple');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#scene-zoom-open')).toBeHidden();
+  });
+});
+
 test.describe('Téléphone, onglets', () => {
   test('« Commencer une nouvelle œuvre » seulement dans Importer ; « Mise en scène » dans Tailles ; pas de titre de section', async ({ browser }) => {
     const { fixture } = require('./helpers');

@@ -76,6 +76,7 @@
       <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13l8 4.5 8-4.5"/></symbol>
       <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 4.5h10v15l-5-3.5-5 3.5z"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
       <symbol id="i-frame" viewBox="0 0 24 24"><path d="M9 6.5 12 3.5l3 3"/><rect x="3.5" y="6.5" width="17" height="14" rx="1"/><path d="M7 17l3.5-4 2.5 2.5 1.5-1.5L17 17"/></symbol>
+      <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3L20 20M10.5 7.8v5.4M7.8 10.5h5.4"/></symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h10v10H9z"/><path d="M15 9V5H5v10h4"/></symbol>
       <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4.3-1 10.2-10.2a2.2 2.2 0 0 0-3.1-3.1L5.2 15.9z"/><path d="M13.6 7.5l3 3"/></symbol>
@@ -215,7 +216,7 @@
       <div id="scene-box" class="scene-box">
         <h3 class="scene-title">Mise en scène</h3>
         <div id="scene-body" class="scene-body">
-          <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas></div>
+          <div class="scene-frame"><canvas id="scene-canvas" class="scene-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas><button type="button" id="scene-zoom-open" class="scene-zoom-open" title="Voir l’œuvre de près" aria-label="Voir l’œuvre de près"><svg class="ico"><use href="#i-zoom"/></svg></button></div>
           <div class="scene-controls">
             <!-- la pièce d'abord ; puis, comme dans la section Tailles du téléphone : taille (et la taille
                  d'impression qui en découle), passe-partout, orientation ; enfin le cadre -->
@@ -537,6 +538,13 @@
       <h2 id="scene-modal-title" class="acc-title">Mise en scène</h2>
       <div id="scene-modal-body"></div>
     </div>
+  </section>
+
+  <!-- téléphone : la mise en scène en plein écran, pour voir l'œuvre de près (pincer, glisser, toucher deux fois) -->
+  <section id="scene-zoom" class="scene-zoom" hidden role="dialog" aria-modal="true" aria-label="La mise en scène, de près">
+    <canvas id="scene-zoom-canvas" class="scene-zoom-canvas" role="img" aria-label="L’œuvre accrochée dans un salon, à sa taille réelle"></canvas>
+    <button type="button" id="scene-zoom-close" class="acc-close scene-zoom-close" aria-label="Fermer">×</button>
+    <p class="scene-zoom-hint">Pincez pour zoomer · touchez deux fois pour rapprocher</p>
   </section>
 
   <!-- retour sur l'atelier (nouvelle visite : adresse, lien, onglet rouvert — pas une actualisation) avec une

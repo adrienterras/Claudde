@@ -923,6 +923,17 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
 /* la photo déborde d'un pixel de chaque côté (le cadre arrondi la coupe) : sur iPhone, un cadre de hauteur
    fractionnaire (268,5 px) laissait voir un trait du fond beige sous la photo */
 .scene-canvas { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); display: block; }
+/* téléphone : la loupe, dans l'angle de la photo, ouvre la mise en scène en plein écran (voir openSceneZoom) */
+.scene-zoom-open { position: absolute; right: 8px; bottom: 8px; width: 38px; height: 38px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(255, 255, 255, 0.88); color: #2b2420; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); cursor: zoom-in; }
+.scene-zoom-open .ico { width: 20px; height: 20px; }
+@media (min-width: 861px) { .scene-zoom-open { display: none; } }
+@media (max-width: 860px) { .scene-canvas { cursor: zoom-in; } }
+.scene-zoom { position: fixed; inset: 0; z-index: 950; background: #15110e; overflow: hidden; touch-action: none; overscroll-behavior: contain; }
+.scene-zoom[hidden] { display: none; }
+.scene-zoom-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; display: block; }
+.scene-zoom-close { top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px; z-index: 1; background: rgba(255, 255, 255, 0.9); color: #2b2420; }
+.scene-zoom-hint { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 0.8rem; width: max-content; max-width: calc(100% - 32px); text-align: center; pointer-events: none; transition: opacity .4s; }
+.scene-zoom-hint.gone { opacity: 0; }
 .scene-mat { margin-bottom: 6px; }
 .scene-finish, .scene-margin { margin: 0; }
 .scene-finish button, .scene-margin button { padding: 7px 4px; font-size: 0.8rem; }
