@@ -614,7 +614,8 @@
     // (un petit sujet au trait noir ou au crayon de couleur a peu de couleur pour sa surface : son encre
     // sombre ou colorée suffit, voir Extract inkSat / inkDark)
     const inked = (p) => p.colorful >= 0.04 || (p.inkDark || 0) >= 0.25 || (p.inkSat || 0) >= 0.25;
-    const keep = ps.filter((p) => p.frac > 0.002 && inked(p) && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.04 * long);
+    // (le doigt qui tenait la feuille, voir Extract.cutPieces, n'est pas un sujet)
+    const keep = ps.filter((p) => !p.hand && p.frac > 0.002 && inked(p) && ar(p) > 0.12 && Math.max(p.src.w, p.src.h) >= 0.04 * long);
     if (keep.length < 2) return null;
     // (la feuille garde son nom et sa vignette : c'est elle dont on vérifie la taille, voir renderUncertain)
     const sheet = { id: packId(), name: d.name, thumb: d.thumb, origLong: d.origLong, origShort: d.origShort, physCm: d.physCm, physSource: d.physSource, photo: d.photo, sizeCm: 29.7, sizeMode: 'auto' };
@@ -1323,7 +1324,7 @@
   }
 
   function pale(d) {
-    const ps = d.analysis.pieces || [];
+    const ps = (d.analysis.pieces || []).filter((p) => !p.hand);
     const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
     return !main || main.colorful < 0.1;
   }
@@ -1459,19 +1460,20 @@
   // L'utilisateur peut en désactiver, et Claude écarte les fragments s'il a pu les regarder.
   function curateDrawing(d) {
     const ps = d.analysis.pieces || [];
-    const main = ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
+    // (le doigt qui tenait la feuille, voir Extract.cutPieces : jamais le sujet principal, jamais posé d'office)
+    const main = ps.reduce((a, b) => (b.hand ? a : !a || b.frac > a.frac ? b : a), null) || ps.reduce((a, b) => (!a || b.frac > a.frac ? b : a), null);
     const c = cmPerPx(d);
     // (seuil large : un nuage au crayon gris ou un petit bonhomme sont peu colorés mais sont des sujets)
     const ar = (p) => p.canvas.width / p.canvas.height;
     const inked = (p) => p.colorful >= 0.04 || (p.inkDark || 0) >= 0.25 || (p.inkSat || 0) >= 0.25;
     const subject = (p) => p.frac > 0.002 && inked(p) && Math.min(ar(p), 1 / ar(p)) > 0.12 && Math.max(p.canvas.width, p.canvas.height) * c >= 3;
-    ps.forEach((p) => { p.enabled = subject(p); p.main = false; });
+    ps.forEach((p) => { p.enabled = subject(p) && !p.hand; p.main = false; });
     if (main) { main.enabled = true; main.main = true; }
     // Claude a regardé chaque élément découpé : on garde tout ce qu'il reconnaît comme un vrai sujet
     // (personnage, nuage, soleil, animal…), même petit, et on écarte les fragments ; le sujet principal
     // reste si rien d'autre ne tient
     if (ps.some((p) => p.ai)) {
-      ps.forEach((p) => { if (p.ai) p.enabled = p.ai.garder; });
+      ps.forEach((p) => { if (p.ai) p.enabled = p.ai.garder && !p.hand; });
       if (main && !ps.some((p) => p.enabled)) main.enabled = true;
     }
   }

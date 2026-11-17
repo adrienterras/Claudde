@@ -23,6 +23,60 @@ async function analyze(page, name, opts) {
 }
 
 test.describe('Analyse des pages (Extract)', () => {
+  // page synthétique : un croquis au crayon, le doigt qui tient la feuille (forme pleine couleur peau
+  // entrant par le bord gauche), un soleil orange au feutre coupé par le bord droit, un visage pêche
+  // colorié au crayon (avec son contour) au bord bas
+  const handPage = (only) => {
+    const W = 1400, H = 2000, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+    x.fillStyle = '#f7f6f2'; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(70,70,75,0.9)'; x.lineWidth = 4;
+    for (let i = 0; i < 60; i++) { x.beginPath(); x.arc(700 + Math.sin(i) * 40, 500 + Math.cos(i * 1.3) * 40, 60 + (i % 7) * 8, 0, 6.28); x.stroke(); }
+    x.beginPath(); x.moveTo(700, 600); x.lineTo(680, 1200); x.lineTo(600, 1600); x.moveTo(680, 1200); x.lineTo(760, 1600); x.moveTo(690, 750); x.lineTo(560, 1000); x.moveTo(690, 750); x.lineTo(830, 1000); x.stroke();
+    const g = x.createLinearGradient(0, 800, 330, 1100); g.addColorStop(0, 'rgb(205,140,115)'); g.addColorStop(0.5, 'rgb(232,170,145)'); g.addColorStop(1, 'rgb(215,130,120)');
+    x.fillStyle = g; x.beginPath(); x.moveTo(0, 760); x.quadraticCurveTo(300, 820, 330, 960); x.quadraticCurveTo(320, 1080, 200, 1090); x.lineTo(0, 1120); x.closePath(); x.fill();
+    x.fillStyle = 'rgb(236,190,190)'; x.beginPath(); x.ellipse(280, 960, 40, 55, 0, 0, 6.28); x.fill();
+    if (only) return c; // (le croquis et le doigt seuls)
+    x.fillStyle = 'rgb(248,140,30)'; x.beginPath(); x.arc(1400, 300, 170, 0, 6.28); x.fill();
+    x.strokeStyle = 'rgb(240,180,150)'; x.lineWidth = 6;
+    for (let i = 0; i < 40; i++) { x.beginPath(); x.moveTo(950 + i * 8, 2000); x.lineTo(950 + i * 8 + 60, 1780); x.stroke(); }
+    x.strokeStyle = '#333'; x.lineWidth = 5; x.beginPath(); x.arc(1110, 1880, 130, 0, 6.28); x.stroke();
+    return c;
+  };
+  test('le doigt qui tient la feuille est reconnu (pas posé sur l’œuvre) ; un soleil au feutre ou un visage au crayon au bord restent des sujets', async ({ app }) => {
+    const r = await app.page.evaluate((src) => {
+      const handPage = new Function(`return (${src})`)();
+      const a = Extract.analyze(handPage(), 0, {});
+      return (a.pieces || []).map((q) => ({ x: q.src.x, y: q.src.y, hand: !!q.hand }));
+    }, handPage.toString());
+    const at = (fx, fy) => r.find((q) => Math.abs(q.x - fx) < 150 && Math.abs(q.y - fy) < 150);
+    expect(r.length).toBe(4);
+    expect(at(0, 613).hand).toBe(true); // le doigt
+    expect(at(400, 200).hand).toBe(false); // le croquis
+    expect(at(1078, 0).hand).toBe(false); // le soleil au feutre
+    expect(at(803, 1597).hand).toBe(false); // le visage au crayon
+    // dans l'atelier : le croquis tenu par un doigt reste un seul dessin ; le doigt est dans ses découpes,
+    // mais n'est pas posé sur l'œuvre (ni le sujet principal)
+    const { page } = app;
+    const buf = await page.evaluate((src) => { const handPage = new Function(`return (${src})`)(); return handPage(true).toDataURL('image/png'); }, handPage.toString());
+    await page.setInputFiles('#file', [{ name: 'doigt.png', mimeType: 'image/png', buffer: Buffer.from(buf.split(',')[1], 'base64') }]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(1);
+    const st = await page.evaluate(() => {
+      const s = AtelierGribouille.state, d = s.drawings[0], hands = (d.analysis.pieces || []).filter((p) => p.hand);
+      return { hands: hands.length, enabled: hands.map((p) => p.enabled), onArt: s.comp.items.filter((L) => L.piece && L.piece.hand).length, main: !!(d.analysis.pieces || []).find((p) => p.main && !p.hand) };
+    });
+    expect(st.hands).toBe(1);
+    expect(st.enabled).toEqual([false]);
+    expect(st.onArt).toBe(0);
+    expect(st.main).toBe(true);
+    // la page entière (plusieurs sujets, partagée en un dessin par sujet) : le doigt n'en devient pas un
+    const buf2 = await page.evaluate((src) => { const handPage = new Function(`return (${src})`)(); return handPage().toDataURL('image/png'); }, handPage.toString());
+    await page.setInputFiles('#file', [{ name: 'doigt-et-soleil.png', mimeType: 'image/png', buffer: Buffer.from(buf2.split(',')[1], 'base64') }]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length > 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const all = await page.evaluate(() => AtelierGribouille.state.drawings.filter((d) => /doigt-et-soleil/.test(d.name)).map((d) => (d.analysis.pieces || []).some((p) => p.hand)));
+    expect(all.length).toBe(3); // le croquis, le soleil, le visage
+    expect(all.every((h) => !h)).toBe(true);
+  });
   test('un dessin qui sort de la feuille : la coupe s’arrondit au bord, au lieu de le suivre en ligne droite', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       // une feuille blanche ; un sujet coloré dont le corps large sort par le haut de la page

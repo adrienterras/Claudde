@@ -224,7 +224,11 @@ cd collage && python3 -m http.server 8000
      celle de la feuille d'origine, entière (une ligne « Dessins 1 à 9 · feuille entière » dans les
      tailles, et dans la fiche de chacun de ses sujets) : on ne peut pas mesurer un sujet déjà découpé ;
      ses sujets suivent (`setRealSize`). Les fragments (traits fins,
-     miettes) ne deviennent pas des dessins. Une œuvre rouverte relit les dessins tels quels.
+     miettes) ne deviennent pas des dessins. **Le doigt qui tenait la feuille** pendant la photo
+     (une forme pleine couleur peau, sans trait sombre, qui entre par le bord même de la page :
+     `skinTone`, `hand` dans `Extract.cutPieces`) n'est ni un dessin ni posé sur l'œuvre : il reste
+     seulement dans les découpes du dessin, désactivé (`curateDrawing`) ; un soleil au feutre ou un
+     visage colorié au crayon au bord de la feuille ne sont pas concernés (trop saturé, pas assez plein). Une œuvre rouverte relit les dessins tels quels.
      Photographiée sur un mur ou une table de la couleur du papier (surface claire sans papier
      distinct), la feuille est traitée comme un scan : le retrait de surface ne garderait que l'encre
      et perdrait un short noir, donc les jambes (`removeSurface`, porte `feuille≈surface`). Un objet en

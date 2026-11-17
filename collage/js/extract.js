@@ -1411,6 +1411,17 @@
     }
   }
 
+  // Teinte de peau photographiée (un doigt qui tient la feuille) : rouge dominant, orangé à rosé,
+  // saturation moyenne — un feutre orange ou rouge est bien plus saturé, un crayon pêche plus pâle
+  function skinTone(R, G, B) {
+    if (R < 95 || G < 40 || B < 20 || R < G + 15 || R < B) return false;
+    const mx = R, mn = Math.min(G, B), s = (mx - mn) / mx;
+    if (s < 0.18 || s > 0.62) return false;
+    // teinte (en degrés) entre le rose (≈ −20°) et l'orangé (≈ 40°)
+    const h = G >= B ? (60 * (G - B)) / (mx - mn) : -(60 * (B - G)) / (mx - mn);
+    return h > -25 && h < 42;
+  }
+
   function makePiece(page, seg, comp, orig) {
     const { w, h, labels, data } = seg;
     const k = page.width / w;
@@ -1428,7 +1439,7 @@
     // (pâle et terne), que « colorful » (moyenne sur toute la pièce, marge de papier comprise) ne sépare pas
     const tint = paperTint(seg.paper), W2 = (seg.weakT || 30) * (seg.weakT || 30);
     const psum = seg.paper[0] + seg.paper[1] + seg.paper[2] || 1, pr = seg.paper[0] / psum, pg = seg.paper[1] / psum;
-    let inkCnt = 0, inkSat = 0, inkDark = 0, inkPaper = 0;
+    let inkCnt = 0, inkSat = 0, inkDark = 0, inkPaper = 0, inkSkin = 0;
     for (let y = 0; y < bh; y++) {
       for (let x = 0; x < bw; x++) {
         const p = (y0 + y) * w + x0 + x;
@@ -1441,6 +1452,7 @@
           r += px[0] * s; g += px[1] * s; b += px[2] * s; satSum += s; cnt++;
           if (paperDist2(px[0], px[1], px[2], seg.paper, tint) > W2) {
             inkCnt++; inkSat += s; if (lum(px) < 120) inkDark++;
+            if (skinTone(px[0], px[1], px[2])) inkSkin++;
             // de la teinte du papier (un pli, un bord de feuille de couleur dans l'ombre) ?
             const sm = px[0] + px[1] + px[2] || 1;
             if (tint && Math.abs(px[0] / sm - pr) < 0.035 && Math.abs(px[1] / sm - pg) < 0.035) inkPaper++;
@@ -1563,6 +1575,10 @@
       inkDark: inkCnt ? inkDark / inkCnt : 0,
       inkPaper: inkCnt ? inkPaper / inkCnt : 0,
       inkPx: inkCnt,
+      // part de l'encre couleur peau, et part de la pièce couverte d'encre (un doigt est plein, un
+      // coloriage au crayon laisse voir le papier) : voir hand dans cutPieces
+      inkSkin: inkCnt ? inkSkin / inkCnt : 0,
+      inkFill: cnt ? inkCnt / cnt : 0,
       base,
       // emplacement de la pièce dans la page (en pixels de page), pour pouvoir retoucher la découpe
       src: { x: x0 * k, y: y0 * k, w: pw, h: ph },
@@ -1640,6 +1656,13 @@
         // au bord de la feuille (bande de ≈ 3 % du petit côté)
         const m = Math.round(Math.min(seg.w, seg.h) * 0.03);
         piece.edge = c.x0 <= m || c.y0 <= m || c.x1 >= seg.w - 1 - m || c.y1 >= seg.h - 1 - m;
+        // le doigt qui tenait la feuille pendant la photo : une forme pleine (l'encre couvre au moins la
+        // moitié de la pièce, marge comprise), couleur peau, sans trait sombre, qui entre par le bord même de la page. Elle reste dans la liste des découpes, mais n'est pas posée d'office
+        // (voir curateDrawing) ; un sujet dessiné au bord (soleil au feutre, visage au crayon) n'est pas
+        // concerné : trop saturé, ou pas assez plein
+        const m1 = Math.max(1, Math.round(Math.min(seg.w, seg.h) * 0.006));
+        const atBorder = c.x0 <= m1 || c.y0 <= m1 || c.x1 >= seg.w - 1 - m1 || c.y1 >= seg.h - 1 - m1;
+        if (atBorder && piece.inkSkin >= 0.6 && piece.inkFill >= 0.5 && piece.inkDark < 0.1) piece.hand = true;
         return piece;
       })
       // petite et terne : ombre d'un pli, bord de feuille, reste de table, pas un sujet. Un petit sujet
