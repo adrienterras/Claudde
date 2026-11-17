@@ -218,6 +218,20 @@ test.describe('Bordure blanche', () => {
     expect(Math.min(pw, ph)).toBeCloseTo(Math.min(ex.W, ex.H), 0);
   });
 
+  test('« Commander » et « Ajouter au panier » s’ouvrent toujours sur « encadré », même après un choix « papier » ; la mise en scène garde le sien', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await start(page);
+    await page.evaluate(() => localStorage.setItem('atelier.finition', 'papier'));
+    await page.evaluate(() => document.querySelector('.order-cta').click());
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await expect(page.locator('#cart-add [data-finish="cadre"]')).toHaveClass(/on/);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.finition'))).toBe('cadre');
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.evaluate(() => document.querySelectorAll('.account-modal:not([hidden]) [data-close]').forEach((b) => b.click()));
+    await page.evaluate(() => document.getElementById('add-cart').click());
+    await expect(page.locator('#cart-add [data-finish="cadre"]')).toHaveClass(/on/);
+  });
+
   test('encadré avec passe-partout : pas de bordure ; sans passe-partout, l’article la porte ; le choix « sans » est mémorisé', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await start(page);

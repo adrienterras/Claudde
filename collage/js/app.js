@@ -5537,7 +5537,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       notice(tr('La mise en scène n’a pas pu être produite sur cet appareil.'));
     } finally { btn.disabled = false; }
   });
-  $('scene-order').addEventListener('click', () => { closeModal($('scene-modal')); orderNow(); });
+  $('scene-order').addEventListener('click', () => { closeModal($('scene-modal')); orderNow(true); });
   $('scene-room').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
     try { localStorage.setItem('atelier.piece', b.dataset.room); } catch (e) { /* ignoré */ }
     drawRoomScene();
@@ -8081,12 +8081,13 @@ Réponds uniquement avec ce JSON :
   }
   // « Commander », bien en vue : la composition affichée est proposée au choix du produit (la
   // fenêtre « Ajouter au panier ») ; un lien y mène au panier s'il contient déjà des articles
-  function orderNow() {
+  // fromScene : depuis la mise en scène, la finition qu'on vient d'y choisir ; ailleurs, encadré d'office
+  function orderNow(fromScene) {
     if (!state.comp) return;
     const st = STYLES.find((x) => x.id === state.comp.style);
-    openCartAdd(state.comp, titleFor(state.comp.style) || (st ? st.name : tr('Composition')), st ? st.name : '');
+    openCartAdd(state.comp, titleFor(state.comp.style) || (st ? st.name : tr('Composition')), st ? st.name : '', { keepFinish: fromScene === true });
   }
-  document.querySelectorAll('.order-cta').forEach((b) => (b.onclick = orderNow));
+  document.querySelectorAll('.order-cta').forEach((b) => (b.onclick = () => orderNow()));
   $('cart-add-view').onclick = () => { closeModal($('cart-add')); openCart(); };
   $('shortcuts-open').onclick = () => openModal($('shortcuts'));
 
@@ -8290,7 +8291,7 @@ Réponds uniquement avec ce JSON :
     cv.dataset.room = room;
     paintRoom(cv, null, room, spec);
   }
-  function openCartAdd(comp, title, styleName) {
+  function openCartAdd(comp, title, styleName, opts) {
     const n = loadCart().reduce((t, it) => t + it.qty, 0);
     $('cart-add-view').hidden = !n;
     $('cart-add-view').textContent = tr`Voir mon panier (${n})`;
@@ -8301,7 +8302,9 @@ Réponds uniquement avec ce JSON :
     // par défaut : le passe-partout de la composition, et le cadre de la mise en scène (« auto » :
     // assorti aux couleurs de l'œuvre)
     choice.mat = comp.frameKey ? !!comp.mat : printMat();
-    // la finition (papier ou encadré) et la bordure blanche : celles de la mise en scène
+    // la finition : encadré d'office (« Commander », « Ajouter au panier ») ; depuis la mise en scène,
+    // celle qu'on vient d'y choisir. La bordure blanche : celle de la mise en scène
+    if (!(opts && opts.keepFinish) && sceneFinish() !== 'cadre') setSceneFinish('cadre');
     choice.finish = sceneFinish();
     choice.margin = printMargin();
     const kind = sceneFrameChoice();
