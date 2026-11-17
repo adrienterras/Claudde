@@ -245,12 +245,13 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await burger.click();
   await expect(menu).toBeVisible();
   await expect(burger).toHaveAttribute('aria-expanded', 'true');
-  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'Les styles', 'Chez vous', 'L’atelier', 'Tarifs', 'Idées', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
+  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
   const hrefs = await menu.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
-  expect(hrefs).toEqual(['#comment', '#styles', '#chez-vous', 'atelier/', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', '#questions', 'a-propos.html', 'mailto:bonjour@atelier-gribouille.com']);
+  // (plus de « Les styles », « Chez vous » ni « Idées » dans le menu)
+  expect(hrefs).toEqual(['#comment', 'atelier/', 'tarifs.html', 'photographier-les-dessins.html', '#questions', 'a-propos.html', 'mailto:bonjour@atelier-gribouille.com']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   // un lien de section : on y va, le menu se referme
-  await menu.locator('a[href="#styles"]').click();
+  await menu.locator('a[href="#questions"]').click();
   await expect(menu).toBeHidden();
   await expect(burger).toHaveAttribute('aria-expanded', 'false');
   // Échap, puis toucher ailleurs
@@ -263,7 +264,7 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   // en anglais : traduit
   await page.goto('http://accueil.test/?lang=en');
   await page.locator('#nav-burger').click();
-  await expect(page.locator('#nav-menu a').nth(6)).toHaveText('Photographing drawings');
+  await expect(page.locator('#nav-menu a').nth(3)).toHaveText('Photographing drawings');
   await ctx.close();
   // sur ordinateur : le même menu (les sections quittent l'en-tête), en carte sous le bouton, à droite
   const ctx2 = await browser.newContext(DESK);
@@ -271,11 +272,11 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await serve(page2);
   await page2.goto('http://accueil.test/');
   await expect(page2.locator('#nav-burger')).toBeVisible();
-  await expect(page2.locator('header .wrap > nav a[href="#styles"]')).toBeHidden();
+  await expect(page2.locator('header .wrap > nav a[href="#comment"]')).toBeHidden();
   await page2.locator('#nav-burger').click();
   const menu2 = page2.locator('#nav-menu');
   await expect(menu2).toBeVisible();
-  expect(await menu2.locator('a').allTextContents()).toEqual(['Comment ça marche', 'Les styles', 'Chez vous', 'L’atelier', 'Tarifs', 'Idées', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
+  expect(await menu2.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
   const box = await menu2.boundingBox(), btn = await page2.locator('#nav-burger').boundingBox();
   expect(box.width).toBeLessThan(400);
   expect(Math.abs(box.x + box.width - (btn.x + btn.width))).toBeLessThan(4);
@@ -300,7 +301,7 @@ test('Tarifs, Idées, Photographier : l’en-tête de l’accueil et « Créer u
     await expect(page.locator('a.nav-account'), f).toHaveAttribute('aria-label', 'Se connecter');
     await expect(page.locator('.lang-float'), f).toBeVisible();
     await page.locator('#nav-burger').click();
-    await expect(page.locator('#nav-menu a'), f).toHaveCount(10);
+    await expect(page.locator('#nav-menu a'), f).toHaveCount(7);
     await page.keyboard.press('Escape');
     const cta = page.locator('.page-cta a');
     await expect(cta, f).toHaveText('Créer une œuvre');
