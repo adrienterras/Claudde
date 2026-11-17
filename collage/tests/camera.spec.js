@@ -141,9 +141,22 @@ test.describe('Photographier un dessin', () => {
     expect(await page.evaluate(() => { const g = document.getElementById('camera-guide'); const d = g.getContext('2d').getImageData(0, 0, g.width, g.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; })).toBeGreaterThan(100);
     await expect(page.locator('#camera-done')).toHaveText('Fermer');
     await expect(page.locator('#camera-last')).toBeHidden();
-    // une photo mal éclairée (seuils d'éclairage abaissés pour l'essai) : montrée, avec la raison
+    // consigne rouge pendant la visée (seuils d'éclairage abaissés pour l'essai) : le déclencheur est
+    // grisé, pas de photo ; il revient quand la lumière redevient bonne
     await page.evaluate(() => { Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
-    await page.locator('#camera-shoot').click();
+    await expect(page.locator('#camera-verdict')).toHaveClass(/bad/);
+    await expect(page.locator('#camera-shoot')).toBeDisabled();
+    await expect(page.locator('#camera-shoot')).toHaveClass(/blocked/);
+    expect(await page.locator('#camera-shoot').getAttribute('title')).toBe('Corrigez d’abord : ombre ou lampe sur la feuille');
+    await page.locator('#camera-shoot').evaluate((b) => b.click()); // (même forcé, rien n'est pris)
+    await page.waitForTimeout(300);
+    await expect(page.locator('#camera-review')).toBeHidden();
+    await expect(page.locator('#camera-last')).toBeHidden();
+    await page.evaluate(() => { Quality.LIGHT.bad = 85; Quality.LIGHT.warn = 45; });
+    await expect(page.locator('#camera-shoot')).toBeEnabled();
+    await expect(page.locator('#camera-shoot')).not.toHaveClass(/blocked/);
+    // une photo qui sort mal éclairée alors que la visée était bonne : montrée, avec la raison
+    await page.evaluate(() => { document.getElementById('camera-shoot').click(); Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
     await expect(page.locator('#camera-review')).toBeVisible();
     await expect(page.locator('#camera-verdict')).toHaveText('Photo à reprendre : ombre ou lampe sur la feuille');
     await expect(page.locator('#camera-tip')).toContainText('Lumière du jour');
@@ -163,8 +176,7 @@ test.describe('Photographier un dessin', () => {
     await expect(page.locator('#camera-last')).toBeHidden();
     await expect(page.locator('#camera-done')).toHaveText('Fermer');
     // une photo à reprendre peut être gardée quand même
-    await page.evaluate(() => { Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
-    await page.locator('#camera-shoot').click();
+    await page.evaluate(() => { document.getElementById('camera-shoot').click(); Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
     await page.locator('#camera-keep').click();
     await expect(page.locator('#camera-review')).toBeHidden();
     await expect(page.locator('#camera-count')).toHaveText('1');
@@ -237,8 +249,10 @@ test.describe('Photographier un dessin', () => {
     await page.locator('#camera-open').click();
     await page.locator('#camera-advice-go').click();
     await page.waitForFunction(() => document.getElementById('camera-video').videoWidth > 0);
-    // (seuils d'éclairage abaissés : chaque photo passe par « à reprendre », rien n'est importé)
-    await page.evaluate(() => { Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
+    // (seuils d'éclairage abaissés juste après chaque déclenchement : la photo passe par « à reprendre »,
+    // rien n'est importé ; ils sont rétablis ensuite, sinon le déclencheur reste grisé)
+    const shootBad = () => page.evaluate(() => { document.getElementById('camera-shoot').click(); Quality.LIGHT.bad = -1; Quality.LIGHT.warn = -1; });
+    const goodLight = () => page.evaluate(() => { Quality.LIGHT.bad = 85; Quality.LIGHT.warn = 45; });
     await expect(page.locator('#camera-flash')).toBeVisible();
     await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'false');
     expect(await page.evaluate(() => window.__torch)).toEqual([]);
@@ -254,16 +268,20 @@ test.describe('Photographier un dessin', () => {
     await page.evaluate(() => { window.__takePhoto = 0; const IC = window.ImageCapture; window.ImageCapture = class { constructor(t) { this.ic = new IC(t); } takePhoto(o) { window.__takePhoto++; return this.ic.takePhoto(o); } }; });
     await page.locator('#camera-flash').click();
     await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('#camera-shoot').click();
     await expect(page.locator('#camera-shoot')).toBeEnabled({ timeout: 20000 });
+    await shootBad();
+    await expect(page.locator('#camera-review')).toBeVisible({ timeout: 20000 });
     expect(await page.evaluate(() => window.__takePhoto)).toBe(0);
-    await page.evaluate(() => { const r = document.getElementById('camera-retake'); if (r && !r.hidden && r.offsetParent) r.click(); });
+    await goodLight();
+    await page.locator('#camera-retake').click();
     await page.locator('#camera-flash').click();
     await expect(page.locator('#camera-flash')).toHaveAttribute('aria-pressed', 'false');
-    await page.locator('#camera-shoot').click();
     await expect(page.locator('#camera-shoot')).toBeEnabled({ timeout: 20000 });
+    await shootBad();
+    await expect(page.locator('#camera-review')).toBeVisible({ timeout: 20000 });
     expect(await page.evaluate(() => window.__takePhoto)).toBe(1);
-    await page.evaluate(() => { const r = document.getElementById('camera-retake'); if (r && !r.hidden && r.offsetParent) r.click(); });
+    await goodLight();
+    await page.locator('#camera-retake').click();
     // mémorisé « allumé » : la caméra rouverte l'allume d'elle-même
     await page.locator('#camera-flash').click();
     await page.locator('#camera-done').click();

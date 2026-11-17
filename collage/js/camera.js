@@ -4,7 +4,8 @@
  * L'appareil photo du téléphone (ou la webcam) s'ouvre dans l'atelier ; pendant la visée, chaque
  * image est analysée sur un seul point : l'éclairage (lumière égale, sans ombre ni lampe, papier
  * assez clair, sans reflets) ; l'écran ne donne qu'une consigne à la fois, avec le contour de la
- * feuille en vert, orange ou rouge quand elle est trouvée. La photo prise est jugée de la même façon :
+ * feuille en vert, orange ou rouge quand elle est trouvée ; tant que la consigne est rouge, le déclencheur
+ * est grisé (pas de photo). La photo prise est jugée de la même façon :
  * bonne ou correcte, elle est gardée d'office (« Annuler » la retire) ; à reprendre, elle s'affiche
  * avec la raison, « Reprendre » ou « Garder quand même ». « Importer » fait entrer les photos gardées
  * dans l'atelier comme des fichiers importés. Rien ne quitte l'appareil.
@@ -247,10 +248,22 @@
       const v = check(work);
       S.last = v;
       showLive(v);
+      setBlocked(v);
       drawGuide(v, work);
       release(work);
     }
     S.timer = setTimeout(tick, 150);
+  }
+
+  // Consigne rouge (ombre, lampe, trop sombre) : pas de photo, le déclencheur est grisé ; il revient
+  // dès que deux images de suite ne sont plus rouges (pour qu'il ne clignote pas à la limite)
+  function setBlocked(v) {
+    if (v.level === 'bad') { S.blocked = true; S.okRun = 0; } else if (S.blocked && ++S.okRun >= 2) S.blocked = false;
+    const b = $('camera-shoot');
+    b.disabled = S.blocked || S.busy;
+    b.classList.toggle('blocked', S.blocked);
+    const why = v.worst ? v.worst.text.charAt(0).toLowerCase() + v.worst.text.slice(1) : '';
+    b.title = S.blocked && why ? tr`Corrigez d’abord : ${why}` : tr('Prendre la photo');
   }
 
   async function grab() {
@@ -278,7 +291,7 @@
   }
 
   async function shoot() {
-    if (!S || S.busy) return;
+    if (!S || S.busy || S.blocked) return;
     S.busy = true;
     $('camera-shoot').disabled = true;
     try {
@@ -301,7 +314,7 @@
       console.error(e);
       if (S && S.onError) S.onError(tr('La photo n’a pas pu être prise. Réessayez, ou importez-la depuis la galerie.'));
     } finally {
-      if (S) { S.busy = false; $('camera-shoot').disabled = false; }
+      if (S) { S.busy = false; $('camera-shoot').disabled = !!S.blocked; }
     }
   }
   function addShot(blob, v) {
@@ -367,7 +380,7 @@
 
   async function open(opts) {
     if (S) return;
-    S = { stream: null, facing: 'environment', shots: [], timer: null, busy: false, review: null, last: null, onDone: opts && opts.onDone, onError: opts && opts.onError };
+    S = { stream: null, facing: 'environment', shots: [], timer: null, busy: false, blocked: false, okRun: 0, review: null, last: null, onDone: opts && opts.onDone, onError: opts && opts.onError };
     const root = $('camera');
     root.hidden = false;
     $('camera-error').hidden = true;

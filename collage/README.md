@@ -126,7 +126,10 @@ cd collage && python3 -m http.server 8000
    tracé sur la vidéo, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
    (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
    secours a le sien) : la lampe reste allumée pendant la visée et la photo, le choix est mémorisé
-   (`atelier.flash`) et la lampe s'éteint avec la caméra. La photo prise (pleine définition : `ImageCapture`
+   (`atelier.flash`) et la lampe s'éteint avec la caméra. **Tant que la consigne de visée est rouge**
+   (ombre ou lampe sur la feuille, ombre portée, trop sombre), **le déclencheur est grisé** : pas de
+   photo possible (`setBlocked`, son titre dit quoi corriger) ; il revient après deux images de suite
+   qui ne sont plus rouges, pour ne pas clignoter à la limite. La photo prise (pleine définition : `ImageCapture`
    quand il existe et que le flash est éteint — en mode photo, l'appareil éteint la lampe et la photo
    sortirait sombre —, sinon l'image de la vidéo, éclairée par la lampe) est jugée de la même façon : bonne ou
    correcte, elle est **gardée d'office** (un éclair, « ✓ Photo gardée » avec « Annuler ») et la visée
