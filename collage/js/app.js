@@ -5421,7 +5421,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     // le téléchargement a un format fixe (2000 × 1500) : la photo s'y ajuste à une fraction de pixel près
     // spec.fill (le panier) : l'image prend la taille du canevas affiché, cadrée plus près du mur
-    const k = S.pxPerCm, aspect = out ? out.canvas.width / out.canvas.height : spec.fill && cv.clientHeight ? cv.clientWidth / cv.clientHeight : S.aspect || S.w / S.h;
+    const k = S.pxPerCm, aspect = out ? out.aspect || out.canvas.width / out.canvas.height : spec.fill && cv.clientHeight ? cv.clientWidth / cv.clientHeight : S.aspect || S.w / S.h;
     // hauteur d'accrochage : centre à hauteur de regard (150 cm) pour une petite œuvre, un peu plus
     // bas (135 cm) pour une grande qui descend vers le meuble ; le bas reste au moins 20 cm au-dessus
     // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux.
@@ -5446,9 +5446,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const sy = clamp(S.floor ? Math.max(syWant, S.floorY + 6 * k - sh) : syWant, 0, S.h - sh);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = out ? out.width : Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
-    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    // out.view : seule une zone { x, y, w, h } de la scène (W × H, aussi grande soit-elle) est peinte
+    // sur un canevas de la taille de cette zone — la vue de près (openSceneZoom), nette à tout zoom
+    const view = out && out.view;
+    const cw = view ? view.w : W, ch = view ? view.h : H;
+    if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; }
     const x = cv.getContext('2d');
-    x.setTransform(1, 0, 0, 1, 0, 0);
+    if (!x) throw new Error('canevas indisponible');
+    x.setTransform(1, 0, 0, 1, view ? -view.x : 0, view ? -view.y : 0);
     x.imageSmoothingQuality = 'high';
     x.drawImage(photo, sx, sy, sw, sh, 0, 0, W, H);
     const q = W / sw; // pixels du canevas par pixel du salon
@@ -5640,17 +5645,61 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   /*
    * Téléphone : la mise en scène en plein écran, pour voir l'œuvre de près. Elle s'ouvre cadrée sur
    * l'œuvre ; on pince pour zoomer, on glisse pour se déplacer, deux touchers rapprochent (ou reviennent
-   * à l'œuvre entière). L'image est refaite en grand (comme le téléchargement, plus large) pour que
-   * l'œuvre reste nette de près ; la petite image de la scène s'affiche le temps de la préparer.
+   * à l'œuvre entière). Pendant le geste, une image de la scène entière (≈ 2000 px) suit le doigt ;
+   * dès qu'il s'arrête, la partie visible est repeinte à la résolution exacte de l'écran (paintRoom
+   * avec out.view) : l'œuvre reste nette à tout zoom, sans jamais tenir une image géante en mémoire.
+   * z : largeur de la scène = z × largeur de l'écran ; tx, ty : position de son coin, en px CSS.
    */
-  const sceneZoom = { z: 1, tx: 0, ty: 0, z0: 1, zMax: 4, base: 1, aspect: 4 / 3, art: null, pts: new Map(), pinch: null, tap: null, moved: false };
-  function sceneZoomApply() {
-    const Z = sceneZoom, el = $('scene-zoom'), vw = el.clientWidth, vh = el.clientHeight;
-    const w = Z.base * Z.z, h = w / Z.aspect;
+  const sceneZoom = { z: 1, tx: 0, ty: 0, z0: 1, zMax: 6, aspect: 4 / 3, art: null, preview: null, sharp: null, pts: new Map(), pinch: null, tap: null, moved: false, touched: false };
+  const zoomBox = () => { const el = $('scene-zoom'); return { vw: el.clientWidth, vh: el.clientHeight, dpr: Math.min(window.devicePixelRatio || 1, 3) }; };
+  function sceneZoomClamp() {
+    const Z = sceneZoom, { vw, vh } = zoomBox();
+    const w = vw * Z.z, h = w / Z.aspect;
     // l'image ne quitte pas l'écran : centrée tant qu'elle est plus petite, bord à bord sinon
     Z.tx = w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, Z.tx));
     Z.ty = h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, Z.ty));
-    $('scene-zoom-canvas').style.transform = `translate(${Z.tx}px, ${Z.ty}px) scale(${Z.z})`;
+  }
+  // dessin rapide (pendant le geste) : l'image d'ensemble, puis la dernière vue nette, déplacées et agrandies
+  function sceneZoomPaint() {
+    const Z = sceneZoom, cv = $('scene-zoom-canvas'), { vw, vh, dpr } = zoomBox();
+    const W = Math.round(vw * dpr), H = Math.round(vh * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    const x = cv.getContext('2d');
+    if (!x) return;
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.fillStyle = '#15110e'; x.fillRect(0, 0, W, H);
+    x.imageSmoothingQuality = 'high';
+    const sw = vw * Z.z * dpr, sh = sw / Z.aspect;
+    if (Z.preview) x.drawImage(Z.preview, Z.tx * dpr, Z.ty * dpr, sw, sh);
+    const S = Z.sharp;
+    if (S) {
+      // (la vue nette garde sa place dans la scène : même zoom → même endroit, sinon agrandie)
+      const k = Z.z / S.z;
+      x.drawImage(S.canvas, (Z.tx + (0 - S.tx) * k) * dpr, (Z.ty + (0 - S.ty) * k) * dpr, S.canvas.width * k * (S.dpr ? dpr / S.dpr : 1), S.canvas.height * k * (S.dpr ? dpr / S.dpr : 1));
+    }
+  }
+  // dessin net de la zone visible, un instant après le dernier mouvement
+  function sceneZoomSharpSoon(delay) {
+    const Z = sceneZoom;
+    clearTimeout(Z.sharpTimer);
+    Z.sharpTimer = setTimeout(() => {
+      const el = $('scene-zoom');
+      if (el.hidden || Z.pts.size) return;
+      const { vw, vh, dpr } = zoomBox();
+      const c = (Z.sharp && Z.sharp.canvas) || document.createElement('canvas');
+      try {
+        const ok = drawRoomScene({ canvas: c, width: Math.round(vw * Z.z * dpr), aspect: Z.aspect, view: { x: Math.round(-Z.tx * dpr), y: Math.round(-Z.ty * dpr), w: Math.round(vw * dpr), h: Math.round(vh * dpr) } });
+        if (!ok) return;
+      } catch (e) { console.error(e); return; }
+      Z.sharp = { canvas: c, z: Z.z, tx: Math.round(-Z.tx * dpr) / -dpr, ty: Math.round(-Z.ty * dpr) / -dpr, dpr };
+      sceneZoomPaint();
+    }, delay == null ? 140 : delay);
+  }
+  function sceneZoomApply(sharpNow) {
+    sceneZoomClamp();
+    cancelAnimationFrame(sceneZoom.raf);
+    sceneZoom.raf = requestAnimationFrame(sceneZoomPaint);
+    sceneZoomSharpSoon(sharpNow ? 0 : null);
   }
   function sceneZoomAt(z, cx, cy) {
     const Z = sceneZoom;
@@ -5662,68 +5711,54 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   // l'œuvre (avec son cadre) au centre, sur presque toute la largeur ou la hauteur de l'écran
   function sceneZoomOnArt() {
-    const Z = sceneZoom, el = $('scene-zoom'), vw = el.clientWidth, vh = el.clientHeight, a = Z.art;
-    if (!a) { Z.z = 1; Z.tx = 0; Z.ty = 0; sceneZoomApply(); return; }
-    const hImg = Z.base / Z.aspect;
-    Z.z = Math.max(1, Math.min(Z.zMax, (0.88 * vw) / (a.w * Z.base), (0.78 * vh) / (a.h * hImg)));
+    const Z = sceneZoom, { vw, vh } = zoomBox(), a = Z.art;
+    if (!a) { Z.z = 1; Z.tx = 0; Z.ty = 0; sceneZoomApply(true); return; }
+    Z.z = Math.max(1, Math.min(0.88 / a.w, (0.78 * vh * Z.aspect) / (a.h * vw)));
     Z.z0 = Z.z;
-    Z.tx = vw / 2 - (a.x + a.w / 2) * Z.base * Z.z;
-    Z.ty = vh / 2 - (a.y + a.h / 2) * hImg * Z.z;
-    sceneZoomApply();
+    // zoom maximal : l'œuvre jusqu'à environ cinq fois la largeur de l'écran
+    Z.zMax = Math.max(Z.z0 * 2, 5 / a.w);
+    Z.tx = vw / 2 - (a.x + a.w / 2) * vw * Z.z;
+    Z.ty = vh / 2 - (a.y + a.h / 2) * (vw / Z.aspect) * Z.z;
+    sceneZoomApply(true);
   }
   function openSceneZoom() {
     const small = $('scene-canvas');
     if (!state.comp || !small.width || !small._art) return;
-    const el = $('scene-zoom'), big = $('scene-zoom-canvas');
+    const el = $('scene-zoom'), Z = sceneZoom;
     el.hidden = false;
     document.body.classList.add('scene-zoom-on');
-    const vw = el.clientWidth, dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const Z = sceneZoom;
     Z.aspect = small.width / small.height;
-    Z.base = vw; // largeur de l'image au zoom 1 : toute la largeur de l'écran
     Z.art = small._art;
-    big.style.width = `${Z.base}px`;
-    big.style.height = `${Z.base / Z.aspect}px`;
-    // d'abord la petite image, agrandie
-    big.width = small.width; big.height = small.height;
-    big.getContext('2d').drawImage(small, 0, 0);
-    Z.zMax = 12; // (borné une fois l'image refaite en grand)
+    Z.sharp = null;
     Z.touched = false;
+    // l'image d'ensemble, pour suivre les gestes (la petite de la scène si l'appareil manque de mémoire)
+    Z.preview = small;
+    try {
+      const c = document.createElement('canvas');
+      const pw = Math.max(small.width, Math.min(2048, Math.round(zoomBox().vw * zoomBox().dpr * 2)));
+      c.width = pw; c.height = Math.round(pw / Z.aspect);
+      if (drawRoomScene({ canvas: c, width: pw })) { Z.preview = c; if (c._art) Z.art = c._art; }
+    } catch (e) { console.error(e); }
     sceneZoomOnArt();
     $('scene-zoom-close').focus({ preventScroll: true });
     const hint = el.querySelector('.scene-zoom-hint');
     hint.classList.remove('gone');
     clearTimeout(Z.hintTimer);
     Z.hintTimer = setTimeout(() => hint.classList.add('gone'), 3500);
-    // puis la grande : l'œuvre assez fine pour un zoom ×2,5 sur l'écran, sans dépasser ~10 Mpx (iPhone)
-    const token = (Z.token = (Z.token || 0) + 1);
-    requestAnimationFrame(() => setTimeout(() => {
-      if (el.hidden || token !== Z.token) return;
-      const want = Math.ceil((vw * dpr * 2.5) / Math.max(0.05, Z.art.w));
-      const W = Math.max(small.width, Math.min(want, Math.floor(Math.sqrt(10e6 * Z.aspect)), 4096));
-      const c = document.createElement('canvas');
-      c.width = W; c.height = Math.round(W / Z.aspect); // (mêmes proportions que la scène affichée)
-      try {
-        if (!drawRoomScene({ canvas: c, width: W })) return;
-      } catch (e) { console.error(e); return; }
-      if (el.hidden || token !== Z.token) return;
-      big.width = c.width; big.height = c.height;
-      big.getContext('2d').drawImage(c, 0, 0);
-      c.width = c.height = 0;
-      if (c._art) Z.art = c._art;
-      // zoom maximal : un pixel de l'image pour ~0,4 pixel de l'écran (au-delà, l'œuvre devient floue)
-      Z.zMax = Math.max(Z.z0 * 1.5, (big.width / Z.base) * (2.5 / dpr));
-      if (Z.touched) sceneZoomAt(Z.z, 0, 0); else sceneZoomOnArt(); // (sans geste encore : recadrée sur l'œuvre exacte)
-    }, 30));
   }
   function closeSceneZoom() {
-    const el = $('scene-zoom');
+    const el = $('scene-zoom'), Z = sceneZoom;
     if (el.hidden) return;
     el.hidden = true;
-    sceneZoom.token = (sceneZoom.token || 0) + 1;
-    sceneZoom.pts.clear(); sceneZoom.pinch = null;
+    clearTimeout(Z.sharpTimer);
+    cancelAnimationFrame(Z.raf);
+    Z.pts.clear(); Z.pinch = null;
+    // (mémoire du téléphone rendue)
+    if (Z.preview && Z.preview !== $('scene-canvas')) Z.preview.width = Z.preview.height = 0;
+    if (Z.sharp) Z.sharp.canvas.width = Z.sharp.canvas.height = 0;
+    Z.preview = null; Z.sharp = null;
+    const cv = $('scene-zoom-canvas'); cv.width = cv.height = 0;
     document.body.classList.remove('scene-zoom-on');
-    const big = $('scene-zoom-canvas'); big.width = big.height = 0; // (mémoire du téléphone rendue)
     $('scene-zoom-open').focus({ preventScroll: true });
   }
   $('scene-zoom-open').addEventListener('click', openSceneZoom);
@@ -5737,6 +5772,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (e.target.closest('button')) return;
       el.querySelector('.scene-zoom-hint').classList.add('gone'); // (le premier geste suffit)
       Z.touched = true;
+      clearTimeout(Z.sharpTimer);
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* pointeur déjà relâché */ }
       Z.pts.set(e.pointerId, pos(e));
       if (Z.pts.size === 1) { Z.moved = false; Z.start = pos(e); }
@@ -5767,6 +5803,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const p = Z.pts.get(e.pointerId);
       Z.pts.delete(e.pointerId);
       if (Z.pts.size < 2) Z.pinch = null;
+      if (!Z.pts.size) sceneZoomSharpSoon();
       if (e.type !== 'pointerup' || Z.pts.size || Z.moved) return;
       // deux touchers rapprochés : on s'approche là où l'on a touché, ou l'on revient à l'œuvre entière
       const now = Date.now();
@@ -5779,7 +5816,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     el.addEventListener('pointercancel', up);
     // (souris, pavé tactile : la molette zoome)
     el.addEventListener('wheel', (e) => { e.preventDefault(); Z.touched = true; const p = pos(e); sceneZoomAt(Z.z * Math.exp(-e.deltaY * 0.002), p.x, p.y); }, { passive: false });
-    window.addEventListener('resize', () => { if (!el.hidden) { Z.base = el.clientWidth; const big = $('scene-zoom-canvas'); big.style.width = `${Z.base}px`; big.style.height = `${Z.base / Z.aspect}px`; sceneZoomOnArt(); } });
+    window.addEventListener('resize', () => { if (!el.hidden) { Z.sharp = null; sceneZoomOnArt(); } });
   })();
   $('scene-open').addEventListener('click', openSceneModal);
   $('scene-open-side').addEventListener('click', openSceneModal);
@@ -8728,7 +8765,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; } };
+  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

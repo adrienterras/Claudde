@@ -337,7 +337,7 @@ const waitDraft = async (page) => {
 };
 
 test.describe('Mise en scène de près (téléphone)', () => {
-  test('la loupe ouvre la scène en plein écran, cadrée sur l’œuvre et refaite en grand ; deux touchers rapprochent ; Échap ferme', async ({ browser }) => {
+  test('la loupe ouvre la scène en plein écran, cadrée sur l’œuvre ; la zone visible repeinte nette à chaque zoom ; deux touchers rapprochent ; Échap ferme', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     const p = await ctx.newPage();
     await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -346,27 +346,38 @@ test.describe('Mise en scène de près (téléphone)', () => {
     await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
     await p.locator('#scene-canvas').scrollIntoViewIfNeeded();
     await p.waitForFunction(() => !!document.getElementById('scene-canvas')._art);
-    const small = await p.locator('#scene-canvas').evaluate((c) => c.width);
     await p.locator('#scene-zoom-open').click();
     await expect(p.locator('#scene-zoom')).toBeVisible();
-    // refaite en grand, pour une œuvre nette de près
-    await p.waitForFunction((w) => document.getElementById('scene-zoom-canvas').width > 2 * w, small);
-    const view = () => p.evaluate(() => {
-      const c = document.getElementById('scene-zoom-canvas'), r = c.getBoundingClientRect();
-      const m = /scale\(([\d.]+)\)/.exec(c.style.transform);
-      return { z: Number(m && m[1]), left: r.left, right: r.right, w: r.width };
-    });
-    const v0 = await view();
+    const Z = () => p.evaluate(() => { const z = AtelierGribouille.sceneZoom; return { z: z.z, z0: z.z0, sharp: z.sharp ? z.sharp.z : null }; });
+    // la zone visible est repeinte nette, à la taille exacte de l'écran
+    await p.waitForFunction(() => { const z = AtelierGribouille.sceneZoom; return z.sharp && z.sharp.z === z.z; });
+    expect(await p.locator('#scene-zoom-canvas').evaluate((c) => [c.width, c.height])).toEqual([780, 1688]);
+    const v0 = await Z();
     expect(v0.z).toBeGreaterThan(1.5); // cadrée sur l'œuvre, pas sur toute la pièce
-    expect(v0.left).toBeLessThanOrEqual(0.5); // (l'image couvre toute la largeur, sans bande vide)
-    expect(v0.right).toBeGreaterThanOrEqual(389.5);
-    // deux touchers : plus près
+    // netteté : à fort zoom, la vue repeinte a bien plus de détail que l'image d'ensemble agrandie
+    const detail = () => p.locator('#scene-zoom-canvas').evaluate((c) => {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let e = 0; for (let i = 4; i < d.length; i += 4 * 3) e += Math.abs(d[i] - d[i - 4]);
+      return e / (d.length / 12);
+    });
+    // deux touchers : plus près, puis repeint net
     for (let i = 0; i < 2; i++) { await p.mouse.click(195, 380); await p.waitForTimeout(60); }
-    const v1 = await view();
-    expect(v1.z).toBeGreaterThan(v0.z * 2);
+    await p.waitForFunction(() => { const z = AtelierGribouille.sceneZoom; return z.z > z.z0 * 2 && z.sharp && z.sharp.z === z.z; });
+    const sharpDetail = await detail();
+    const previewDetail = await p.evaluate(() => {
+      // l'image d'ensemble seule, au même zoom : bien plus floue
+      const z = AtelierGribouille.sceneZoom, c = document.createElement('canvas'), el = document.getElementById('scene-zoom');
+      c.width = el.clientWidth * 2; c.height = el.clientHeight * 2;
+      const x = c.getContext('2d'); const sw = el.clientWidth * z.z * 2;
+      x.drawImage(z.preview, z.tx * 2, z.ty * 2, sw, sw / z.aspect);
+      const d = x.getImageData(0, 0, c.width, c.height).data;
+      let e = 0; for (let i = 4; i < d.length; i += 4 * 3) e += Math.abs(d[i] - d[i - 4]);
+      return e / (d.length / 12);
+    });
+    expect(sharpDetail).toBeGreaterThan(previewDetail * 1.3);
     // deux touchers encore : retour à l'œuvre entière
     for (let i = 0; i < 2; i++) { await p.mouse.click(195, 380); await p.waitForTimeout(60); }
-    expect(Math.abs((await view()).z - v0.z)).toBeLessThan(0.01);
+    expect(Math.abs((await Z()).z - v0.z)).toBeLessThan(0.01);
     await p.keyboard.press('Escape');
     await expect(p.locator('#scene-zoom')).toBeHidden();
     expect(await p.locator('#scene-zoom-canvas').evaluate((c) => c.width)).toBe(0); // (mémoire rendue)

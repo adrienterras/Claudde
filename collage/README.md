@@ -629,8 +629,10 @@ cd collage && python3 -m http.server 8000
      l'orientation, puis le cadre, le téléchargement et un bouton « Commander l'œuvre » ; sur
      téléphone, dans la section Tailles, sous le titre « Mise en scène », sans répéter la taille, le
      passe-partout et l'orientation choisis juste au-dessus ; là, une **loupe** dans l'angle de la photo
-     — ou un toucher sur la photo — ouvre la scène en plein écran, cadrée sur l'œuvre et refaite en
-     grand pour rester nette de près (≈ 10 Mpx au plus) : pincer pour zoomer, glisser, deux touchers pour
+     — ou un toucher sur la photo — ouvre la scène en plein écran, cadrée sur l'œuvre ; pendant le geste
+     une image d'ensemble (≈ 2000 px) suit le doigt, puis la zone visible est repeinte à la résolution
+     exacte de l'écran (`paintRoom` avec `out.view`), nette à tout zoom sans image géante en mémoire
+     (une image agrandie restait floue sur iPhone) : pincer pour zoomer, glisser, deux touchers pour
      rapprocher ou revenir à l'œuvre entière, la croix ou Échap pour fermer, `openSceneZoom`) : quatre pièces au choix
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant, une entrée au mur vert sauge, ou
      une salle à manger, « Posé au sol » (photo en hauteur `assets/salle.webp`, table laquée, banc en acier, parquet) où
