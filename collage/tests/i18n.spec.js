@@ -40,7 +40,6 @@ test.describe('langues', () => {
     for (let i = 0; i < n; i++) await page.evaluate((i) => AtelierGribouille.selectProposal(i), i);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await page.locator('#drawings .thumb[data-i="0"]').click();
-    await page.evaluate(() => { document.getElementById('advanced').open = true; });
     await page.selectOption('#format', { index: 3 });
     await page.waitForTimeout(500);
     await expect(page.locator('#label-meta')).toContainText(/ · (canvas|print) /);

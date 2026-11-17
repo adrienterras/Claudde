@@ -1133,7 +1133,7 @@
     if (d.auto) return d.auto; // choix du plan de couverture
     if (d.ai) return d.ai.role === 'fond' ? 'texture' : 'cutout';
     // Un dessin au crayon gris (souvent avec du texte) se découpe mal : on le colle en page entière.
-    if (d.analysis.kind === 'cutout' && pale(d)) return ($('pale') ? $('pale').value : 'aside') === 'decoupe' ? 'cutout' : 'texture';
+    if (d.analysis.kind === 'cutout' && pale(d)) return 'texture';
     return d.analysis.kind;
   }
 
@@ -1210,38 +1210,26 @@
     cands.forEach((d) => { d.auto = null; });
     // une feuille pâle (crayon gris, texte) ne se découpe pas : elle est toujours un papier de fond
     // Sur l'exemple de référence, le fond n'est fait que de pages colorées : les feuilles pâles
-    // (crayon gris, texte) sont mises de côté par défaut ; un réglage permet de les coller en fond.
+    // (crayon gris, texte) sont mises de côté par défaut.
     const paleOnes = cands.filter((d) => d.analysis.kind === 'cutout' && pale(d));
     // feuilles pâles : mises de côté par défaut ; au-delà de la mi-course du curseur de densité, elles
     // rejoignent le fond progressivement (les plus colorées d'abord), toutes au maximum
-    const paleMode = $('pale') ? $('pale').value : 'aside';
     const t = (Number($('density').value) - 0.5) / 1.3;
     // une feuille pâle où Claude reconnaît un vrai sujet (nuage, bonhomme au crayon) se découpe
-    // comme les autres ; les autres suivent le réglage
+    // comme les autres
     const recognised = (d) => d.ai && d.ai.role === 'decoupe' && !d.ai.texte && d.ai.sujet;
     paleOnes.filter(recognised).forEach((d) => { d.auto = 'cutout'; ensureMaterial(d); });
     const paleLeft = paleOnes.filter((d) => !recognised(d));
-    if (paleMode === 'decoupe') {
-      // tout au crayon se découpe, sauf une page qui ne contient que de l'écriture (lignes de texte)
-      let aside = 0;
-      paleLeft.forEach((d) => {
-        if (d.textOnly === undefined) d.textOnly = Extract.textOnly(d.analysis.page);
-        const text = d.ai && d.ai.texte !== undefined ? d.ai.texte : d.textOnly;
-        if (text && !allIn()) { d.auto = 'off'; aside++; } else { d.auto = 'cutout'; ensureMaterial(d); }
-      });
-      state.paleCount = aside;
-    } else {
+    {
       // une feuille pâle a un fond blanc : quand elle entre dans l'œuvre, c'est découpée (ses sujets
-      // posés), jamais en fond, sauf si l'utilisateur a choisi « collées en fond » ; au maximum du
-      // curseur, toutes entrent (une page qui n'est que de l'écriture reste de côté)
-      const asBg = paleMode === 'fond';
-      const share = asBg || allIn() ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
+      // posés), jamais en fond ; au maximum du curseur, toutes entrent (une page qui n'est que de
+      // l'écriture reste de côté)
+      const share = allIn() ? 1 : clamp((t - 0.5) / 0.5, 0, 1);
       const nPaleLeft = Math.round(paleLeft.length * share);
       const colorfulOf = (d) => { const a = d.analysis; return (a.texture || a.texStats || (a.texStats = Extract.textureStats(a.page))).colorful || 0; };
       paleLeft.slice().sort((a, b) => colorfulOf(b) - colorfulOf(a))
         .forEach((d, i) => {
           if (i >= nPaleLeft) { d.auto = 'off'; return; }
-          if (asBg) { d.auto = 'texture'; ensureMaterial(d); return; }
           if (d.textOnly === undefined) d.textOnly = Extract.textOnly(d.analysis.page);
           const text = d.ai && d.ai.texte !== undefined ? d.ai.texte : d.textOnly;
           d.auto = text ? 'off' : 'cutout';
@@ -1506,7 +1494,7 @@
     if (!list.length) return;
     const nums = list.map((d) => state.drawings.indexOf(d) + 1);
     box.innerHTML = `<b>${tr`${list.length} feuille${list.length > 1 ? 's' : ''} mise${list.length > 1 ? 's' : ''} de côté`}</b> ${tr`— pâles (crayon gris, texte), comme sur l’œuvre de référence : dessins n° ${nums.join(', ')}.`}
-      ${tr('Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour les coller en fond, réglez « Feuilles pâles » ; pour en garder une en découpe, ouvrez-la et choisissez « découpe ».')}`;
+      ${tr('Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour en garder une en découpe, ouvrez-la et choisissez « découpe ».')}`;
   }
 
   // ---------- Qualité pour l'impression (js/quality.js) ----------
@@ -1707,6 +1695,18 @@
         add.innerHTML = '<svg class="ico"><use href="#i-plus"/></svg>';
         add.onclick = () => addToArt(d);
         item.appendChild(add);
+        // la corbeille, dans l'angle opposé : le dessin quitte l'atelier
+        if (state.drawings.length > 1) {
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'thumb-del';
+          del.title = tr('Supprimer ce dessin de l’atelier');
+          del.setAttribute('aria-label', tr`Supprimer « ${d.name} » de l’atelier`);
+          del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>';
+          del.onclick = () => deleteDrawing(d);
+          item.appendChild(del);
+          el.classList.add('deletable'); // (la taille, à cette place, s'efface)
+        }
       }
       (grids[role] || dEl).appendChild(item);
     });
@@ -2685,7 +2685,7 @@
     const f = formatCm();
     const { bgArea, pieceArea } = paperAreas(state.drawings);
     const nBg = state.drawings.filter((d) => roleOf(d) === 'texture').length;
-    const aside = state.paleCount && !allIn() && ($('pale') ? $('pale').value : 'aside') !== 'fond' ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
+    const aside = state.paleCount && !allIn() ? tr` ${state.paleCount} feuille${state.paleCount > 1 ? 's' : ''} pâle${state.paleCount > 1 ? 's' : ''} (crayon, texte) mise${state.paleCount > 1 ? 's' : ''} de côté.` : '';
     let txt;
     if (f.frame) {
       txt = printSizeText(f); // tableau imprimé : la taille de l'impression dans le cadre choisi
@@ -4433,6 +4433,28 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (r === 'cutout' && pieces && !pieces.some((p) => p.enabled)) pieces.forEach((p) => { p.enabled = true; });
     putBack(d);
   }
+  // Corbeille d'un dessin de « Non utilisé » : il quitte l'atelier (liste, propositions, brouillon) ;
+  // l'œuvre affichée ne bouge pas. (Le dernier dessin de l'atelier n'a pas de corbeille.)
+  function deleteDrawing(d) {
+    const i = state.drawings.indexOf(d);
+    if (i < 0 || state.drawings.length < 2) return;
+    state.drawings.splice(i, 1);
+    const strip = (c) => {
+      if (!c) return;
+      c.items = c.items.filter((L) => !(L.piece && L.piece.drawing === d));
+      c.bg = c.bg.filter((L) => L.paper || pageDrawing(L) !== d);
+    };
+    (state.proposals || []).forEach((p) => strip(p.comp));
+    strip(state.comp);
+    if (state.comp) state.pinned = state.comp;
+    state.bgCache = null;
+    if (state.current === d) state.current = null;
+    if (state.selected && ((state.selected.piece && state.selected.piece.drawing === d) || pageDrawing(state.selected) === d)) state.selected = null;
+    clearHistory(); // (les instantanés pointent encore vers ce dessin)
+    refreshLists();
+    regenerate({ noCommit: true });
+    saveStatus(tr`« ${d.name} » est supprimé de l’atelier.`);
+  }
   function retireIfUnused(d) {
     const c = state.comp;
     if (!d || !c || roleOf(d) === 'off') return;
@@ -4995,14 +5017,19 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     });
     return need;
   }
-  async function hydrateHD(comp, s) {
+  // opts.stop() : vrai pour s'arrêter avant le dessin suivant (la vue de près, touchée de nouveau) ;
+  // rend les dessins traités (relus, ou dont le fichier n'avait rien de plus à donner)
+  async function hydrateHD(comp, s, opts) {
     const need = hdNeeds(comp, s);
+    const done = new Set();
     // les sujets d'une même feuille (splitSheet) : la feuille n'est relue et analysée qu'une fois, à la
     // définition que le plus exigeant demande
     const shared = new Map(), sharedTmp = [], groupR = new Map();
     need.forEach((r, d) => { if (d.part && d.source) groupR.set(d.source, Math.max(groupR.get(d.source) || 0, r)); });
     let i = 0;
     for (const [d, r] of need) {
+      if (opts && opts.stop && opts.stop()) break;
+      done.add(d);
       i++;
       saveStatus(tr`Haute définition : dessin ${i} / ${need.size} relu depuis son fichier…`);
       await tick();
@@ -5080,6 +5107,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       else if (x) { Extract.release(x.page); (x.pieces || []).forEach((q) => Extract.release(q.canvas)); if (x.texture) Extract.release(x.texture.canvas); }
     });
     if (need.size) saveStatus('');
+    return done;
   }
   // Netteté pour l'impression (tout export) : chaque découpe et chaque page de fond est amenée à sa
   // taille sur l'image finale, puis accentuée (Extract.sharpen) ; ces versions remplacent les
@@ -5112,7 +5140,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (jobs.length) saveStatus('');
   }
   function releaseHD() {
-    const drop = (o) => { if (o && o.hd) { Extract.release(o.hd); delete o.hd; } };
+    const drop = (o) => { if (o) delete o.hdTried; if (o && o.hd) { Extract.release(o.hd); delete o.hd; } };
     if (state.comp) state.comp.items.forEach((L) => drop(L.piece)); // copies comprises
     state.drawings.forEach((d) => {
       (d.analysis.pieces || []).forEach(drop);
@@ -5677,8 +5705,50 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       } catch (e) { console.error(e); return; }
       Z.sharp = { canvas: c, z: Z.z, tx: Math.round(-Z.tx * dpr) / -dpr, ty: Math.round(-Z.ty * dpr) / -dpr, dpr };
       sceneZoomPaint();
+      // la haute définition, un moment après l'arrêt du geste (pas entre deux touchers)
+      clearTimeout(Z.hdTimer);
+      Z.hdTimer = setTimeout(sceneZoomHD, 600);
     }, delay == null ? 140 : delay);
   }
+  // De très près, les dessins à leur définition de travail s'adoucissent : ceux qui sont à l'écran sont
+  // relus depuis leur fichier d'origine en haute définition (comme pour l'export, hydrateHD), à la
+  // finesse que demande ce zoom, puis la vue est repeinte avec. Rendu à la fermeture (releaseHD).
+  function sceneZoomHD() {
+    const Z = sceneZoom, comp = state.comp, el = $('scene-zoom');
+    if (!comp || Z.hdBusy || el.hidden || !Z.art || Z.z < Z.z0 * 1.8 || Z.pts.size) return;
+    const { vw, vh, dpr } = zoomBox(), a = Z.art;
+    // pixels de l'écran par centimètre de l'œuvre (un peu surestimé : le cadre et le passe-partout
+    // entourent l'œuvre), plafonné à ≈ 250 dpi
+    const s = Math.min(100, (a.w * vw * Z.z * dpr) / comp.W);
+    // la partie de l'œuvre à l'écran (en cm), avec une petite marge (le cadre et le passe-partout l'entourent)
+    const W = vw * Z.z, H = W / Z.aspect;
+    const fx0 = (-Z.tx / W - a.x) / a.w, fx1 = ((vw - Z.tx) / W - a.x) / a.w;
+    const fy0 = (-Z.ty / H - a.y) / a.h, fy1 = ((vh - Z.ty) / H - a.y) / a.h;
+    const X0 = (fx0 - 0.08) * comp.W, X1 = (fx1 + 0.08) * comp.W, Y0 = (fy0 - 0.08) * comp.H, Y1 = (fy1 + 0.08) * comp.H;
+    const seen = (L) => { const r = Math.max(L.w, L.h) / 2; return L.x + r > X0 && L.x - r < X1 && L.y + r > Y0 && L.y - r < Y1; };
+    // (déjà relu pour un zoom au moins aussi fort : le fichier n'a rien de plus à donner)
+    const tried = (o) => o.hdTried && o.hdTried >= s * 0.9;
+    const items = comp.items.filter((L) => L.piece && L.piece.canvas && seen(L) && !tried(L.piece));
+    const bg = comp.bg.filter((L) => !L.paper && L.src && L.sw && seen(L) && !tried(L.src));
+    const sub = { items, bg };
+    if (!hdNeeds(sub, s).size) { items.forEach((L) => { L.piece.hdTried = s; }); bg.forEach((L) => { L.src.hdTried = s; }); return; }
+    Z.hdBusy = true;
+    Z.hdStop = false;
+    const busy = $('scene-zoom-busy');
+    busy.hidden = false;
+    hydrateHD(sub, s, { stop: () => Z.hdStop || el.hidden }).then((done) => {
+      // (seuls les dessins traités sont notés : un geste a pu arrêter la relecture avant les autres)
+      items.forEach((L) => { if (done.has(L.piece.drawing)) L.piece.hdTried = s; });
+      bg.forEach((L) => { if (done.has(pageDrawing(L))) L.src.hdTried = s; });
+    }).catch((e) => console.warn('haute définition', e)).finally(() => {
+      Z.hdBusy = false;
+      busy.hidden = true;
+      state.bgCache = null;
+      if (el.hidden) { releaseHD(); return; }
+      sceneZoomSharpSoon(0);
+    });
+  }
+
   function sceneZoomApply(sharpNow) {
     sceneZoomClamp();
     cancelAnimationFrame(sceneZoom.raf);
@@ -5735,6 +5805,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (el.hidden) return;
     el.hidden = true;
     clearTimeout(Z.sharpTimer);
+    clearTimeout(Z.hdTimer);
     cancelAnimationFrame(Z.raf);
     Z.pts.clear(); Z.pinch = null;
     // (mémoire du téléphone rendue)
@@ -5742,6 +5813,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (Z.sharp) Z.sharp.canvas.width = Z.sharp.canvas.height = 0;
     Z.preview = null; Z.sharp = null;
     const cv = $('scene-zoom-canvas'); cv.width = cv.height = 0;
+    // (les dessins relus en haute définition pour la vue de près : leur mémoire est rendue, sauf
+    // pendant une relecture, qui s'en charge en finissant)
+    if (!Z.hdBusy) { releaseHD(); state.bgCache = null; }
     document.body.classList.remove('scene-zoom-on');
     $('scene-zoom-open').focus({ preventScroll: true });
   }
@@ -5756,6 +5830,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (e.target.closest('button')) return;
       el.querySelector('.scene-zoom-hint').classList.add('gone'); // (le premier geste suffit)
       Z.touched = true;
+      // un geste : la haute définition attend (celle en cours s'arrête après le dessin relu)
+      clearTimeout(Z.hdTimer);
+      if (Z.hdBusy) Z.hdStop = true;
       clearTimeout(Z.sharpTimer);
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* pointeur déjà relâché */ }
       Z.pts.set(e.pointerId, pos(e));
@@ -5790,7 +5867,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (!Z.pts.size) sceneZoomSharpSoon();
       if (e.type !== 'pointerup' || Z.pts.size || Z.moved) return;
       // deux touchers rapprochés : on s'approche là où l'on a touché, ou l'on revient à l'œuvre entière
-      const now = Date.now();
+      // (l'heure du toucher lui-même, pas celle où il est traité : la page a pu être occupée entre-temps)
+      const now = e.timeStamp || Date.now();
       if (Z.tap && now - Z.tap.t < 320 && Math.hypot(p.x - Z.tap.x, p.y - Z.tap.y) < 30) {
         Z.tap = null;
         if (Z.z > Z.z0 * 1.4) sceneZoomOnArt(); else sceneZoomAt(Math.min(Z.zMax, Z.z0 * 2.5), p.x, p.y);
@@ -5884,7 +5962,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   // téléphone : le bouton rond dans l'angle de l'œuvre fait la même chose
   if ($('stage-generate')) $('stage-generate').onclick = () => $('generate').click();
-  ['pale', 'density'].forEach((id) => $(id).addEventListener('change', () => { state.pinned = null; regenerate(); }));
+  $('density').addEventListener('change', () => { state.pinned = null; regenerate(); });
   // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose
   $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));
   $('fmt').addEventListener('change', updateExportInfo);
@@ -7160,7 +7238,7 @@ Réponds uniquement avec ce JSON :
     const compData = Object.assign(pick(comp, ['W', 'H', 'ground', 'groundName', 'style', 'frames', 'tiles', 'frameWidth', 'frameColor', 'paint', 'reduced', 'kept', 'total', 'lead', 'lines', 'f', 'scale', 'fill']), { items, bg });
     return {
       id: Date.now(), v: 2, name, date: new Date().toISOString(), thumb: thumbOfComp(comp),
-      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, mat: printMat(), orient: canvasOrient(), ground: state.ground, density: $('density').value, pale: $('pale') ? $('pale').value : 'aside', title: state.title || '', titles: state.titles || null },
+      settings: { mode: modeOf(), format: $('format').value, formatManual: !!state.formatManual, mat: printMat(), orient: canvasOrient(), ground: state.ground, density: $('density').value, title: state.title || '', titles: state.titles || null },
       drawings, comp: compData,
     };
   }
@@ -7622,7 +7700,6 @@ Réponds uniquement avec ce JSON :
     setCanvasOrient(sv.orient || 'land'); // une sauvegarde sans orientation date d'avant le portrait par défaut
     if (sv.ground !== undefined) setGround(sv.ground === 'auto' ? undefined : sv.ground);
     if (sv.density !== undefined) { $('density').value = sv.density; state.densityBeforeSample = null; }
-    if (sv.pale && $('pale')) $('pale').value = sv.pale;
     state.drawings = [];
     state.title = sv.title || '';
     state.titles = sv.titles || null;

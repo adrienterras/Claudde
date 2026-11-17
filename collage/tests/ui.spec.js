@@ -5,10 +5,11 @@ test.describe('Interface', () => {
     const { page } = app;
     // pas d'étape Importer avant le premier import (le type d'œuvre et le dépôt se font au centre)
     await expect(page.locator('#import-section')).toBeHidden();
-    // toutes les étapes sont repliées, les réglages avancés fermés
+    // toutes les étapes sont repliées ; plus de réglages avancés (feuilles pâles)
     for (const id of ['import-section', 'drawings-section', 'sizes-section', 'compose-section', 'export-section', 'saved-section']) await expect(page.locator('#' + id)).toHaveClass(/collapsed/);
     await expect(page.locator('#drop')).toBeHidden();
-    expect(await page.locator('#advanced').evaluate((d) => d.open)).toBe(false);
+    await expect(page.locator('#advanced')).toHaveCount(0);
+    await expect(page.locator('#pale')).toHaveCount(0);
     await expect(page.locator('#grain')).toHaveCount(0);
     // un titre ouvre son étape ; le choix n'est pas mémorisé
     await page.locator('#saved-section > h2').click();
@@ -386,6 +387,9 @@ test.describe('Mise en scène de près (téléphone)', () => {
       return e / (d.length / 12);
     });
     expect(sharpDetail).toBeGreaterThan(previewDetail * 1.3);
+    // (de près, les dessins sont relus en haute définition : on attend la fin, voir le test suivant)
+    await p.waitForTimeout(800);
+    await p.waitForFunction(() => !AtelierGribouille.sceneZoom.hdBusy, null, { timeout: 60000 });
     // deux touchers encore : retour à l'œuvre entière
     for (let i = 0; i < 2; i++) { await p.mouse.click(195, 380); await p.waitForTimeout(60); }
     expect(Math.abs((await Z()).z - v0.z)).toBeLessThan(0.01);
@@ -397,6 +401,49 @@ test.describe('Mise en scène de près (téléphone)', () => {
     await expect(p.locator('#scene-zoom')).toBeVisible();
     await p.locator('#scene-zoom-close').click();
     await expect(p.locator('#scene-zoom')).toBeHidden();
+    // sous la mise en scène de l'onglet Tailles, « Commander l'œuvre », comme dans la fenêtre de l'ordinateur
+    await expect(p.locator('#scene-order')).toBeVisible();
+    await p.locator('#scene-order').scrollIntoViewIfNeeded();
+    await p.locator('#scene-order').click();
+    await expect(p.locator('#cart-add')).toBeVisible();
+    await ctx.close();
+  });
+
+  test('de très près, les dessins à l’écran sont relus en haute définition depuis leur fichier, puis rendus à la fermeture', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html?mode=impression');
+    await p.waitForFunction(() => window.AtelierGribouille);
+    // (définition de travail réduite au minimum : le fichier a davantage à donner)
+    await p.evaluate(() => { AtelierGribouille.state.sourceBudget = 1; });
+    await p.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    await p.waitForFunction(() => !!document.getElementById('scene-canvas')._art);
+    await p.locator('#scene-zoom-open').click();
+    await p.waitForFunction(() => { const z = AtelierGribouille.sceneZoom; return z.sharp && z.sharp.z === z.z; });
+    // à l'œuvre entière : pas de relecture
+    expect(await p.evaluate(() => AtelierGribouille.state.comp.items.some((L) => L.piece.hd))).toBe(false);
+    // deux touchers puis un pincement : au plus près
+    for (let i = 0; i < 2; i++) { await p.mouse.click(195, 420); await p.waitForTimeout(60); }
+    await p.evaluate(() => {
+      const el = document.getElementById('scene-zoom');
+      const ev = (t, id, x, y) => el.dispatchEvent(new PointerEvent(t, { pointerId: id, clientX: x, clientY: y, bubbles: true, isPrimary: id === 1, pointerType: 'touch' }));
+      ev('pointerdown', 1, 170, 420); ev('pointerdown', 2, 220, 420);
+      for (let i = 1; i <= 20; i++) { ev('pointermove', 1, 170 - i * 8, 420); ev('pointermove', 2, 220 + i * 8, 420); }
+      ev('pointerup', 1, 10, 420); ev('pointerup', 2, 380, 420);
+    });
+    await p.waitForFunction(() => AtelierGribouille.state.comp.items.some((L) => L.piece.hd && L.piece.hd.width > L.piece.canvas.width * 1.5), null, { timeout: 60000 });
+    await p.waitForFunction(() => { const z = AtelierGribouille.sceneZoom; return !z.hdBusy && z.sharp && z.sharp.z === z.z; }, null, { timeout: 60000 });
+    await expect(p.locator('#scene-zoom-busy')).toBeHidden();
+    // une seule relecture : rien ne recommence tant que le zoom ne demande pas davantage
+    await p.evaluate(() => { window.__hd = AtelierGribouille.state.comp.items.map((L) => L.piece.hd); });
+    await p.waitForTimeout(1500);
+    expect(await p.evaluate(() => AtelierGribouille.state.comp.items.every((L, i) => L.piece.hd === window.__hd[i]) && !AtelierGribouille.sceneZoom.hdBusy)).toBe(true);
+    await p.locator('#scene-zoom-close').click();
+    expect(await p.evaluate(() => AtelierGribouille.state.comp.items.filter((L) => L.piece.hd).length)).toBe(0);
     await ctx.close();
   });
 
@@ -1948,8 +1995,8 @@ test.describe('Couleur du fond', () => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png']);
     await expect(page.locator('#ground')).toBeVisible();
-    // sous « Nouvelles propositions » puis « Figer cette œuvre » (et son message), hors des réglages avancés (repliés)
-    expect(await page.evaluate(() => { const g = document.getElementById('ground'); const gen = document.getElementById('generate'); return gen.nextElementSibling === document.getElementById('save-comp') && document.getElementById('freeze-status').nextElementSibling.contains(g) && !document.getElementById('advanced').contains(g); })).toBe(true);
+    // sous « Nouvelles propositions » puis « Figer cette œuvre » (et son message)
+    expect(await page.evaluate(() => { const g = document.getElementById('ground'); const gen = document.getElementById('generate'); return gen.nextElementSibling === document.getElementById('save-comp') && document.getElementById('freeze-status').nextElementSibling.contains(g); })).toBe(true);
     const hex = await page.evaluate(() => [...document.querySelectorAll('#ground button')].filter((b) => !b.hidden).map((b) => b.dataset.hex).find((h) => h && h !== 'auto' && h !== AtelierGribouille.state.comp.ground));
     await page.locator(`#ground button[data-hex="${hex}"]`).click();
     expect(await page.evaluate(() => AtelierGribouille.state.comp.ground)).toBe(hex);

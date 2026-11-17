@@ -473,6 +473,31 @@ test.describe('Compositions', () => {
     const prevented = await page.evaluate(() => [document.querySelector('#drawings .thumb img'), document.querySelector('#drawings .thumb')].map((el) => { const ev = new DragEvent('dragstart', { bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev.defaultPrevented; }));
     expect(prevented).toEqual([true, true]);
   });
+  test('la corbeille d’un dessin de « Non utilisé » le supprime de l’atelier ; l’œuvre affichée ne bouge pas', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
+    // pas de corbeille hors de « Non utilisé »
+    await expect(page.locator('#drawings .thumb-del')).toHaveCount(0);
+    const k = await page.evaluate(() => { const S = AtelierGribouille.state; return S.drawings.indexOf(S.comp.items[0].piece.drawing); });
+    for (let n = 0; n < 20; n++) {
+      const left = await page.evaluate((k) => { const S = AtelierGribouille.state, d = S.drawings[k]; const L = S.comp.items.find((q) => q.piece.drawing === d) || S.comp.bg.find((q) => !q.paper && q.drawing === d); S.selected = L || null; return !!L; }, k);
+      if (!left) break;
+      await page.keyboard.press('Delete');
+    }
+    await expect(page.locator('#drawings .drawings-group.off .thumb-del')).toHaveCount(1);
+    const before = await page.evaluate((k) => { const S = AtelierGribouille.state; return { n: S.drawings.length, name: S.drawings[k].name, items: S.comp.items.map((L) => [L.piece.drawing.name, +L.x.toFixed(3), +L.y.toFixed(3)]), comp: S.comp }; }, k);
+    const compBefore = await page.evaluateHandle(() => AtelierGribouille.state.comp);
+    await page.locator('#drawings .thumb-del').click();
+    const after = await page.evaluate(() => { const S = AtelierGribouille.state; return { n: S.drawings.length, names: S.drawings.map((d) => d.name), items: S.comp.items.map((L) => [L.piece.drawing.name, +L.x.toFixed(3), +L.y.toFixed(3)]), inProposals: S.proposals.some((p) => p.comp.items.some((L) => !S.drawings.includes(L.piece.drawing))) }; });
+    expect(after.n).toBe(before.n - 1);
+    expect(after.names).not.toContain(before.name);
+    expect(after.items).toEqual(before.items); // l'œuvre affichée n'a pas bougé
+    expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, compBefore)).toBe(true);
+    expect(after.inProposals).toBe(false); // ni dans les autres propositions
+    await expect(page.locator('#drawings .drawings-group.off')).toHaveCount(0);
+    await expect(page.locator('#drawings-count')).toHaveText(`(${before.n - 1})`);
+  });
   test('la poubelle, au coin haut gauche du dessin sélectionné, le retire de l’œuvre ; Défaire le remet', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);

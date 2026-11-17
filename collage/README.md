@@ -358,10 +358,9 @@ cd collage && python3 -m http.server 8000
      dessin coloré, est découpée, jamais collée entière derrière ; les feuilles pâles (crayon gris,
      texte) sont mises de côté par défaut, sauf celles où Claude reconnaît un vrai sujet (nuage,
      bonhomme au crayon), découpées comme les autres ; en montant le curseur elles entrent, découpées
-     (les pages d'écriture seule, aux lignes de texte régulières, restant de côté) ; un réglage
-     permet de toutes les découper ou de les coller en fond (c'est
-     alors signalé dans le panneau et sur la couverture du guide) ou de les coller en
-     fond ; les pages de fond restent entières ;
+     (les pages d'écriture seule, aux lignes de texte régulières, restant de côté) ; il n'y a plus
+     de réglage pour les découper toutes ou les coller en fond (la section « Réglages avancés » a été
+     retirée) ; les pages de fond restent entières ;
    - **cartel** : sous l'œuvre, petit et centré (`placeLabel`, à la hauteur du bas de l'œuvre sur
      ordinateur ; au-dessus du tiroir sur téléphone, avec le titre seulement), le type de proposition
      et la taille de l'impression (« Frise · impression 29,7 × 21 cm ») ou de la toile, avec le titre
@@ -641,7 +640,13 @@ cd collage && python3 -m http.server 8000
      une image d'ensemble (≈ 2000 px) suit le doigt, puis la zone visible est repeinte à la résolution
      exacte de l'écran (`paintRoom` avec `out.view`), nette à tout zoom sans image géante en mémoire
      (une image agrandie restait floue sur iPhone) : pincer pour zoomer, glisser, deux touchers pour
-     rapprocher ou revenir à l'œuvre entière, la croix ou Échap pour fermer, `openSceneZoom`) : trois pièces au choix
+     rapprocher ou revenir à l'œuvre entière, la croix ou Échap pour fermer, `openSceneZoom` ; de très
+     près — au-delà de 1,8 fois le cadrage de départ, un instant après l'arrêt du geste —, les dessins
+     à l'écran sont relus depuis leur fichier en haute définition comme pour l'export (`sceneZoomHD`,
+     `hydrateHD`, ≈ 250 dpi au plus ; « Netteté maximale… » pendant ce temps ; un nouveau geste
+     l'interrompt après le dessin en cours ; chaque dessin n'est relu qu'une fois par niveau de zoom),
+     puis la vue est repeinte avec ; tout est rendu à la fermeture, `releaseHD` ; sous la mise en
+     scène, « Commander l'œuvre », comme dans la fenêtre de l'ordinateur) : trois pièces au choix
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge
      (tableau imprimé seulement) ; la pièce « Posé au sol » (salle à manger) a été retirée, de la mise en scène
      comme du panier : un ancien choix mémorisé redevient la chambre d'enfant ; l'entrée (photo `assets/hall.webp`,
@@ -903,8 +908,7 @@ l'app fonctionne comme avant. Mise en place pas à pas dans `docs/COMPTES.md` ; 
 confidentialité à relire dans `confidentialite.html`.
 
 Le parcours simple tient en trois étapes (importer, choisir une proposition, télécharger) : les
-réglages de composition (orientation, toile, fond, feuilles pâles) sont repliés sous « Réglages
-avancés », le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
+réglages de composition (orientation, toile, fond) restent discrets, le guide de création replié sous l'étape Exporter (qualité et type de fichier restent
 visibles au-dessus du bouton de téléchargement) ; sur ordinateur, toutes les sections sont repliées à
 l'arrivée et pour une nouvelle œuvre, l'import ouvre Tailles et Propositions et replie Importer (rien
 n'est mémorisé).
