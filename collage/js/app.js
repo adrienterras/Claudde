@@ -5604,6 +5604,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!btn || !sec) return;
     if (mobileQuery.matches) { if (head && head.nextElementSibling !== btn) head.after(btn); }
     else if (sec.previousElementSibling !== btn) sec.before(btn);
+    // (« Reprendre une œuvre », téléphone seulement : juste au-dessus)
+    const resume = $('resume-saved');
+    if (resume && btn.previousElementSibling !== resume) btn.before(resume);
   }
   placeNewWork();
   mobileQuery.addEventListener('change', placeNewWork);
@@ -7291,6 +7294,25 @@ Réponds uniquement avec ce JSON :
       drawSaved(await readLocals()); // (toujours : une liste dessinée entre-temps n'avait pas la réponse du compte)
     }
   }
+  // Téléphone : « Reprendre une œuvre » (onglet Importer, au-dessus de « Commencer une nouvelle œuvre »)
+  // dès qu'il y a une autre œuvre enregistrée que celle en cours, ou la liste de l'administrateur ;
+  // il dévoile Mes œuvres (et Toutes les œuvres), sous les choix d'import, et y descend
+  let savedOthers = 0;
+  function syncResumeSaved() {
+    const b = $('resume-saved');
+    if (b) b.hidden = !(savedOthers > 0 || ($('admin-box') && !$('admin-box').hidden));
+  }
+  function revealSaved() {
+    const sec = $('saved-section'), panel = document.querySelector('.panel');
+    if (!sec) return;
+    sec.classList.add('reveal');
+    if (sec._expand) sec._expand();
+    requestAnimationFrame(() => {
+      if (panel && panel.classList.contains('tabbed')) panel.scrollTo({ top: panel.scrollTop + sec.getBoundingClientRect().top - panel.getBoundingClientRect().top - 8, behavior: 'smooth' });
+      else sec.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  }
+  if ($('resume-saved')) $('resume-saved').addEventListener('click', revealSaved);
   function drawSaved(locals) {
     const box = $('saved-list');
     const signed = signedIn();
@@ -7309,6 +7331,8 @@ Réponds uniquement avec ce JSON :
     });
     list.sort((a, b) => (b.current - a.current) || new Date(b.info.date) - new Date(a.info.date));
     $('saved-count').textContent = list.length ? `(${list.length})` : '';
+    savedOthers = list.filter((e) => !e.current).length;
+    syncResumeSaved();
     if ($('saved-empty')) $('saved-empty').hidden = !!list.length || !!cloudLoading;
     box.innerHTML = '';
     // le compte en cours de lecture, ou illisible (avec « Réessayer »)
@@ -7427,8 +7451,9 @@ Réponds uniquement avec ce JSON :
   async function renderAdmin() {
     const box = $('admin-box'), list = $('admin-list');
     const A = window.Account;
-    if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; return; }
+    if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; syncResumeSaved(); return; }
     box.hidden = false;
+    syncResumeSaved();
     const run = ++adminRun;
     const mfa = $('admin-mfa');
     // jamais bloquée sur « Lecture… » : sans réponse en 30 s, un message et « Réessayer »
@@ -8075,7 +8100,8 @@ Réponds uniquement avec ce JSON :
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
   // téléphone : pas d'onglet Exporter ; son contenu vit dans l'onglet Compte, sous le nom du compte
-  const TAB_OF = { more: ['export-section', 'saved-section'] };
+  // (Mes œuvres : dans l'onglet Importer, sous les choix d'import, dévoilées par « Reprendre une œuvre »)
+  const TAB_OF = { more: ['export-section'], 'import-section': ['import-section', 'saved-section'] };
   const TAB_ALIAS = { 'export-section': 'more' };
   let autoTall = false; // le tiroir a été agrandi par l'onglet Tailles (et non par un geste)
   function selectTab(id) {
@@ -8096,6 +8122,7 @@ Réponds uniquement avec ce JSON :
     panel.classList.add('tabbed');
     panel.dataset.tab = id;
     tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+    if ($('saved-section')) $('saved-section').classList.remove('reveal'); // (repliées à chaque passage dans l'onglet)
     const show = TAB_OF[id] || [id];
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const on = show.includes(sec.id);

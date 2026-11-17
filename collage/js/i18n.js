@@ -336,6 +336,7 @@
     'Auto': 'Auto',
     'Pincez pour zoomer · glissez à deux doigts pour vous déplacer': 'Pinch to zoom · drag with two fingers to move',
     'Voir l’œuvre de près': 'See the artwork up close',
+    'Reprendre une œuvre': 'Resume an artwork',
     'Netteté maximale…': 'Maximum sharpness…',
     'Supprimer ce dessin de l’atelier': 'Delete this drawing from the studio',
     'Supprimer « {0} » de l’atelier': 'Delete “{0}” from the studio',

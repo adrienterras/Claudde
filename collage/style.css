@@ -947,6 +947,8 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
    fractionnaire (268,5 px) laissait voir un trait du fond beige sous la photo */
 .scene-canvas { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); display: block; }
 /* téléphone : la loupe, dans l'angle de la photo, ouvre la mise en scène en plein écran (voir openSceneZoom) */
+/* « Reprendre une œuvre » : téléphone seulement (sur ordinateur, Mes œuvres est en tête de la colonne) */
+@media (min-width: 861px) { .resume-saved { display: none !important; } }
 .scene-zoom-open { position: absolute; right: 8px; bottom: 8px; width: 38px; height: 38px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(255, 255, 255, 0.88); color: #2b2420; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); cursor: zoom-in; }
 .scene-zoom-open .ico { width: 20px; height: 20px; }
 @media (min-width: 861px) { .scene-zoom-open { display: none; } }
@@ -1217,6 +1219,13 @@ body.stage-full .scene-open { display: none; }
   /* onglet Compte : Exporter juste sous le nom du compte (le tiroir est une colonne flex : order), avec
      son titre, sans numéro ni repli ; puis l'enregistrement et Mes œuvres */
   .panel.tabbed[data-tab="more"] > .account { order: -3; }
+  /* onglet Importer : Mes œuvres (et Toutes les œuvres de l'administrateur) sous les choix d'import,
+     seulement une fois « Reprendre une œuvre » touché ; plus de « Mes exports » sur téléphone */
+  .panel.tabbed[data-tab="import-section"] > #saved-section { order: 1; }
+  .panel.tabbed[data-tab="import-section"] > #saved-section:not(.reveal) { display: none; }
+  .panel.tabbed > #saved-section.tab-on > h2 { display: flex; margin: 0; pointer-events: none; }
+  .panel.tabbed > #saved-section.tab-on > h2 .chev { display: none; }
+  #exports-box { display: none !important; }
   .panel.tabbed[data-tab="more"] > #export-section { order: -2; }
   .panel.tabbed[data-tab="more"] > #export-section > h2 { display: flex; margin: 0; pointer-events: none; }
   .panel.tabbed[data-tab="more"] > #export-section > h2 .num, .panel.tabbed[data-tab="more"] > #export-section > h2 .chev { display: none; }

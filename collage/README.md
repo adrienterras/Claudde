@@ -149,7 +149,12 @@ cd collage && python3 -m http.server 8000
    sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone — sauf, pour un tableau
    imprimé, l'onglet Dessins placé avant Tailles (Importer, Propositions, Dessins, Tailles, Compte), et Exporter, qui n'y
    a pas d'onglet : son contenu est dans l'onglet Compte, juste sous le nom du compte, avec son titre
-   (`TAB_OF.more`, `TAB_ALIAS` : une demande d'aller à Exporter ouvre Compte) —, où l'import ouvre
+   (`TAB_OF.more`, `TAB_ALIAS` : une demande d'aller à Exporter ouvre Compte) ; Mes œuvres n'est plus
+   dans l'onglet Compte mais dans Importer : un bouton « Reprendre une œuvre », au-dessus de « Commencer
+   une nouvelle œuvre », paraît dès qu'une autre œuvre que celle en cours est enregistrée (ou pour
+   l'administrateur), et dévoile Mes œuvres — avec Toutes les œuvres de l'administrateur — sous les
+   choix d'import, en y descendant (`revealSaved`, `syncResumeSaved` ; repliées à chaque retour dans
+   l'onglet) ; pas de « Mes exports » sur téléphone —, où l'import ouvre
    l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
    pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là
@@ -889,7 +894,7 @@ sont actifs, télécharger une œuvre et créer le guide demandent d'être
 connecté (la fenêtre de connexion s'ouvre et l'action reprend d'elle-même après la connexion) ; les
 œuvres s'enregistrent d'elles-mêmes dans le compte (Mes œuvres), avec les images des dessins en haute
 définition et les retouches, et chaque export (JPEG, PNG, PDF, guide) y est gardé aussi, listé sous « Mes exports »
-avec retéléchargement et suppression. Chaque fichier téléchargé porte le nom de l'œuvre dans Mes œuvres
+avec retéléchargement et suppression (sur ordinateur seulement). Chaque fichier téléchargé porte le nom de l'œuvre dans Mes œuvres
 (`exportFileName` : en minuscules, sans accents ni espaces, « Œuvre du 6 novembre » →
 `oeuvre-du-6-novembre.jpg` ; le guide `…-guide-de-creation.pdf`, l'aperçu `…-apercu.jpg`). Tout se retrouve depuis n'importe quel appareil. Le service est Supabase (Auth + Storage,
 hébergement en Europe), piloté depuis `js/account.js` ; les règles d'accès (`supabase/schema.sql`)

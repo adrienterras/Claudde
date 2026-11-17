@@ -69,7 +69,8 @@ test.describe('Interface', () => {
     // sur téléphone : en tête de l'étape Importer, juste sous son titre (sous les onglets)
     await page.setViewportSize({ width: 390, height: 844 });
     // (le déplacement suit le changement de taille d'écran : on l'attend)
-    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), s = document.getElementById('import-section'); return s.contains(b) && s.querySelector('h2').nextElementSibling === b; })).toBe(true);
+    // (juste au-dessus, « Reprendre une œuvre », caché tant qu'aucune autre œuvre n'est enregistrée)
+    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), r = document.getElementById('resume-saved'), s = document.getElementById('import-section'); return s.contains(b) && s.querySelector('h2').nextElementSibling === r && r.nextElementSibling === b; })).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await expect.poll(() => page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
     // rien ne se perd : pas de confirmation, l'atelier repart de zéro et l'œuvre reste dans Mes œuvres
@@ -455,6 +456,46 @@ test.describe('Mise en scène de près (téléphone)', () => {
   });
 });
 
+test.describe('Téléphone, reprendre une œuvre', () => {
+  test('« Reprendre une œuvre » apparaît dans Importer quand une autre œuvre est enregistrée ; il dévoile Mes œuvres sous les choix d’import ; pas de Mes exports', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html');
+    await p.waitForFunction(() => window.AtelierGribouille);
+    await p.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await p.locator('#sheet-tabs [data-tab="import-section"]').click();
+    // seule l'œuvre en cours : rien à reprendre
+    await expect(p.locator('#resume-saved')).toBeHidden();
+    await expect(p.locator('#saved-section')).toBeHidden();
+    // une nouvelle œuvre : la première est enregistrée, on peut la reprendre
+    await waitDraft(p);
+    await p.locator('#new-work').click();
+    await p.setInputFiles('#file', [fixture('page-two.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.drawings.length && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await p.locator('#sheet-tabs [data-tab="import-section"]').click();
+    await expect(p.locator('#resume-saved')).toBeVisible({ timeout: 20000 });
+    // au-dessus de « Commencer une nouvelle œuvre »
+    const [r, n] = await Promise.all([p.locator('#resume-saved').boundingBox(), p.locator('#new-work').boundingBox()]);
+    expect(r.y).toBeLessThan(n.y);
+    await p.locator('#resume-saved').click();
+    await expect(p.locator('#saved-section')).toBeVisible();
+    await expect(p.locator('#saved-section > h2')).toBeVisible();
+    await expect(p.locator('#saved-list .saved').first()).toBeVisible();
+    // sous les choix d'import
+    const [imp, mine] = await Promise.all([p.locator('#drop').boundingBox(), p.locator('#saved-section').boundingBox()]);
+    expect(mine.y).toBeGreaterThan(imp.y);
+    await expect(p.locator('#exports-box')).toBeHidden();
+    // un autre onglet, puis Importer : de nouveau repliées
+    await p.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await p.locator('#sheet-tabs [data-tab="import-section"]').click();
+    await expect(p.locator('#saved-section')).toBeHidden();
+    await ctx.close();
+  });
+});
+
 test.describe('Téléphone, onglets', () => {
   test('« Commencer une nouvelle œuvre » seulement dans Importer ; « Mise en scène » dans Tailles ; pas de titre de section', async ({ browser }) => {
     const { fixture } = require('./helpers');
@@ -467,8 +508,8 @@ test.describe('Téléphone, onglets', () => {
     await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await p.locator('#sheet-tabs [data-tab="more"]').click();
     await expect(p.locator('#new-work')).toBeHidden();
-    await expect(p.locator('#saved-section')).toBeVisible();
-    await expect(p.locator('#saved-section > h2')).toBeHidden();
+    // Mes œuvres n'est plus dans l'onglet Compte (il est dans Importer, derrière « Reprendre une œuvre »)
+    await expect(p.locator('#saved-section')).toBeHidden();
     // la mise en scène est dans l'onglet Tailles, sous son titre ; cet onglet ouvre le tiroir en grand
     await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
     await expect(p.locator('body')).toHaveClass(/sheet-tall/);
@@ -1692,10 +1733,9 @@ test.describe('Plein écran sur téléphone', () => {
     await expect(page.locator('#export-section > h2')).toContainText('Exporter');
     await expect(page.locator('#export-section > h2 .num')).toBeHidden();
     await expect(page.locator('#export')).toBeVisible();
-    // l'ordre : le compte (absent ici : pas de service de comptes dans ce test), puis Exporter, puis Mes œuvres
-    const ex = await page.locator('#export-section').boundingBox(), mine = await page.locator('#saved-section').boundingBox();
-    expect(mine.y).toBeGreaterThan(ex.y);
-    expect(await page.evaluate(() => { const o = (id) => +getComputedStyle(document.getElementById(id)).order; return o('account') < o('export-section') && o('export-section') < o('saved-section'); })).toBe(true);
+    // l'ordre : le compte (absent ici : pas de service de comptes dans ce test), puis Exporter ; plus de Mes œuvres
+    await expect(page.locator('#saved-section')).toBeHidden();
+    expect(await page.evaluate(() => { const o = (id) => +getComputedStyle(document.getElementById(id)).order; return o('account') < o('export-section'); })).toBe(true);
     // une demande d'aller à Exporter (reprise d'une œuvre « pour télécharger ») ouvre l'onglet Compte
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await expect(page.locator('#export-section')).toBeHidden();
