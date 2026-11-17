@@ -143,7 +143,8 @@ cd collage && python3 -m http.server 8000
 2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, puis Tailles et Propositions —
    Tailles d'abord pour un collage, où la taille réelle des feuilles décide de la toile ; Propositions
    d'abord pour un tableau imprimé (`orderSteps`, numéros à la suite) —, Dessins, Exporter, et en tête,
-   sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone — sauf Exporter, qui n'y
+   sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone — sauf, pour un tableau
+   imprimé, l'onglet Dessins placé avant Tailles (Importer, Propositions, Dessins, Tailles, Compte), et Exporter, qui n'y
    a pas d'onglet : son contenu est dans l'onglet Compte, juste sous le nom du compte, avec son titre
    (`TAB_OF.more`, `TAB_ALIAS` : une demande d'aller à Exporter ouvre Compte) —, où l'import ouvre
    l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
@@ -633,17 +634,10 @@ cd collage && python3 -m http.server 8000
      une image d'ensemble (≈ 2000 px) suit le doigt, puis la zone visible est repeinte à la résolution
      exacte de l'écran (`paintRoom` avec `out.view`), nette à tout zoom sans image géante en mémoire
      (une image agrandie restait floue sur iPhone) : pincer pour zoomer, glisser, deux touchers pour
-     rapprocher ou revenir à l'œuvre entière, la croix ou Échap pour fermer, `openSceneZoom`) : quatre pièces au choix
-     (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant, une entrée au mur vert sauge, ou
-     une salle à manger, « Posé au sol » (photo en hauteur `assets/salle.webp`, table laquée, banc en acier, parquet) où
-     l'œuvre n'est pas accrochée mais **posée au sol**, adossée au banc, centrée entre ses pieds
-     (`floor`), avec une ombre douce à son pied, proposée seulement pour une œuvre d'au moins 40 × 50
-     (le cadre en tableau imprimé, la toile en collage : `sceneSalleOk`, sinon le bouton disparaît et
-     la chambre d'enfant reprend ; dans « Ajouter au panier », c'est la taille choisie au panier qui
-     compte : plus petite que 40 × 50, la mise en scène du panier passe à la chambre d'enfant, sans
-     toucher à la pièce choisie, `salleFits`) ; l'échelle, 7 px par cm, est calée sur un cadre 50 × 70
-     photographié à cet endroit ; la vue est cadrée en 4 : 3 autour de l'œuvre (`aspect`), sans carte de
-     lumière ; l'entrée (photo `assets/hall.webp`,
+     rapprocher ou revenir à l'œuvre entière, la croix ou Échap pour fermer, `openSceneZoom`) : trois pièces au choix
+     (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge
+     (tableau imprimé seulement) ; la pièce « Posé au sol » (salle à manger) a été retirée, de la mise en scène
+     comme du panier : un ancien choix mémorisé redevient la chambre d'enfant ; l'entrée (photo `assets/hall.webp`,
      console d'environ 190 × 75 cm et lampe de 45 cm, soit 4,8 px par cm, carte de lumière
      `assets/hall-lumiere.webp`) ; les cartes de lumière (multipliées sur l'œuvre à 75 %) sont
      ramenées à la même moyenne dans la zone où l'œuvre se pose (`normLight`, référence `LIGHT_REF` :
@@ -735,7 +729,9 @@ cd collage && python3 -m http.server 8000
      icône seule : la baguette magique `#i-wand`, comme le bouton et l'onglet Propositions ; l'étincelle
      `#i-spark` reste à l'exemple, à la reprise et au réglage automatique des couleurs) au ras de
      l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
-     seule la barre d'onglets reste), qui fait la même chose ;
+     seule la barre d'onglets reste), qui fait la même chose ; **sur ordinateur et iPad en paysage**, le
+     même bouton en bas à gauche de la zone d'édition, le curseur « Nombre de dessins » rangé à sa droite
+     (sans son libellé sous 1240 px de large, pour ne pas passer sous la barre de zoom) ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
      réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom

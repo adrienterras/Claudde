@@ -231,7 +231,7 @@ test.describe('Interface', () => {
       await ctx.close();
     }
   });
-  test('téléphone, tiroir baissé : un bouton rond « Nouvelles propositions » dans l’angle bas droit de l’œuvre ; absent tiroir ouvert et sur ordinateur', async ({ browser }) => {
+  test('téléphone, tiroir baissé : un bouton rond « Nouvelles propositions » dans l’angle bas droit de l’œuvre ; absent tiroir ouvert ; sur ordinateur, en bas à gauche', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -271,14 +271,25 @@ test.describe('Interface', () => {
     });
     expect(r2.p1).toBe(true); expect(r2.p2).toBe(true); expect(r2.distinct).toBe(2);
     await ctx.close();
-    // ordinateur : pas de bouton rond
-    const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-    const page2 = await ctx2.newPage();
-    await page2.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
-    await page2.goto('index.html?exemple');
-    await page2.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
-    await expect(page2.locator('#stage-generate')).toBeHidden();
-    await ctx2.close();
+    // ordinateur et iPad en paysage : le même bouton rond, en bas à gauche de la zone d'édition, le curseur
+    // « Nombre de dessins » à sa droite, sans toucher la barre de zoom ; il refait les propositions
+    for (const width of [1440, 1024]) {
+      const ctx2 = await browser.newContext({ viewport: { width, height: 900 } });
+      const page2 = await ctx2.newPage();
+      await page2.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+      await page2.goto('index.html?exemple');
+      await page2.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
+      await expect(page2.locator('#stage-generate')).toBeVisible();
+      const [fab, bar, zoom, stage] = await Promise.all(['#stage-generate', '#density-bar', '#zoom-bar', 'main.stage'].map((q) => page2.locator(q).boundingBox()));
+      expect(fab.x - stage.x).toBeLessThan(20);
+      expect(stage.y + stage.height - (fab.y + fab.height)).toBeLessThan(20);
+      expect(bar.x).toBeGreaterThan(fab.x + fab.width);
+      expect(bar.x + bar.width).toBeLessThan(zoom.x);
+      const seed = await page2.evaluate(() => AtelierGribouille.state.seed);
+      await page2.locator('#stage-generate').click();
+      await page2.waitForFunction((s0) => AtelierGribouille.state.seed !== s0, seed);
+      await ctx2.close();
+    }
   });
 
   test('téléphone : le carnet est un tiroir à onglets, ouvert sur Propositions après l’import', async ({ browser }) => {
@@ -1620,6 +1631,14 @@ test.describe('Plein écran sur téléphone', () => {
     await app.import(['page-cutout.png']);
     await expect(page.locator('#sheet-tabs [data-tab="export-section"]')).toHaveCount(0);
     expect(await page.locator('#sheet-tabs button').count()).toBe(5);
+    // l'ordre des onglets : en tableau imprimé, Dessins avant Tailles ; en collage, Tailles d'abord
+    const order = () => page.locator('#sheet-tabs button').evaluateAll((bs) => bs.map((b) => b.dataset.tab));
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    expect(await order()).toEqual(['import-section', 'compose-section', 'drawings-section', 'sizes-section', 'more']);
+    await page.evaluate(() => AtelierGribouille.setMode('toile'));
+    expect(await order()).toEqual(['import-section', 'sizes-section', 'compose-section', 'drawings-section', 'more']);
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    expect(await order()).toEqual(['import-section', 'compose-section', 'drawings-section', 'sizes-section', 'more']);
     await page.locator('#sheet-tabs [data-tab="more"]').click();
     await expect(page.locator('#export-section')).toBeVisible();
     await expect(page.locator('#export-section > h2')).toBeVisible();
@@ -2182,42 +2201,17 @@ test.describe('Fond de toile sur une œuvre retouchée', () => {
   });
 });
 
-test.describe('Salle à manger', () => {
-  test('l’œuvre est posée au sol, adossée au banc : son bas sur la ligne du sol, centrée, quel que soit le cadre ; la vue en 4 : 3', async ({ app }) => {
+test.describe('Pièces de la mise en scène', () => {
+  test('plus de pièce « Posé au sol » : une ancienne salle à manger mémorisée devient la chambre d’enfant', async ({ app }) => {
     const { page } = app;
+    await page.addInitScript(() => { try { localStorage.setItem('atelier.piece', 'salle'); } catch (e) { /* */ } });
     await page.goto('index.html?mode=impression');
     await page.waitForFunction(() => window.AtelierGribouille && window.Compose);
     await app.import(['page-cutout.png']);
     await page.locator('#scene-open').click();
     await expect(page.locator('#scene-modal')).toBeVisible();
-    // la salle à manger n'est proposée qu'à partir d'un cadre 40 × 50 : pas pour le 30 × 40 de départ
-    await expect(page.locator('#scene-room [data-room="salle"]')).toBeHidden();
-    await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:40x50'; f.dispatchEvent(new Event('change')); });
-    await expect(page.locator('#scene-room [data-room="salle"]')).toBeVisible();
-    await page.locator('#scene-room [data-room="salle"]').click();
-    await expect(page.locator('#scene-room [data-room="salle"]')).toHaveClass(/on/);
-    // la pièce est peinte (sa photo se charge en différé) : du parquet, clair et chaud, en bas au milieu
-    const parquet = (c) => c[0] > 120 && c[0] > c[2] + 20;
-    const look = () => page.locator('#scene-canvas').evaluate((cv) => {
-      const x = cv.getContext('2d');
-      const col = (X, Y) => { const d = x.getImageData(Math.round(X), Math.round(Y), 1, 1).data; return [d[0], d[1], d[2]]; };
-      // sur la colonne centrale, en remontant depuis le bas : la dernière ligne sombre (le bas du cadre noir)
-      let yBottom = -1;
-      for (let Y = cv.height - 1; Y > 0; Y--) { const [r, g, b] = col(cv.width * 0.5, Y); if (Math.max(r, g, b) < 60) { yBottom = Y; break; } }
-      return { w: cv.width, h: cv.height, yBottom, bottom: col(cv.width * 0.5, cv.height - 2), floorBelow: yBottom > 0 ? col(cv.width * 0.5, Math.min(cv.height - 1, yBottom + cv.height * 0.06)) : null };
-    });
-    await expect.poll(async () => parquet((await look()).bottom), { timeout: 30000 }).toBe(true);
-    const c = await look();
-    expect(Math.abs(c.w / c.h - 4 / 3)).toBeLessThan(0.02);
-    // le bas du cadre noir sur le sol : sous l'œuvre, la dernière ligne sombre est la baguette du cadre,
-    // dans la moitié basse de la vue, et 6 % plus bas c'est du parquet
-    for (const fmt of ['cadre:40x50', 'cadre:50x70']) {
-      await page.evaluate((v) => { const f = document.getElementById('scene-format'); f.value = v; f.dispatchEvent(new Event('change')); }, fmt);
-      await expect.poll(async () => { const r = await look(); return r.yBottom > r.h * 0.5 && r.yBottom < r.h * 0.95 && !!r.floorBelow && parquet(r.floorBelow); }, { timeout: 30000 }).toBe(true);
-    }
-    // un cadre plus petit : la salle à manger disparaît, la chambre d'enfant reprend
-    await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:30x40'; f.dispatchEvent(new Event('change')); });
-    await expect(page.locator('#scene-room [data-room="salle"]')).toBeHidden();
+    await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:50x70'; f.dispatchEvent(new Event('change')); });
+    expect(await page.locator('#scene-room button').evaluateAll((bs) => bs.map((b) => b.dataset.room))).toEqual(['salon', 'chambre', 'hall']);
     await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
     await page.keyboard.press('Escape');
   });
@@ -2289,9 +2283,6 @@ test.describe('Mettre en scène', () => {
         await page.evaluate(() => { localStorage.setItem('atelier.piece', 'hall'); document.querySelector('#scene-room [data-room="salon"]').click(); localStorage.setItem('atelier.piece', 'hall'); });
         await page.locator('#scene-room [data-room="chambre"]').click();
         await expect(page.locator('#scene-room [data-room="chambre"]')).toHaveClass(/on/);
-        // la salle à manger existe aussi pour un collage (la toile posée au sol), à partir de 40 × 50 :
-        // pas pour cette petite toile
-        await expect(page.locator('#scene-room [data-room="salle"]')).toBeHidden();
         // sur ordinateur, l'étape Importer se replie une fois les dessins importés
         await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
         // collage : dans la fenêtre, ni taille ni orientation (elles se règlent dans la section Tailles) ; l'image est grande

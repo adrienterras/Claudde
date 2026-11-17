@@ -244,7 +244,6 @@
     'bois noir': 'black wood',
     'bois blanc': 'white wood',
     'Entrée': 'Hallway',
-    'Posé au sol': 'On the floor',
     'Pièce': 'Room',
     'Salon': 'Living room',
     'Chambre d’enfant': 'Child’s bedroom',

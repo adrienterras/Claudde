@@ -731,6 +731,20 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   .stage-fab:active { transform: scale(.94); }
   body.stage-full .stage-fab[hidden] { display: none; }
 }
+/* ordinateur et iPad : le même bouton rond, dans l'angle bas gauche de la zone d'édition (le zoom est à droite) */
+@media (min-width: 861px) {
+  .stage-fab {
+    display: grid; place-items: center; position: absolute; left: 14px; bottom: 14px; z-index: 3;
+    width: 52px; height: 52px; padding: 0; border: 0; border-radius: 50%; background: #1d1c18; color: #fff; cursor: pointer;
+    box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .7); transition: transform .12s;
+  }
+  .stage-fab .ico { width: 26px; height: 26px; }
+  .stage-fab:hover { transform: scale(1.05); }
+  .stage-fab:active { transform: scale(.94); }
+  .stage-fab[hidden] { display: none; }
+  /* le curseur « Nombre de dessins » se range à sa droite, centré sur lui */
+  .stage-fab:not([hidden]) ~ .density-bar { left: 76px; bottom: 21px; }
+}
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;
   display: flex; align-items: center; gap: 2px; padding: 4px;
@@ -782,6 +796,16 @@ body.stage-full { overflow: hidden; }
 .density-bar input[type=range] { width: 130px; margin: 0; }
 .density-bar small { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
 body.stage-full .density-bar { display: none; }
+/* zone d'édition moyenne (iPad en paysage, petit portable) : le curseur sans son libellé (le nombre de
+   dessins reste écrit à côté), pour ne pas passer sous la barre de zoom */
+@media (min-width: 861px) and (max-width: 1240px) {
+  .density-bar label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .density-bar input[type=range] { width: 96px; }
+}
+@media (min-width: 861px) and (max-width: 1100px) {
+  .density-bar { gap: 8px; padding: 8px 12px; }
+  .density-bar input[type=range] { width: 70px; }
+}
 /* ordinateur : pas de bouton plein écran (l'œuvre a déjà toute la place à côté du carnet) ; il sert sur
    téléphone, où il baisse le tiroir */
 @media (min-width: 861px) { #zoom-full { display: none; } }
@@ -959,7 +983,7 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
 /* dans la fenêtre (colonne de 300 px), les quatre pièces en deux rangées de deux ; en toile (trois
    pièces, l'entrée n'y est pas), la troisième prend la rangée du bas */
 .scene-modal .scene-room { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-radius: 20px; }
-body.mode-toile .scene-modal .scene-room [data-room="salle"] { grid-column: 1 / -1; }
+body:not(.mode-toile) .scene-modal .scene-room [data-room="hall"] { grid-column: 1 / -1; }
 /* le bouton de téléchargement tient sur une ligne dans la colonne des réglages (iPad, petit écran) */
 /* « Commander l'œuvre » : dans la fenêtre seulement (sur téléphone, le bouton flottant s'en charge) */
 .scene-save { justify-content: center; }

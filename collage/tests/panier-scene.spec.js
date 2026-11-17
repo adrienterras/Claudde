@@ -24,9 +24,8 @@ async function sceneSig(page) {
 }
 
 test.describe('Ajouter au panier : mise en scène', () => {
-  // la salle à manger (l'œuvre posée au sol) n'a de sens qu'à partir de 40 × 50 : la taille choisie ici,
-  // plus petite, remet la chambre d'enfant, et une plus grande rend la salle à manger
-  test('salle à manger : seulement pour une taille d’au moins 40 × 50 choisie au panier, sinon la chambre', async ({ page }) => {
+  // plus de pièce « Posé au sol » : une salle à manger mémorisée devient la chambre d'enfant, à toutes les tailles
+  test('une ancienne salle à manger mémorisée : la chambre d’enfant, quelle que soit la taille choisie au panier', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.addInitScript(() => { try { localStorage.setItem('atelier.piece', 'salle'); } catch (e) { /* */ } });
@@ -34,8 +33,6 @@ test.describe('Ajouter au panier : mise en scène', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png'), fixture('page-texture.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // la mise en scène en 40 × 50, dans la salle à manger
-    await page.evaluate(() => { const f = document.getElementById('scene-format'); f.value = 'cadre:40x50'; f.dispatchEvent(new Event('change')); });
     await page.evaluate(() => document.getElementById('add-cart').click());
     await expect(page.locator('#cart-add')).toBeVisible();
     // le prix de départ de l'impression : le plus petit, l'affiche 21 × 30 à 29 €
@@ -43,18 +40,10 @@ test.describe('Ajouter au panier : mise en scène', () => {
     const room = () => page.locator('#cart-scene').getAttribute('data-room');
     await page.locator('#cart-add [data-finish="cadre"]').click();
     const sizes = '#cart-add .cart-print-sizes';
-    await page.locator(`${sizes} [data-size="40x50"]`).click();
-    await expect.poll(room, { timeout: 30000 }).toBe('salle');
-    for (const [size, want] of [['30x40', 'chambre'], ['50x70', 'salle'], ['21x30', 'chambre'], ['70x100', 'salle']]) {
+    for (const size of ['40x50', '70x100', '30x40']) {
       await page.locator(`${sizes} [data-size="${size}"]`).click();
-      await expect.poll(room, { timeout: 30000 }).toBe(want);
+      await expect.poll(room, { timeout: 30000 }).toBe('chambre');
     }
-    // en affiche (papier) aussi
-    await page.locator('#cart-add [data-finish="papier"]').click();
-    await page.locator(`${sizes} [data-size="30x40"]`).click();
-    await expect.poll(room, { timeout: 30000 }).toBe('chambre');
-    // le choix de pièce de la mise en scène n'est pas touché
-    expect(await page.evaluate(() => localStorage.getItem('atelier.piece'))).toBe('salle');
   });
 
   test('sur ordinateur, à gauche des options ; elle suit la taille, le cadre, le passe-partout et le papier', async ({ page }) => {

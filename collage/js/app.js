@@ -2145,6 +2145,11 @@
     const tabs = $('sheet-tabs');
     const ta = tabs && tabs.querySelector(`[data-tab="${first}"]`), tb = tabs && tabs.querySelector(`[data-tab="${second}"]`);
     if (ta && tb && ta.nextElementSibling !== tb) tb.before(ta);
+    // onglets du téléphone : en tableau imprimé, Dessins juste après Propositions (avant Tailles) ;
+    // en collage, Dessins après Propositions, à sa place d'origine
+    const td = tabs && tabs.querySelector('[data-tab="drawings-section"]');
+    const after = tabs && tabs.querySelector('[data-tab="compose-section"]');
+    if (td && after && after.nextElementSibling !== td) after.after(td);
     const na = a && a.querySelector('h2 .num'), nb = b && b.querySelector('h2 .num');
     if (na) na.textContent = '02';
     if (nb) nb.textContent = '03';
@@ -3388,27 +3393,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       obstacles: [{ x0: 185, x1: 375, top: 119 }, { x0: 755, x1: 965, top: 94 }],
       top: 221,
     },
-    // la salle à manger : une photo en hauteur (table laquée, banc en acier, parquet) ; l'œuvre n'est
-    // pas accrochée mais posée au sol, adossée au banc, centrée entre ses deux pieds. Échelle calée
-    // sur un cadre 50 × 70 photographié à cet endroit (366 × 519 px pour 53 × 73 cm) : 7 px par cm.
-    // La vue est cadrée en 4 : 3 autour de l'œuvre (la photo est plus haute) ; pas de carte de lumière.
-    salle: {
-      src: 'assets/salle.webp',
-      w: 1086, h: 1448, pxPerCm: 7, floorY: 1017, centerX: 554, aspect: 4 / 3,
-      floor: true, // posée au sol
-      minBottom: 0, obstacles: [],
-      top: 145,
-    },
   };
   // la chambre d'enfant d'abord ; l'entrée n'est proposée qu'en tableau imprimé (pas pour un collage)
-  // la salle à manger : pour une œuvre d'au moins 40 × 50 (le cadre en tableau imprimé, la toile en collage)
-  const sceneSalleOk = () => {
-    let w, h;
-    if (printMode()) { const fc = formatCm(); w = fc.frameW || fc.w; h = fc.frameH || fc.h; } else if (state.comp) { w = state.comp.W; h = state.comp.H; } else return false;
-    return salleFits(w, h);
-  };
-  const salleFits = (w, h) => Math.min(w, h) >= 40 - 1e-6 && Math.max(w, h) >= 50 - 1e-6;
-  const sceneRoom = () => { let v = null; try { v = localStorage.getItem('atelier.piece'); } catch (e) { /* ignoré */ } return SCENES[v] && (v !== 'hall' || printMode()) && (v !== 'salle' || sceneSalleOk()) ? v : 'chambre'; };
+  const sceneRoom = () => { let v = null; try { v = localStorage.getItem('atelier.piece'); } catch (e) { /* ignoré */ } return SCENES[v] && (v !== 'hall' || printMode()) ? v : 'chambre'; };
   const sceneImgs = {};
   let sceneTimer = 0;
 
@@ -5369,7 +5356,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!cv || !comp || (!out && ($('sizes-section').hidden || !cv.clientWidth))) return false;
     const room = sceneRoom(), S = SCENES[room];
     if (!out) $('scene-room').querySelectorAll('button').forEach((b) => {
-      if (b.dataset.room === 'salle') b.hidden = !sceneSalleOk();
       const on = b.dataset.room === room;
       b.classList.toggle('on', on);
       b.classList.toggle('ink', on);
@@ -5425,25 +5411,22 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     // hauteur d'accrochage : centre à hauteur de regard (150 cm) pour une petite œuvre, un peu plus
     // bas (135 cm) pour une grande qui descend vers le meuble ; le bas reste au moins 20 cm au-dessus
     // du meuble, et au-dessus de la lampe ou du vase si l'œuvre s'étend jusqu'à eux.
-    // Posée au sol (S.floor) : le bas de l'œuvre sur la ligne du sol, quelle que soit sa taille.
     const ax = S.centerX;
     const half = (Wo / 2) * k;
     const bottom = S.obstacles.reduce((m, o) => (ax + half > o.x0 && ax - half < o.x1 ? Math.max(m, o.top + 10) : m), S.minBottom);
     const eye = Ho <= 60 ? 150 : Ho >= 100 ? 135 : 150 - ((Ho - 60) * 15) / 40;
-    let mid = S.floor ? Ho / 2 : Math.max(eye, bottom + Ho / 2);
-    if (!S.floor && mid + Ho / 2 > S.top - 6) mid = Math.max(bottom + Ho / 2, S.top - 6 - Ho / 2);
+    let mid = Math.max(eye, bottom + Ho / 2);
+    if (mid + Ho / 2 > S.top - 6) mid = Math.max(bottom + Ho / 2, S.top - 6 - Ho / 2);
     // cadrage : l'œuvre, le buffet et un peu de sol ; plus large pour une grande œuvre
     const top = mid + Ho / 2 + 15;
-    // (jamais plus large que la photo : la salle à manger, photographiée en hauteur, fait 155 cm de large)
+    // (jamais plus large que la photo)
     const viewW = spec.fill
       ? Math.min(Math.max(2.2 * Wo, 150), Math.min(S.w, S.h * aspect) / k)
       : Math.min(Math.max(3 * Wo, 260), S.w / k);
     const sw = viewW * k, sh = sw / aspect;
     const ay = S.floorY - mid * k; // centre de l'œuvre, en pixels de la photo
     const sx = clamp(ax - sw / 2, 0, S.w - sw);
-    // (posée au sol : toujours au moins 6 cm de sol sous l'œuvre, même pour un très grand cadre)
-    const syWant = Math.min(S.floorY + 20 * k - sh, S.floorY - top * k);
-    const sy = clamp(S.floor ? Math.max(syWant, S.floorY + 6 * k - sh) : syWant, 0, S.h - sh);
+    const sy = clamp(Math.min(S.floorY + 20 * k - sh, S.floorY - top * k), 0, S.h - sh);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = out ? out.width : Math.round(cv.clientWidth * dpr), H = Math.round(W / aspect);
     // out.view : seule une zone { x, y, w, h } de la scène (W × H, aussi grande soit-elle) est peinte
@@ -5460,13 +5443,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const pc = k * q; // pixels du canevas par centimètre
     const ox = (ax - sx) * q - (Wo / 2) * pc, oy = (ay - sy) * q - (Ho / 2) * pc;
     cv._art = { x: ox / W, y: oy / H, w: (Wo * pc) / W, h: (Ho * pc) / H }; // (l'œuvre et son cadre, en fractions : voir openSceneZoom)
-    // ombre portée sur le mur, la lumière vient de la fenêtre à gauche ; posée au sol : une ombre
-    // douce et large au pied de l'œuvre et derrière elle
+    // ombre portée sur le mur, la lumière vient de la fenêtre à gauche
     x.save();
-    x.shadowColor = S.floor ? 'rgba(40, 28, 16, 0.5)' : 'rgba(45, 32, 20, 0.38)';
-    x.shadowBlur = (S.floor ? 2.4 : framed ? 1.2 : paper ? 0.6 : 2.6) * pc;
-    x.shadowOffsetX = (S.floor ? 0.3 : framed ? 0.5 : paper ? 0.2 : 1.4) * pc;
-    x.shadowOffsetY = (S.floor ? 0.7 : framed ? 0.9 : paper ? 0.4 : 2) * pc;
+    x.shadowColor = 'rgba(45, 32, 20, 0.38)';
+    x.shadowBlur = (framed ? 1.2 : paper ? 0.6 : 2.6) * pc;
+    x.shadowOffsetX = (framed ? 0.5 : paper ? 0.2 : 1.4) * pc;
+    x.shadowOffsetY = (framed ? 0.9 : paper ? 0.4 : 2) * pc;
     x.fillStyle = '#000';
     x.fillRect(ox, oy, Wo * pc, Ho * pc);
     x.restore();
@@ -8482,11 +8464,9 @@ Réponds uniquement avec ce JSON :
   function drawCartScene() {
     const cv = $('cart-scene');
     if (!pending || !cv || $('cart-add').hidden || !cv.clientWidth) return;
-    // la pièce de la mise en scène, sauf la salle à manger pour une taille choisie ici plus petite que
-    // 40 × 50 (posée au sol, elle y paraîtrait perdue) : la chambre d'enfant à la place
+    // la pièce de la mise en scène
     const spec = cartSceneSpec();
-    let room = sceneRoom();
-    if (room === 'salle' && !salleFits(spec.Fw, spec.Fh)) room = 'chambre';
+    const room = sceneRoom();
     if (!roomReady(room)) return; // (redessinée quand les images de la pièce sont là : scheduleScene)
     cv.dataset.room = room;
     paintRoom(cv, null, room, spec);
