@@ -407,7 +407,6 @@
     '{0} feuille{1} mise{2} de côté': '{0} sheet{1} set aside',
     '— pâles (crayon gris, texte), comme sur l’œuvre de référence : dessins n° {0}.': '— pale (grey pencil, text), as in the reference artwork: drawings no. {0}.',
     'Elles n’apparaissent pas dans l’œuvre ni dans le guide. Pour en garder une en découpe, ouvrez-la et choisissez « découpe ».': 'They do not appear in the artwork or in the guide. To keep one as a cut-out, open it and choose “cut-out”.',
-    '<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>': '<b class="tag photo" title="Photo on a floor or a table: background removed">isolated</b>',
     'Orientation': 'Orientation',
     'Luminosité, contraste et saturation': 'Brightness, contrast and saturation',
     'Saturation': 'Saturation',

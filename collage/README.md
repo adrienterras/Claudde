@@ -155,7 +155,7 @@ cd collage && python3 -m http.server 8000
    l'administrateur), et descend jusqu'à Mes œuvres — avec Toutes les œuvres de l'administrateur —,
    toujours affichées sous les choix d'import (`revealSaved`, `syncResumeSaved`) ; pas de « Mes
    exports » sur téléphone —, où l'import ouvre
-   l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
+   l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes (l'image seule, sans pastille de taille, de photo ni de qualité : tout est dans la fiche) y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
    pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là
    avec leur « + », sans changer de rôle — le curseur remonté les repose ; `shownRole` dans
@@ -520,7 +520,7 @@ cd collage && python3 -m http.server 8000
      bord de la plage. La feuille est alors **redressée** (perspective corrigée, homographie) et
      recadrée juste à l'intérieur de son bord ; ses bords redressés ne doivent pas montrer la
      surface. Une forme libre (feuille découpée, froissée) posée sur un bois devient un objet dont
-     la silhouette entière est la pièce. Signalé sur la vignette (« redressé ») et dans la fiche,
+     la silhouette entière est la pièce. Signalé dans la fiche (plus de pastille sur la vignette),
      avec un bouton pour garder la photo entière ; une feuille redressée est ensuite traitée comme
      un scan (elle peut être un fond). Si aucune feuille n'est trouvée, la détection de surface
      ci-dessous prend le relais ;
@@ -547,7 +547,7 @@ cd collage && python3 -m http.server 8000
      parties de l'objet de la couleur du sol. Un **objet découpé** (forme libre : cœur, bougie,
      ovale…) devient lui-même la pièce, papier blanc compris ; une feuille rectangulaire garde son
      dessin à découper. C'est
-     signalé sur la vignette (« détouré »), dans le panneau (avec un bouton pour garder la photo
+     signalé dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
      une bordure blanche et n'est pas concerné) ; si elle ne reconnaît pas la surface, le bouton
      « Retirer le fond autour du dessin » force le détourage d'après la couleur de bordure. Ces
@@ -995,7 +995,7 @@ n'est mémorisé).
 
 Seuils réglés sur de vrais scans de dessins (aucune alerte de netteté ni d’éclairage) et sur
 leurs versions floues ou assombries. La définition suit la taille réelle choisie : la même image
-peut suffire en A6 et pas en A3. Affichage : pastille sur la vignette, les titres seuls dans la
+peut suffire en A6 et pas en A3. Affichage (plus de pastille sur la vignette) : les titres seuls dans la
 fiche du dessin (raison et conseil en infobulle, `qualityBlock`), bandeau « N dessins risquent d’être flous » dans Propositions, rappel dans
 Exporter. Rien n’est jamais bloqué. Sous l’alerte de la fiche, « Importer une meilleure version »
 (`replaceDrawing`) : le nouveau fichier prend la place du dessin dans la liste et sur l’œuvre — chaque

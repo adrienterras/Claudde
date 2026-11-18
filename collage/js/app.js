@@ -1108,11 +1108,6 @@
     if (changed) refreshLists();
   }
 
-  function sheetName(cm) {
-    const s = SHEETS.find(([, v]) => Math.abs(v - cm) < 0.05);
-    return s ? s[0] : `${fmt(cm)} cm`;
-  }
-
   const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString(I18n.locale);
 
   // ---------- Dessins & pièces ----------
@@ -1502,12 +1497,6 @@
   // seulement pour le tableau imprimé : en collage avec les originaux, rien n'est imprimé, donc aucune
   // alerte de définition (pastille, bandeau, fiche, rappel à l'export)
   const qualityOf = (d) => (window.Quality && printMode() ? Quality.assess(Object.assign({}, d, { auto: d.auto })) : { level: 'ok', issues: [] });
-  function qualityBadge(d) {
-    if (roleOf(d) === 'off') return '';
-    const q = qualityOf(d);
-    if (q.level === 'ok') return '';
-    return `<i class="q ${q.level}" title="${esc(q.issues.map((x) => x.title).join(' · '))}" aria-label="${esc(q.level === 'bad' ? tr('Qualité insuffisante pour l’impression') : tr('Qualité à vérifier'))}">!</i>`;
-  }
   // dans la fiche : les titres seulement (« Définition trop faible pour l'impression »…) ; le détail
   // et le conseil restent lisibles en infobulle
   function qualityBlock(d) {
@@ -1668,9 +1657,8 @@
       el.setAttribute('aria-label', el.title);
       el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
       el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
-      // (la taille réelle sur la vignette : en collage seulement ; en tableau imprimé, les dessins sont mis au cadre ;
-      // plus de pastille « redressé » pour une feuille photographiée : sa fiche le dit)
-      el.innerHTML = `<img src="${thumbFor(d)}" alt=""${toneStyle(d)}>${d.photo && d.photoMode !== 'keep' && !d.photo.sheet ? tr('<b class="tag photo" title="Photo sur un sol ou une table : fond retiré">détouré</b>') : ''}${printMode() ? '' : `<i class="size${d.uncertain && d.sizeMode === 'auto' ? ' unsure' : ''}">${d.uncertain && d.sizeMode === 'auto' ? '? ' : ''}${sheetName(d.sizeCm)}</i>`}${qualityBadge(d)}`;
+      // (la vignette seule, sans pastille : photo détourée ou redressée, taille et qualité sont dans sa fiche)
+      el.innerHTML = `<img src="${thumbFor(d)}" alt=""${toneStyle(d)}>`;
       el.onclick = () => {
         state.current = state.current === d ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
@@ -1706,7 +1694,6 @@
           del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>';
           del.onclick = () => deleteDrawing(d);
           item.appendChild(del);
-          el.classList.add('deletable'); // (la taille, à cette place, s'efface)
         }
       }
       (grids[role] || dEl).appendChild(item);
