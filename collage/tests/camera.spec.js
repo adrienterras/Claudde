@@ -80,6 +80,10 @@ async function judge(page, name, transform) {
     if (transform === 'shadow') { const g = x.createLinearGradient(0, 0, c.width, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height); }
     if (transform === 'hand') { x.fillStyle = 'rgba(0,0,0,0.5)'; x.fillRect(0, c.height * 0.62, c.width, c.height * 0.2); } // l'ombre de la main sur le bas de la feuille (qui va de 24 à 76 % de la hauteur)
     if (transform === 'wood') { x.fillStyle = '#9a6a3c'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#8a5c32'; for (let i = 0; i < c.width; i += 130) x.fillRect(i, 0, 60, c.height); }
+    // des objets posés autour (jouets, trousse, tasse) : des plages de couleurs vives dans les coins et sur les côtés
+    const objects = () => { const W = c.width, H = c.height; [['#d23a2f', 0.03, 0.04, 0.12, 0.14], ['#2f62c9', 0.84, 0.05, 0.12, 0.13], ['#2f9a4a', 0.04, 0.82, 0.14, 0.12], ['#e8b81e', 0.83, 0.8, 0.13, 0.15], ['#7a3fb0', 0.45, 0.85, 0.12, 0.1]].forEach(([col, ox, oy, ow, oh]) => { x.fillStyle = col; x.fillRect(W * ox, H * oy, W * ow, H * oh); }); };
+    if (transform === 'wood-objects') { x.fillStyle = '#9a6a3c'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#8a5c32'; for (let i = 0; i < c.width; i += 130) x.fillRect(i, 0, 60, c.height); x.drawImage(img, c.width * 0.3, c.height * 0.3, c.width * 0.4, c.height * 0.4); objects(); }
+    if (transform === 'objects') objects();
     const v = Camera.check(c);
     return { level: v.level, title: v.title, found: v.found, quad: !!v.quad, points: v.points.map((p) => [p.code, p.level]) };
   }, { data, transform });
@@ -87,7 +91,7 @@ async function judge(page, name, transform) {
 const lvl = (r, code) => (r.points.find((p) => p[0] === code) || [])[1];
 
 test.describe('Photographier un dessin', () => {
-  test('jugement : feuille sur parquet optimale ; sombre, ombrée ou avec l’ombre d’une main signalée ; feuille non repérée signalée (photo gardée) ; floue ou coupée acceptées', async ({ app }) => {
+  test('jugement : feuille sur parquet optimale ; sombre, ombrée ou avec l’ombre d’une main signalée ; feuille non repérée signalée (photo gardée), sauf entourée d’objets (refusée) ; floue ou coupée acceptées', async ({ app }) => {
     const good = await judge(app.page, 'photo-wood.png');
     expect(good.found).toBe(true);
     expect(good.quad).toBe(true);
@@ -114,6 +118,16 @@ test.describe('Photographier un dessin', () => {
     expect(wood.found).toBe(false);
     expect(wood.level).toBe('warn');
     expect(lvl(wood, 'feuille')).toBe('warn');
+    // feuille non repérée parce que des objets l'entourent : le résultat ne sera pas bon, refusée (rouge)
+    const messy = await judge(app.page, 'photo-wood.png', 'wood-objects');
+    expect(messy.found).toBe(false);
+    expect(messy.level).toBe('bad');
+    expect(lvl(messy, 'objets')).toBe('bad');
+    // feuille repérée : des objets autour ne gênent pas (la photo est recadrée sur la feuille)
+    const around = await judge(app.page, 'photo-wood.png', 'objects');
+    expect(around.found).toBe(true);
+    expect(lvl(around, 'objets')).toBeUndefined();
+    expect(around.level).toBe('ok');
     const full = await judge(app.page, 'photo-wood.png', 'full');
     expect(full.level).toBe('ok');
     expect(full.points.map((p) => p[0])).not.toContain('cadre');

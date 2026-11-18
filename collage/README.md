@@ -120,7 +120,11 @@ cd collage && python3 -m http.server 8000
    sur la table autour, souvent mieux éclairée) ; **feuille non repérée** (fond aussi clair qu'elle,
    feuille coupée par le cadre : la découpe risque de prendre la table pour du papier) : la consigne
    le dit — « Feuille non repérée : entière dans le cadre, sur un fond plus foncé » —, la photo reste
-   gardée (avertissement) ; une feuille qui remplit l'image, comme un scan, n'est pas concernée ;
+   gardée (avertissement) — sauf si des **objets l'entourent** (jouets, trousse, tasse : des plages
+   pleines, ni papier ni couleur de la surface, dans la couronne hors du centre de l'image, `clutter`) :
+   « Trop d'objets : dégagez la table autour du dessin », en rouge, déclencheur grisé, car la découpe les
+   prendrait pour des dessins (feuille repérée, les objets autour ne gênent pas : la photo est
+   recadrée) ; une feuille qui remplit l'image, comme un scan, n'est pas concernée ;
    ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
    (simplicité demandée). Le quadrilatère de la feuille, quand elle est trouvée, est
    tracé sur la vidéo, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe

@@ -58,7 +58,11 @@
     // risque de prendre la table pour du papier ; on le dit plutôt que « Prêt »
     // (une feuille qui remplit l'image, comme un scan, n'a rien à repérer : la découpe la prend entière)
     const pageFills = (Extract.findSheet.attempts || []).some((a) => a.area >= 0.9);
-    if (!found && !pageFills) add('feuille', 'warn', tr('Feuille non repérée'), tr('Posez la feuille entière dans le cadre, à plat, sur une surface plus foncée qu’elle (bois, nappe), sans ombre dessus.'), tr('Feuille non repérée : entière dans le cadre, sur un fond plus foncé'));
+    // feuille non repérée parce que des objets l'entourent (jouets, trousse, tasse…) : la découpe les
+    // prendrait pour des dessins, le résultat ne sera pas bon : pas de photo (rouge, déclencheur grisé).
+    // Feuille repérée, les objets autour ne gênent pas : la photo est recadrée sur la feuille
+    if (!found && !pageFills && clutter(canvas)) add('objets', 'bad', tr('Trop d’objets autour du dessin'), tr('Dégagez la table : seul le dessin dans le cadre, posé à plat sur une surface unie.'), tr('Trop d’objets : dégagez la table autour du dessin'));
+    else if (!found && !pageFills) add('feuille', 'warn', tr('Feuille non repérée'), tr('Posez la feuille entière dans le cadre, à plat, sur une surface plus foncée qu’elle (bois, nappe), sans ombre dessus.'), tr('Feuille non repérée : entière dans le cadre, sur un fond plus foncé'));
     // la lumière se juge sur la feuille ; à défaut, au centre de l'image, là où elle devrait être
     // (pas sur la table autour, souvent mieux éclairée que la feuille sous le téléphone)
     const region = sheet && sheet.kind === 'sheet' ? sheet.canvas : centreOf(canvas);
@@ -94,6 +98,68 @@
     }
     if (region !== canvas) release(region);
     return verdict(points, quad, found);
+  }
+  /*
+   * Des objets autour du dessin ? Sur une image réduite (200 px), dans la couronne hors du centre
+   * (20 à 80 %) : les plages pleines (pas les traits fins d'un dessin, effacés par une érosion) ni
+   * papier (clair et peu saturé) ni de la couleur de la surface (médiane du bord de l'image). Trois
+   * objets d'une certaine taille, ou un quart de la couronne couvert, c'est trop.
+   */
+  function clutter(canvas) {
+    const k = Math.min(1, 200 / Math.max(canvas.width, canvas.height));
+    const w = Math.max(16, Math.round(canvas.width * k)), h = Math.max(16, Math.round(canvas.height * k)), n = w * h;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(canvas, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h).data;
+    release(c);
+    // la surface : médiane de chaque couleur sur une bande de 6 % au bord de l'image
+    const band = Math.max(2, Math.round(Math.min(w, h) * 0.06)), R = [], G = [], B = [];
+    for (let y = 0; y < h; y++) for (let X = 0; X < w; X++) {
+      if (X >= band && X < w - band && y >= band && y < h - band) continue;
+      const i = (y * w + X) * 4; R.push(d[i]); G.push(d[i + 1]); B.push(d[i + 2]);
+    }
+    const med = (a) => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+    const sR = med(R), sG = med(G), sB = med(B);
+    const foreign = new Uint8Array(n);
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = 0.299 * r + 0.587 * g + 0.114 * b;
+      const paper = L > 170 && (mx ? (mx - mn) / mx : 0) < 0.2;
+      if (!paper && Math.hypot(r - sR, g - sG, b - sB) > 48) foreign[p] = 1;
+    }
+    // érosion (rayon 2) : il ne reste que les plages pleines
+    const solid = new Uint8Array(n);
+    for (let y = 2; y < h - 2; y++) for (let X = 2; X < w - 2; X++) {
+      let all = 1;
+      for (let dy = -2; dy <= 2 && all; dy++) for (let dx = -2; dx <= 2; dx++) if (!foreign[(y + dy) * w + X + dx]) { all = 0; break; }
+      solid[y * w + X] = all;
+    }
+    const inRing = (X, y) => X < w * 0.2 || X >= w * 0.8 || y < h * 0.2 || y >= h * 0.8;
+    let ring = 0, covered = 0, objects = 0;
+    const seen = new Uint8Array(n), stack = [];
+    for (let y = 0; y < h; y++) for (let X = 0; X < w; X++) {
+      if (!inRing(X, y)) continue;
+      ring++;
+      const p = y * w + X;
+      if (!solid[p]) continue;
+      covered++;
+      if (seen[p]) continue;
+      // une plage : sa taille (sur toute l'image)
+      let area = 0;
+      seen[p] = 1; stack.push(p);
+      while (stack.length) {
+        const q = stack.pop(); area++;
+        const qx = q % w, qy = (q - qx) / w;
+        if (qx > 0 && solid[q - 1] && !seen[q - 1]) { seen[q - 1] = 1; stack.push(q - 1); }
+        if (qx < w - 1 && solid[q + 1] && !seen[q + 1]) { seen[q + 1] = 1; stack.push(q + 1); }
+        if (qy > 0 && solid[q - w] && !seen[q - w]) { seen[q - w] = 1; stack.push(q - w); }
+        if (qy < h - 1 && solid[q + w] && !seen[q + w]) { seen[q + w] = 1; stack.push(q + w); }
+      }
+      if (area >= n * 0.004) objects++;
+    }
+    return objects >= 3 || (ring && covered / ring > 0.25);
   }
   // le centre de l'image (de 15 à 85 % sur chaque axe)
   function centreOf(canvas) {
