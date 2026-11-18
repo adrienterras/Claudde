@@ -725,7 +725,9 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   .stage-fab:active { transform: scale(.94); }
   body.stage-full .stage-fab[hidden] { display: none; }
 }
-/* ordinateur et iPad : le même bouton rond, dans l'angle bas gauche de la zone d'édition (le zoom est à droite) */
+/* ordinateur et iPad : le même bouton rond, en bas à gauche de la zone d'édition, au-dessus du curseur
+   « Nombre de dessins » (le zoom est à droite) ; une note écrite à la main, dans le fond, le montre */
+.gen-hint { display: none; }
 @media (min-width: 861px) {
   .stage-fab {
     display: grid; place-items: center; position: absolute; left: 14px; bottom: 14px; z-index: 3;
@@ -736,8 +738,17 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   .stage-fab:hover { transform: scale(1.05); }
   .stage-fab:active { transform: scale(.94); }
   .stage-fab[hidden] { display: none; }
-  /* le curseur « Nombre de dessins » se range à sa droite, centré sur lui */
-  .stage-fab:not([hidden]) ~ .density-bar { left: 76px; bottom: 21px; }
+  /* juste au-dessus du curseur « Nombre de dessins » */
+  .stage-fab { bottom: 66px; }
+}
+@media (min-width: 861px) {
+  .gen-hint:not([hidden]) {
+    display: block; position: absolute; left: 78px; bottom: 112px; width: 190px; pointer-events: none; user-select: none;
+    font-family: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive; font-weight: 500; font-size: 1.32rem; line-height: 1.05;
+    color: var(--muted); transform: rotate(-4deg); transform-origin: left bottom;
+  }
+  .gen-hint span { display: block; }
+  .gen-hint-arrow { display: block; width: 62px; height: 48px; margin: 2px 0 0 -26px; }
 }
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;

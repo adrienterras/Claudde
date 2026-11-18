@@ -273,8 +273,9 @@ test.describe('Interface', () => {
     });
     expect(r2.p1).toBe(true); expect(r2.p2).toBe(true); expect(r2.distinct).toBe(2);
     await ctx.close();
-    // ordinateur et iPad en paysage : le même bouton rond, en bas à gauche de la zone d'édition, le curseur
-    // « Nombre de dessins » à sa droite, sans toucher la barre de zoom ; il refait les propositions
+    // ordinateur et iPad en paysage : le même bouton rond, en bas à gauche de la zone d'édition, juste
+    // au-dessus du curseur « Nombre de dessins » ; une note écrite à la main (Caveat), dans le fond, sous
+    // l'œuvre, le montre ; il refait les propositions
     for (const width of [1440, 1024]) {
       const ctx2 = await browser.newContext({ viewport: { width, height: 900 } });
       const page2 = await ctx2.newPage();
@@ -284,9 +285,17 @@ test.describe('Interface', () => {
       await expect(page2.locator('#stage-generate')).toBeVisible();
       const [fab, bar, zoom, stage] = await Promise.all(['#stage-generate', '#density-bar', '#zoom-bar', 'main.stage'].map((q) => page2.locator(q).boundingBox()));
       expect(fab.x - stage.x).toBeLessThan(20);
-      expect(stage.y + stage.height - (fab.y + fab.height)).toBeLessThan(20);
-      expect(bar.x).toBeGreaterThan(fab.x + fab.width);
+      expect(fab.y + fab.height).toBeLessThanOrEqual(bar.y); // au-dessus du curseur
+      expect(Math.abs(fab.x - bar.x)).toBeLessThan(2);
       expect(bar.x + bar.width).toBeLessThan(zoom.x);
+      const hint = page2.locator('#gen-hint');
+      await expect(hint).toBeVisible();
+      await expect(hint).toHaveText('Cliquez pour générer de nouvelles propositions');
+      expect(await hint.evaluate((el) => { const cs = getComputedStyle(el); return [cs.fontFamily.includes('Caveat'), cs.pointerEvents]; })).toEqual([true, 'none']);
+      // dans le fond : l'œuvre (le canevas) passe devant
+      expect(await page2.evaluate(() => { const h = document.getElementById('gen-hint'), c = document.getElementById('canvas'); return !!(h.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(h).zIndex === 'auto'; })).toBe(true);
+      const hb = await hint.boundingBox();
+      expect(hb.y + hb.height).toBeLessThanOrEqual(fab.y + 6); // la note (et sa flèche) au-dessus du bouton
       const seed = await page2.evaluate(() => AtelierGribouille.state.seed);
       await page2.locator('#stage-generate').click();
       await page2.waitForFunction((s0) => AtelierGribouille.state.seed !== s0, seed);

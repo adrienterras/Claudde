@@ -336,6 +336,7 @@
     'Auto': 'Auto',
     'Pincez pour zoomer · glissez à deux doigts pour vous déplacer': 'Pinch to zoom · drag with two fingers to move',
     'Voir l’œuvre de près': 'See the artwork up close',
+    'Cliquez pour générer de nouvelles propositions': 'Click to create new proposals',
     'Supprimer ce dessin ?': 'Delete this drawing?',
     'Supprimer le dessin': 'Delete the drawing',
     '« {0} » sera retiré de l’atelier. Cette action est définitive.': '“{0}” will be removed from the studio. This cannot be undone.',

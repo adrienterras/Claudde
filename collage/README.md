@@ -755,8 +755,11 @@ cd collage && python3 -m http.server 8000
      `#i-spark` reste à l'exemple, à la reprise et au réglage automatique des couleurs) au ras de
      l'angle bas droit de l'œuvre, seulement tiroir baissé (`body.stage-full` :
      seule la barre d'onglets reste), qui fait la même chose ; **sur ordinateur et iPad en paysage**, le
-     même bouton en bas à gauche de la zone d'édition, le curseur « Nombre de dessins » rangé à sa droite
-     (sans son libellé sous 1240 px de large, pour ne pas passer sous la barre de zoom) ;
+     même bouton en bas à gauche de la zone d'édition, juste au-dessus du curseur « Nombre de dessins »
+     (sans son libellé sous 1240 px de large, pour ne pas passer sous la barre de zoom), montré par une
+     note écrite à la main, « Cliquez pour générer de nouvelles propositions », avec une flèche, dans le
+     fond de la zone d'édition — l'œuvre passe devant (`#gen-hint`, police Caveat servie par le site,
+     `fonts/caveat-*.woff2`, licence OFL) ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
      réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
