@@ -158,6 +158,8 @@
     .style div { padding: 12px 14px; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
     .style b { font-weight: 600; font-size: .95rem; }
     .style span { font-size: .78rem; color: var(--muted); font-style: italic; }
+    /* téléphone : la définition sous le titre */
+    @media (max-width: 640px) { .style div { flex-direction: column; align-items: flex-start; gap: 2px; } }
     .promise { background: var(--ink); color: var(--craie); border-radius: 24px; padding: 48px; display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; }
     .promise h2 { color: var(--craie); }
     .promise p { color: rgba(248,245,239,.78); }
