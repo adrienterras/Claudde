@@ -21,6 +21,7 @@
   const $ = (id) => document.getElementById(id);
   // (définis ici, avant tout : loadCutPrefs les appelle au chargement, bien avant la zone « réglages »)
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  let genHintSeen = false; // la note « Cliquez pour générer… » a servi pendant cette visite
   const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
   const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -3088,7 +3089,7 @@
     $('toolbar').hidden = !state.comp;
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
     if ($('stage-generate')) $('stage-generate').hidden = !state.comp; // (le bouton rond « Nouvelles propositions »)
-    if ($('gen-hint')) $('gen-hint').hidden = !state.comp || lsGet('atelier.gen-hint') === 'vu'; // (ordinateur : sa note écrite à la main, jusqu'au premier clic)
+    if ($('gen-hint')) $('gen-hint').hidden = !state.comp || genHintSeen; // (ordinateur : sa note écrite à la main, jusqu'au premier clic de cette visite)
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;
@@ -5962,11 +5963,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   // téléphone : le bouton rond dans l'angle de l'œuvre fait la même chose
   if ($('stage-generate')) $('stage-generate').onclick = () => $('generate').click();
-  // la note écrite à la main et sa flèche ont fait leur travail au premier clic sur « Nouvelles
-  // propositions » (le bouton rond ou celui du panneau) : elles ne reviennent plus, même après
-  // actualisation de la page
+  // la note écrite à la main et sa flèche disparaissent au premier clic sur « Nouvelles propositions »
+  // (le bouton rond ou celui du panneau), le temps de la visite : elles reviennent à chaque
+  // actualisation de la page ou nouvelle ouverture de l'atelier
+  lsSet('atelier.gen-hint', null); // (une version précédente la masquait pour de bon)
   $('generate').addEventListener('click', () => {
-    lsSet('atelier.gen-hint', 'vu');
+    genHintSeen = true;
     if ($('gen-hint')) $('gen-hint').hidden = true;
   });
   $('density').addEventListener('change', () => { state.pinned = null; regenerate(); });
@@ -6386,7 +6388,7 @@ Réponds uniquement avec ce JSON :
    * message en avis.
    */
   const WIPED_KEY = 'atelier-gribouille:appareil-efface';
-  const KEEP_PREFS = /^(atelier\.(mode|passe-partout|finition|piece|cadre|marge|flash|conseil-photo-vu|collapsed|gen-hint)|atelier-gribouille:(lang|lang-offer))$/;
+  const KEEP_PREFS = /^(atelier\.(mode|passe-partout|finition|piece|cadre|marge|flash|conseil-photo-vu|collapsed)|atelier-gribouille:(lang|lang-offer))$/;
   async function clearDevice(message) {
     state.wiping = true;
     clearTimeout(draftTimer);

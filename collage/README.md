@@ -760,9 +760,9 @@ cd collage && python3 -m http.server 8000
      note écrite à la main, « Cliquez pour générer de nouvelles propositions », avec une flèche, dans le
      fond de la zone d'édition — l'œuvre passe devant (`#gen-hint`, police Caveat servie par le site,
      `fonts/caveat-*.woff2`, licence OFL) ; la flèche descend en s'arrondissant vers le haut à gauche, et
-     la pointe s'arrête au-dessus du centre du bouton sans le toucher, et la note disparaît pour de bon
-     au premier clic sur « Nouvelles propositions », le bouton rond ou celui du panneau (`atelier.gen-hint` =
-     `vu`, gardé à la déconnexion comme les autres préférences d'affichage) ;
+     la pointe s'arrête au-dessus du centre du bouton sans le toucher, et la note disparaît au premier
+     clic sur « Nouvelles propositions », le bouton rond ou celui du panneau, le temps de la visite : elle
+     revient à chaque actualisation ou nouvelle ouverture de l'atelier (rien n'est mémorisé) ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
      réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom

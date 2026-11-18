@@ -299,18 +299,15 @@ test.describe('Interface', () => {
       const seed = await page2.evaluate(() => AtelierGribouille.state.seed);
       await page2.locator('#stage-generate').click();
       await page2.waitForFunction((s0) => AtelierGribouille.state.seed !== s0, seed);
-      // un clic suffit : la note et sa flèche disparaissent, et ne reviennent pas au rechargement
+      // un clic suffit : la note et sa flèche disparaissent… le temps de la visite : elles reviennent au rechargement
       await expect(hint).toBeHidden();
       await page2.reload();
       await page2.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
-      await expect(page2.locator('#stage-generate')).toBeVisible();
-      await expect(hint).toBeHidden();
-      // le bouton « Nouvelles propositions » du panneau compte aussi
-      await page2.evaluate(() => { localStorage.removeItem('atelier.gen-hint'); document.getElementById('gen-hint').hidden = false; });
       await expect(hint).toBeVisible();
+      // le bouton « Nouvelles propositions » du panneau compte aussi
       await page2.evaluate(() => document.getElementById('generate').dispatchEvent(new MouseEvent('click', { bubbles: true })));
       await expect(hint).toBeHidden();
-      expect(await page2.evaluate(() => localStorage.getItem('atelier.gen-hint'))).toBe('vu');
+      expect(await page2.evaluate(() => localStorage.getItem('atelier.gen-hint'))).toBe(null);
       await ctx2.close();
     }
   });
