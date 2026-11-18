@@ -342,7 +342,7 @@ test('Tarifs : livraison en supplément ; un visuel par taille sous la grille, s
     await expect(page.locator('#impressions > .wrap > p').first()).toHaveText('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque commande.');
     await expect(page.locator('#impressions .note')).toHaveCount(0);
     const figs = page.locator('#impressions table.grid-prices + .sizes figure');
-    await expect(figs.locator('figcaption')).toHaveText(['21 × 30 cm', '40 × 50 cm', '50 × 70 cm', '70 × 100 cm']);
+    await expect(figs.locator('figcaption')).toHaveText(['21 × 30 cm', '30 × 40 cm', '40 × 50 cm', '50 × 70 cm', '70 × 100 cm']);
     for (const im of await figs.locator('img').all()) {
       await im.scrollIntoViewIfNeeded();
       await expect.poll(() => im.evaluate((i) => i.complete && i.naturalWidth)).toBe(800);

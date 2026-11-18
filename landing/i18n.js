@@ -175,6 +175,7 @@
     "Commander": "Order",
     "Imprimée et livrée chez vous": "Printed and delivered to your door",
     "Œuvre encadrée en 21 × 30 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 21 × 30 cm, hung above the shelves of a child’s bedroom",
+    "Œuvre encadrée en 30 × 40 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 30 × 40 cm, hung above the shelves of a child’s bedroom",
     "Œuvre encadrée en 40 × 50 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 40 × 50 cm, hung above the shelves of a child’s bedroom",
     "Œuvre encadrée en 50 × 70 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 50 × 70 cm, hung above the shelves of a child’s bedroom",
     "Œuvre encadrée en 70 × 100 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 70 × 100 cm, hung above the shelves of a child’s bedroom",
