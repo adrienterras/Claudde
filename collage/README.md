@@ -164,7 +164,10 @@ cd collage && python3 -m http.server 8000
    Défaire les remet ; remis en Découpe ou en Fond depuis leur fiche, ils reviennent sur l'œuvre
    affichée sans la recomposer — `putBack` : sujets dans les places libres, page au centre —, de
    même par le bouton « + » de leur vignette (`addToArt` : dans le rôle d'avant leur retrait, sinon
-   celui de l'atelier ; un pas de Défaire), et
+   celui de l'atelier ; un pas de Défaire) ; la **corbeille** en haut à droite de leur vignette
+   supprime le dessin de l'atelier, après confirmation (fenêtre « Supprimer ce dessin ? » avec sa
+   vignette, `askDeleteDrawing`) : liste, propositions et brouillon (`deleteDrawing` ; l'œuvre affichée
+   ne bouge pas ; pas pour le dernier dessin ; l'historique est vidé), et
    leurs vignettes restent en couleurs normales) — sans badge de rôle ; les vignettes et images de
    l'atelier ne se glissent pas (déposée sur l'œuvre, une vignette était réimportée) ; la fiche d'un dessin
    change son rôle) : chaque page est classée automatiquement
