@@ -457,7 +457,7 @@ test.describe('Mise en scène de près (téléphone)', () => {
 });
 
 test.describe('Téléphone, reprendre une œuvre', () => {
-  test('« Reprendre une œuvre » apparaît dans Importer quand une autre œuvre est enregistrée ; il dévoile Mes œuvres sous les choix d’import ; pas de Mes exports', async ({ browser }) => {
+  test('« Reprendre une œuvre » apparaît dans Importer quand une autre œuvre est enregistrée ; il descend jusqu’à Mes œuvres, toujours affichées sous les choix d’import ; pas de Mes exports', async ({ browser }) => {
     const { fixture } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const p = await ctx.newPage();
@@ -467,9 +467,9 @@ test.describe('Téléphone, reprendre une œuvre', () => {
     await p.setInputFiles('#file', [fixture('page-cutout.png')]);
     await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
-    // seule l'œuvre en cours : rien à reprendre
+    // seule l'œuvre en cours : rien à reprendre ; Mes œuvres est là, sous les choix d'import
     await expect(p.locator('#resume-saved')).toBeHidden();
-    await expect(p.locator('#saved-section')).toBeHidden();
+    await expect(p.locator('#saved-section')).toBeVisible();
     // une nouvelle œuvre : la première est enregistrée, on peut la reprendre
     await waitDraft(p);
     await p.locator('#new-work').click();
@@ -480,18 +480,20 @@ test.describe('Téléphone, reprendre une œuvre', () => {
     // au-dessus de « Commencer une nouvelle œuvre »
     const [r, n] = await Promise.all([p.locator('#resume-saved').boundingBox(), p.locator('#new-work').boundingBox()]);
     expect(r.y).toBeLessThan(n.y);
-    await p.locator('#resume-saved').click();
+    // Mes œuvres est affiché avant même le bouton ; il y descend
     await expect(p.locator('#saved-section')).toBeVisible();
+    await p.locator('#resume-saved').click();
+    await expect.poll(() => p.evaluate(() => { const r = document.getElementById('saved-section').getBoundingClientRect(); return r.top >= 0 && r.top < window.innerHeight; })).toBe(true);
     await expect(p.locator('#saved-section > h2')).toBeVisible();
     await expect(p.locator('#saved-list .saved').first()).toBeVisible();
     // sous les choix d'import
     const [imp, mine] = await Promise.all([p.locator('#drop').boundingBox(), p.locator('#saved-section').boundingBox()]);
     expect(mine.y).toBeGreaterThan(imp.y);
     await expect(p.locator('#exports-box')).toBeHidden();
-    // un autre onglet, puis Importer : de nouveau repliées
+    // un autre onglet, puis Importer : toujours affichées
     await p.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
-    await expect(p.locator('#saved-section')).toBeHidden();
+    await expect(p.locator('#saved-section')).toBeVisible();
     await ctx.close();
   });
 });

@@ -1219,10 +1219,9 @@ body.stage-full .scene-open { display: none; }
   /* onglet Compte : Exporter juste sous le nom du compte (le tiroir est une colonne flex : order), avec
      son titre, sans numéro ni repli ; puis l'enregistrement et Mes œuvres */
   .panel.tabbed[data-tab="more"] > .account { order: -3; }
-  /* onglet Importer : Mes œuvres (et Toutes les œuvres de l'administrateur) sous les choix d'import,
-     seulement une fois « Reprendre une œuvre » touché ; plus de « Mes exports » sur téléphone */
+  /* onglet Importer : Mes œuvres (et Toutes les œuvres de l'administrateur) toujours affichées, sous les
+     choix d'import (« Reprendre une œuvre » y descend) ; plus de « Mes exports » sur téléphone */
   .panel.tabbed[data-tab="import-section"] > #saved-section { order: 1; }
-  .panel.tabbed[data-tab="import-section"] > #saved-section:not(.reveal) { display: none; }
   .panel.tabbed > #saved-section.tab-on > h2 { display: flex; margin: 0; pointer-events: none; }
   .panel.tabbed > #saved-section.tab-on > h2 .chev { display: none; }
   #exports-box { display: none !important; }

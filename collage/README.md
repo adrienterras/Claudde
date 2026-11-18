@@ -152,9 +152,9 @@ cd collage && python3 -m http.server 8000
    (`TAB_OF.more`, `TAB_ALIAS` : une demande d'aller à Exporter ouvre Compte) ; Mes œuvres n'est plus
    dans l'onglet Compte mais dans Importer : un bouton « Reprendre une œuvre », au-dessus de « Commencer
    une nouvelle œuvre », paraît dès qu'une autre œuvre que celle en cours est enregistrée (ou pour
-   l'administrateur), et dévoile Mes œuvres — avec Toutes les œuvres de l'administrateur — sous les
-   choix d'import, en y descendant (`revealSaved`, `syncResumeSaved` ; repliées à chaque retour dans
-   l'onglet) ; pas de « Mes exports » sur téléphone —, où l'import ouvre
+   l'administrateur), et descend jusqu'à Mes œuvres — avec Toutes les œuvres de l'administrateur —,
+   toujours affichées sous les choix d'import (`revealSaved`, `syncResumeSaved`) ; pas de « Mes
+   exports » sur téléphone —, où l'import ouvre
    l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
    pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là

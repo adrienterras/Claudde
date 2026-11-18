@@ -7296,7 +7296,7 @@ Réponds uniquement avec ce JSON :
   }
   // Téléphone : « Reprendre une œuvre » (onglet Importer, au-dessus de « Commencer une nouvelle œuvre »)
   // dès qu'il y a une autre œuvre enregistrée que celle en cours, ou la liste de l'administrateur ;
-  // il dévoile Mes œuvres (et Toutes les œuvres), sous les choix d'import, et y descend
+  // il descend jusqu'à Mes œuvres (et Toutes les œuvres), affichées sous les choix d'import
   let savedOthers = 0;
   function syncResumeSaved() {
     const b = $('resume-saved');
@@ -7305,7 +7305,6 @@ Réponds uniquement avec ce JSON :
   function revealSaved() {
     const sec = $('saved-section'), panel = document.querySelector('.panel');
     if (!sec) return;
-    sec.classList.add('reveal');
     if (sec._expand) sec._expand();
     requestAnimationFrame(() => {
       if (panel && panel.classList.contains('tabbed')) panel.scrollTo({ top: panel.scrollTop + sec.getBoundingClientRect().top - panel.getBoundingClientRect().top - 8, behavior: 'smooth' });
@@ -8100,7 +8099,7 @@ Réponds uniquement avec ce JSON :
 
   // Téléphone : le carnet est un tiroir à onglets sous l'œuvre ; un onglet par étape.
   // téléphone : pas d'onglet Exporter ; son contenu vit dans l'onglet Compte, sous le nom du compte
-  // (Mes œuvres : dans l'onglet Importer, sous les choix d'import, dévoilées par « Reprendre une œuvre »)
+  // (Mes œuvres : dans l'onglet Importer, sous les choix d'import ; « Reprendre une œuvre » y descend)
   const TAB_OF = { more: ['export-section'], 'import-section': ['import-section', 'saved-section'] };
   const TAB_ALIAS = { 'export-section': 'more' };
   let autoTall = false; // le tiroir a été agrandi par l'onglet Tailles (et non par un geste)
@@ -8122,7 +8121,6 @@ Réponds uniquement avec ce JSON :
     panel.classList.add('tabbed');
     panel.dataset.tab = id;
     tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
-    if ($('saved-section')) $('saved-section').classList.remove('reveal'); // (repliées à chaque passage dans l'onglet)
     const show = TAB_OF[id] || [id];
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const on = show.includes(sec.id);
