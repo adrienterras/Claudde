@@ -179,6 +179,8 @@
     "Œuvre encadrée en 40 × 50 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 40 × 50 cm, hung above the shelves of a child’s bedroom",
     "Œuvre encadrée en 50 × 70 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 50 × 70 cm, hung above the shelves of a child’s bedroom",
     "Œuvre encadrée en 70 × 100 cm, accrochée au-dessus des étagères d’une chambre d’enfant": "Framed artwork in 70 × 100 cm, hung above the shelves of a child’s bedroom",
+    "Avec ou sans passe-partout, au même prix : sans, l’œuvre remplit le cadre (un A4 dans le 21 × 30) ; avec, elle est imprimée à la taille en dessous (un A4 dans le 30 × 40, un 30 × 40 dans le 40 × 50, un 40 × 50 dans le 50 × 70, un 50 × 70 dans le 70 × 100).": "With or without a mount, at the same price: without, the artwork fills the frame (an A4 in the 21 × 30); with, it is printed one size down (an A4 in the 30 × 40, a 30 × 40 in the 40 × 50, a 40 × 50 in the 50 × 70, a 50 × 70 in the 70 × 100).",
+    "Chaque tableau imprimé est préparé à partir de vos scans relus en pleine définition : les traits restent nets, même en grand format. Autres tailles et formats beaux-arts sur demande.": "Every print is prepared from your scans re-read at full definition: the lines stay sharp, even in large formats. Other sizes and fine-art formats on request.",
     "Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque commande.": "Prices include VAT, delivery not included. The HD file is included with every order.",
     "Taille": "Size",
     "Papier premium, sans cadre": "Premium paper, unframed",

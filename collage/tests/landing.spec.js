@@ -329,10 +329,10 @@ test('Idées : ni calendrier, ni cartes, ni papier cadeau ; cinq idées', async 
   expect(await page.title()).toContain('5 idées');
 });
 
-// Tarifs, impressions : la livraison n'est pas comprise dans les prix (nulle part « incluse ») ; plus de
-// notes sous la grille, mais un visuel par taille (la même chambre, à la même échelle), qui défile de
+// Tarifs, impressions : la livraison n'est pas comprise dans les prix (nulle part « incluse ») ; sous la
+// grille, ses deux notes, côte à côte sur ordinateur, puis un visuel par taille (la même chambre, à la même échelle), qui défile de
 // côté sur téléphone sans faire défiler la page.
-test('Tarifs : livraison en supplément ; un visuel par taille sous la grille, sans notes', async ({ browser }) => {
+test('Tarifs : livraison en supplément ; sous la grille, ses deux notes (côte à côte sur ordinateur) et un visuel par taille', async ({ browser }) => {
   for (const opts of [PHONE, DESK]) {
     const ctx = await browser.newContext(opts);
     const page = await ctx.newPage();
@@ -340,8 +340,16 @@ test('Tarifs : livraison en supplément ; un visuel par taille sous la grille, s
     const text = await page.locator('body').innerText();
     expect(text).not.toMatch(/livraison[^.]*inclus|inclu[^.]*livraison/i);
     await expect(page.locator('#impressions > .wrap > p').first()).toHaveText('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque commande.');
-    await expect(page.locator('#impressions .note')).toHaveCount(0);
-    const figs = page.locator('#impressions table.grid-prices + .sizes figure');
+    const notes = page.locator('#impressions table.grid-prices + .notes .note');
+    await expect(notes).toHaveCount(2);
+    await expect(notes.first()).toContainText('Avec ou sans passe-partout');
+    if (opts === DESK) { // ordinateur : côte à côte, sur toute la largeur de la grille
+      const [a, b, g] = await Promise.all([notes.nth(0).boundingBox(), notes.nth(1).boundingBox(), page.locator('table.grid-prices').boundingBox()]);
+      expect(Math.abs(a.y - b.y)).toBeLessThan(2);
+      expect(a.x - g.x).toBeLessThan(2);
+      expect(g.x + g.width - (b.x + b.width)).toBeLessThan(2);
+    }
+    const figs = page.locator('#impressions .notes + .sizes figure');
     await expect(figs.locator('figcaption')).toHaveText(['21 × 30 cm', '30 × 40 cm', '40 × 50 cm', '50 × 70 cm', '70 × 100 cm']);
     for (const im of await figs.locator('img').all()) {
       await im.scrollIntoViewIfNeeded();
