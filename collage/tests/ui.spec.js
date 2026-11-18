@@ -55,15 +55,16 @@ test.describe('Interface', () => {
     expect(db.y).toBeLessThan(pb.y + 80);
   });
 
-  test('« Commencer une nouvelle œuvre » : au-dessus de « 01 Importer » sur ordinateur, en tête de l’étape Importer sur téléphone ; l’œuvre est rangée dans Mes œuvres, sans confirmation', async ({ app }) => {
+  test('« Commencer une nouvelle œuvre » : au-dessus de Mes œuvres sur ordinateur, en tête de l’étape Importer sur téléphone ; l’œuvre est rangée dans Mes œuvres, sans confirmation', async ({ app }) => {
     const { page } = app;
     await expect(page.locator('#new-work')).toBeHidden();
     await app.import(['page-cutout.png']);
     const btn = page.locator('#new-work');
     await expect(btn).toBeVisible();
     await expect(page.locator('#import-section')).toHaveClass(/collapsed/);
-    // au-dessus de l'étape Importer, sans défiler
-    const [b, imp] = await Promise.all([btn.boundingBox(), page.locator('#import-section').boundingBox()]);
+    // en tête de la colonne, au-dessus de Mes œuvres (et de l'étape Importer), sans défiler
+    const [b, mine, imp] = await Promise.all([btn.boundingBox(), page.locator('#saved-section').boundingBox(), page.locator('#import-section').boundingBox()]);
+    expect(b.y).toBeLessThan(mine.y);
     expect(b.y).toBeLessThan(imp.y);
     expect(b.y + b.height).toBeLessThan(page.viewportSize().height);
     // sur téléphone : en tête de l'étape Importer, juste sous son titre (sous les onglets)
@@ -72,7 +73,7 @@ test.describe('Interface', () => {
     // (juste au-dessus, « Reprendre une œuvre », caché tant qu'aucune autre œuvre n'est enregistrée)
     await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'), r = document.getElementById('resume-saved'), s = document.getElementById('import-section'); return s.contains(b) && s.querySelector('h2').nextElementSibling === r && r.nextElementSibling === b; })).toBe(true);
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await expect.poll(() => page.evaluate(() => document.getElementById('import-section').previousElementSibling === document.getElementById('new-work'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => { const b = document.getElementById('new-work'); return document.getElementById('saved-section').previousElementSibling === b && b.previousElementSibling === document.getElementById('resume-saved'); })).toBe(true);
     // rien ne se perd : pas de confirmation, l'atelier repart de zéro et l'œuvre reste dans Mes œuvres
     page.once('dialog', (d) => { d.dismiss(); throw new Error(`boîte de dialogue inattendue : ${d.message()}`); });
     await btn.click();
@@ -512,6 +513,33 @@ test.describe('Téléphone, reprendre une œuvre', () => {
     await p.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
     await expect(p.locator('#saved-section')).toBeVisible();
+    await ctx.close();
+  });
+
+  test('ordinateur : « Reprendre une œuvre » au-dessus de « Commencer une nouvelle œuvre », en tête de la colonne ; il déplie Mes œuvres', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html');
+    await p.waitForFunction(() => window.AtelierGribouille);
+    await p.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(p.locator('#resume-saved')).toBeHidden(); // (seule l'œuvre en cours)
+    await waitDraft(p);
+    await p.locator('#new-work').click();
+    await p.setInputFiles('#file', [fixture('page-two.png')]);
+    await p.waitForFunction(() => AtelierGribouille.state.drawings.length && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const resume = p.locator('#resume-saved');
+    await expect(resume).toBeVisible({ timeout: 20000 });
+    const [r, n, mine] = await Promise.all([resume.boundingBox(), p.locator('#new-work').boundingBox(), p.locator('#saved-section').boundingBox()]);
+    expect(r.y + r.height).toBeLessThanOrEqual(n.y);
+    expect(n.y + n.height).toBeLessThanOrEqual(mine.y);
+    // Mes œuvres est repliée ; le bouton la déplie
+    await expect(p.locator('#saved-section')).toHaveClass(/collapsed/);
+    await resume.click();
+    await expect(p.locator('#saved-section')).not.toHaveClass(/collapsed/);
+    await expect(p.locator('#saved-list .saved').first()).toBeVisible();
     await ctx.close();
   });
 });

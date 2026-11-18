@@ -131,7 +131,7 @@
     td.hl { background: var(--accent-soft); font-weight: 600; }
     .note { margin: 14px 0 0; font-size: .82rem; color: var(--muted); max-width: 70ch; }
     @media (min-width: 901px) {
-      .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 18px; }
+      .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 22px; }
       .notes .note { margin: 0; max-width: none; font-size: .86rem; line-height: 1.6; padding-left: 14px; border-left: 2px solid var(--line); }
     }
     .sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 24px; }
@@ -320,11 +320,6 @@
             <tr><td>70 × 100 cm</td><td class="p">89 €</td><td class="p">199 €</td></tr>
           </tbody>
         </table>
-        <!-- sur ordinateur, les deux notes côte à côte sur toute la largeur de la grille ; sur téléphone, l'une sous l'autre -->
-        <div class="notes">
-          <p class="note">Avec ou sans passe-partout, au même prix : sans, l’œuvre remplit le cadre (un A4 dans le 21 × 30) ; avec, elle est imprimée à la taille en dessous (un A4 dans le 30 × 40, un 30 × 40 dans le 40 × 50, un 40 × 50 dans le 50 × 70, un 50 × 70 dans le 70 × 100).</p>
-          <p class="note">Chaque tableau imprimé est préparé à partir de vos scans relus en pleine définition : les traits restent nets, même en grand format. Autres tailles et formats beaux-arts sur demande.</p>
-        </div>
         <!-- un visuel par taille : la même chambre, à la même échelle, pour se figurer chaque format -->
         <div class="sizes">
           <figure><img src="img/taille-21x30.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 21 × 30 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>21 × 30 cm</figcaption></figure>
@@ -332,6 +327,11 @@
           <figure><img src="img/taille-40x50.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 40 × 50 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>40 × 50 cm</figcaption></figure>
           <figure><img src="img/taille-50x70.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 50 × 70 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>50 × 70 cm</figcaption></figure>
           <figure><img src="img/taille-70x100.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 70 × 100 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>70 × 100 cm</figcaption></figure>
+        </div>
+        <!-- sous les visuels ; sur ordinateur, les deux notes côte à côte sur toute la largeur de la grille ; sur téléphone, l'une sous l'autre -->
+        <div class="notes">
+          <p class="note">Avec ou sans passe-partout, au même prix : sans, l’œuvre remplit le cadre (un A4 dans le 21 × 30) ; avec, elle est imprimée à la taille en dessous (un A4 dans le 30 × 40, un 30 × 40 dans le 40 × 50, un 40 × 50 dans le 50 × 70, un 50 × 70 dans le 70 × 100).</p>
+          <p class="note">Chaque tableau imprimé est préparé à partir de vos scans relus en pleine définition : les traits restent nets, même en grand format. Autres tailles et formats beaux-arts sur demande.</p>
         </div>
       </div>
     </section>

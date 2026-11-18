@@ -330,9 +330,9 @@ test('Idées : ni calendrier, ni cartes, ni papier cadeau ; cinq idées', async 
 });
 
 // Tarifs, impressions : la livraison n'est pas comprise dans les prix (nulle part « incluse ») ; sous la
-// grille, ses deux notes, côte à côte sur ordinateur, puis un visuel par taille (la même chambre, à la même échelle), qui défile de
+// grille, un visuel par taille, puis ses deux notes, côte à côte sur ordinateur (la même chambre, à la même échelle), qui défile de
 // côté sur téléphone sans faire défiler la page.
-test('Tarifs : livraison en supplément ; sous la grille, ses deux notes (côte à côte sur ordinateur) et un visuel par taille', async ({ browser }) => {
+test('Tarifs : livraison en supplément ; sous la grille, un visuel par taille, puis ses deux notes (côte à côte sur ordinateur)', async ({ browser }) => {
   for (const opts of [PHONE, DESK]) {
     const ctx = await browser.newContext(opts);
     const page = await ctx.newPage();
@@ -340,7 +340,7 @@ test('Tarifs : livraison en supplément ; sous la grille, ses deux notes (côte 
     const text = await page.locator('body').innerText();
     expect(text).not.toMatch(/livraison[^.]*inclus|inclu[^.]*livraison/i);
     await expect(page.locator('#impressions > .wrap > p').first()).toHaveText('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque commande.');
-    const notes = page.locator('#impressions table.grid-prices + .notes .note');
+    const notes = page.locator('#impressions .sizes + .notes .note');
     await expect(notes).toHaveCount(2);
     await expect(notes.first()).toContainText('Avec ou sans passe-partout');
     if (opts === DESK) { // ordinateur : côte à côte, sur toute la largeur de la grille
@@ -349,7 +349,7 @@ test('Tarifs : livraison en supplément ; sous la grille, ses deux notes (côte 
       expect(a.x - g.x).toBeLessThan(2);
       expect(g.x + g.width - (b.x + b.width)).toBeLessThan(2);
     }
-    const figs = page.locator('#impressions .notes + .sizes figure');
+    const figs = page.locator('#impressions table.grid-prices + .sizes figure');
     await expect(figs.locator('figcaption')).toHaveText(['21 × 30 cm', '30 × 40 cm', '40 × 50 cm', '50 × 70 cm', '70 × 100 cm']);
     for (const im of await figs.locator('img').all()) {
       await im.scrollIntoViewIfNeeded();

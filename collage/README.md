@@ -154,7 +154,8 @@ cd collage && python3 -m http.server 8000
    une nouvelle œuvre », paraît dès qu'une autre œuvre que celle en cours est enregistrée (ou pour
    l'administrateur), et descend jusqu'à Mes œuvres — avec Toutes les œuvres de l'administrateur —,
    toujours affichées sous les choix d'import (`revealSaved`, `syncResumeSaved`) ; pas de « Mes
-   exports » sur téléphone —, où l'import ouvre
+   exports » sur téléphone ; sur ordinateur, les deux mêmes boutons sont en tête de la colonne,
+   au-dessus de Mes œuvres, et « Reprendre une œuvre » la déplie (`placeNewWork`) —, où l'import ouvre
    l'onglet Propositions pour un tableau imprimé et Tailles pour un collage ; section Dessins : les vignettes (l'image seule, sans pastille de taille, de photo ni de qualité : tout est dans la fiche) y sont groupées par type — *Arrière-plan* les fonds,
    *Premier plan* les découpes, *Non utilisé* les ignorés, les découpes que la proposition affichée ne
    pose pas (curseur « Nombre de dessins » baissé, style qui ne retient qu'une sélection : listées là

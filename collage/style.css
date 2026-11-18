@@ -955,8 +955,8 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
    fractionnaire (268,5 px) laissait voir un trait du fond beige sous la photo */
 .scene-canvas { position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); display: block; }
 /* téléphone : la loupe, dans l'angle de la photo, ouvre la mise en scène en plein écran (voir openSceneZoom) */
-/* « Reprendre une œuvre » : téléphone seulement (sur ordinateur, Mes œuvres est en tête de la colonne) */
-@media (min-width: 861px) { .resume-saved { display: none !important; } }
+/* « Reprendre une œuvre » : sur ordinateur aussi, en tête de la colonne, avec « Commencer une nouvelle œuvre » */
+@media (min-width: 861px) { .resume-saved + .new-work { margin-top: 6px; } }
 .scene-zoom-open { position: absolute; right: 8px; bottom: 8px; width: 38px; height: 38px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(255, 255, 255, 0.88); color: #2b2420; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); cursor: zoom-in; }
 .scene-zoom-open .ico { width: 20px; height: 20px; }
 @media (min-width: 861px) { .scene-zoom-open { display: none; } }

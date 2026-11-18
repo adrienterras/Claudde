@@ -5595,14 +5595,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   placeScene();
   mobileQuery.addEventListener('change', placeScene);
-  // « Commencer une nouvelle œuvre » : sur ordinateur, au-dessus du titre « 01 Importer » ; sur
-  // téléphone, en tête de l'étape Importer (juste sous son titre)
+  // « Commencer une nouvelle œuvre » : sur ordinateur, en tête de la colonne, au-dessus de Mes œuvres ;
+  // sur téléphone, en tête de l'étape Importer (juste sous son titre)
   function placeNewWork() {
-    const btn = $('new-work'), sec = $('import-section'), head = sec && sec.querySelector('h2');
+    const btn = $('new-work'), sec = $('import-section'), head = sec && sec.querySelector('h2'), saved = $('saved-section');
     if (!btn || !sec) return;
     if (mobileQuery.matches) { if (head && head.nextElementSibling !== btn) head.after(btn); }
-    else if (sec.previousElementSibling !== btn) sec.before(btn);
-    // (« Reprendre une œuvre », téléphone seulement : juste au-dessus)
+    else if (saved && saved.previousElementSibling !== btn) saved.before(btn);
+    // (« Reprendre une œuvre » : juste au-dessus, sur téléphone comme sur ordinateur)
     const resume = $('resume-saved');
     if (resume && btn.previousElementSibling !== resume) btn.before(resume);
   }
@@ -7300,9 +7300,10 @@ Réponds uniquement avec ce JSON :
       drawSaved(await readLocals()); // (toujours : une liste dessinée entre-temps n'avait pas la réponse du compte)
     }
   }
-  // Téléphone : « Reprendre une œuvre » (onglet Importer, au-dessus de « Commencer une nouvelle œuvre »)
-  // dès qu'il y a une autre œuvre enregistrée que celle en cours, ou la liste de l'administrateur ;
-  // il descend jusqu'à Mes œuvres (et Toutes les œuvres), affichées sous les choix d'import
+  // « Reprendre une œuvre » (au-dessus de « Commencer une nouvelle œuvre ») dès qu'il y a une autre œuvre
+  // enregistrée que celle en cours, ou la liste de l'administrateur. Téléphone : il descend jusqu'à
+  // Mes œuvres (et Toutes les œuvres), affichées sous les choix d'import ; ordinateur : il déplie
+  // Mes œuvres, juste en dessous
   let savedOthers = 0;
   function syncResumeSaved() {
     const b = $('resume-saved');
