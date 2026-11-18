@@ -299,6 +299,12 @@ test.describe('Interface', () => {
       const seed = await page2.evaluate(() => AtelierGribouille.state.seed);
       await page2.locator('#stage-generate').click();
       await page2.waitForFunction((s0) => AtelierGribouille.state.seed !== s0, seed);
+      // un clic suffit : la note et sa flèche disparaissent, et ne reviennent pas au rechargement
+      await expect(hint).toBeHidden();
+      await page2.reload();
+      await page2.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
+      await expect(page2.locator('#stage-generate')).toBeVisible();
+      await expect(hint).toBeHidden();
       await ctx2.close();
     }
   });

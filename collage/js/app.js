@@ -3088,7 +3088,7 @@
     $('toolbar').hidden = !state.comp;
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
     if ($('stage-generate')) $('stage-generate').hidden = !state.comp; // (le bouton rond « Nouvelles propositions »)
-    if ($('gen-hint')) $('gen-hint').hidden = !state.comp; // (ordinateur : sa note écrite à la main)
+    if ($('gen-hint')) $('gen-hint').hidden = !state.comp || lsGet('atelier.gen-hint') === 'vu'; // (ordinateur : sa note écrite à la main, jusqu'au premier clic)
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;
@@ -5961,7 +5961,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   // téléphone : le bouton rond dans l'angle de l'œuvre fait la même chose
-  if ($('stage-generate')) $('stage-generate').onclick = () => $('generate').click();
+  if ($('stage-generate')) $('stage-generate').onclick = () => {
+    lsSet('atelier.gen-hint', 'vu'); // la note et sa flèche ont fait leur travail : elles ne reviennent plus
+    if ($('gen-hint')) $('gen-hint').hidden = true;
+    $('generate').click();
+  };
   $('density').addEventListener('change', () => { state.pinned = null; regenerate(); });
   // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose
   $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));

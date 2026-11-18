@@ -759,7 +759,8 @@ cd collage && python3 -m http.server 8000
      (sans son libellé sous 1240 px de large, pour ne pas passer sous la barre de zoom), montré par une
      note écrite à la main, « Cliquez pour générer de nouvelles propositions », avec une flèche, dans le
      fond de la zone d'édition — l'œuvre passe devant (`#gen-hint`, police Caveat servie par le site,
-     `fonts/caveat-*.woff2`, licence OFL) ;
+     `fonts/caveat-*.woff2`, licence OFL) ; la flèche descend en s'arrondissant vers le haut à gauche, et
+     la note disparaît pour de bon au premier clic sur le bouton (`atelier.gen-hint` = `vu`) ;
    - **couleur du fond** : le nuancier (`#ground`) est juste sous « Nouvelles propositions » sur
      ordinateur, et le dernier bloc de l'onglet Propositions sur téléphone (`placeGround`, hors des
      réglages avancés), et une pastille de la couleur actuelle, en tête de la barre de zoom
