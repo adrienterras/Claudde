@@ -580,9 +580,12 @@
     // les fichiers d'abord, et seulement s'ils sont bien effacés la fiche : sinon (réseau coupé…) les
     // dessins resteraient stockés alors que l'œuvre aurait disparu ; l'erreur remonte, l'œuvre reste
     // dans la liste et la suppression peut être relancée
-    const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);
+    // (la fiche et la liste des fichiers : demandées en même temps)
+    const [{ data: rows, error: e0 }, { data: files, error: e1 }] = await Promise.all([
+      client.from('compositions').select('id, meta').eq('id', id),
+      store.list(base, { limit: 1000 }),
+    ]);
     err(e0);
-    const { data: files, error: e1 } = await store.list(base, { limit: 1000 });
     err(e1);
     const paths = new Set((files || []).map((f) => `${base}/${f.name}`));
     pathsOf(((rows || [])[0] || {}).meta).forEach((p) => paths.add(p)); // (ancien brouillon : un autre dossier)

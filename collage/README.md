@@ -467,7 +467,10 @@ cd collage && python3 -m http.server 8000
      (`#saved-full`) et le statut de l'œuvre demandent d'en supprimer ; dès qu'une suppression fait
      de la place, elle part. « Nouvelle œuvre » ou l'ouverture d'une autre
      œuvre range celle affichée (`shelveCurrent`) ; une œuvre ne s'efface que par la corbeille de la
-     liste (en deux temps), dans ce navigateur et dans le compte ; le crayon de la liste **renomme**
+     liste (en deux temps), dans ce navigateur et dans le compte — la ligne part tout de suite ;
+     l'effacement dans le compte (fiche et fichiers lus en même temps, puis effacés) et le ménage des
+     images se font ensuite sans faire attendre, et l'œuvre revient dans la liste, avec le message, s'il
+     échoue (`deleteWork`) ; le crayon de la liste **renomme**
      l'œuvre (`renameWork` : un champ à la place du nom, Entrée ou un clic ailleurs valide, Échap
      annule) dans ce navigateur, dans le compte (`cloud.rename`) et, pour l'œuvre affichée, son
      titre. Chaque œuvre garde les dessins

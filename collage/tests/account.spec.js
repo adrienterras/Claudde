@@ -362,10 +362,19 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload').length)).toBe(0);
     expect(await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, w1)).toBe(t1);
+    // un effacement dans le compte qui échoue : l'œuvre disparaît d'abord de la liste, puis y revient avec le message
+    await page.evaluate(() => { window.__delReal = window.Account.cloud.del; window.Account.cloud.del = () => new Promise((_, ko) => setTimeout(() => ko(new Error('réseau coupé')), 800)); });
+    const nonCurrent = page.locator('#saved-list .saved:not(.current) .saved-del');
+    await nonCurrent.click(); await nonCurrent.click();
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1, { timeout: 500 });
+    await expect(page.locator('#saved-status')).toContainText('réseau coupé');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    // un compte lent : la ligne part tout de suite, sans attendre le serveur
+    await page.evaluate(() => { const real = window.__delReal; window.Account.cloud.del = (id) => new Promise((res) => setTimeout(res, 2500)).then(() => real(id)); });
     // supprimée : sa ligne et ses fichiers partent du compte, l'autre reste
     await page.locator('#saved-list .saved.current .saved-del').click();
     await page.locator('#saved-list .saved.current .saved-del').click();
-    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1, { timeout: 1500 });
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.map((r) => r.id))).toEqual([w2]);
     const files = await page.evaluate(() => Object.keys(window.__fake.db.files).map((p) => p.split('/')[1]));
     expect(files.length).toBeGreaterThan(0);

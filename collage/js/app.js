@@ -7384,6 +7384,7 @@ Réponds uniquement avec ce JSON :
     del.onclick = async (ev) => {
       ev.stopPropagation();
       if (!del.classList.contains('confirm')) { del.classList.add('confirm'); del.innerHTML = tr('Supprimer ?'); setTimeout(() => { del.classList.remove('confirm'); del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>'; }, 4000); return; }
+      el.hidden = true; // (la ligne part tout de suite ; la liste est refaite dès l'effacement sur l'appareil)
       await deleteWork(e);
     };
     const open = () => openWork(e, el);
@@ -7413,8 +7414,13 @@ Réponds uniquement avec ce JSON :
     } catch (err) { console.error(err); savedStatus(tr`Impossible de renommer : ${err.message}`); }
     renderSaved();
   }
-  // supprimée partout : dans ce navigateur et dans le compte ; l'œuvre affichée laisse la place à une nouvelle
+  // supprimée partout : dans ce navigateur et dans le compte ; l'œuvre affichée laisse la place à une nouvelle.
+  // La liste suit tout de suite (la ligne disparaît au clic) ; l'effacement dans le compte (plusieurs
+  // allers-retours avec le serveur) et le ménage des images se font ensuite, sans faire attendre ; s'il
+  // échoue, l'œuvre revient dans la liste avec le message.
   async function deleteWork(e) {
+    const removed = (cloudWorks || []).filter((c) => c.workId === e.workId);
+    if (cloudWorks) cloudWorks = cloudWorks.filter((c) => c.workId !== e.workId);
     try {
       if (e.current) {
         await startOver({ discard: true });
@@ -7424,15 +7430,22 @@ Réponds uniquement avec ce JSON :
       if (draft && draft.workId === e.workId) await dbDel(DRAFT_ID);
       if (e.local && e.local.id !== DRAFT_ID) await dbDel(e.local.id);
       await dbDel(e.workId).catch(() => {});
-      if (e.cloud && signedIn()) { await window.Account.cloud.del(e.cloud.id); cloudWorks = (cloudWorks || []).filter((c) => c.workId !== e.workId); }
       if (pendingCloud && pendingCloud.workId === e.workId) pendingCloud = null;
       for (let i = cloudQueue.length - 1; i >= 0; i--) if (cloudQueue[i].workId === e.workId) cloudQueue.splice(i, 1);
       setSeen(e.workId, null);
-      await pruneFiles();
-      // de la place dans le compte : l'œuvre qui attendait y part
-      if (cloudFull && signedIn()) scheduleCloudSync(300);
     } catch (err) { console.error(err); savedStatus(tr`Suppression impossible : ${err.message}`); }
     renderSaved();
+    try {
+      if (e.cloud && signedIn()) await window.Account.cloud.del(e.cloud.id);
+      // de la place dans le compte : l'œuvre qui attendait y part
+      if (cloudFull && signedIn()) scheduleCloudSync(300);
+    } catch (err) {
+      console.error(err);
+      if (removed.length) cloudWorks = (cloudWorks || []).concat(removed.filter((c) => !(cloudWorks || []).some((x) => x.workId === c.workId)));
+      savedStatus(tr`Suppression impossible : ${err.message}`);
+      renderSaved();
+    }
+    pruneFiles().catch((err) => console.warn('ménage des images', err));
   }
 
   /*
