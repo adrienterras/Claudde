@@ -745,12 +745,12 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 }
 @media (min-width: 861px) {
   .gen-hint:not([hidden]) {
-    display: block; position: absolute; left: 78px; bottom: 112px; width: 190px; pointer-events: none; user-select: none;
+    display: block; position: absolute; left: 78px; bottom: 132px; width: 190px; pointer-events: none; user-select: none;
     font-family: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive; font-weight: 500; font-size: 1.32rem; line-height: 1.05;
     color: var(--muted); transform: rotate(-4deg); transform-origin: left bottom;
   }
   .gen-hint span { display: block; }
-  .gen-hint-arrow { display: block; width: 62px; height: 48px; margin: 2px 0 0 -44px; } /* la pointe au-dessus du centre du bouton */
+  .gen-hint-arrow { display: block; width: 62px; height: 48px; margin: 2px 0 0 -44px; } /* la pointe au-dessus du centre du bouton, sans le toucher */
 }
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;

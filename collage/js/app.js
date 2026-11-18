@@ -5961,11 +5961,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('ground-pop').hidden) setGroundPop(false); });
   $('generate').onclick = () => { state.seed = (Math.random() * 1e9) | 0; state.sceneLayout = null; state.pinned = null; regenerate(); if (state.proposals[state.active].style.id === 'scene') analyseForScene(); };
   // téléphone : le bouton rond dans l'angle de l'œuvre fait la même chose
-  if ($('stage-generate')) $('stage-generate').onclick = () => {
-    lsSet('atelier.gen-hint', 'vu'); // la note et sa flèche ont fait leur travail : elles ne reviennent plus
+  if ($('stage-generate')) $('stage-generate').onclick = () => $('generate').click();
+  // la note écrite à la main et sa flèche ont fait leur travail au premier clic sur « Nouvelles
+  // propositions » (le bouton rond ou celui du panneau) : elles ne reviennent plus, même après
+  // actualisation de la page
+  $('generate').addEventListener('click', () => {
+    lsSet('atelier.gen-hint', 'vu');
     if ($('gen-hint')) $('gen-hint').hidden = true;
-    $('generate').click();
-  };
+  });
   $('density').addEventListener('change', () => { state.pinned = null; regenerate(); });
   // le cadre (Impression) garde l'œuvre telle quelle à la nouvelle taille ; la toile (Toile) recompose
   $('format').addEventListener('change', () => keepPrintComp(() => { state.formatManual = true; }, 'fit'));
@@ -6383,7 +6386,7 @@ Réponds uniquement avec ce JSON :
    * message en avis.
    */
   const WIPED_KEY = 'atelier-gribouille:appareil-efface';
-  const KEEP_PREFS = /^(atelier\.(mode|passe-partout|finition|piece|cadre|marge|flash|conseil-photo-vu|collapsed)|atelier-gribouille:(lang|lang-offer))$/;
+  const KEEP_PREFS = /^(atelier\.(mode|passe-partout|finition|piece|cadre|marge|flash|conseil-photo-vu|collapsed|gen-hint)|atelier-gribouille:(lang|lang-offer))$/;
   async function clearDevice(message) {
     state.wiping = true;
     clearTimeout(draftTimer);

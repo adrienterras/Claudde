@@ -295,7 +295,7 @@ test.describe('Interface', () => {
       // dans le fond : l'œuvre (le canevas) passe devant
       expect(await page2.evaluate(() => { const h = document.getElementById('gen-hint'), c = document.getElementById('canvas'); return !!(h.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(h).zIndex === 'auto'; })).toBe(true);
       const hb = await hint.boundingBox();
-      expect(hb.y + hb.height).toBeLessThanOrEqual(fab.y + 6); // la note (et sa flèche) au-dessus du bouton
+      expect(hb.y + hb.height).toBeLessThanOrEqual(fab.y - 8); // la note (et sa flèche) au-dessus du bouton, sans le toucher
       const seed = await page2.evaluate(() => AtelierGribouille.state.seed);
       await page2.locator('#stage-generate').click();
       await page2.waitForFunction((s0) => AtelierGribouille.state.seed !== s0, seed);
@@ -305,6 +305,12 @@ test.describe('Interface', () => {
       await page2.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 60000 });
       await expect(page2.locator('#stage-generate')).toBeVisible();
       await expect(hint).toBeHidden();
+      // le bouton « Nouvelles propositions » du panneau compte aussi
+      await page2.evaluate(() => { localStorage.removeItem('atelier.gen-hint'); document.getElementById('gen-hint').hidden = false; });
+      await expect(hint).toBeVisible();
+      await page2.evaluate(() => document.getElementById('generate').dispatchEvent(new MouseEvent('click', { bubbles: true })));
+      await expect(hint).toBeHidden();
+      expect(await page2.evaluate(() => localStorage.getItem('atelier.gen-hint'))).toBe('vu');
       await ctx2.close();
     }
   });
