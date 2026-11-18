@@ -215,6 +215,7 @@ body.has-lang-offer { grid-template-rows: auto minmax(0, 1fr); }
 .resume-card { text-align: center; }
 .resume-card .resume-text, .resume-card .resume-note { margin: 0; }
 .resume-card .resume-note { font-size: 0.74rem; }
+.del-drawing-thumb { display: block; width: 96px; height: 96px; margin: 0 auto; object-fit: contain; border-radius: var(--r-sm); background: var(--surface-2); }
 .resume-card .camera-advice-skip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .resume-card .camera-advice-skip input { margin: 0; accent-color: var(--accent); }
 .resume-thumb { margin: 0; }

@@ -568,6 +568,18 @@
     </div>
   </section>
 
+  <!-- corbeille d'un dessin de « Non utilisé » : confirmation avant de le supprimer de l'atelier -->
+  <section id="del-drawing" class="account-modal resume-modal" hidden role="dialog" aria-modal="true" aria-labelledby="del-drawing-title">
+    <div class="acc-card resume-card">
+      <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>
+      <h2 id="del-drawing-title" class="acc-title">Supprimer ce dessin ?</h2>
+      <img id="del-drawing-thumb" class="del-drawing-thumb" alt="">
+      <p class="resume-text" id="del-drawing-text"></p>
+      <button type="button" id="del-drawing-ok" class="btn btn-danger confirm">Supprimer le dessin</button>
+      <button type="button" class="btn" data-close>Annuler</button>
+    </div>
+  </section>
+
   <section id="camera-advice" class="account-modal resume-modal" hidden role="dialog" aria-modal="true" aria-labelledby="camera-advice-title">
     <div class="acc-card resume-card">
       <button type="button" class="acc-close" data-close aria-label="Fermer">×</button>

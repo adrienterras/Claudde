@@ -473,7 +473,7 @@ test.describe('Compositions', () => {
     const prevented = await page.evaluate(() => [document.querySelector('#drawings .thumb img'), document.querySelector('#drawings .thumb')].map((el) => { const ev = new DragEvent('dragstart', { bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev.defaultPrevented; }));
     expect(prevented).toEqual([true, true]);
   });
-  test('la corbeille d’un dessin de « Non utilisé » le supprime de l’atelier ; l’œuvre affichée ne bouge pas', async ({ app }) => {
+  test('la corbeille d’un dessin de « Non utilisé » le supprime de l’atelier, après confirmation ; l’œuvre affichée ne bouge pas', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
@@ -488,7 +488,17 @@ test.describe('Compositions', () => {
     await expect(page.locator('#drawings .drawings-group.off .thumb-del')).toHaveCount(1);
     const before = await page.evaluate((k) => { const S = AtelierGribouille.state; return { n: S.drawings.length, name: S.drawings[k].name, items: S.comp.items.map((L) => [L.piece.drawing.name, +L.x.toFixed(3), +L.y.toFixed(3)]), comp: S.comp }; }, k);
     const compBefore = await page.evaluateHandle(() => AtelierGribouille.state.comp);
+    // une confirmation d'abord : « Annuler » ne supprime rien
     await page.locator('#drawings .thumb-del').click();
+    await expect(page.locator('#del-drawing')).toBeVisible();
+    await expect(page.locator('#del-drawing-text')).toContainText(before.name);
+    await page.locator('#del-drawing [data-close]').last().click();
+    await expect(page.locator('#del-drawing')).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(before.n);
+    // puis « Supprimer le dessin »
+    await page.locator('#drawings .thumb-del').click();
+    await page.locator('#del-drawing-ok').click();
+    await expect(page.locator('#del-drawing')).toBeHidden();
     const after = await page.evaluate(() => { const S = AtelierGribouille.state; return { n: S.drawings.length, names: S.drawings.map((d) => d.name), items: S.comp.items.map((L) => [L.piece.drawing.name, +L.x.toFixed(3), +L.y.toFixed(3)]), inProposals: S.proposals.some((p) => p.comp.items.some((L) => !S.drawings.includes(L.piece.drawing))) }; });
     expect(after.n).toBe(before.n - 1);
     expect(after.names).not.toContain(before.name);

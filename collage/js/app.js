@@ -1692,7 +1692,7 @@
           del.title = tr('Supprimer ce dessin de l’atelier');
           del.setAttribute('aria-label', tr`Supprimer « ${d.name} » de l’atelier`);
           del.innerHTML = '<svg class="ico"><use href="#i-trash"/></svg>';
-          del.onclick = () => deleteDrawing(d);
+          del.onclick = () => askDeleteDrawing(d);
           item.appendChild(del);
         }
       }
@@ -4423,6 +4423,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
   // Corbeille d'un dessin de « Non utilisé » : il quitte l'atelier (liste, propositions, brouillon) ;
   // l'œuvre affichée ne bouge pas. (Le dernier dessin de l'atelier n'a pas de corbeille.)
+  // (une confirmation d'abord : la suppression ne se défait pas)
+  function askDeleteDrawing(d) {
+    const m = $('del-drawing');
+    $('del-drawing-thumb').src = thumbFor(d);
+    $('del-drawing-text').textContent = tr`« ${d.name} » sera retiré de l’atelier. Cette action est définitive.`;
+    $('del-drawing-ok').onclick = () => { closeModal(m); deleteDrawing(d); };
+    openModal(m);
+  }
   function deleteDrawing(d) {
     const i = state.drawings.indexOf(d);
     if (i < 0 || state.drawings.length < 2) return;
@@ -8404,7 +8412,7 @@ Réponds uniquement avec ce JSON :
   })();
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
   const closeModal = (el) => { el.hidden = true; };
-  ['cart-add', 'cart', 'shortcuts', 'camera-advice'].forEach((id) => { // (le conseil photo se ferme aussi sans ouvrir l'appareil)
+  ['cart-add', 'cart', 'shortcuts', 'camera-advice', 'del-drawing'].forEach((id) => { // (le conseil photo se ferme aussi sans ouvrir l'appareil)
     const el = $(id);
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
     el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
