@@ -178,7 +178,7 @@
     'Votre panier': 'Your cart',
     'Votre panier est vide. Ajoutez une proposition depuis l’onglet Propositions ou l’étape Exporter.': 'Your cart is empty. Add a proposal from the Proposals tab or the Export step.',
     'Total TTC': 'Total incl. VAT',
-    'Prix TTC, livraison standard incluse en France métropolitaine. Le fichier HD est inclus avec chaque tableau imprimé.': 'Prices include VAT and standard delivery in mainland France. The HD file is included with every print.',
+    'Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.': 'Prices include VAT, delivery not included. The HD file is included with every print.',
     'Commander': 'Order',
     'Continuer mes créations': 'Keep creating',
     'Produit': 'Product',

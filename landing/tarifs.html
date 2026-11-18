@@ -130,6 +130,10 @@
     td.p { font-family: var(--f-display); font-size: 1.25rem; white-space: nowrap; }
     td.hl { background: var(--accent-soft); font-weight: 600; }
     .note { margin: 14px 0 0; font-size: .82rem; color: var(--muted); max-width: 70ch; }
+    .sizes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 24px; }
+    .sizes figure { margin: 0; }
+    .sizes img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+    .sizes figcaption { margin-top: 8px; font-size: .88rem; color: var(--ink-2); }
     .faq { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px 32px; }
     .faq h3 { margin: 0 0 6px; font-family: var(--f-display); font-weight: 400; font-size: 1.15rem; }
     .faq p { margin: 0; color: var(--ink-2); font-size: .93rem; }
@@ -147,6 +151,9 @@
       .grid-prices th, .grid-prices td { padding: 10px 7px; }
       .grid-prices th { font-size: .6rem; letter-spacing: .06em; }
       .grid-prices td.p { font-size: 1.02rem; }
+      /* téléphone : les visuels défilent de côté, dans leur bande, l'un après l'autre */
+      .sizes { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+      .sizes figure { scroll-snap-align: start; }
     }
     /* ---- l'en-tête, comme sur l'accueil : compte, menu à trois traits sur téléphone (menu.js), choix
        de langue flottant en bas à droite ---- */
@@ -272,7 +279,7 @@
           <p class="price">129 €</p>
           <ul>
             <li>Affiche premium encadrée, prête à accrocher</li>
-            <li>Livraison standard incluse en France métropolitaine</li>
+            <li>Livraison en France métropolitaine, en supplément</li>
             <li>Le fichier HD offert avec chaque commande</li>
           </ul>
           <p class="muted">Aussi en 21 × 30, 30 × 40, 40 × 50 et 70 × 100, sur papier seul ou encadré : grille ci-dessous.</p>
@@ -286,7 +293,7 @@
           <ul>
             <li>Le guide personnalisé imprimé et les gabarits de découpe à l’échelle : 45 €</li>
             <li>Au choix : la toile vierge sur châssis à la taille de l’œuvre (dès 17 €), la colle et le vernis (11 €), les pinceaux (6 €)</li>
-            <li>Vous découpez et collez vos dessins originaux, livraison incluse</li>
+            <li>Vous découpez et collez vos dessins originaux</li>
           </ul>
           <p class="muted">Guide seul, en PDF avec le fichier HD : 29 €.</p>
           <a class="btn btn-ghost" href="atelier/?mode=toile" target="_blank" rel="noopener">Commander le kit</a>
@@ -298,7 +305,7 @@
     <section class="block" id="impressions">
       <div class="wrap">
         <h2>Imprimée et livrée chez vous</h2>
-        <p>Prix TTC, livraison standard incluse en France métropolitaine. Le fichier HD est inclus avec chaque commande.</p>
+        <p>Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque commande.</p>
         <table class="grid-prices">
           <thead><tr><th>Taille</th><th>Papier premium, sans cadre</th><th>Encadré, prêt à accrocher</th></tr></thead>
           <tbody>
@@ -309,8 +316,13 @@
             <tr><td>70 × 100 cm</td><td class="p">89 €</td><td class="p">199 €</td></tr>
           </tbody>
         </table>
-        <p class="note">Avec ou sans passe-partout, au même prix : sans, l’œuvre remplit le cadre (un A4 dans le 21 × 30) ; avec, elle est imprimée à la taille en dessous (un A4 dans le 30 × 40, un 30 × 40 dans le 40 × 50, un 40 × 50 dans le 50 × 70, un 50 × 70 dans le 70 × 100).</p>
-        <p class="note">Chaque tableau imprimé est préparé à partir de vos scans relus en pleine définition : les traits restent nets, même en grand format. Autres tailles et formats beaux-arts sur demande.</p>
+        <!-- un visuel par taille : la même chambre, à la même échelle, pour se figurer chaque format -->
+        <div class="sizes">
+          <figure><img src="img/taille-21x30.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 21 × 30 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>21 × 30 cm</figcaption></figure>
+          <figure><img src="img/taille-40x50.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 40 × 50 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>40 × 50 cm</figcaption></figure>
+          <figure><img src="img/taille-50x70.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 50 × 70 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>50 × 70 cm</figcaption></figure>
+          <figure><img src="img/taille-70x100.webp" width="800" height="600" loading="lazy" decoding="async" alt="Œuvre encadrée en 70 × 100 cm, accrochée au-dessus des étagères d’une chambre d’enfant"><figcaption>70 × 100 cm</figcaption></figure>
+        </div>
       </div>
     </section>
 
@@ -329,7 +341,7 @@
             <tr><td>Le kit DIY complet 50 × 70</td><td>Guide imprimé, gabarits, toile 50 × 70 cm, colle, vernis et pinceaux</td><td class="p">89 €</td></tr>
           </tbody>
         </table>
-        <p class="note">Un après-midi en famille, et une œuvre unique faite de leurs vrais traits. Livraison standard incluse en France métropolitaine pour le kit.</p>
+        <p class="note">Un après-midi en famille, et une œuvre unique faite de leurs vrais traits.</p>
         <div class="actions" style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
           <a class="btn btn-primary" href="atelier/?mode=toile" target="_blank" rel="noopener">Commander le kit</a>
           <a class="btn btn-ghost" href="atelier/?mode=toile" target="_blank" rel="noopener">Composer d’abord</a>
@@ -345,7 +357,7 @@
           <div><h3>Que signifie « par composition » ?</h3><p>Vous payez une fois pour une composition donnée. Pendant 30 jours, vous pouvez la corriger et la retélécharger autant que nécessaire, sans abonnement.</p></div>
           <div><h3>Puis-je faire imprimer le fichier ailleurs ?</h3><p>Oui. Le fichier HD est à vous : 300 dpi, aux dimensions exactes des toiles et cadres du commerce, avec un PDF à l’échelle si vous préférez.</p></div>
           <div><h3>Les dessins originaux sont-ils abîmés ?</h3><p>Pour les tableaux imprimés, jamais : seuls les scans sont utilisés. Avec le kit DIY, c’est vous qui découpez et collez les originaux : ne coupez que ceux que vous voulez voir sur la toile.</p></div>
-          <div><h3>Livrez-vous hors de France ?</h3><p>Les tarifs affichés incluent la livraison standard en France métropolitaine. Pour l’Europe, écrivez-nous : nous établissons un devis de transport.</p></div>
+          <div><h3>Livrez-vous hors de France ?</h3><p>Les tarifs affichés ne comprennent pas la livraison, en supplément pour la France métropolitaine. Pour l’Europe, écrivez-nous : nous établissons un devis de transport.</p></div>
           <div><h3>Et pour un cadeau ?</h3><p>Le tableau encadré 50 × 70 est pensé pour ça : prêt à accrocher, livré protégé. Indiquez-nous une adresse de livraison différente lors de la commande.</p></div>
         </div>
       </div>
