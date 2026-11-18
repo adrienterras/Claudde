@@ -58,7 +58,7 @@
     "Tester avec un exemple": "Try it with an example",
     "Se connecter": "Sign in",
     "Mon compte": "My account",
-    "Gratuit pour composer. Les dessins restent les vôtres : tout se passe dans votre navigateur, et dans votre compte si vous en créez un.": "Free to compose. The drawings remain yours: everything happens in your browser, and in your account if you create one.",
+    "Gratuit pour composer. Les dessins restent les vôtres, tout se passe dans votre navigateur, et dans votre compte si vous en créez un.": "Free to compose. The drawings remain yours, everything happens in your browser, and in your account if you create one.",
     "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon aux moulures blanches": "A canvas made of cut-out, glued children’s drawings, hanging on the wall of a living room with white mouldings",
     "Découpés et collés sur toile": "Cut out and glued on canvas",
     "Tous leurs dessins, une seule œuvre": "All their drawings, one artwork",
