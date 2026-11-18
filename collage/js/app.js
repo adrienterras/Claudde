@@ -8121,6 +8121,7 @@ Réponds uniquement avec ce JSON :
     panel.classList.add('tabbed');
     panel.dataset.tab = id;
     tabs.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+    if ($('acc-head')) $('acc-head').classList.toggle('on', id === 'more');
     const show = TAB_OF[id] || [id];
     document.querySelectorAll('aside section.step').forEach((sec) => {
       const on = show.includes(sec.id);
@@ -8150,7 +8151,9 @@ Réponds uniquement avec ce JSON :
     if (!tabs) return;
     // en plein écran, il ne reste que cette barre : choisir une section fait remonter le tiroir
     const leaveFull = () => { if (document.body.classList.contains('stage-full')) $('zoom-full').click(); };
-    tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => { leaveFull(); selectTab(b.dataset.tab); }; });
+    tabs.querySelectorAll('button[data-tab]').forEach((b) => { b.onclick = () => { leaveFull(); selectTab(b.dataset.tab); }; });
+    // « Mon compte », dans l'en-tête du téléphone : l'onglet Compte (son bouton n'est plus dans la barre)
+    if ($('acc-head')) $('acc-head').onclick = () => { leaveFull(); selectTab('more'); };
     // la poignée (double-clic) agrandit ou réduit le tiroir
     tabs.addEventListener('dblclick', () => { if (!document.body.classList.contains('stage-full')) document.body.classList.toggle('sheet-tall'); });
     // Au doigt, le tiroir suit le glissement (la barre et le tiroir seuls bougent, l'œuvre attend la
@@ -8355,9 +8358,9 @@ Réponds uniquement avec ce JSON :
   function renderCartButton() {
     const n = loadCart().reduce((s, it) => s + it.qty, 0);
     document.querySelectorAll('.cart-btn').forEach((b) => {
-      // sur ordinateur, le bouton « Panier » n'apparaît qu'avec des articles ; dans l'en-tête du
-      // téléphone, l'icône du chariot reste en place et son compteur ne s'affiche qu'avec des articles
-      const head = b.classList.contains('cart-btn-head');
+      // sur ordinateur, le bouton « Panier » n'apparaît qu'avec des articles ; sur téléphone, l'onglet
+      // Panier reste en place et son compteur ne s'affiche qu'avec des articles
+      const head = b.classList.contains('cart-btn-tab'); // (le dernier onglet du tiroir, sur téléphone)
       b.hidden = !n && !head;
       const c = b.querySelector('.cart-count');
       c.textContent = String(n);

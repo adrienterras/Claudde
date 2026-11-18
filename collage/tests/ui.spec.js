@@ -508,7 +508,7 @@ test.describe('Téléphone, onglets', () => {
     await p.waitForFunction(() => window.AtelierGribouille);
     await p.setInputFiles('#file', [fixture('page-cutout.png')]);
     await p.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await p.locator('#sheet-tabs [data-tab="more"]').click();
+    await p.locator('#acc-head').click();
     await expect(p.locator('#new-work')).toBeHidden();
     // Mes œuvres n'est plus dans l'onglet Compte (il est dans Importer, derrière « Reprendre une œuvre »)
     await expect(p.locator('#saved-section')).toBeHidden();
@@ -525,7 +525,7 @@ test.describe('Téléphone, onglets', () => {
     await expect(p.locator('body')).not.toHaveClass(/sheet-tall/);
     // ni dans les autres onglets
     for (const tab of ['compose-section', 'sizes-section', 'drawings-section', 'more']) { // (plus d'onglet Exporter : il est dans Compte)
-      await p.locator(`#sheet-tabs [data-tab="${tab}"]`).click();
+      await p.locator(tab === 'more' ? '#acc-head' : `#sheet-tabs [data-tab="${tab}"]`).click(); // (le compte : dans l'en-tête)
       await expect(p.locator('#new-work')).toBeHidden();
     }
     await p.locator('#sheet-tabs [data-tab="import-section"]').click();
@@ -1678,14 +1678,18 @@ test.describe('Tiroir au doigt sur téléphone', () => {
 
 test.describe('Panier sur téléphone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  test('l’icône du chariot dans l’en-tête ouvre le panier et porte le compteur ; « Commander » reste petit', async ({ app }) => {
+  test('le dernier onglet du tiroir est le panier : il l’ouvre et porte le compteur ; « Mon compte » est dans l’en-tête ; « Commander » reste petit', async ({ app }) => {
     const { page } = app;
     await page.evaluate(() => localStorage.removeItem('atelier-gribouille:panier'));
-    const head = page.locator('.cart-btn-head');
+    const head = page.locator('#sheet-tabs .cart-btn-tab');
     await expect(head).toBeVisible(); // présent même panier vide
     await expect(head).toHaveAttribute('aria-label', 'Panier');
     await expect(head.locator('.cart-count')).toBeHidden();
-    await expect(head.locator('span')).toHaveCount(0); // l'icône seule, sans texte
+    await expect(head.locator('span')).toHaveText('Panier');
+    expect(await page.locator('#sheet-tabs button:visible').last().evaluate((b) => b.classList.contains('cart-btn-tab'))).toBe(true);
+    // l'en-tête : « Mon compte » (plus de chariot)
+    await expect(page.locator('#acc-head')).toBeVisible();
+    await expect(page.locator('.mobile-brand .cart-btn')).toHaveCount(0);
     await expect(page.locator('.cart-btn-desk')).toBeHidden();
     await app.import(['page-cutout.png', 'page-two.png']);
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click(); // Tailles s'ouvre en grand après l'import : Propositions ramène le tiroir à sa hauteur normale
@@ -1708,7 +1712,7 @@ test.describe('Panier sur téléphone', () => {
     await expect(page.locator('#cart')).toBeHidden();
     await expect(head.locator('.cart-count')).toHaveText('1');
     await expect(head).toHaveAttribute('aria-label', /1 article/);
-    await head.click(); // l'icône de l'en-tête rouvre le panier
+    await head.click(); // l'onglet Panier rouvre le panier
     await expect(page.locator('#cart')).toBeVisible();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
   });
@@ -1720,16 +1724,19 @@ test.describe('Plein écran sur téléphone', () => {
     const { page } = app;
     await app.import(['page-cutout.png']);
     await expect(page.locator('#sheet-tabs [data-tab="export-section"]')).toHaveCount(0);
-    expect(await page.locator('#sheet-tabs button').count()).toBe(5);
-    // l'ordre des onglets : en tableau imprimé, Dessins avant Tailles ; en collage, Tailles d'abord
-    const order = () => page.locator('#sheet-tabs button').evaluateAll((bs) => bs.map((b) => b.dataset.tab));
+    expect(await page.locator('#sheet-tabs button:visible').count()).toBe(5);
+    // l'ordre des onglets : en tableau imprimé, Dessins avant Tailles ; en collage, Tailles d'abord ; le
+    // panier en dernier (le compte est dans l'en-tête)
+    const order = () => page.locator('#sheet-tabs button').evaluateAll((bs) => bs.filter((b) => b.offsetParent).map((b) => b.dataset.tab || (b.classList.contains('cart-btn-tab') ? 'panier' : '?')));
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
-    expect(await order()).toEqual(['import-section', 'compose-section', 'drawings-section', 'sizes-section', 'more']);
+    expect(await order()).toEqual(['import-section', 'compose-section', 'drawings-section', 'sizes-section', 'panier']);
     await page.evaluate(() => AtelierGribouille.setMode('toile'));
-    expect(await order()).toEqual(['import-section', 'sizes-section', 'compose-section', 'drawings-section', 'more']);
+    expect(await order()).toEqual(['import-section', 'sizes-section', 'compose-section', 'drawings-section', 'panier']);
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
-    expect(await order()).toEqual(['import-section', 'compose-section', 'drawings-section', 'sizes-section', 'more']);
-    await page.locator('#sheet-tabs [data-tab="more"]').click();
+    expect(await order()).toEqual(['import-section', 'compose-section', 'drawings-section', 'sizes-section', 'panier']);
+    // « Mon compte », dans l'en-tête, ouvre l'onglet Compte
+    await page.locator('#acc-head').click();
+    await expect(page.locator('#acc-head')).toHaveClass(/on/);
     await expect(page.locator('#export-section')).toBeVisible();
     await expect(page.locator('#export-section > h2')).toBeVisible();
     await expect(page.locator('#export-section > h2')).toContainText('Exporter');

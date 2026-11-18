@@ -87,7 +87,8 @@
   <header class="mobile-brand">
     <span class="brand-mark" aria-hidden="true"></span>
     <span class="mobile-brand-name" role="heading" aria-level="1"><small>Atelier</small> Gribouille</span>
-    <button type="button" class="cart-btn cart-btn-head" aria-label="Panier"><svg class="ico"><use href="#i-cart"/></svg><b class="cart-count" hidden>0</b></button>
+    <!-- téléphone : « Mon compte » dans l'en-tête (le panier est le dernier onglet du tiroir) -->
+    <button type="button" id="acc-head" class="acc-head" aria-label="Mon compte" title="Mon compte"><svg class="ico"><use href="#i-user"/></svg></button>
     <div class="lang-switch mobile-lang" role="group" aria-label="Langue / Language">
       <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
     </div>
@@ -100,7 +101,9 @@
       <button type="button" data-tab="sizes-section" disabled><svg class="ico"><use href="#i-fit"/></svg><span>Tailles</span></button>
       <button type="button" data-tab="compose-section" disabled><svg class="ico"><use href="#i-wand"/></svg><span>Propositions</span></button>
       <button type="button" data-tab="drawings-section" disabled><svg class="ico"><use href="#i-layers"/></svg><span>Dessins</span></button>
-      <button type="button" data-tab="more"><svg class="ico"><use href="#i-user"/></svg><span>Compte</span></button>
+      <!-- (l'onglet Compte n'a plus de bouton dans la barre : il s'ouvre par « Mon compte », dans l'en-tête) -->
+      <button type="button" data-tab="more" class="tab-more" hidden><svg class="ico"><use href="#i-user"/></svg><span>Compte</span></button>
+      <button type="button" class="cart-btn cart-btn-tab" aria-label="Panier"><svg class="ico"><use href="#i-cart"/></svg><span>Panier</span><b class="cart-count" hidden>0</b></button>
     </nav>
     <header class="brand">
       <span class="brand-mark" role="img" aria-label="Monogramme Atelier Gribouille"></span>

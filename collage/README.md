@@ -394,8 +394,10 @@ cd collage && python3 -m http.server 8000
      au-dessus de la barre de zoom ; sur
      téléphone, petit, en bas à gauche de l'œuvre au-dessus du curseur, à l'opposé des outils, tiroir baissé compris : `body.stage-full .stage-cta`) ouvre le choix du produit pour la composition affichée (avec
      un lien vers le panier s'il contient déjà des articles) ; le panier s'ouvre par le bouton « Panier » en haut à
-     droite de la zone d'édition, en face de « Mettre en scène » (ordinateur, dès qu'il contient un article) ou par l'icône du chariot dans l'en-tête (téléphone, toujours
-     présente, avec le compteur en pastille) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou
+     droite de la zone d'édition, en face de « Mettre en scène » (ordinateur, dès qu'il contient un article) ou par l'onglet « Panier », le dernier du tiroir (téléphone, toujours
+     présent, avec le compteur en pastille ; « Mon compte » a pris la place du chariot dans l'en-tête — l'icône
+     seule, `#acc-head`, qui ouvre l'onglet Compte, dont le bouton n'est plus dans la barre ; tiroir baissé ou à
+     l'accueil, l'œuvre couvrant l'en-tête, elle reste à portée dans l'angle haut droit) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (encadrée : couleur du cadre — bois clair, bois foncé, bois noir, bois blanc ou
      métal, celle de la mise en scène par défaut — et avec ou sans passe-partout — avec, pas de 21 × 30,
