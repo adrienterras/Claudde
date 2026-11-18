@@ -750,7 +750,7 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
     color: var(--muted); transform: rotate(-4deg); transform-origin: left bottom;
   }
   .gen-hint span { display: block; }
-  .gen-hint-arrow { display: block; width: 62px; height: 48px; margin: 2px 0 0 -26px; }
+  .gen-hint-arrow { display: block; width: 62px; height: 48px; margin: 2px 0 0 -44px; } /* la pointe au-dessus du centre du bouton */
 }
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;
