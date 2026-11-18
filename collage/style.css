@@ -571,9 +571,11 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   transition: transform .15s, box-shadow .2s;
 }
 .thumb:hover { transform: translateY(-1px); box-shadow: 0 6px 14px -10px rgba(0, 0, 0, .5); }
-/* (l'image couvre toute la carte, posée en absolu : dans le cadre de « Non utilisé » (+ et corbeille), Safari ne
-   lui donnait pas la hauteur de la carte et elle restait collée en haut, coupée) */
-.thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; user-select: none; }
+/* (l'image est carrée par elle-même — largeur de la carte, aspect-ratio 1 — au lieu de prendre la hauteur de la
+   carte : dans le cadre de « Non utilisé » (+ et corbeille), Safari ne la lui donnait pas et l'image restait
+   collée en haut, coupée ; posée en absolu, les vignettes au réglage de couleurs (filtre) ne s'affichaient plus
+   sur iPhone) */
+.thumb img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; display: block; -webkit-user-drag: none; user-select: none; }
 /* « Non utilisé » : le « + » qui remet le dessin sur l'œuvre */
 .thumb-wrap { position: relative; }
 .thumb-add { position: absolute; right: 4px; bottom: 4px; z-index: 1; width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: var(--on-primary); cursor: pointer; box-shadow: 0 4px 10px -4px rgba(0, 0, 0, .5); transition: transform .15s; }
