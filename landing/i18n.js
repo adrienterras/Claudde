@@ -5,6 +5,7 @@
     "Navigation principale": "Main navigation",
     "Menu": "Menu",
     "Photographier les dessins": "Photographing drawings",
+    "Guide pour photographier les dessins": "Guide to photographing drawings",
     "Pied de page": "Footer",
     "Tarifs : tableau et toile avec les dessins d’enfants | Atelier Gribouille": "Prices: canvas and print of children’s drawings | Atelier Gribouille",
     "Tableau avec les dessins de vos enfants | Atelier Gribouille": "A canvas of your children’s drawings | Atelier Gribouille",

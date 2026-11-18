@@ -245,7 +245,7 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await burger.click();
   await expect(menu).toBeVisible();
   await expect(burger).toHaveAttribute('aria-expanded', 'true');
-  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
+  expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Guide pour photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
   const hrefs = await menu.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   // (plus de « Les styles », « Chez vous » ni « Idées » dans le menu)
   expect(hrefs).toEqual(['#comment', 'atelier/', 'tarifs.html', 'photographier-les-dessins.html', '#questions', 'a-propos.html', 'mailto:bonjour@atelier-gribouille.com']);
@@ -264,7 +264,7 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   // en anglais : traduit
   await page.goto('http://accueil.test/?lang=en');
   await page.locator('#nav-burger').click();
-  await expect(page.locator('#nav-menu a').nth(3)).toHaveText('Photographing drawings');
+  await expect(page.locator('#nav-menu a').nth(3)).toHaveText('Guide to photographing drawings');
   await ctx.close();
   // sur ordinateur : le même menu (les sections quittent l'en-tête), en carte sous le bouton, à droite
   const ctx2 = await browser.newContext(DESK);
@@ -276,7 +276,7 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   await page2.locator('#nav-burger').click();
   const menu2 = page2.locator('#nav-menu');
   await expect(menu2).toBeVisible();
-  expect(await menu2.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
+  expect(await menu2.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Guide pour photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
   const box = await menu2.boundingBox(), btn = await page2.locator('#nav-burger').boundingBox();
   expect(box.width).toBeLessThan(400);
   expect(Math.abs(box.x + box.width - (btn.x + btn.width))).toBeLessThan(4);
