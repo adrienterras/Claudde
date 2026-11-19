@@ -544,18 +544,17 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.evaluate(() => document.querySelector('#canvas-orient [data-orient="land"]').click()); // ce test suit une œuvre en paysage
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png', 'page-texture.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    // seulement les toiles Cultura, et une toile conseillée d'office pour ces dessins
+    // seulement les trois toiles du kit DIY, et une toile conseillée d'office pour ces dessins
     const opts = await page.evaluate(() => [...document.getElementById('format').options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
-    expect(opts.length).toBeGreaterThan(15);
+    expect(opts.sort()).toEqual(['100x100', '130x97', '80x80']);
     expect(opts.every((v) => /^\d+x\d+$/.test(v))).toBe(true);
-    expect(opts.some((v) => v === '70x50')).toBe(true);
     const picked = await page.evaluate(() => document.getElementById('format').value);
     expect(opts).toContain(picked);
     expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBeFalsy();
     await expect(page.locator('#scale-info')).toContainText('Toile Cultura conseillée');
     expect(await page.evaluate(() => { const c = AtelierGribouille.state.comp, [a, b] = document.getElementById('format').value.split('x').map(Number); return c.W === Math.max(a, b) && c.H === Math.min(a, b); })).toBe(true);
     // le client choisit une autre toile : son choix est gardé, même après un autre réglage
-    const other = opts.find((v) => v !== picked && v !== '30x30');
+    const other = opts.find((v) => v !== picked);
     await page.selectOption('#format', other);
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => AtelierGribouille.state.formatManual)).toBe(true);
@@ -594,7 +593,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     const opt = async (k) => euro(await page.locator(`#cart-add .cart-opt:has([data-kit="${k}"]) em`).textContent());
     for (const k of ['toile', 'colle', 'pinceau']) await expect(page.locator(`#cart-add [data-kit="${k}"]`)).toBeChecked();
     const [pt, pc, pp] = [await opt('toile'), await opt('colle'), await opt('pinceau')];
-    expect(pc).toBe(11); expect(pp).toBe(6); expect(pt).toBeGreaterThanOrEqual(17);
+    expect(pc).toBe(11); expect(pp).toBe(6); expect([45, 59, 79]).toContain(pt);
     expect(await total()).toBeCloseTo(45 + pt + pc + pp, 2);
     await expect(page.locator('#cart-add [data-price="kit"]')).toHaveText(await page.locator('.cart-add-total').textContent());
     // sans toile ni pinceaux : le prix suit
@@ -603,8 +602,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     expect(await total()).toBeCloseTo(45 + pc, 2);
     await page.locator('#cart-add [data-kit="toile"]').check();
     expect(await total()).toBeCloseTo(45 + pt + pc, 2);
-    // le kit complet en 50 × 70 reste à 89 €
-    expect(await page.evaluate(() => AtelierGribouille.kitPrice({ W: 70, H: 50 }))).toBe(89);
+    // le kit complet : 107 € en 80 × 80, 121 € en 100 × 100, 141 € en 130 × 97 (les totaux de la page Tarifs)
+    expect(await page.evaluate(() => [[80, 80], [100, 100], [130, 97]].map(([W, H]) => AtelierGribouille.kitPrice({ W, H })))).toEqual([107, 121, 141]);
     await expect(page.locator('#cart-add input[value="kit"]').locator('xpath=..').locator('b')).toHaveText(await page.evaluate(() => `Kit DIY ${AtelierGribouille.state.comp.W} × ${AtelierGribouille.state.comp.H}`));
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);

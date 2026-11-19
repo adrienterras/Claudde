@@ -40,7 +40,7 @@ test.describe('langues', () => {
     for (let i = 0; i < n; i++) await page.evaluate((i) => AtelierGribouille.selectProposal(i), i);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
     await page.locator('#drawings .thumb[data-i="0"]').click();
-    await page.selectOption('#format', { index: 3 });
+    await page.selectOption('#format', { index: 2 }); // (trois toiles en atelier Toile)
     await page.waitForTimeout(500);
     await expect(page.locator('#label-meta')).toContainText(/ · (canvas|print) /);
     await expect(page.locator('#detail')).toContainText('Real size');

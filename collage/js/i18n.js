@@ -145,7 +145,7 @@
     'colle et vernis': 'glue and varnish',
     'pinceaux': 'brushes',
     'Kit DIY : {0}': 'DIY kit: {0}',
-    'Kit DIY 50 × 70': 'DIY kit 50 × 70',
+    'Kit DIY': 'DIY kit',
     'Kit DIY {0} × {1}': 'DIY kit {0} × {1}',
     'Panier : {0} article(s)': 'Cart: {0} item(s)',
     'dès {0}': 'from {0}',

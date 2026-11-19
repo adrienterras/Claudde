@@ -2447,12 +2447,13 @@
    * 2026), grand côté en premier : [gamme, long, court, nom]. Châssis coton économiques, Monali 3D
    * (40 mm d'épaisseur, bords peints) et Monali classiques (formats F / P / M et carrés).
    */
+  // Atelier Toile (DIY) : trois toiles seulement, celles du kit — 80 × 80 et 100 × 100 (Monali 3D,
+  // carrées) et 130 × 97 (Monali classique, 60F)
   const CULTURA = [
-    ['économique', 40, 30], ['économique', 50, 40], ['économique', 70, 50], ['économique', 80, 60],
-    ['3D', 30, 30], ['3D', 50, 40], ['3D', 60, 20], ['3D', 70, 50], ['3D', 80, 40], ['3D', 80, 60], ['3D', 80, 80], ['3D', 100, 50], ['3D', 100, 100], ['3D', 120, 40],
-    ['classique', 35, 27, '5F'], ['classique', 46, 33, '8P'], ['classique', 50, 50], ['classique', 55, 46, '10F'], ['classique', 65, 54, '15F'], ['classique', 73, 60, '20F'], ['classique', 73, 54, '20P'], ['classique', 73, 50, '20M'],
-    ['classique', 81, 60, '25P'], ['classique', 92, 73, '30F'], ['classique', 92, 60, '30M'], ['classique', 100, 65, '40M'], ['classique', 116, 89, '50F'], ['classique', 130, 97, '60F'],
+    ['3D', 80, 80], ['3D', 100, 100],
+    ['classique', 130, 97, '60F'],
   ];
+  const CULTURA_DEFAULT = '100x100';
   const CULTURA_LINES = { 'économique': tr('Cultura · châssis coton économique'), '3D': tr('Cultura · Monali 3D (40 mm)'), classique: tr('Cultura · Monali classique') };
   const culturaName = (t) => `${canvasOrient() === 'port' ? `${t[2]} × ${t[1]}` : `${t[1]} × ${t[2]}`} cm${t[3] ? ` · ${t[3]}` : ''}${t[1] === t[2] ? tr(' · carrée') : ''}`;
   const frameName = (f) => `${tr('Cadre')} ${canvasOrient() === 'port' ? `${fmt(f.w)} × ${fmt(f.h)}` : `${fmt(f.h)} × ${fmt(f.w)}`} cm`;
@@ -2499,6 +2500,7 @@
     }
     const seen = new Set();
     Object.keys(CULTURA_LINES).forEach((line) => {
+      if (!CULTURA.some((t) => t[0] === line)) return; // (gamme sans toile proposée)
       const g = document.createElement('optgroup');
       g.label = CULTURA_LINES[line];
       CULTURA.filter((t) => t[0] === line).forEach((t) => {
@@ -2513,7 +2515,7 @@
       sel.appendChild(g);
     });
     if (current && !current.startsWith('cadre:')) sel.value = current;
-    if (sel.selectedIndex < 0 || sel.value.startsWith('cadre:')) sel.value = '70x50';
+    if (sel.selectedIndex < 0 || sel.value.startsWith('cadre:')) sel.value = CULTURA_DEFAULT;
   }
   /*
    * Toile conseillée (atelier Toile) : parmi les toiles Cultura, celle qui donne l'œuvre la plus
@@ -2569,7 +2571,7 @@
       pen += t[0] === 'classique' ? 0.2 : 0;
       if (!best || pen < best.pen) best = { v, pen };
     });
-    sel.value = best ? best.v : '70x50';
+    sel.value = best ? best.v : CULTURA_DEFAULT;
   }
 
   // Échelle automatique : comme dans l'œuvre de référence, environ cinq feuilles
@@ -8272,7 +8274,7 @@ Réponds uniquement avec ce JSON :
   // tailles vendues : les cadres de l'atelier Impression (PRINT_FRAMES)
   const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] };
   const PRICES = {
-    hd: 29, guide: 29, kit: 89,
+    hd: 29, guide: 29,
     print: {
       papier: { '21x30': 29, '30x40': 39, '40x50': 49, '50x70': 59, '70x100': 89 },
       cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129, '70x100': 199 },
@@ -8282,12 +8284,13 @@ Réponds uniquement avec ce JSON :
   /*
    * Kit DIY : une base (guide personnalisé imprimé et gabarits de découpe à l'échelle, livrés) et des
    * options à cocher, chacune avec sa marge. Coûts estimés (achat, TTC) → prix de vente :
-   *  - toile vierge sur châssis, à la taille de l'œuvre : de ~9 € (30 × 40) à ~45 € (grand format)
-   *    → 17 € à 79 € selon la surface (KIT_CANVAS) ;
+   *  - toile vierge sur châssis, à la taille de l'œuvre (trois toiles : CULTURA) : 45 € le 80 × 80,
+   *    59 € le 100 × 100, 79 € le 130 × 97, selon la surface (KIT_CANVAS) ;
    *  - colle vinylique et vernis de finition : ~5 € → 11 € ;
    *  - pinceaux plats (deux) : ~2,50 € → 6 € ;
    *  - base (impression du guide et des gabarits, emballage, livraison) : ~20 € → 45 €.
-   * Le kit complet en 50 × 70 reste à 89 € (45 + 27 + 11 + 6), le prix affiché sur la page Tarifs.
+   * Le kit complet (base et toutes les options) : 107 € en 80 × 80, 121 € en 100 × 100, 141 € en
+   * 130 × 97, les totaux affichés sur la page Tarifs.
    */
   const KIT_BASE = 45;
   const KIT_OPTIONS = { toile: null, colle: 11, pinceau: 6 }; // (toile : selon la surface)

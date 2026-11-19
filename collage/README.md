@@ -85,8 +85,8 @@ cd collage && python3 -m http.server 8000
      dessin sélectionné le retire de l'œuvre, comme Retirer ou Suppr — `trashHandlePos`),
      comme en Galerie ; `L.scale` est gardé avec la mise en place.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
-     Cultura** (`CULTURA` : châssis coton économiques, Monali 3D 40 mm, Monali classiques F / P / M et
-     carrés ; seule liste proposée), pour réaliser l'œuvre soi-même avec les originaux : guide DIY ou
+     Cultura** (`CULTURA` : trois toiles seulement, celles du kit — 80 × 80 et 100 × 100 en Monali 3D,
+     130 × 97 en Monali classique 60F ; seule liste proposée, 100 × 100 par défaut), pour réaliser l'œuvre soi-même avec les originaux : guide DIY ou
      kit DIY (l'offre « Atelier Signature », collage fait par l'atelier, a été retirée).
      La toile est **conseillée d'office** (`pickCanvas`) : chaque toile Cultura est jugée sur le fond
      (les pages colorées la couvrent avec un franc chevauchement, sans manquer de papier), l'air laissé
@@ -411,7 +411,7 @@ cd collage && python3 -m http.server 8000
      métal, celle de la mise en scène par défaut — et avec ou sans passe-partout — avec, pas de 21 × 30,
      remplacé par le 30 × 40 —, avec en clair la taille du
      cadre et celle de l'impression, `printSizeOf` ; fichier HD 29 €, impression papier / encadrée / toile en 21 × 30,
-     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 29 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (17 à 79 € selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office, le kit complet 50 × 70 à 89 € (`kitPrice`, options gardées avec l'article)),
+     30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 29 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (45 € le 80 × 80, 59 € le 100 × 100, 79 € le 130 × 97, selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office ; le kit complet à 107, 121 ou 141 € selon la toile, total affiché sur la page Tarifs (`kitPrice`, options gardées avec l'article)),
      et la quantité. À gauche des options (au-dessus sur téléphone), **la mise en scène de l'article
      choisi** (`drawCartScene`, même dessin que « Mettre en scène » : `paintRoom`) : le tableau à la
      taille d'impression choisie, encadré (couleur du cadre, passe-partout) ou sur papier ; une

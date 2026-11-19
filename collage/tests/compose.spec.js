@@ -231,13 +231,14 @@ test.describe('Compositions', () => {
     expect(c).not.toBe(b);
   });
 
-  test('Frise : toile panoramique, sujets tournés et dans la toile', async ({ app }) => {
+  test('Frise : sur l’une des trois toiles du kit, sujets tournés et dans la toile', async ({ app }) => {
     await app.select('frise');
     const r = await app.page.evaluate(() => {
       const c = AtelierGribouille.state.comp;
       return { W: c.W, H: c.H, items: c.items.map((L) => ({ x: L.x, y: L.y, w: L.w, h: L.h, rot: L.rot })) };
     });
-    expect(r.W / r.H).toBeGreaterThanOrEqual(2); // toile panoramique Cultura (120 × 40, 100 × 50, 80 × 40)
+    // plus de toile panoramique : l'une des trois toiles du kit DIY (80 × 80, 100 × 100, 130 × 97)
+    expect([[80, 80], [100, 100], [130, 97], [97, 130]].some(([w, h]) => r.W === w && r.H === h)).toBe(true);
     expect(r.items.length).toBeGreaterThan(0);
     // chaque page peinte n'est posée qu'une fois dans la bande
     const srcs = await app.page.evaluate(() => AtelierGribouille.state.comp.bg.filter((L) => L.panel).map((L) => L.src));

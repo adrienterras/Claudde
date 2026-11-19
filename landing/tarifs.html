@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Tarifs : tableau et toile avec les dessins d’enfants | Atelier Gribouille</title>
-  <meta name="description" content="Composer est gratuit. Votre tableau de dessins d’enfants en fichier HD dès 29 €, imprimé et encadré dès 79 €, ou à réaliser vous-même avec les originaux (kit DIY 89 €).">
+  <meta name="description" content="Composer est gratuit. Votre tableau de dessins d’enfants en fichier HD dès 29 €, imprimé et encadré dès 79 €, ou à réaliser vous-même avec les originaux (kit DIY complet dès 107 €).">
   <link rel="canonical" href="https://ateliergribouille.art/tarifs.html">
   <!-- page hors des moteurs de recherche (prix sans contexte) : noindex, et absente du plan du site ; elle ne doit
        pas être bloquée dans robots.txt, sinon Google ne verrait pas cette consigne -->
@@ -129,6 +129,10 @@
     tr:last-child td { border-bottom: 0; }
     td.p { font-family: var(--f-display); font-size: 1.25rem; white-space: nowrap; }
     td.hl { background: var(--accent-soft); font-weight: 600; }
+    /* réalisée par vous : une première colonne plus large (les noms des offres sur une ou deux lignes) ;
+       la dernière ligne fait le total du kit et de ses options */
+    .grid-diy th:first-child, .grid-diy td:first-child { width: 24%; }
+    .grid-diy tr.total td { border-top: 2px solid var(--line); background: var(--surface-2); font-weight: 600; }
     .note { margin: 14px 0 0; font-size: .82rem; color: var(--muted); max-width: 70ch; }
     @media (min-width: 901px) {
       .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 22px; }
@@ -292,11 +296,11 @@
 
         <article class="door">
           <span class="from">À réaliser vous-même · dès 29 €</span>
-          <h2>Le kit DIY 50 × 70</h2>
-          <p class="price">89 €</p>
+          <h2>Le kit DIY complet</h2>
+          <p class="price">dès 107 €</p>
           <ul>
             <li>Le guide personnalisé imprimé et les gabarits de découpe à l’échelle : 45 €</li>
-            <li>Au choix : la toile vierge sur châssis à la taille de l’œuvre (dès 17 €), la colle et le vernis (11 €), les pinceaux (6 €)</li>
+            <li>Au choix : la toile vierge sur châssis, en 80 × 80, 100 × 100 ou 97 × 130 (dès 45 €), la colle et le vernis (11 €), les pinceaux (6 €)</li>
             <li>Vous découpez et collez vos dessins originaux</li>
           </ul>
           <p class="muted">Guide seul, en PDF avec le fichier HD : 29 €.</p>
@@ -340,15 +344,15 @@
       <div class="wrap">
         <h2>Réalisée par vous, avec les originaux</h2>
         <p>Vous composez dans l’atelier, puis vous découpez et collez les vrais dessins vous-même. Deux façons de s’y mettre.</p>
-        <table>
+        <table class="grid-diy">
           <thead><tr><th>Offre</th><th>Ce qui est compris</th><th>Prix</th></tr></thead>
           <tbody>
             <tr><td>Mon atelier DIY</td><td>Le fichier HD et le guide de création personnalisé en PDF : taille de la toile, plan de pose à l’échelle 1, ordre de collage et, pour chaque dessin, sa fiche de découpe avec le trait de coupe et ses cotes</td><td class="p">29 €</td></tr>
             <tr><td>Le kit DIY</td><td>Livré chez vous : le guide personnalisé imprimé et les gabarits de découpe à l’échelle. Vous utilisez vos dessins originaux</td><td class="p">45 €</td></tr>
-            <tr><td>+ Toile vierge sur châssis</td><td>À la taille de l’œuvre : 17 € jusqu’au 30 × 40, 22 € jusqu’au 40 × 50, 27 € jusqu’au 50 × 70, 35 € jusqu’au 60 × 90, 45 € jusqu’au 70 × 100, 59 € jusqu’au 100 × 100, 79 € au-delà</td><td class="p">dès 17 €</td></tr>
+            <tr><td>+ Toile vierge sur châssis</td><td>Trois tailles, celle de l’œuvre : 45 € le 80 × 80, 59 € le 100 × 100, 79 € le 97 × 130</td><td class="p">dès 45 €</td></tr>
             <tr><td>+ Colle et vernis</td><td>Colle vinylique et vernis de finition</td><td class="p">11 €</td></tr>
             <tr><td>+ Pinceaux</td><td>Deux pinceaux plats, pour la colle et le vernis</td><td class="p">6 €</td></tr>
-            <tr><td>Le kit DIY complet 50 × 70</td><td>Guide imprimé, gabarits, toile 50 × 70 cm, colle, vernis et pinceaux</td><td class="p">89 €</td></tr>
+            <tr class="total"><td>Le kit DIY complet</td><td>Le kit, la toile, la colle, le vernis et les pinceaux : 107 € en 80 × 80, 121 € en 100 × 100, 141 € en 97 × 130</td><td class="p">dès 107 €</td></tr>
           </tbody>
         </table>
         <p class="note">Un après-midi en famille, et une œuvre unique faite de leurs vrais traits.</p>
