@@ -133,6 +133,7 @@
        la dernière ligne fait le total du kit et de ses options */
     .grid-diy th:first-child, .grid-diy td:first-child { width: 24%; }
     .grid-diy th:last-child, .grid-diy td:last-child { width: 14%; }
+    .grid-diy .line { display: block; white-space: nowrap; } /* une taille par ligne */
     .diy-way { display: flex; align-items: center; gap: 10px; margin: 30px 0 12px; font-family: var(--f-display); font-weight: 400; font-size: 1.35rem; }
     .diy-way:first-of-type { margin-top: 8px; }
     .diy-n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--surface); font-family: var(--f-body); font-size: .85rem; font-weight: 600; flex: none; }
@@ -376,10 +377,10 @@
           <thead><tr><th>Offre</th><th>Ce qui est compris</th><th>Prix</th></tr></thead>
           <tbody>
             <tr><td>Le kit DIY</td><td>Livré chez vous : le guide personnalisé imprimé et les gabarits de découpe à l’échelle. Vous utilisez vos dessins originaux</td><td class="p">45 €</td></tr>
-            <tr><td>+ Toile vierge sur châssis</td><td>Trois tailles, celle de l’œuvre : 45 € le 80 × 80, 59 € le 100 × 100, 79 € le 97 × 130</td><td class="p">dès 45 €</td></tr>
+            <tr><td>+ Toile vierge sur châssis</td><td>Trois tailles, celle de l’œuvre :<span class="line">45 € le 80 × 80</span><span class="line">59 € le 100 × 100</span><span class="line">79 € le 97 × 130</span></td><td class="p">dès 45 €</td></tr>
             <tr><td>+ Colle et vernis</td><td>Colle vinylique et vernis de finition</td><td class="p">11 €</td></tr>
             <tr><td>+ Pinceaux</td><td>Deux pinceaux plats, pour la colle et le vernis</td><td class="p">6 €</td></tr>
-            <tr class="total"><td>Le kit DIY complet</td><td>Le kit, la toile, la colle, le vernis et les pinceaux : 107 € en 80 × 80, 121 € en 100 × 100, 141 € en 97 × 130</td><td class="p">dès 107 €</td></tr>
+            <tr class="total"><td>Le kit DIY complet</td><td>Le kit, la toile, la colle, le vernis et les pinceaux :<span class="line">107 € en 80 × 80</span><span class="line">121 € en 100 × 100</span><span class="line">141 € en 97 × 130</span></td><td class="p">dès 107 €</td></tr>
           </tbody>
         </table>
         <!-- les trois toiles du kit, dans la même chambre -->
