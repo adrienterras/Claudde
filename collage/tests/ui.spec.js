@@ -1653,7 +1653,7 @@ test.describe('Pages de fond sur l’œuvre', () => {
 });
 
 test.describe('Découpe apprise des retouches', () => {
-  test('gommer un sujet entier apprend « sujets voisins séparés », proposé aux autres dessins, mémorisé', async ({ page }) => {
+  test('une retouche ne change que la pièce retouchée : l’appareil n’apprend pas sa propre découpe', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
@@ -1678,29 +1678,12 @@ test.describe('Découpe apprise des retouches', () => {
     await page.locator('#ed-sel-erase').click();
     await page.locator('#ed-apply').click();
     await expect(page.locator('#editor')).toBeHidden();
-    // apprise : les sujets voisins seront séparés (fermeture réduite), mémorisé dans ce navigateur
-    await expect(page.locator('#cut-learned')).toBeVisible();
-    await expect(page.locator('#drawings-section')).not.toHaveClass(/collapsed/); // la section s'est ouverte
-    await expect(page.locator('#cut-learned span')).toContainText('sujets voisins séparés');
-    expect(await page.evaluate(() => Extract.cutPrefs().close)).toBeLessThan(0.03);
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('atelier.decoupe')).close)).toBeLessThan(0.03);
-    // appliquée à l'autre dessin : ses pièces sont refaites, la retouche du premier est gardée
-    await expect(page.locator('#cut-learned button.link').first()).toHaveText(/2 autres dessins/); // (page-two.png en donne deux)
-    await page.locator('#cut-learned button.link').first().click();
-    await expect(page.locator('#cut-learned')).toBeHidden();
-    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    expect(await piecesOf(1)).not.toEqual(before1);
+    // la découpe reste la découpe standard : rien d'appris, rien de gardé, rien de proposé aux autres dessins
+    expect(await page.evaluate(() => Extract.cutIsDefault())).toBe(true);
+    expect(await page.evaluate(() => localStorage.getItem('atelier.decoupe'))).toBeNull();
+    await expect(page.locator('#cut-learned')).toHaveCount(0);
+    expect(await piecesOf(1)).toEqual(before1);
     expect(await page.evaluate((k) => !!AtelierGribouille.state.drawings[0].analysis.pieces[k].edited, k)).toBe(true);
-    // plus de rappel permanent de la découpe apprise dans l'atelier
-    await expect(page.locator('#cut-prefs')).toHaveCount(0);
-    // sans compte, « Appliquer à tous mes appareils » n'est pas proposé
-    await expect(page.locator('#cut-learned-all')).toBeHidden();
-    // la découpe apprise est relue au chargement suivant (lsGet défini avant loadCutPrefs : une
-    // version la relisait trop tôt et repartait, sans rien dire, de la découpe d'office)
-    await page.reload();
-    await page.waitForFunction(() => window.AtelierGribouille && window.Extract);
-    expect(await page.evaluate(() => Extract.cutPrefs().close)).toBeLessThan(0.03);
-    expect(await page.evaluate(() => localStorage.getItem('atelier.decoupe-locale'))).toBe('1');
   });
 });
 

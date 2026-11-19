@@ -256,26 +256,11 @@ cd collage && python3 -m http.server 8000
      papier, et si la première passe ne trouve que des miettes éparses, une seconde passe à seuils
      plus bas relie les traits de plus loin. Les toutes petites pièces ternes (ombre d'un pli, bord
      de feuille) sont écartées.
-     **Découpe apprise des retouches** (`Extract.learnCut`) : chaque retouche de découpe faite à la
-     main est comparée à la découpe automatique de la même pièce ; la marge de papier gardée autour
-     de l'encre (mesurée sur le contour retouché), la sensibilité aux traits pâles (zones restaurées
-     pleines d'encre faible : plus sensible ; zones effacées pleines de traces grises : moins) et
-     les traits reliés (un sujet voisin effacé, coloré : rayon de fermeture réduit) en sont déduits.
-     Ces préférences servent aux analyses suivantes, sont mémorisées dans le navigateur
-     (`atelier.decoupe`, datées dans `atelier.decoupe-date`) et proposées tout de suite aux autres dessins du lot
-     (« Appliquer aux N autres dessins », qui refait leurs découpes puis les propositions ; les
-     dessins déjà retouchés et les objets détourés sont gardés tels quels). Avec un compte, elles
-     peuvent aussi être enregistrées dans le profil (métadonnées `decoupe` : `{ prefs, at }`, `prefs`
-     nul pour la découpe d'office) et reprises par les autres appareils connectés à l'arrivée
-     (`syncCutPrefs`), **prudemment** : une retouche apprise reste sur son appareil (« locale »,
-     `atelier.decoupe-locale`) tant que l'utilisateur n'a pas choisi « Appliquer à tous mes
-     appareils » (dans l'avis de la retouche ou le panneau Compte) ; un appareil sans réglages locaux
-     suit le compte (la version la plus récente, une remise à zéro comprise) ; un appareil qui a ses
-     propres réglages locaux et reçoit du compte des réglages différents ne les adopte pas sans
-     demander (`#cut-remote`, en tête de la colonne, sous le compte : « Adopter ceux du compte » ou « Garder les miens,
-     partout »). Sans cela, une retouche faite sur un iPad écrasait, à l'iPhone, des réglages appris
-     sur plus de 80 dessins. Le panneau Compte décrit ce qui est appris (`#cut-sync`, valeurs exactes
-     entre crochets) et offre « Revenir à la découpe d'office » (sur tous les appareils connectés).
+     **Une seule découpe, la même partout** : tous les appareils découpent avec la découpe standard
+     (`Extract.CUT_DEFAULT`). Une retouche à la main ne change que la pièce retouchée : les appareils
+     n'apprennent plus leur propre découpe (l'apprentissage, `Extract.learnCut`, reste dans le moteur
+     mais n'est plus appelé), et les réglages appris autrefois — dans le navigateur (`atelier.decoupe`,
+     `-date`, `-locale`, effacés au chargement) ou dans le compte (métadonnées `decoupe`) — sont ignorés.
      Les préférences sont
      figées sur chaque dessin au moment de son analyse et sauvegardées avec lui : ses réanalyses
      (haute définition, orientation, « découpe automatique » dans la retouche, réouverture d'une

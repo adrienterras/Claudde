@@ -918,7 +918,7 @@
   // Préférences de découpe figées sur chaque dessin à son analyse : ses réanalyses (haute définition,
   // réouverture, orientation, photo entière ou détourée, « découpe automatique » dans la retouche)
   // les reprennent, pour retrouver exactement les mêmes pièces ; un nouveau dessin, ou une découpe
-  // refaite à la demande, prend les préférences du moment (voir learnFromEdit).
+  // refaite à la demande, prend la découpe standard.
   function withCut(d, fn) {
     const cur = Extract.cutPrefs();
     if (d && d.cutPrefs) Extract.setCutPrefs(d.cutPrefs);
@@ -4068,117 +4068,18 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     delete p.hd;
     renderProposals();
     render();
-    learnFromEdit(p, before, oldSrc);
   }
 
-  // ---------- Découpe apprise des retouches ----------
-  // Chaque retouche de découpe faite à la main est comparée à la découpe automatique de la même pièce
-  // (Extract.learnCut) : la marge de papier, la sensibilité aux traits pâles et les traits reliés en
-  // sont déduits, mémorisés dans ce navigateur et appliqués aux analyses suivantes. L'utilisateur peut
-  // les appliquer tout de suite aux autres dessins.
-  // Avec un compte, elles peuvent aussi être enregistrées dans le profil (métadonnées, datées) et
-  // reprises par les autres appareils connectés. Synchronisation prudente : une retouche apprise reste
-  // sur cet appareil (« locale ») tant que l'utilisateur n'a pas choisi « Appliquer à tous mes
-  // appareils » ; un appareil sans réglages locaux suit le compte (la version la plus récente, une
-  // remise à zéro comprise) ; un appareil qui a ses propres réglages locaux et reçoit du compte des
-  // réglages différents ne les adopte pas sans demander (#cut-remote). Sans cela, une retouche faite
-  // sur un iPad écrasait, à l'iPhone, des réglages appris sur plus de 80 dessins.
-  const CUT_KEY = 'atelier.decoupe', CUT_AT_KEY = 'atelier.decoupe-date', CUT_LOCAL_KEY = 'atelier.decoupe-locale';
-  const cutAt = () => +(lsGet(CUT_AT_KEY) || 0);
-  const cutLocal = () => lsGet(CUT_LOCAL_KEY) === '1';
-  let cutRemote = null; // réglages du compte en attente d'une décision (différents des réglages locaux)
-  function saveCutPrefs(opts) {
-    const at = (opts && opts.at) || Date.now();
-    lsSet(CUT_KEY, Extract.cutIsDefault() ? null : JSON.stringify(Extract.cutPrefs()));
-    lsSet(CUT_AT_KEY, String(at));
-    lsSet(CUT_LOCAL_KEY, opts && opts.local ? '1' : null);
-    if (!(opts && opts.local)) cutRemote = null;
-    renderCutSync();
-    if (!(opts && (opts.quiet || opts.local))) pushCutPrefs(at);
-  }
-  function loadCutPrefs() {
-    try { const v = lsGet(CUT_KEY); if (v) { Extract.setCutPrefs(JSON.parse(v)); if (!cutAt()) { lsSet(CUT_AT_KEY, '1'); lsSet(CUT_LOCAL_KEY, '1'); } } } catch (e) { /* ignoré */ }
-  }
-  // envoie les réglages de cet appareil au compte : ils deviennent ceux de tous les appareils connectés
-  function pushCutPrefs(at) {
-    const A = window.Account;
-    if (!A || !A.enabled || !A.user()) return Promise.resolve(false);
-    at = at || cutAt() || Date.now();
-    const decoupe = { prefs: Extract.cutIsDefault() ? null : Extract.cutPrefs(), at };
-    return Promise.resolve().then(() => A.updateProfile({ decoupe })).then(() => { lsSet(CUT_LOCAL_KEY, null); cutRemote = null; renderCutSync(); return true; })
-      .catch((e) => { console.warn('découpe apprise non enregistrée dans le compte', e); return false; });
-  }
-  const samePrefs = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
-  function syncCutPrefs(u) {
-    if (!u) { cutRemote = null; renderCutSync(); return; }
-    const remote = (u.user_metadata && u.user_metadata.decoupe) || null, localAt = cutAt();
-    const mine = Extract.cutIsDefault() ? null : Extract.cutPrefs();
-    if (remote && remote.at > localAt) {
-      if (!cutLocal() || samePrefs(remote.prefs, mine)) { Extract.setCutPrefs(remote.prefs || null); saveCutPrefs({ at: remote.at, quiet: true }); }
-      else { cutRemote = remote; renderCutSync(); }
-    } else if (localAt > ((remote && remote.at) || 0) && !cutLocal() && (remote || mine)) pushCutPrefs(localAt);
-    else { cutRemote = null; renderCutSync(); }
-  }
-  // le compte propose d'autres réglages que ceux appris ici : les adopter, ou imposer les miens partout
-  function renderCutRemote() {
-    const el = $('cut-remote');
-    if (!el) return;
-    const A = window.Account, signed = !!(A && A.enabled && A.user());
-    if (!cutRemote || !signed) { el.hidden = true; return; }
-    el.querySelector('span').textContent = tr`Votre compte a d’autres réglages de découpe, appris sur un autre appareil : ${cutPrefsText(cutRemote.prefs)}. Ici : ${cutPrefsText()}.`;
-    el.hidden = false;
-  }
-  // le panneau Compte dit ce qui a été appris (et le rend lisible : valeurs exactes entre crochets)
-  function renderCutSync() {
-    renderCutRemote();
-    const el = $('cut-sync');
-    if (!el) return;
-    const A = window.Account, signed = !!(A && A.enabled && A.user());
-    const push = $('cut-sync-push');
-    if (Extract.cutIsDefault()) { el.hidden = true; if (push) push.hidden = true; return; }
-    const c = Extract.cutPrefs();
-    const raw = `[m ${c.margin.toFixed(4)} · c ${c.close.toFixed(4)} · s ${c.smooth.toFixed(4)} · i ${c.ink.toFixed(2)}]`;
-    const where = !signed ? tr('Mémorisée dans ce navigateur.') : cutLocal() ? tr('Mémorisée dans ce navigateur seulement.') : tr('Enregistrée dans votre compte, reprise sur vos autres appareils connectés.');
-    el.querySelector('span').textContent = `${tr`Découpe apprise de vos retouches : ${cutPrefsText()}.`} ${where} ${raw}`;
-    if (push) push.hidden = !(signed && cutLocal());
-    el.hidden = false;
-  }
-  function cutPrefsText(prefs) {
-    const c = prefs || Extract.cutPrefs(), D = Extract.CUT_DEFAULT, parts = [];
-    if (Math.abs(c.margin - D.margin) > 1e-6) parts.push(tr`marge de papier ${fmt(c.margin * 29.7 * 10)} mm`);
-    if (c.ink < D.ink - 1e-6) parts.push(tr('traits pâles gardés'));
-    if (c.ink > D.ink + 1e-6) parts.push(tr('traces grises ignorées'));
-    if (c.close < D.close - 1e-6) parts.push(tr('sujets voisins séparés'));
-    if (c.close > D.close + 1e-6) parts.push(tr('sujets voisins reliés'));
-    return parts.join(' · ') || (prefs && Object.keys(Extract.CUT_DEFAULT).every((k) => Math.abs(c[k] - D[k]) < 1e-6) ? tr('la découpe d’office') : tr('réglages ajustés'));
-  }
+  // ---------- Découpe ----------
+  // Tous les appareils découpent de la même façon : la découpe standard (Extract.CUT_DEFAULT, marge
+  // large de ≈ 9 mm). Les appareils n'apprennent plus leur propre découpe des retouches faites à la main
+  // (une retouche ne change que la pièce retouchée) ; les réglages appris autrefois, dans ce navigateur
+  // ou dans le compte, sont ignorés et effacés d'ici. Un dessin garde la découpe faite à son import
+  // (une œuvre rouverte reste identique).
+  ['atelier.decoupe', 'atelier.decoupe-date', 'atelier.decoupe-locale'].forEach((k) => lsSet(k, null));
+  Extract.setCutPrefs(null);
   // les dessins dont la découpe automatique peut être refaite (pas de retouche à garder, pas un objet détouré)
   const recuttable = (d) => roleOf(d) === 'cutout' && !d.analysis.objectAlpha && !(d.analysis.pieces || []).some((q) => q.edited);
-  function learnFromEdit(p, before, oldSrc) {
-    const d = p.drawing, a = d.analysis;
-    if (!before || !before.canvas || !a.cut || p.copyOf) return;
-    let r = null;
-    try { r = Extract.learnCut(a.page, a.cut, { canvas: before.canvas, src: oldSrc || before.src }, { canvas: p.canvas, src: p.src }); } catch (e) { console.warn('Apprentissage de la découpe impossible', e); }
-    if (!r) return;
-    Extract.setCutPrefs(r.prefs);
-    saveCutPrefs({ local: true }); // (sur cet appareil ; le compte, seulement si l'utilisateur le demande)
-    const others = state.drawings.filter((x) => x !== d && recuttable(x));
-    const el = $('cut-learned');
-    if (!el) return;
-    el.querySelector('span').textContent = tr`Découpe apprise de cette retouche : ${cutPrefsText()}. Elle servira aux prochains dessins.`;
-    const btn = el.querySelector('button');
-    btn.hidden = !others.length;
-    btn.textContent = tr`Appliquer aux ${others.length} autres dessins`;
-    btn.onclick = () => { el.hidden = true; recutDrawings(others); };
-    const all = $('cut-learned-all'), A = window.Account;
-    all.hidden = !(A && A.enabled && A.user());
-    all.onclick = () => { all.hidden = true; pushCutPrefs().then((ok) => notice(ok ? tr('Réglages de découpe envoyés à vos autres appareils connectés.') : tr('Réglages non envoyés : réessayez depuis le panneau Compte.'))); };
-    el.hidden = false;
-    // la section Dessins, où s'affiche l'avis, s'ouvre (sur téléphone : son onglet)
-    const sec = $('drawings-section');
-    if (mobileQuery.matches) selectTab('drawings-section'); else if (sec && sec._expand) sec._expand();
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
   // refait la découpe automatique de ces dessins avec les préférences du moment, puis de nouvelles propositions
   function recutDrawings(list) {
     if (!list.length) return;
@@ -4198,14 +4099,6 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     regenerate();
     notice(tr`Découpe refaite pour ${list.length} dessin(s).`);
   }
-  $('cut-learned-close').onclick = () => { $('cut-learned').hidden = true; };
-  loadCutPrefs();
-  renderCutSync();
-  if ($('cut-sync-reset')) $('cut-sync-reset').onclick = () => { Extract.setCutPrefs(null); saveCutPrefs(); notice(tr('Découpe d’office rétablie : elle servira aux prochains dessins.')); };
-  if ($('cut-sync-push')) $('cut-sync-push').onclick = () => pushCutPrefs().then((ok) => notice(ok ? tr('Réglages de découpe envoyés à vos autres appareils connectés.') : tr('Réglages non envoyés : réessayez depuis le panneau Compte.')));
-  if ($('cut-remote-adopt')) $('cut-remote-adopt').onclick = () => { if (!cutRemote) return; Extract.setCutPrefs(cutRemote.prefs || null); saveCutPrefs({ at: cutRemote.at, quiet: true }); notice(tr('Réglages du compte adoptés : ils serviront aux prochains dessins.')); };
-  if ($('cut-remote-mine')) $('cut-remote-mine').onclick = () => { const at = Date.now(); pushCutPrefs(at).then((ok) => { if (ok) lsSet(CUT_AT_KEY, String(at)); notice(ok ? tr('Vos réglages sont maintenant ceux de tous vos appareils connectés.') : tr('Réglages non envoyés : réessayez depuis le panneau Compte.')); }); };
-  if (window.Account && window.Account.enabled) window.Account.onChange((u) => syncCutPrefs(u));
 
   /*
    * Historique : avant chaque action sur l'œuvre (déplacer, tourner, retourner, devant/derrière,
