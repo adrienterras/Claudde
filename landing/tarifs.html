@@ -133,6 +133,21 @@
        la dernière ligne fait le total du kit et de ses options */
     .grid-diy th:first-child, .grid-diy td:first-child { width: 24%; }
     .grid-diy tr.total td { border-top: 2px solid var(--line); background: var(--surface-2); font-weight: 600; }
+    /* téléphone : une carte par offre — le nom et le prix sur une ligne, ce qui est compris dessous,
+       sur toute la largeur (plus de trois colonnes étroites) */
+    @media (max-width: 700px) {
+      table.grid-diy, .grid-diy tbody { display: block; overflow: visible; }
+      .grid-diy thead { display: none; }
+      .grid-diy tr { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; row-gap: 4px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+      .grid-diy tr:last-child { border-bottom: 0; }
+      .grid-diy td { display: block; padding: 0; border: 0; width: auto !important; }
+      .grid-diy td:first-child { grid-column: 1; grid-row: 1; font-weight: 600; color: var(--ink); align-self: baseline; }
+      .grid-diy td.p { grid-column: 2; grid-row: 1; font-size: 1.15rem; align-self: baseline; text-align: right; }
+      .grid-diy td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: .88rem; line-height: 1.5; color: var(--ink-2); }
+      .grid-diy tr.total { background: var(--surface-2); border-top: 2px solid var(--line); }
+      .grid-diy tr.total td { background: none; border: 0; }
+      .grid-diy tr.total td:nth-child(2) { font-weight: 400; }
+    }
     .note { margin: 14px 0 0; font-size: .82rem; color: var(--muted); max-width: 70ch; }
     @media (min-width: 901px) {
       .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 22px; }
