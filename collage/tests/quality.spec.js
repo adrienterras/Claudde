@@ -52,8 +52,9 @@ test.describe('Qualité pour l’impression', () => {
     await page.evaluate((i) => { const d = AtelierGribouille.state.drawings[i]; d.sizeCm = 29.7; d.sizeMode = 'manual'; AtelierGribouille.state.current = null; }, small);
     await page.evaluate(() => AtelierGribouille.regenerate());
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
-    // plus de pastille sur les vignettes : l'alerte est dans le bandeau et dans la fiche
-    await expect(page.locator('#drawings .thumb .q')).toHaveCount(0);
+    // la seule pastille des vignettes : l'alerte de qualité, rouge, sur le petit dessin seulement
+    await expect(page.locator('#drawings .thumb .q.bad')).toHaveCount(1);
+    await expect(page.locator(`#drawings .thumb[data-i="${small}"]`).locator('.q.bad')).toHaveCount(1);
     // bandeau dans Propositions, et « Voir lesquels » ouvre la fiche du dessin
     await expect(page.locator('#quality-alert')).toBeVisible();
     await expect(page.locator('#quality-alert')).toContainText('flou');

@@ -1498,6 +1498,14 @@
   // seulement pour le tableau imprimé : en collage avec les originaux, rien n'est imprimé, donc aucune
   // alerte de définition (pastille, bandeau, fiche, rappel à l'export)
   const qualityOf = (d) => (window.Quality && printMode() ? Quality.assess(Object.assign({}, d, { auto: d.auto })) : { level: 'ok', issues: [] });
+  // la seule pastille des vignettes : l'alerte de qualité (point d'exclamation orange « à vérifier », rouge
+  // « insuffisante »), sur les dessins posés de l'œuvre imprimée ; le détail est dans l'infobulle et la fiche
+  function qualityBadge(d) {
+    if (roleOf(d) === 'off') return '';
+    const q = qualityOf(d);
+    if (q.level === 'ok') return '';
+    return `<i class="q ${q.level}" title="${esc(q.issues.map((x) => x.title).join(' · '))}" aria-label="${esc(q.level === 'bad' ? tr('Qualité insuffisante pour l’impression') : tr('Qualité à vérifier'))}">!</i>`;
+  }
   // dans la fiche : les titres seulement (« Définition trop faible pour l'impression »…) ; le détail
   // et le conseil restent lisibles en infobulle
   function qualityBlock(d) {
@@ -1673,8 +1681,8 @@
       el.setAttribute('aria-label', el.title);
       el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
       el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
-      // (la vignette seule, sans pastille : photo détourée ou redressée, taille et qualité sont dans sa fiche)
-      el.innerHTML = `<img src="${piece ? pieceThumb(d, piece) : thumbFor(d)}" alt=""${toneStyle(d)}>`;
+      // (la vignette, avec pour seule pastille l'alerte de qualité : photo détourée, taille… sont dans sa fiche)
+      el.innerHTML = `<img src="${piece ? pieceThumb(d, piece) : thumbFor(d)}" alt=""${toneStyle(d)}>${role !== 'off' ? qualityBadge(d) : ''}`;
       el.onclick = () => {
         state.current = state.current === d && !piece ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner) ; la
