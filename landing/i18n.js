@@ -77,6 +77,8 @@
     "+ Pinceaux": "+ Brushes",
     "Deux pinceaux plats, pour la colle et le vernis": "Two flat brushes, for glue and varnish",
     "Le kit DIY complet": "The complete DIY kit",
+    "Le guide, en PDF": "The guide, as a PDF",
+    "Le kit, livré chez vous": "The kit, delivered to your door",
     "Le kit, la toile, la colle, le vernis et les pinceaux : 107 € en 80 × 80, 121 € en 100 × 100, 141 € en 97 × 130": "The kit, the canvas, glue, varnish and brushes: €107 in 80 × 80, €121 in 100 × 100, €141 in 97 × 130",
     "Dans leur chambre": "In their bedroom",
     "Dans votre salon": "In your living room",

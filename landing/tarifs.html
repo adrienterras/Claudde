@@ -132,6 +132,10 @@
     /* réalisée par vous : une première colonne plus large (les noms des offres sur une ou deux lignes) ;
        la dernière ligne fait le total du kit et de ses options */
     .grid-diy th:first-child, .grid-diy td:first-child { width: 24%; }
+    .grid-diy th:last-child, .grid-diy td:last-child { width: 14%; }
+    .diy-way { display: flex; align-items: center; gap: 10px; margin: 30px 0 12px; font-family: var(--f-display); font-weight: 400; font-size: 1.35rem; }
+    .diy-way:first-of-type { margin-top: 8px; }
+    .diy-n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--surface); font-family: var(--f-body); font-size: .85rem; font-weight: 600; flex: none; }
     .grid-diy tr.total td { border-top: 2px solid var(--line); background: var(--surface-2); font-weight: 600; }
     /* téléphone : une carte par offre — le nom et le prix sur une ligne, ce qui est compris dessous,
        sur toute la largeur (plus de trois colonnes étroites) */
@@ -359,10 +363,18 @@
       <div class="wrap">
         <h2>Réalisée par vous, avec les originaux</h2>
         <p>Vous composez dans l’atelier, puis vous découpez et collez les vrais dessins vous-même. Deux façons de s’y mettre.</p>
+        <!-- deux offres bien séparées : le guide seul (PDF), puis le kit livré, ses options et leur total -->
+        <h3 class="diy-way"><span class="diy-n">1</span>Le guide, en PDF</h3>
         <table class="grid-diy">
           <thead><tr><th>Offre</th><th>Ce qui est compris</th><th>Prix</th></tr></thead>
           <tbody>
             <tr><td>Mon atelier DIY</td><td>Le fichier HD et le guide de création personnalisé en PDF : taille de la toile, plan de pose à l’échelle 1, ordre de collage et, pour chaque dessin, sa fiche de découpe avec le trait de coupe et ses cotes</td><td class="p">29 €</td></tr>
+          </tbody>
+        </table>
+        <h3 class="diy-way"><span class="diy-n">2</span>Le kit, livré chez vous</h3>
+        <table class="grid-diy">
+          <thead><tr><th>Offre</th><th>Ce qui est compris</th><th>Prix</th></tr></thead>
+          <tbody>
             <tr><td>Le kit DIY</td><td>Livré chez vous : le guide personnalisé imprimé et les gabarits de découpe à l’échelle. Vous utilisez vos dessins originaux</td><td class="p">45 €</td></tr>
             <tr><td>+ Toile vierge sur châssis</td><td>Trois tailles, celle de l’œuvre : 45 € le 80 × 80, 59 € le 100 × 100, 79 € le 97 × 130</td><td class="p">dès 45 €</td></tr>
             <tr><td>+ Colle et vernis</td><td>Colle vinylique et vernis de finition</td><td class="p">11 €</td></tr>
