@@ -4523,6 +4523,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const img = document.createElement('img');
       img.alt = '';
       img.decoding = 'async';
+      img.dataset.src = src; // (l'image d'origine, avant le réglage de couleurs appliqué)
       e = { img, src, tone };
       thumbImgs.set(key, e);
       if (!tone) img.src = src;

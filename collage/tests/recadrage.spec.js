@@ -56,7 +56,7 @@ test.describe('Recadrer une page de fond', () => {
     expect(b.h / a.h).toBeCloseTo(0.77 / 0.97, 2);
     if (a.whole) expect(b.whole).toBe(true);
     // la fiche et la vignette montrent la page recadrée
-    const thumbs = await page.evaluate((k) => { const d = AtelierGribouille.state.drawings[k]; return [d.cropThumb, document.querySelector('#detail > img').src, document.querySelector(`#drawings .thumb[data-i="${k}"] img`).src]; }, k);
+    const thumbs = await page.evaluate((k) => { const d = AtelierGribouille.state.drawings[k]; return [d.cropThumb, document.querySelector('#detail > img').src, document.querySelector(`#drawings .thumb[data-i="${k}"] img`).dataset.src]; }, k); // (la vignette : son image d'origine, avant le réglage de couleurs)
     expect(thumbs[0]).toBeTruthy();
     expect(thumbs[1]).toBe(thumbs[0]);
     expect(thumbs[2]).toBe(thumbs[0]);
