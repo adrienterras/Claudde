@@ -1631,9 +1631,24 @@
     // ne change pas : le curseur remonté les repose
     const placed = (d) => !comp || comp.items.some((L) => L.piece.drawing === d) || onArt(d);
     const shownRole = (d) => { const r = roleOf(d); return r === 'cutout' && !placed(d) ? 'off' : r; };
+    // une vignette par découpe : une feuille dont plusieurs sujets sont posés sur l'œuvre en a une
+    // par sujet (pour qu'elle compte autant de dessins que l'œuvre), et un sujet retiré de l'œuvre
+    // alors que d'autres de sa feuille y restent passe seul dans « Non utilisé », avec son « + »
+    const base = (q) => q.copyOf || q;
+    const posedPieces = (d) => (comp ? [...new Set(comp.items.filter((L) => L.piece && L.piece.drawing === d).map((L) => base(L.piece)))] : []);
+    const entries = [];
+    state.drawings.forEach((d, i) => {
+      const role = shownRole(d);
+      const posed = role === 'cutout' ? posedPieces(d) : [];
+      if (posed.length >= 2) posed.forEach((pc, k) => entries.push({ d, i, role, piece: pc, first: k === 0 }));
+      else entries.push({ d, i, role, piece: null, first: true });
+      if (role === 'cutout' && comp) {
+        (d.analysis.pieces || []).filter((pc) => pc.removed && !posed.includes(pc)).forEach((pc) => entries.push({ d, i, role: 'off', piece: pc, first: false, removed: true }));
+      }
+    });
     const grids = {};
     GROUPS.forEach(([role, name]) => {
-      const n = state.drawings.filter((d) => shownRole(d) === role).length;
+      const n = entries.filter((e) => e.role === role).length;
       if (!n) return;
       const g = document.createElement('div');
       g.className = `drawings-group ${role}`;
@@ -1646,11 +1661,11 @@
       dEl.appendChild(g);
       grids[role] = g.querySelector('.grid');
     });
-    state.drawings.forEach((d, i) => {
-      const role = shownRole(d);
+    entries.forEach(({ d, i, role, piece, first, removed }) => {
       const el = document.createElement('div');
-      el.className = `thumb ${role}${state.current === d ? ' current' : ''}${notPosed.has(d) ? ' unplaced' : ''}`;
-      el.dataset.i = String(i);
+      el.className = `thumb ${role}${state.current === d ? ' current' : ''}${notPosed.has(d) ? ' unplaced' : ''}${piece ? ' piece' : ''}`;
+      // (la vignette de la feuille, ou de son premier sujet, porte son rang ; les autres sujets, data-di)
+      if (first) el.dataset.i = String(i); else el.dataset.di = String(i);
       el.title = (d.ai ? `${d.ai.sujet} — ${d.name}` : d.name) + (notPosed.has(d) ? ` — ${tr('non posé dans la proposition affichée')}` : '');
       // au clavier : un bouton (Entrée ou Espace ouvre sa fiche)
       el.tabIndex = 0;
@@ -1659,19 +1674,20 @@
       el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
       el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
       // (la vignette seule, sans pastille : photo détourée ou redressée, taille et qualité sont dans sa fiche)
-      el.innerHTML = `<img src="${thumbFor(d)}" alt=""${toneStyle(d)}>`;
+      el.innerHTML = `<img src="${piece ? pieceThumb(d, piece) : thumbFor(d)}" alt=""${toneStyle(d)}>`;
       el.onclick = () => {
-        state.current = state.current === d ? null : d;
-        // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner)
-        selectOnArt(state.current);
+        state.current = state.current === d && !piece ? null : d;
+        // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner) ; la
+        // vignette d'un sujet sélectionne ce sujet-là
+        selectOnArt(state.current, piece);
         refreshLists();
         // téléphone : la fiche s'ouvre en haut du tiroir, agrandi pour qu'on la voie en entier ;
         // ordinateur : la fiche (au-dessus de la liste) remonte en haut du panneau, pour qu'on la voie
         // même quand la vignette cliquée est loin dans la liste
         if (state.current) showDetail();
       };
-      // « Non utilisé » : un bouton « + » sur la vignette remet le dessin sur l'œuvre (à côté du bouton
-      // de la vignette, pas dedans)
+      // « Non utilisé » : un bouton « + » sur la vignette remet le dessin (ou ce sujet) sur l'œuvre (à
+      // côté du bouton de la vignette, pas dedans)
       let item = el;
       if (role === 'off' && state.comp) {
         item = document.createElement('div');
@@ -1683,10 +1699,11 @@
         add.title = tr('Ajouter à l’œuvre');
         add.setAttribute('aria-label', tr`Ajouter « ${d.name} » à l’œuvre`);
         add.innerHTML = '<svg class="ico"><use href="#i-plus"/></svg>';
-        add.onclick = () => addToArt(d);
+        add.onclick = () => (removed ? addPieceToArt(d, piece) : addToArt(d));
         item.appendChild(add);
-        // la corbeille, dans l'angle opposé : le dessin quitte l'atelier
-        if (state.drawings.length > 1) {
+        // la corbeille, dans l'angle opposé : le dessin quitte l'atelier (pas pour un seul sujet d'une
+        // feuille dont d'autres sujets sont sur l'œuvre)
+        if (!removed && state.drawings.length > 1) {
           const del = document.createElement('button');
           del.type = 'button';
           del.className = 'thumb-del';
@@ -1699,7 +1716,8 @@
       }
       (grids[role] || dEl).appendChild(item);
     });
-    $('drawings-count').textContent = `(${state.drawings.length})`;
+    // (autant que de vignettes : un dessin par découpe)
+    $('drawings-count').textContent = `(${entries.length})`;
     renderDetail();
   }
 
@@ -1845,11 +1863,11 @@
 
   // Sélectionne sur l'œuvre le calque d'un dessin : sa pièce principale (ou la plus grande de ses
   // pièces posées, copies comprises), sinon sa page de fond ; rien s'il n'est pas dans l'œuvre.
-  function selectOnArt(d) {
+  function selectOnArt(d, piece) {
     const comp = state.comp;
     let L = null;
     if (d && comp) {
-      const main = mainPiece(d);
+      const main = piece || mainPiece(d);
       const items = comp.items.filter((x) => x.piece && x.piece.drawing === d);
       const area = (x) => x.w * x.h;
       L = items.find((x) => (x.piece.copyOf || x.piece) === main) || items.sort((a, b) => area(b) - area(a))[0] || null;
@@ -4368,8 +4386,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       if (L.frame !== undefined) L.piece.lastFrame = L.frame; // Galerie : le « + » la remet dans sa case
       comp.items.splice(i, 1);
       state.selected = null;
-      if (!comp.items.some((q) => q.piece === L.piece)) { L.piece.placed = false; L.piece.enabled = false; }
+      if (!comp.items.some((q) => q.piece === L.piece)) { L.piece.placed = false; L.piece.enabled = false; (L.piece.copyOf || L.piece).removed = true; } // (retiré à la main : sa vignette passe dans « Non utilisé »)
       retireIfUnused(L.piece.drawing);
+      refreshLists(); // (le sujet retiré passe dans « Non utilisé »)
     }
     render();
   }
@@ -4391,6 +4410,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         sizePiece(p, k);
         sel = Compose.addPiece(comp, p, ++state.seq);
         p.placed = true;
+        p.removed = false;
       });
     } else if (role === 'texture' && a.texture && takesPages(comp)) {
       const t = a.texture, kb = printMode() ? state.bgScale || scale() : scale();
@@ -4454,6 +4474,34 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     refreshLists();
     regenerate({ noCommit: true });
     saveStatus(tr`« ${d.name} » est supprimé de l’atelier.`);
+  }
+  // « + » sur un sujet retiré (les autres sujets de sa feuille restent sur l'œuvre) : il revient seul,
+  // dans une place libre, sélectionné ; un pas de Défaire
+  function addPieceToArt(d, p) {
+    const comp = state.comp;
+    if (!comp || !p) return;
+    commit();
+    touched();
+    p.removed = false;
+    p.enabled = true;
+    sizePiece(p, scale());
+    const L = Compose.addPiece(comp, p, ++state.seq);
+    p.placed = true;
+    state.current = d;
+    state.selected = L;
+    refreshLists();
+    render();
+    updateExportInfo();
+    updateLabel();
+    refreshActiveThumb();
+  }
+  // la vignette d'un sujet (gardée sur la découpe) ; sans la feuille en mémoire, celle du dessin
+  function pieceThumb(d, p) {
+    if (p.thumb) return p.thumb;
+    const page = d.analysis && d.analysis.page;
+    if (!page || !p.canvas || !p.src) return thumbFor(d);
+    try { p.thumb = subjectThumb(page, p, d.analysis.paper); } catch (e) { return thumbFor(d); }
+    return p.thumb;
   }
   function retireIfUnused(d) {
     const c = state.comp;

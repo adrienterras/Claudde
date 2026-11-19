@@ -2485,3 +2485,45 @@ test.describe('Barre d’outils sur iPad', () => {
     await expect(page.locator('#toolbar [data-act="del"] span')).toBeVisible();
   });
 });
+
+// Une feuille à plusieurs sujets posés sur l'œuvre : une vignette par sujet dans Dessins (la liste compte
+// autant de dessins que l'œuvre de découpes) ; un sujet retiré passe seul dans « Non utilisé », et son
+// « + » le remet sur l'œuvre
+test.describe('Dessins, une vignette par découpe', () => {
+  test('un sujet retiré d’une feuille dont d’autres sujets restent sur l’œuvre peut être remis', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?exemple&mode=toile');
+    await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.comp, null, { timeout: 90000 });
+    // une feuille dont au moins deux sujets sont posés
+    const info = await page.evaluate(() => {
+      const A = AtelierGribouille, c = A.state.comp;
+      const posed = (d) => [...new Set(c.items.filter((L) => L.piece.drawing === d).map((L) => L.piece.copyOf || L.piece))];
+      const i = A.state.drawings.findIndex((d) => posed(d).length >= 2);
+      const total = A.state.drawings.reduce((t, d) => t + Math.max(1, posed(d).length), 0);
+      return { i, n: posed(A.state.drawings[i]).length, total };
+    });
+    expect(info.i).toBeGreaterThanOrEqual(0);
+    await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector('h2').click(); });
+    const mine = page.locator(`#drawings .thumb[data-i="${info.i}"], #drawings .thumb[data-di="${info.i}"]`);
+    await expect(mine).toHaveCount(info.n);
+    await expect(page.locator('#drawings-count')).toHaveText(`(${info.total})`);
+    // retirer un des sujets : la feuille reste en Premier plan, le sujet passe dans « Non utilisé »
+    await page.evaluate((i) => {
+      const A = AtelierGribouille, d = A.state.drawings[i];
+      A.state.selected = A.state.comp.items.filter((L) => L.piece.drawing === d).pop();
+      A.act('del');
+    }, info.i);
+    await expect(page.locator(`#drawings .drawings-group.cutout .thumb[data-i="${info.i}"], #drawings .drawings-group.cutout .thumb[data-di="${info.i}"]`)).toHaveCount(info.n - 1);
+    const off = page.locator(`#drawings .drawings-group.off .thumb-wrap:has(.thumb[data-di="${info.i}"])`);
+    await expect(off).toHaveCount(1);
+    await expect(off.locator('.thumb-del')).toHaveCount(0); // (pas de corbeille pour un seul sujet)
+    // son « + » le remet : de nouveau une vignette par sujet posé
+    await off.locator('.thumb-add').click();
+    await expect(page.locator(`#drawings .drawings-group.cutout .thumb[data-i="${info.i}"], #drawings .drawings-group.cutout .thumb[data-di="${info.i}"]`)).toHaveCount(info.n);
+    await expect(page.locator('#drawings .drawings-group.off .thumb-wrap')).toHaveCount(await page.locator('#drawings .drawings-group.off .thumb-wrap').count());
+    expect(await page.evaluate((i) => { const A = AtelierGribouille, d = A.state.drawings[i]; return new Set(A.state.comp.items.filter((L) => L.piece.drawing === d).map((L) => L.piece.copyOf || L.piece)).size; }, info.i)).toBe(info.n);
+    await ctx.close();
+  });
+});
