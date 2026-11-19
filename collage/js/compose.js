@@ -2046,7 +2046,10 @@
     const tLo = lo <= 30 ? lo : lo - (lo - 30) / 3;
     const a = (tHi - tLo) / (hi - lo), off = tHi - a * hi;
     const kc = Math.min(1.35, Math.max(0.65, 1 - off / 127.5));
-    const kb = Math.min(1.35, Math.max(0.65, a / kc));
+    // le contraste borné, la luminosité est choisie pour que le papier (hi) arrive à sa cible, sans la
+    // dépasser : avec a / kc, un contraste borné poussait le papier et les crayons pâles au blanc pur
+    // (un dessin aux crayons de couleur, sans trait sombre, en ressortait blanc et jaune)
+    const kb = Math.min(1.35, Math.max(0.65, (tHi - 127.5 * (1 - kc)) / (kc * hi)));
     const snap = (v, m) => { const r = Math.round(Math.max(-m, Math.min(m, v))); return Math.abs(r) < 3 ? 0 : r; };
     const t = { b: snap((kb - 1) * 100, 35), c: snap((kc - 1) * 100, 35), s: 0 };
     // saturation, mesurée après luminosité et contraste

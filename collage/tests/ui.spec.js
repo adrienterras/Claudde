@@ -1168,6 +1168,30 @@ test.describe('Réglage automatique de l’image', () => {
     for (const t of [r.terne, r.crayon]) for (const k of ['b', 'c']) expect(Math.abs(t[k])).toBeLessThanOrEqual(35);
   });
 
+  test('un dessin aux crayons de couleur pâles, sans trait sombre : les couleurs restent, rien ne passe au blanc', async ({ page }) => {
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.Compose && Compose.autoTone);
+    const r = await page.evaluate(() => {
+      // papier blanc (déjà redressé par la découpe), crayon violet et vert pâles, feutre jaune
+      const c = document.createElement('canvas'); c.width = 400; c.height = 300; const x = c.getContext('2d');
+      x.fillStyle = 'rgb(248,248,246)'; x.fillRect(0, 0, 400, 300);
+      x.fillStyle = 'rgb(196,178,222)'; x.fillRect(40, 40, 140, 100);
+      x.fillStyle = 'rgb(188,222,186)'; x.fillRect(220, 40, 140, 100);
+      x.fillStyle = 'rgb(242,196,40)'; x.fillRect(40, 170, 320, 60);
+      const t = Compose.autoTone([c]);
+      const d = Compose.toned(c, t).getContext('2d');
+      const at = (px, py) => Array.from(d.getImageData(px, py, 1, 1).data).slice(0, 3);
+      return { t, violet: at(100, 90), vert: at(290, 90), jaune: at(200, 200), papier: at(10, 10) };
+    });
+    // le violet et le vert gardent leur couleur (ni blancs, ni gris), le papier reste blanc
+    for (const k of ['violet', 'vert']) { const v = r[k]; expect(Math.min(...v)).toBeLessThan(225); expect(Math.max(...v) - Math.min(...v)).toBeGreaterThan(20); }
+    expect(r.violet[2]).toBeGreaterThan(r.violet[1]);
+    expect(r.vert[1]).toBeGreaterThan(r.vert[0]);
+    expect(Math.min(...r.papier)).toBeGreaterThan(235);
+    expect(r.jaune[2]).toBeLessThan(150);
+  });
+
   test('appliqué d’office à l’import ; « Rétablir » le retire et il ne revient pas pour ce fichier', async ({ page }) => {
     const { fixture } = require('./helpers');
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
