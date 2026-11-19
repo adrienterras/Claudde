@@ -4928,10 +4928,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const type = $('fmt').value;
       // Safari (iPhone, iPad) : un canvas au-delà de sa mémoire reste vide, sans erreur, et le JPEG
       // qui en sort est tout noir. L'image rendue est donc vérifiée ; si elle est vide, on réessaie
-      // plus petit, jusqu'à trois fois.
+      // plus petit : d'abord sous la limite de Safari (16,7 Mpx), puis de 40 % à chaque essai (une toile
+      // de 130 × 97 cm à 300 dpi fait 176 Mpx), jusqu'à sept fois.
       let blob = null, scale = s, rw = 0, rh = 0;
-      for (let attempt = 0; attempt < 4 && !blob; attempt++) {
-        if (attempt) { scale *= 0.6; saveStatus(tr('Image trop grande pour cet appareil : nouvel essai plus petit…')); await tick(); }
+      for (let attempt = 0; attempt < 8 && !blob; attempt++) {
+        if (attempt) { scale = Math.min(scale * 0.6, Math.sqrt(16.7e6 / (ex.W * ex.H))); saveStatus(tr('Image trop grande pour cet appareil : nouvel essai plus petit…')); await tick(); }
         await hydrateHD(ex.comp, scale);
         await sharpenHD(ex.comp, scale);
         if (!attempt) saveStatus(tr('Rendu de l’image…'));

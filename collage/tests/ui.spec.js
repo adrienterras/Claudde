@@ -780,11 +780,13 @@ test.describe('Brouillon', () => {
     await page.evaluate(() => AtelierGribouille.selectProposal(AtelierGribouille.state.proposals.findIndex((p) => p.style.id === 'tournesol')));
     await expect(page.locator('#density-note')).toHaveText(/^3 sur 3/);
     // une toile choisie dans la liste, elle, est gardée à la réouverture
-    await page.evaluate(() => { const f = document.getElementById('format'); f.value = '50x50'; f.dispatchEvent(new Event('change')); });
-    await expect.poll(savedFormat, { timeout: 60000 }).toBe('50x50');
+    // (une autre que la toile conseillée : il n'y en a que trois)
+    const chosen = await page.evaluate(() => ['80x80', '100x100', '130x97'].find((v) => v !== document.getElementById('format').value));
+    await page.evaluate((v) => { const f = document.getElementById('format'); f.value = v; f.dispatchEvent(new Event('change')); }, chosen);
+    await expect.poll(savedFormat, { timeout: 60000 }).toBe(chosen);
     await page.reload();
     await page.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    expect(await page.evaluate(() => [AtelierGribouille.state.formatManual, document.getElementById('format').value, AtelierGribouille.state.comp.W])).toEqual([true, '50x50', 50]);
+    expect(await page.evaluate(() => [AtelierGribouille.state.formatManual, document.getElementById('format').value, Math.max(AtelierGribouille.state.comp.W, AtelierGribouille.state.comp.H)])).toEqual([true, chosen, Number(chosen.split('x')[0])]);
   });
 
   test('retour sur l’atelier (nouvelle visite) avec une œuvre en cours : deux boutons, reprendre ou nouvelle œuvre ; pas après une actualisation', async ({ page }) => {
@@ -1104,7 +1106,7 @@ test.describe('Luminosité, contraste et saturation', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[0].tone)).toEqual({ b: -40, c: 30, s: 0 });
     expect(await page.evaluate(() => !!AtelierGribouille.state.drawings[0].analysis.pieces[0].edited)).toBe(false);
     expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, comp)).toBe(true);
-    expect(await mean()).toBeLessThan(m0 - 1);
+    expect(await mean()).toBeLessThan(m0 - 0.25); // (moyenne de toute l'œuvre : le dessin n'en couvre qu'une partie sur une grande toile)
     expect(await page.locator('#drawings .thumb[data-i="0"]').locator('img').evaluate((i) => i.style.filter)).toContain('brightness(0.6)');
     expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(true);
 
