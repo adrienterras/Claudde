@@ -356,8 +356,15 @@ test('Tarifs : livraison en supplément ; sous la grille, un visuel par taille, 
       await im.scrollIntoViewIfNeeded();
       await expect.poll(() => im.evaluate((i) => i.complete && i.naturalWidth)).toBe(800);
     }
+    // les trois toiles du kit DIY, sous le tableau du kit
+    const toiles = page.locator('#diy .diy-sizes figure');
+    await expect(toiles.locator('figcaption')).toHaveText(['80 × 80 cm', '100 × 100 cm', '97 × 130 cm']);
+    for (const im of await toiles.locator('img').all()) {
+      await im.scrollIntoViewIfNeeded();
+      await expect.poll(() => im.evaluate((i) => i.complete && i.naturalWidth)).toBe(800);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (opts === PHONE) expect(await page.locator('.sizes').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    if (opts === PHONE) expect(await page.locator('#impressions .sizes').evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
     await ctx.close();
   }
 });
