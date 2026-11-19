@@ -1107,7 +1107,12 @@ test.describe('Luminosité, contraste et saturation', () => {
     expect(await page.evaluate(() => !!AtelierGribouille.state.drawings[0].analysis.pieces[0].edited)).toBe(false);
     expect(await page.evaluate((c) => c === AtelierGribouille.state.comp, comp)).toBe(true);
     expect(await mean()).toBeLessThan(m0 - 0.25); // (moyenne de toute l'œuvre : le dessin n'en couvre qu'une partie sur une grande toile)
-    expect(await page.locator('#drawings .thumb[data-i="0"]').locator('img').evaluate((i) => i.style.filter)).toContain('brightness(0.6)');
+    // la vignette suit : le réglage est appliqué à son image une fois pour toutes (sans filtre CSS, lent sur iPhone)
+    const thumbImg = page.locator('#drawings .thumb[data-i="0"]').locator('img');
+    await expect.poll(() => thumbImg.evaluate((i, src) => i.complete && !i.style.filter && i.src !== src, '')).toBe(true);
+    expect(await thumbImg.evaluate((i) => i.src)).not.toBe(await page.evaluate(() => AtelierGribouille.state.drawings[0].thumb));
+    const lum = (sel) => page.evaluate(async (src) => { const im = new Image(); im.src = src; await im.decode(); const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d'); x.drawImage(im, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let t = 0; for (let k = 0; k < d.length; k += 4) t += d[k] + d[k + 1] + d[k + 2]; return t / (d.length / 4) / 3; }, sel);
+    expect(await lum(await thumbImg.evaluate((i) => i.src))).toBeLessThan(await lum(await page.evaluate(() => AtelierGribouille.state.drawings[0].thumb)) - 5);
     expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('atelier-gribouille:tons:')))).toBe(true);
 
     // en rouvrant, les curseurs reprennent le réglage ; automatique puis Rétablir
@@ -1208,7 +1213,8 @@ test.describe('Réglage automatique de l’image', () => {
     expect(st.tone.c).toBeGreaterThan(0);
     expect(st.pending).toBe(false);
     await page.locator('#drawings-section > h2').click();
-    await expect(page.locator('#drawings .thumb[data-i="0"] img')).toHaveCSS('filter', /contrast/);
+    // la vignette montre le réglage, appliqué à son image (plus de filtre CSS une fois prête)
+    await expect.poll(() => page.locator('#drawings .thumb[data-i="0"] img').evaluate((i) => i.complete && i.style.filter === '' && i.src !== AtelierGribouille.state.drawings[0].thumb)).toBe(true);
     await page.locator('#drawings .thumb[data-i="0"]').click();
     await expect(page.locator('#detail [data-tone="c"]')).toHaveValue(String(st.tone.c));
     // « Rétablir » : le dessin tel que scanné, et ce choix est retenu (« 0 ») pour un prochain import

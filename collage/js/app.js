@@ -1620,6 +1620,7 @@
   }
 
   function refreshLists() {
+    pruneThumbs();
     syncImportStep();
     renderUncertain();
     renderSizeGate();
@@ -1682,7 +1683,8 @@
       el.setAttribute('aria-pressed', state.current === d ? 'true' : 'false');
       el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); el.click(); } };
       // (la vignette, avec pour seule pastille l'alerte de qualité : photo détourée, taille… sont dans sa fiche)
-      el.innerHTML = `<img src="${piece ? pieceThumb(d, piece) : thumbFor(d)}" alt=""${toneStyle(d)}>${role !== 'off' ? qualityBadge(d) : ''}`;
+      el.appendChild(thumbImg(d, piece));
+      if (role !== 'off') el.insertAdjacentHTML('beforeend', qualityBadge(d));
       el.onclick = () => {
         state.current = state.current === d && !piece ? null : d;
         // le dessin choisi est aussi sélectionné sur l'œuvre (cadre et poignée pour le tourner) ; la
@@ -4502,6 +4504,50 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     updateExportInfo();
     updateLabel();
     refreshActiveThumb();
+  }
+  /*
+   * Image d'une vignette de la liste Dessins. La liste est refaite à chaque changement ; refaire les
+   * images aussi obligeait Safari (iPhone) à redécoder toutes les vignettes à chaque fois, et à recalculer
+   * le filtre CSS des couleurs réglées sur chacune : elles restaient vides de longues secondes. L'image est
+   * donc gardée d'une fois sur l'autre (même dessin, même sujet, même source), et le réglage de couleurs y
+   * est appliqué une fois pour toutes (le filtre CSS ne sert qu'en attendant).
+   */
+  const thumbImgs = new Map();
+  function thumbImg(d, piece) {
+    const pi = piece ? (d.analysis.pieces || []).indexOf(piece) : -1;
+    const key = `${d.id}:${pi}`;
+    const src = piece ? pieceThumb(d, piece) : thumbFor(d);
+    const tone = hasTone(d) ? JSON.stringify(d.tone) : '';
+    let e = thumbImgs.get(key);
+    if (!e || e.src !== src || e.tone !== tone) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.decoding = 'async';
+      e = { img, src, tone };
+      thumbImgs.set(key, e);
+      if (!tone) img.src = src;
+      else {
+        img.src = src;
+        img.style.filter = toneFilter(d);
+        // les couleurs réglées, appliquées une fois sur l'image (puis sans filtre)
+        const t = Object.assign({}, d.tone), base = new Image();
+        base.onload = () => {
+          if (thumbImgs.get(key) !== e) return;
+          try {
+            const c = Compose.toned(base, t);
+            img.src = c === base ? src : c.toDataURL('image/jpeg', 0.85); // (canevas gardé par Compose.toned)
+            img.style.filter = '';
+          } catch (err) { /* (le filtre reste) */ }
+        };
+        base.src = src;
+      }
+    }
+    return e.img;
+  }
+  // les vignettes des dessins qui ne sont plus dans l'atelier ne sont pas gardées
+  function pruneThumbs() {
+    const ids = new Set(state.drawings.map((d) => String(d.id)));
+    [...thumbImgs.keys()].forEach((k) => { if (!ids.has(k.slice(0, k.lastIndexOf(':')))) thumbImgs.delete(k); });
   }
   // la vignette d'un sujet (gardée sur la découpe) ; sans la feuille en mémoire, celle du dessin
   function pieceThumb(d, p) {
