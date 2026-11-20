@@ -186,6 +186,12 @@ test.describe('Photographier un dessin', () => {
     await expect(page.locator('#camera-review')).toBeHidden();
     await expect(page.locator('#camera-count')).toHaveText('1');
     await expect(page.locator('#camera-done')).toHaveText('Importer (1)');
+    // rien de ce qui sort du cadre en pointillé n'est gardé : la photo est recadrée sur lui (12 % de
+    // marge de chaque côté de la vidéo, aux proportions de la vidéo, même si la photo de l'appareil en a d'autres)
+    expect(await page.evaluate(() => Camera.frameRect(640, 480))).toEqual({ x: 77, y: 58, w: 486, h: 365 });
+    expect(await page.evaluate(() => Camera.frameRect(4000, 3000, 640, 360))).toEqual({ x: 480, y: 645, w: 3040, h: 1710 });
+    const shot = await page.evaluate(async () => { const i = document.querySelector('#camera-last img'); await i.decode(); const v = document.getElementById('camera-video'); return { w: i.naturalWidth, h: i.naturalHeight, vw: v.videoWidth, vh: v.videoHeight }; });
+    expect(Math.abs(shot.w / shot.h - shot.vw / shot.vh)).toBeLessThan(0.02);
     await page.locator('#camera-undo').click();
     await expect(page.locator('#camera-last')).toBeHidden();
     await expect(page.locator('#camera-done')).toHaveText('Fermer');

@@ -131,8 +131,12 @@ cd collage && python3 -m http.server 8000
    prendrait pour des dessins (feuille repérée, les objets autour ne gênent pas : la photo est
    recadrée) ; une feuille qui remplit l'image, comme un scan, n'est pas concernée ;
    ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
-   (simplicité demandée). Le quadrilatère de la feuille, quand elle est trouvée, est
-   tracé sur la vidéo, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
+   (simplicité demandée). Le **cadre en pointillé** (12 % de marge de chaque côté de la vidéo,
+   `FRAME_INSET`, `Camera.frameRect`) est toujours tracé : **rien de ce qui en sort n'est gardé** — la
+   visée n'analyse que son intérieur (feuille, lumière, objets autour) et la photo prise y est
+   recadrée à pleine définition (une photo de l'appareil aux proportions différentes de la vidéo :
+   le cadre est pris dans sa partie centrale, celle que montre la vidéo). Le quadrilatère de la
+   feuille, quand elle est trouvée, est tracé en plus, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
    (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
    secours a le sien) : la lampe reste allumée pendant la visée et la photo, le choix est mémorisé
    (`atelier.flash`) et la lampe s'éteint avec la caméra. **Tant que la consigne de visée est rouge**

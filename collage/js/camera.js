@@ -20,6 +20,9 @@
   const tr = window.tr || ((s) => s);
   const LIVE_MAX = 960;   // définition de l'image analysée pendant la visée
   const CHECK_MAX = 2000; // définition de l'image analysée après la prise
+  // le cadre en pointillé de la visée : 12 % de marge de chaque côté de l'image de la vidéo ; rien de
+  // ce qui en sort n'est gardé — la visée n'analyse que l'intérieur, et la photo y est recadrée
+  const FRAME_INSET = 0.12;
 
   let S = null; // séance en cours : { stream, facing, shots, timer, busy, review, onDone, onError }
 
@@ -27,15 +30,28 @@
 
   // ---------- Jugement d'une image ----------
 
-  function canvasOf(src, maxSide) {
-    const k = Math.min(1, maxSide / Math.max(src.width || src.videoWidth, src.height || src.videoHeight));
-    const w = Math.max(1, Math.round((src.width || src.videoWidth) * k)), h = Math.max(1, Math.round((src.height || src.videoHeight) * k));
+  // rect : la partie de la source à prendre (toute l'image sans lui)
+  function canvasOf(src, maxSide, rect) {
+    const r = rect || { x: 0, y: 0, w: src.width || src.videoWidth, h: src.height || src.videoHeight };
+    const k = Math.min(1, maxSide / Math.max(r.w, r.h));
+    const w = Math.max(1, Math.round(r.w * k)), h = Math.max(1, Math.round(r.h * k));
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const x = c.getContext('2d', { willReadFrequently: true });
     x.imageSmoothingQuality = 'high';
-    x.drawImage(src, 0, 0, w, h);
+    x.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, w, h);
     return c;
+  }
+  // L'intérieur du cadre en pointillé dans une image w × h. La photo de l'appareil (ImageCapture) peut
+  // avoir d'autres proportions que la vidéo (le capteur entier) : la vidéo en est la partie centrale,
+  // aux proportions vw × vh, et le cadre est pris dans cette partie.
+  function frameRect(w, h, vw, vh) {
+    let bx = 0, by = 0, bw = w, bh = h;
+    if (vw && vh && Math.abs(w / h - vw / vh) > 0.01) {
+      if (w / h > vw / vh) { bw = h * (vw / vh); bx = (w - bw) / 2; } else { bh = w * (vh / vw); by = (h - bh) / 2; }
+    }
+    const x = Math.round(bx + bw * FRAME_INSET), y = Math.round(by + bh * FRAME_INSET);
+    return { x, y, w: Math.max(1, Math.round(bw * (1 - 2 * FRAME_INSET))), h: Math.max(1, Math.round(bh * (1 - 2 * FRAME_INSET))) };
   }
   const release = (c) => { if (c && c.width) { c.width = 0; c.height = 0; } };
 
@@ -193,8 +209,9 @@
     $('camera-tip').textContent = v.worst ? v.worst.tip : '';
   }
 
-  // le quadrilatère de la feuille, dessiné par-dessus la vidéo (object-fit: contain)
-  function drawGuide(v, work) {
+  // le cadre en pointillé (toujours là : seul son intérieur est gardé) et le quadrilatère de la feuille
+  // quand elle est trouvée, dessinés par-dessus la vidéo (object-fit: contain)
+  function drawGuide(v, work, rect) {
     const video = $('camera-video'), g = $('camera-guide');
     const bw = g.clientWidth, bh = g.clientHeight;
     if (!bw || !bh) return;
@@ -203,21 +220,21 @@
     ctx.clearRect(0, 0, bw, bh);
     const vw = video.videoWidth || work.width, vh = video.videoHeight || work.height;
     const k = Math.min(bw / vw, bh / vh), ox = (bw - vw * k) / 2, oy = (bh - vh * k) / 2;
-    const kw = vw / work.width; // image analysée → pixels vidéo
+    const r = rect || { x: 0, y: 0, w: vw, h: vh };
+    const kw = r.w / work.width; // image analysée (l'intérieur du cadre) → pixels vidéo
+    // le cadre : où poser la feuille ; ce qui en sort ne sera pas sur la photo
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.setLineDash([10, 8]);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(ox + r.x * k, oy + r.y * k, r.w * k, r.h * k);
+    ctx.setLineDash([]);
     if (v.quad) {
       ctx.strokeStyle = v.level === 'ok' ? '#3fb66b' : v.level === 'warn' ? '#e0a21a' : '#e04b3a';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      v.quad.forEach(([x, y], i) => { const X = ox + x * kw * k, Y = oy + y * kw * k; if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); });
+      v.quad.forEach(([x, y], i) => { const X = ox + (r.x + x * kw) * k, Y = oy + (r.y + y * kw) * k; if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); });
       ctx.closePath();
       ctx.stroke();
-    } else {
-      // repère : où poser la feuille
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.setLineDash([10, 8]);
-      ctx.lineWidth = 2;
-      ctx.strokeRect(ox + vw * k * 0.12, oy + vh * k * 0.12, vw * k * 0.76, vh * k * 0.76);
-      ctx.setLineDash([]);
     }
   }
 
@@ -310,12 +327,13 @@
     if (!S || S.review) return;
     const video = $('camera-video');
     if (video.readyState >= 2 && video.videoWidth) {
-      const work = canvasOf(video, LIVE_MAX);
+      const rect = frameRect(video.videoWidth, video.videoHeight);
+      const work = canvasOf(video, LIVE_MAX, rect); // (l'intérieur du cadre seulement)
       const v = check(work);
       S.last = v;
       showLive(v);
       setBlocked(v);
-      drawGuide(v, work);
+      drawGuide(v, work, rect);
       release(work);
     }
     S.timer = setTimeout(tick, 150);
@@ -361,8 +379,12 @@
     S.busy = true;
     $('camera-shoot').disabled = true;
     try {
-      const full = await grab();
-      if (!S) { release(full); return; }
+      const grabbed = await grab();
+      if (!S) { release(grabbed); return; }
+      // recadrée sur le cadre en pointillé, à pleine définition : rien de ce qui en sort n'est gardé
+      const video = $('camera-video');
+      const full = canvasOf(grabbed, Infinity, frameRect(grabbed.width, grabbed.height, video.videoWidth, video.videoHeight));
+      release(grabbed);
       const blob = await new Promise((res) => full.toBlob(res, 'image/jpeg', 0.94));
       const small = canvasOf(full, CHECK_MAX);
       const v = check(small);
@@ -519,5 +541,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 
-  window.Camera = { supported, open, close, check, shots: () => (S ? S.shots.length : 0) };
+  window.Camera = { supported, open, close, check, frameRect, shots: () => (S ? S.shots.length : 0) };
 })();
