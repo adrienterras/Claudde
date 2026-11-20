@@ -438,7 +438,7 @@ cd collage && python3 -m http.server 8000
      avec le nombre d'articles) permet de changer les quantités, de retirer un article, de « Revoir »
      une composition dans l'atelier ; « Commander » (compte demandé) enregistre chaque composition
      dans le compte sous la référence de la commande (AG-AAMMJJ-XXXX), garde la commande dans
-     l'historique local et ouvre le message de commande (bonjour@atelier-gribouille.com) avec le
+     l'historique local et ouvre le message de commande (contact@ateliergribouille.art) avec le
      récapitulatif. Le paiement en ligne n'est pas encore branché ;
    - **Mes œuvres** : chaque œuvre s'enregistre d'elle-même pendant qu'on travaille (2,5 s après le
      dernier changement), il n'y a rien à sauvegarder. L'œuvre affichée est le brouillon (`DRAFT_ID`,

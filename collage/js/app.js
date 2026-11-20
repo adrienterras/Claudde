@@ -8267,7 +8267,7 @@ Réponds uniquement avec ce JSON :
    * message de commande avec le récapitulatif.
    */
   const CART_KEY = 'atelier-gribouille:panier', ORDERS_KEY = 'atelier-gribouille:commandes';
-  const ORDER_MAIL = 'bonjour@atelier-gribouille.com';
+  const ORDER_MAIL = 'contact@ateliergribouille.art';
   // tailles vendues : les cadres de l'atelier Impression (PRINT_FRAMES)
   const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] };
   const PRICES = {

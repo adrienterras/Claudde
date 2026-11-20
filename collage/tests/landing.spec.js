@@ -249,7 +249,7 @@ test('accueil : menu à trois traits sur téléphone, avec les sections et les p
   expect(await menu.locator('a').allTextContents()).toEqual(['Comment ça marche', 'L’atelier', 'Tarifs', 'Guide pour photographier les dessins', 'Questions fréquentes', 'À propos', 'Contact']);
   const hrefs = await menu.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   // (plus de « Les styles », « Chez vous » ni « Idées » dans le menu)
-  expect(hrefs).toEqual(['#comment', 'atelier/', 'tarifs.html', 'photographier-les-dessins.html', '#questions', 'a-propos.html', 'mailto:bonjour@atelier-gribouille.com']);
+  expect(hrefs).toEqual(['#comment', 'atelier/', 'tarifs.html', 'photographier-les-dessins.html', '#questions', 'a-propos.html', 'mailto:contact@ateliergribouille.art']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   // un lien de section : on y va, le menu se referme
   await menu.locator('a[href="#questions"]').click();

@@ -116,11 +116,11 @@ e-mails par heure. Pour qu'ils partent d'Atelier Gribouille, en français :
    port 465, utilisateur `resend`, mot de passe = la clé API) ou [Brevo](https://www.brevo.com)
    (300 e-mails/jour ; SMTP `smtp-relay.brevo.com`, port 587, identifiants donnés dans
    « SMTP & API »). Dans le service choisi, ajoutez le domaine de l'adresse d'envoi
-   (`atelier-gribouille.com` pour `bonjour@atelier-gribouille.com`) et créez chez votre
+   (`ateliergribouille.art` pour `contact@ateliergribouille.art`) et créez chez votre
    hébergeur DNS les enregistrements qu'il indique (SPF, DKIM, éventuellement DMARC) : sans eux,
    les e-mails finiraient en indésirables.
 2. **Supabase → Project Settings → Authentication → SMTP Settings** : activez « Enable Custom
-   SMTP », renseignez Sender email `bonjour@atelier-gribouille.com`, Sender name
+   SMTP », renseignez Sender email `contact@ateliergribouille.art`, Sender name
    `Atelier Gribouille`, puis l'hôte, le port, l'utilisateur et le mot de passe du service.
    Enregistrez. (La limite d'envoi, « Rate limits », peut alors être relevée, par exemple à 60/h.)
 3. **Supabase → Authentication → Email Templates** : pour chacun des quatre modèles, collez

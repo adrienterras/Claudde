@@ -4,7 +4,7 @@
 window.ATELIER_CONFIG = {
   supabaseUrl: 'https://yfrerlyndrpfgerkbkyr.supabase.co',
   supabaseAnonKey: 'sb_publishable_anEQj6_shvidtJSVg0WrTQ_NhznsQHi', // clé publique (publishable) du projet
-  contactEmail: 'bonjour@atelier-gribouille.com',
+  contactEmail: 'contact@ateliergribouille.art',
   // mesure d'audience sans cookies, Umami Cloud (gratuit) : coller l'identifiant du site (Website ID)
   // donné par Umami ; vide = désactivée. Voir docs/ANALYTIQUE.md
   analytics: { provider: 'umami', websiteId: '8428c303-3200-487c-b30c-964e4f569442', endpoint: 'https://gateway.umami.is/api/send' },
