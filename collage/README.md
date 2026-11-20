@@ -392,7 +392,7 @@ cd collage && python3 -m http.server 8000
      seule, `#acc-head`, qui ouvre l'onglet Compte, dont le bouton n'est plus dans la barre ; tiroir baissé ou à
      l'accueil, l'œuvre couvrant l'en-tête, elle reste à portée dans l'angle haut droit) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
-     l'atelier : impression (encadrée : couleur du cadre — bois clair, bois foncé, bois noir, bois blanc ou
+     l'atelier : impression (encadrée : couleur du cadre — bois clair, bois noir, bois blanc ou
      métal, celle de la mise en scène par défaut — et avec ou sans passe-partout — avec, pas de 21 × 30,
      remplacé par le 30 × 40 —, avec en clair la taille du
      cadre et celle de l'impression, `printSizeOf` ; fichier HD 29 €, impression papier / encadrée / toile en 21 × 30,
@@ -676,10 +676,10 @@ cd collage && python3 -m http.server 8000
      blanc chaud en relief : son ouverture est coupée en biseau à 45°, à l'âme blanche visible tout
      autour (3 mm), éclairée en bas et à droite, dans l'ombre en haut et à gauche (la lumière vient de
      la fenêtre), avec l'arête de la coupe en trait fin ; l'œuvre, en retrait sous l'épaisseur du
-     carton, reçoit son ombre portée en haut et à gauche. Le cadre (bois clair, bois foncé,
+     carton, reçoit son ombre portée en haut et à gauche. Le cadre (bois clair,
      bois noir, bois blanc ou métal) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
      il est assorti aux couleurs de l'œuvre : sombre → bois blanc (bois noir avec passe-partout),
-     dominante froide → métal, claire → bois foncé, sinon bois clair. Le cadre montré est celui choisi
+     dominante froide → métal, claire → bois noir, sinon bois clair (plus de bois foncé : un cadre déjà choisi dans ce bois se dessine encore). Le cadre montré est celui choisi
      dans Tailles ; le choix « Sans / Avec passe-partout » y est le même (il change la taille
      d'impression, donc la composition), et le passe-partout se voit dès que l'ouverture du cadre
      dépasse l'œuvre (une composition rouverte d'un ancien format prend le plus petit des quatre

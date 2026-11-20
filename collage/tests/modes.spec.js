@@ -351,7 +351,7 @@ test.describe('Atelier Impression et atelier Toile', () => {
     // le choix du passe-partout vient juste sous Papier / Encadré
     await expect(page.locator('#cart-add .cart-mat-field')).toBeVisible();
     expect(await page.evaluate(() => document.querySelector('#cart-add .cart-finish').nextElementSibling.classList.contains('cart-mat-field'))).toBe(true);
-    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-frame-kind]')].map((b) => b.dataset.frameKind))).toEqual(['bois-clair', 'bois-fonce', 'bois-noir', 'bois-blanc', 'metal']);
+    expect(await page.evaluate(() => [...document.querySelectorAll('#cart-add [data-frame-kind]')].map((b) => b.dataset.frameKind))).toEqual(['bois-clair', 'bois-noir', 'bois-blanc', 'metal']); // (plus de bois foncé)
     await expect(page.locator('#cart-add [data-frame-kind].on')).toHaveCount(1);
     await expect(page.locator('#cart-add [data-mat="1"]')).toHaveClass(/on/);
     await expect(page.locator('#cart-add .cart-print-sizes [data-size="21x30"]')).toBeHidden();

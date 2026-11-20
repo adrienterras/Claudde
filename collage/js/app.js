@@ -5289,13 +5289,14 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Cadres proposés pour un tableau imprimé : la couleur est choisie d'après celles de l'œuvre
   const FRAME_KINDS = {
     'bois-clair': { name: tr('bois clair'), profile: 1.5, rgb: [212, 184, 146], grain: true },
-    'bois-fonce': { name: tr('bois foncé'), profile: 1.5, rgb: [96, 70, 50], grain: true },
+    // (plus proposé : le cadre d'une œuvre déjà mise en scène ou commandée dans ce bois se dessine encore)
+    'bois-fonce': { name: tr('bois foncé'), profile: 1.5, rgb: [96, 70, 50], grain: true, retired: true },
     'bois-noir': { name: tr('bois noir'), profile: 1.5, rgb: [38, 36, 34], grain: true, vein: (a) => `rgba(255, 255, 255, ${a * 0.5})` },
     'bois-blanc': { name: tr('bois blanc'), profile: 1.5, rgb: [253, 253, 252], grain: true, flat: true, vein: (a) => `rgba(150, 150, 145, ${a * 0.35})` },
     metal: { name: tr('métal'), profile: 0.9, rgb: [186, 188, 190], brushed: true },
   };
   // le cadre choisi par l'utilisateur ('auto' : assorti aux couleurs de l'œuvre)
-  const sceneFrameChoice = () => { try { const v = localStorage.getItem('atelier.cadre'); return FRAME_KINDS[v] ? v : 'auto'; } catch (e) { return 'auto'; } };
+  const sceneFrameChoice = () => { try { const v = localStorage.getItem('atelier.cadre'); return FRAME_KINDS[v] && !FRAME_KINDS[v].retired ? v : 'auto'; } catch (e) { return 'auto'; } };
   // Teinte générale de l'œuvre (rendue en vignette) : clarté et chaleur moyennes
   function artTone(comp) {
     const s = 48 / Math.max(comp.W, comp.H);
@@ -5313,11 +5314,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return { light: L / n, warm: warm / n };
   }
   // Œuvre sombre : bois blanc (bois noir avec un passe-partout blanc) ; dominante froide (bleus,
-  // verts) : métal ; œuvre claire ou pastel : bois foncé, pour la tenir ; sinon bois clair, chaleureux
+  // verts) : métal ; œuvre claire ou pastel : bois noir, pour la tenir ; sinon bois clair, chaleureux
   function pickFrameKind(tone, mat) {
     if (tone.light < 0.36) return mat ? 'bois-noir' : 'bois-blanc';
     if (tone.warm < 0) return 'metal';
-    if (tone.light > 0.62) return 'bois-fonce';
+    if (tone.light > 0.62) return 'bois-noir';
     return 'bois-clair';
   }
   // Avec passe-partout : le plus petit cadre standard qui laisse au moins 4 cm de marge autour de
@@ -8309,7 +8310,7 @@ Réponds uniquement avec ce JSON :
   const sizeLabel = (size, W, H) => { const [a, b] = SIZES[size]; return W >= H ? `${b} × ${a} cm` : `${a} × ${b} cm`; };
   // encadré : la couleur du cadre et le passe-partout (sans : l'impression a la taille du cadre ; avec :
   // la taille en dessous, le passe-partout faisant la différence) ; mêmes cadres que la mise en scène
-  const CART_FRAMES = ['bois-clair', 'bois-fonce', 'bois-noir', 'bois-blanc', 'metal'];
+  const CART_FRAMES = ['bois-clair', 'bois-noir', 'bois-blanc', 'metal']; // (plus de bois foncé)
   const frameKindName = (k) => { const n = (FRAME_KINDS[k] || FRAME_KINDS['bois-clair']).name; return n.charAt(0).toUpperCase() + n.slice(1); };
   // la taille de l'impression (orientée comme l'œuvre)
   function printSizeOf(it) {
@@ -8372,7 +8373,7 @@ Réponds uniquement avec ce JSON :
     return c.filter(validItem).map((it) => Object.assign(it, {
       qty: clamp(Math.round(Number(it.qty)) || 1, 1, maxQty(it)), W: Number(it.W), H: Number(it.H),
       title: String(it.title || ''), styleName: String(it.styleName || ''), refs: Array.isArray(it.refs) ? it.refs.map(String) : [],
-      frame: CART_FRAMES.includes(it.frame) ? it.frame : 'bois-clair', mat: it.mat === true,
+      frame: CART_FRAMES.includes(it.frame) || it.frame === 'bois-fonce' ? it.frame : 'bois-clair', mat: it.mat === true, // (un article déjà au panier en bois foncé le garde)
       unit: unitPrice(it),
     }));
   }
