@@ -9,6 +9,15 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.waitForFunction(() => window.AtelierGribouille);
     await expect(page.locator('#mode-pick')).toBeVisible();
     expect(await page.evaluate(() => document.querySelectorAll('#mode-pick button.on').length)).toBe(0);
+    // les originaux pas encore proposés : la carte « Originaux DIY » est grisée, inactive, avec sa pastille
+    const soon = page.locator('#mode-pick [data-mode="toile"]');
+    await expect(soon).toBeDisabled();
+    await expect(soon.locator('b')).toHaveText('Originaux DIY');
+    await expect(soon.locator('.mode-soon-badge')).toHaveText('Bientôt disponible');
+    await expect(soon.locator('.mode-soon-badge')).toBeVisible();
+    await soon.click({ force: true });
+    await expect(page.locator('#import-pick')).toBeHidden();
+    expect(await page.evaluate(() => document.querySelectorAll('#mode-pick button.on').length)).toBe(0);
     await page.locator('#mode-pick [data-mode="impression"]').click();
     // comme sur téléphone : la carte choisie, le choix d'ajout s'ouvre ; fermé sans rien choisir, retour aux cartes
     await expect(page.locator('#import-pick')).toBeVisible();
@@ -69,6 +78,8 @@ test.describe('Atelier Impression et atelier Toile', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
+    // (la carte Originaux est grisée, « Bientôt disponible » : réactivée ici pour garder le parcours de la toile)
+    await page.evaluate(() => { const b = document.querySelector('#mode-pick [data-mode="toile"]'); b.disabled = false; b.removeAttribute('aria-disabled'); });
     await page.locator('#mode-pick [data-mode="toile"]').click();
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-files').click()]);
     await chooser.setFiles([fixture('page-cutout.png')]);

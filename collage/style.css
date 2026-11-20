@@ -1382,6 +1382,13 @@ body.stage-full .scene-open { display: none; }
 .mode-pick button:hover { border-color: var(--ink); box-shadow: 0 0 0 3px var(--accent-soft); }
 .mode-pick button.on { border-color: var(--ink); box-shadow: 0 0 0 3px var(--accent-soft); }
 .mode-pick button.on b::before { content: '✓ '; }
+/* les originaux, pas encore proposés : carte grisée, inactive, avec la pastille « Bientôt disponible » */
+.mode-pick button { position: relative; }
+.mode-pick button.mode-soon { cursor: default; }
+.mode-pick button.mode-soon img, .mode-pick button.mode-soon .mode-card-text { filter: grayscale(1); opacity: .5; }
+.mode-pick button.mode-soon:hover { border-color: var(--line); box-shadow: none; }
+.mode-soon-badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1; padding: 4px 10px; border-radius: 999px; background: var(--ink); color: var(--surface); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+@media (max-width: 480px) { .mode-soon-badge { top: 8px; padding: 3px 8px; font-size: 0.66rem; } }
 @media (max-width: 480px) { .mode-pick { gap: 10px; } .mode-pick .mode-card-text { padding: 9px 10px 11px; } .mode-pick button b { font-size: 0.95rem; } .mode-pick button small { font-size: 0.7rem; } }
 
 /* atelier Impression : le fond est un aplat uni, la finition toile n'a pas de sens */

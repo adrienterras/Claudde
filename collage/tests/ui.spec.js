@@ -2249,6 +2249,8 @@ test.describe('Couleur du fond', () => {
     await p.waitForFunction(() => window.AtelierGribouille);
     await expect(p.locator('body')).toHaveClass(/stage-full/);
     await expect(p.locator('#mode-pick')).toBeVisible();
+    // (la carte Originaux est grisée, « Bientôt disponible » : réactivée ici pour garder le parcours de la toile)
+    await p.evaluate(() => { const b = document.querySelector('#mode-pick [data-mode="toile"]'); b.disabled = false; b.removeAttribute('aria-disabled'); });
     // une carte : les boutons d'import prennent sa place au milieu (déposer, photographier), le tiroir reste baissé
     await p.locator('#mode-pick [data-mode="toile"]').click();
     await expect(p.locator('body')).toHaveClass(/stage-full/);

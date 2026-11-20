@@ -492,7 +492,8 @@
           <p class="mode-pick-title">Que voulez-vous créer ?</p>
           <!-- deux cartes côte à côte, chacune avec une photo de l'accueil du site (chambre encadrée, toile du salon) -->
           <button type="button" data-mode="impression"><img src="assets/mode-impression.jpg" alt="" width="640" height="480"><span class="mode-card-text"><b>Impression</b><small>Création imprimée et encadrée</small></span></button>
-          <button type="button" data-mode="toile"><img src="assets/mode-originaux.jpg" alt="" width="640" height="480"><span class="mode-card-text"><b>Originaux</b><small>Vos dessins découpés et collés : guide ou kit DIY</small></span></button>
+          <!-- les originaux ne sont pas encore proposés : la carte est grisée, avec la pastille « Bientôt disponible » (une œuvre en originaux déjà commencée se rouvre comme avant) -->
+          <button type="button" data-mode="toile" class="mode-soon" disabled aria-disabled="true"><span class="mode-soon-badge">Bientôt disponible</span><img src="assets/mode-originaux.jpg" alt="" width="640" height="480"><span class="mode-card-text"><b>Originaux DIY</b><small>Vos dessins découpés et collés : guide ou kit DIY</small></span></button>
         </div>
         <button id="empty-sample" class="btn" hidden><svg class="ico"><use href="#i-spark"/></svg><span>Tester avec un exemple</span></button>
         <!-- le type choisi : les cartes laissent la place aux boutons d'import (l'étape Importer du menu reste, pour en ajouter ensuite) -->

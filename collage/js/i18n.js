@@ -384,6 +384,8 @@
     'Que voulez-vous créer ?': 'What would you like to create?',
     'Impression': 'Print',
     'Originaux': 'Originals',
+    'Originaux DIY': 'DIY originals',
+    'Bientôt disponible': 'Coming soon',
     'Création imprimée et encadrée': 'Printed and framed creation',
     'Vos dessins découpés et collés : guide ou kit DIY': 'Your drawings cut out and glued: guide or DIY kit',
     'Cadres standard du marché': 'Standard frame sizes',

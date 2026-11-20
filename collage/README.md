@@ -17,8 +17,10 @@ cd collage && python3 -m http.server 8000
    le lien compte de leur en-tête, ouvrent le panneau du compte à l'arrivée — voir docs/COMPTES.md), sinon les deux cartes au
    milieu de l'atelier vide, côte à côte, chacune avec une photo de l'accueil du site recadrée en 4:3
    (`assets/mode-impression.jpg` : la création encadrée au-dessus du buffet du salon, cadre entier ; `assets/mode-originaux.jpg` :
-   la toile de dessins collés dans le salon, entre les moulures), un titre court (« Impression », « Originaux ») et une
-   ligne centrée — à la première visite et après « Commencer une nouvelle œuvre », aucune
+   la toile de dessins collés dans le salon, entre les moulures), un titre court (« Impression », « Originaux DIY ») et une
+   ligne centrée ; les originaux ne sont pas encore proposés : leur carte est grisée et inactive
+   (`disabled`, `.mode-soon`), avec la pastille « Bientôt disponible » — une œuvre en originaux déjà
+   commencée se rouvre comme avant, et `?mode=toile` y mène toujours — à la première visite et après « Commencer une nouvelle œuvre », aucune
    carte présélectionnée (`emptyChoice(false)` retire la marque ; le dernier type reste le réglage
    interne jusqu'au clic) ; une carte choisie (ou `?mode=` depuis l'accueil), les cartes et
    « Tester avec un exemple » laissent la place aux boutons d'import au milieu (`#empty-import` : déposer, et
