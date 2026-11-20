@@ -181,6 +181,7 @@
     'Fichier HD de <b>{0}</b> à 300 dpi, avec une bordure blanche de {1} cm : l’œuvre en <b>{2}</b>': 'HD file of <b>{0}</b> at 300 dpi, with a {1} cm white border: the artwork at <b>{2}</b>',
     'Affiche premium ou tableau encadré · fichier HD offert': 'Premium poster or framed picture · HD file included',
     'Papier': 'Paper',
+    'Sans cadre': 'Unframed',
     'Encadré': 'Framed',
     '300 dpi, JPEG, PNG et PDF à l’échelle, à imprimer où vous voulez': '300 dpi, JPEG, PNG and to-scale PDF, to print wherever you like',
     'Le guide de découpe et de collage à l’échelle, en PDF, pour réaliser l’œuvre avec les originaux': 'The to-scale cutting and gluing guide, as a PDF, to make the artwork with the originals',
