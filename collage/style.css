@@ -1374,6 +1374,7 @@ body.stage-full .scene-open { display: none; }
 .import-pick-card .acc-title { margin: 0 0 4px; }
 .empty-import .hint { margin: 0; }
 .empty-import .link { justify-self: center; font-size: 0.82rem; color: var(--ink-2); }
+.drawings-add { width: 100%; justify-content: center; margin: 2px 0 10px; }
 .mode-pick-title { grid-column: 1 / -1; margin: 0; font-weight: 600; color: var(--ink); }
 /* une carte : la photo (4:3, celle de l'accueil du site) puis le titre et une ligne */
 .mode-pick button { display: grid; gap: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); color: var(--ink); text-align: left; cursor: pointer; font: inherit; margin: 0; }

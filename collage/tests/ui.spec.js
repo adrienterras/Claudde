@@ -2575,3 +2575,31 @@ test.describe('Dessins, une vignette par découpe', () => {
     await ctx.close();
   });
 });
+
+test.describe('Onglet Dessins (téléphone)', () => {
+  test('« Ajouter des dessins » en haut de l’onglet ouvre les trois choix ; les dessins choisis s’ajoutent aux autres', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html?mode=impression');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    const before = await page.evaluate(() => AtelierGribouille.state.drawings.length);
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
+    const add = page.locator('#drawings-add');
+    await expect(add).toBeVisible();
+    // en haut de l'onglet, avant la phrase et la liste des dessins
+    expect(await page.evaluate(() => { const b = document.getElementById('drawings-add'); return !!(b.compareDocumentPosition(document.getElementById('drawings')) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(b.compareDocumentPosition(document.getElementById('drawings-hint')) & Node.DOCUMENT_POSITION_FOLLOWING); })).toBe(true);
+    await add.click();
+    await expect(page.locator('#import-pick')).toBeVisible();
+    for (const id of ['pick-camera', 'pick-photos', 'pick-files']) await expect(page.locator('#' + id)).toBeVisible();
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-photos').click()]);
+    await expect(page.locator('#import-pick')).toBeHidden();
+    await chooser.setFiles([fixture('page-two.png')]);
+    await page.waitForFunction((n) => AtelierGribouille.state.drawings.length > n && document.getElementById('progress').hidden, before, { timeout: 120000 });
+    await expect(page.locator('#empty-import')).toBeHidden();
+    await ctx.close();
+  });
+});

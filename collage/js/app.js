@@ -6037,6 +6037,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const el = $('import-pick');
     if (!el) return;
     $('empty-add').addEventListener('click', () => openModal(el));
+    // (le même choix depuis l'onglet Dessins, une œuvre commencée : les dessins s'ajoutent aux autres)
+    $('drawings-add').addEventListener('click', () => openModal(el));
     // fermé sans rien choisir (croix, fond, Échap) : retour aux deux cartes du choix d'atelier
     const dismiss = () => { closeModal(el); if (!state.drawings.length && !$('empty').hidden) emptyChoice(false); };
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = dismiss));

@@ -156,7 +156,9 @@ cd collage && python3 -m http.server 8000
    l'appareil du téléphone » : un champ de fichier `capture="environment"` qui ouvre l'appareil photo
    natif ; ses photos sont gardées et importées comme les autres. Sur téléphone et tablette, la
    visée demande 2560 × 1920 (assez pour un A4 à 150 dpi, sans peser sur la mémoire) ; 4K sur ordinateur.
-2. **Dessins** (dans la colonne, les étapes vont dans l'ordre Importer, puis Tailles et Propositions —
+2. **Dessins** (en haut de l'étape, le bouton **« Ajouter des dessins »** (`#drawings-add`) ouvre la
+   fenêtre aux trois choix — prendre une photo, photothèque, fichiers (`#import-pick`) — et les dessins
+   choisis s'ajoutent à ceux de l'œuvre ; dans la colonne, les étapes vont dans l'ordre Importer, puis Tailles et Propositions —
    Tailles d'abord pour un collage, où la taille réelle des feuilles décide de la toile ; Propositions
    d'abord pour un tableau imprimé (`orderSteps`, numéros à la suite) —, Dessins, Exporter, et en tête,
    sans numéro, Mes œuvres ; mêmes onglets, dans le même ordre, sur téléphone — sauf, pour un tableau
