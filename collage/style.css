@@ -578,6 +578,11 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .thumb img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; display: block; -webkit-user-drag: none; user-select: none; }
 /* « Non utilisé » : le « + » qui remet le dessin sur l'œuvre */
 .thumb-wrap { position: relative; }
+/* panier : l'accord facultatif pour montrer l'œuvre (réseaux, publicité) */
+.cart-consent { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 4px; font-size: 0.85rem; line-height: 1.45; color: var(--ink); cursor: pointer; }
+.cart-consent[hidden] { display: none; }
+.cart-consent input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
+.cart-consent small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.78rem; }
 /* l'alerte de qualité, seule pastille des vignettes : un « ! » orange (à vérifier) ou rouge (insuffisante) */
 .thumb .q { position: absolute; left: 4px; top: 4px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.7rem; font-weight: 700; color: #fff; box-shadow: 0 0 0 2px var(--surface); }
 .thumb .q.warn { background: #c98a1b; }

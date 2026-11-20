@@ -439,7 +439,7 @@ cd collage && python3 -m http.server 8000
      une composition dans l'atelier ; « Commander » (compte demandé) enregistre chaque composition
      dans le compte sous la référence de la commande (AG-AAMMJJ-XXXX), garde la commande dans
      l'historique local et ouvre le message de commande (contact@ateliergribouille.art) avec le
-     récapitulatif. Le paiement en ligne n'est pas encore branché ;
+     récapitulatif. Avant « Commander », une case **facultative, non cochée d'office** et redemandée à chaque commande demande l'accord pour montrer l'œuvre sur les réseaux sociaux et dans la communication, y compris publicitaire, sans nom ni prénom ou visage d'enfant (`#cart-consent`) ; la réponse figure dans le message de commande, dans la trace de la commande gardée dans le compte (`order.consent`) et dans l'historique du navigateur ; la politique de confidentialité le décrit (consentement, retrait à tout moment). Le paiement en ligne n'est pas encore branché ;
    - **Mes œuvres** : chaque œuvre s'enregistre d'elle-même pendant qu'on travaille (2,5 s après le
      dernier changement), il n'y a rien à sauvegarder. L'œuvre affichée est le brouillon (`DRAFT_ID`,
      rouvert de lui-même à une actualisation ou un retour en arrière ; à une nouvelle visite — adresse,

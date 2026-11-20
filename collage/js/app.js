@@ -8714,6 +8714,7 @@ Réponds uniquement avec ce JSON :
     box.querySelector('.cart-total').hidden = !items.length;
     box.querySelector('.cart-total b').textContent = euros(total);
     box.querySelector('.cart-note').hidden = !items.length;
+    $('cart-consent-field').hidden = !items.length;
     $('cart-order').hidden = !items.length;
   }
   function openCart(msg) {
@@ -8818,9 +8819,12 @@ Réponds uniquement avec ce JSON :
       if (!items.length) { renderCart(); return; }
       const now = new Date();
       const ref = `AG-${now.toISOString().slice(2, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+      // l'accord (facultatif) pour montrer l'œuvre sur les réseaux et en publicité : dans le message, la
+      // trace de la commande gardée dans le compte et l'historique du navigateur, daté
+      const consent = !!$('cart-consent').checked;
       const lines = [];
       // la trace de la commande gardée dans le compte avec l'œuvre
-      const orderOf = (it) => ({ ref, at: now.toISOString(), product: productLabel(it), W: it.W, H: it.H, qty: it.qty, unit: it.unit });
+      const orderOf = (it) => ({ ref, at: now.toISOString(), product: productLabel(it), W: it.W, H: it.H, qty: it.qty, unit: it.unit, consent });
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         let saved = '';
@@ -8842,15 +8846,18 @@ Réponds uniquement avec ce JSON :
       const who = cloud ? (A.user().email || '') : '';
       const body = [
         tr`Bonjour,`, '', tr`Je souhaite commander :`, '', ...lines, '', tr`Total TTC : ${euros(total)}`,
-        tr`Référence : ${ref}`, who ? tr`Compte : ${who}` : '', '', tr`Adresse de livraison :`, '', '', tr`Merci !`,
+        tr`Référence : ${ref}`, who ? tr`Compte : ${who}` : '',
+        consent ? tr('Diffusion de l’œuvre (réseaux sociaux, communication et publicité, sans nom ni prénom ou visage d’enfant) : j’accepte.') : tr('Diffusion de l’œuvre (réseaux sociaux, communication et publicité) : je n’accepte pas.'),
+        '', tr`Adresse de livraison :`, '', '', tr`Merci !`,
       ].join('\n');
       const orders = (() => { try { return JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]'); } catch (e) { return []; } })();
-      orders.push({ ref, date: now.toISOString(), total, items: items.map((it) => ({ title: it.title, product: productLabel(it), qty: it.qty, unit: it.unit })) });
+      orders.push({ ref, date: now.toISOString(), total, consent, items: items.map((it) => ({ title: it.title, product: productLabel(it), qty: it.qty, unit: it.unit })) });
       try { localStorage.setItem(ORDERS_KEY, JSON.stringify(orders.slice(-30))); } catch (e) { /* ignoré */ }
       window.Atelier.track('Commande', { articles: items.length, total: Math.round(total) });
       // panier vidé (les compositions commandées sont dans le compte, et dans « Mes œuvres »)
       items.forEach((it) => { if (!isCloudItem(it)) dbDel(it.recId).catch(() => {}); });
       saveCart([]);
+      $('cart-consent').checked = false; // (demandé de nouveau à la prochaine commande)
       if (cloud) renderSaved({ refresh: true });
       renderCart();
       $('cart').querySelector('.cart-empty').hidden = true;

@@ -1386,10 +1386,20 @@ test.describe('Panier', () => {
     await expect(page.locator('#saved-list .saved.current')).toHaveCount(0);
     // commander (sans comptes ici) : récapitulatif prêt, panier vidé, commande gardée
     await page.locator('.cart-btn-desk').click();
+    // l'accord facultatif pour montrer l'œuvre (réseaux, publicité) : proposé, non coché d'office
+    const consent = page.locator('#cart-consent');
+    await expect(consent).toBeVisible();
+    await expect(consent).not.toBeChecked();
+    await expect(page.locator('#cart-consent-field')).toContainText('réseaux sociaux');
+    await page.locator('#cart-consent-field').click();
+    await expect(consent).toBeChecked();
+    // l'accord est gardé avec la commande
     await page.locator('#cart-order').click();
     await expect(page.locator('#cart .cart-status')).toContainText('prête');
     const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:commandes') || '[]'));
     expect(orders).toHaveLength(1);
+    expect(orders[0].consent).toBe(true);
+    await expect(consent).not.toBeChecked(); // (redemandé à la prochaine commande)
     expect(orders[0].total).toBe(129);
     expect(orders[0].ref).toMatch(/^AG-\d{6}-[A-Z0-9]{4}$/);
     await expect(page.locator('.cart-btn-desk')).toBeHidden();
