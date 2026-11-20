@@ -3121,6 +3121,8 @@
     state.proposals.forEach((pr) => pr.comp.bg.forEach((L) => { if (!L.paper && !L.drawing && texOf.has(L.src)) L.drawing = texOf.get(L.src); })); // (voir pageDrawing)
     if (fc.frame) state.proposals.forEach((pr) => { pr.comp.frameKey = fc.key; pr.comp.mat = fc.mat; });
     state.active = Math.min(state.active || 0, state.proposals.length - 1);
+    // première composition d'une nouvelle œuvre : la proposition qui remplit le mieux l'œuvre (voir fillScore)
+    if (!prev && !state.pinned && !state.restoring) state.active = bestFilled(state.proposals);
     // une composition rouverte reste telle quelle tant qu'on ne demande pas d'autres propositions
     if (state.pinned) {
       const i = state.proposals.findIndex((pr) => pr.style.id === state.pinned.style);
@@ -3138,6 +3140,59 @@
     updateLabel();
     renderSizeGate();
     refreshLists(); // (les découpes que la proposition ne pose pas passent sous « Non utilisé »)
+  }
+
+  /*
+   * La première proposition montrée doit occuper toute l'œuvre : chaque proposition est mesurée sur une
+   * grille de 30 cases de large (pages de fond, cases du Pop art, et les découpes d'après leur forme
+   * réelle), en part couverte et en part couverte de sa région la plus vide (l'œuvre coupée en 3 × 3) ;
+   * un ciel resté vide pèse lourd. La Galerie, le Cabinet et le Pop art, aux règles à part (cases,
+   * rangées, aplats), ne sont pas choisis d'office ; à égalité, l'ordre des styles décide.
+   */
+  function fillScore(comp) {
+    const W = comp.W, H = comp.H, gx = 30, gy = Math.max(6, Math.round((30 * H) / W));
+    const cov = new Uint8Array(gx * gy);
+    const mark = (L, inside) => {
+      const i0 = Math.max(0, Math.floor(((L.x - L.w / 2) / W) * gx)), i1 = Math.min(gx - 1, Math.ceil(((L.x + L.w / 2) / W) * gx));
+      const j0 = Math.max(0, Math.floor(((L.y - L.h / 2) / H) * gy)), j1 = Math.min(gy - 1, Math.ceil(((L.y + L.h / 2) / H) * gy));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        if (cov[j * gx + i]) continue;
+        const x = ((i + 0.5) * W) / gx, y = ((j + 0.5) * H) / gy;
+        if (Math.abs(x - L.x) <= L.w / 2 && Math.abs(y - L.y) <= L.h / 2 && inside(x, y)) cov[j * gx + i] = 1;
+      }
+    };
+    if (comp.tiles && comp.tiles.length) cov.fill(1);
+    (comp.bg || []).forEach((L) => { if (!L.paper) mark(L, () => true); });
+    (comp.items || []).forEach((L) => {
+      const hm = L.piece && L.piece.hit;
+      mark(L, (x, y) => {
+        if (!hm || !hm.data) return true;
+        let u = (x - (L.x - L.w / 2)) / L.w;
+        const v = (y - (L.y - L.h / 2)) / L.h;
+        if (L.flip) u = 1 - u;
+        return !!hm.data[Math.min(hm.h - 1, Math.floor(v * hm.h)) * hm.w + Math.min(hm.w - 1, Math.floor(u * hm.w))];
+      });
+    });
+    let n = 0;
+    cov.forEach((c) => { n += c; });
+    let worst = 1;
+    for (let bj = 0; bj < 3; bj++) for (let bi = 0; bi < 3; bi++) {
+      let a = 0, t = 0;
+      for (let j = Math.floor((bj * gy) / 3); j < Math.floor(((bj + 1) * gy) / 3); j++) for (let i = Math.floor((bi * gx) / 3); i < Math.floor(((bi + 1) * gx) / 3); i++) { a += cov[j * gx + i]; t++; }
+      if (t) worst = Math.min(worst, a / t);
+    }
+    return 0.4 * (n / cov.length) + 0.6 * worst;
+  }
+  function bestFilled(proposals) {
+    let best = 0, bestS = -1;
+    proposals.forEach((pr, i) => {
+      if (['galerie', 'cabinet', 'popart', 'village'].includes(pr.style.id)) return;
+      let sc = -1;
+      try { sc = fillScore(pr.comp); } catch (e) { sc = -1; }
+      pr.fill = sc;
+      if (sc > bestS + 0.02) { best = i; bestS = sc; }
+    });
+    return best;
   }
 
   // Les réponses de Claude arrivent après coup (plusieurs secondes, voire une minute) : si la composition

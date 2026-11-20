@@ -385,10 +385,21 @@
       const video = $('camera-video');
       const full = canvasOf(grabbed, Infinity, frameRect(grabbed.width, grabbed.height, video.videoWidth, video.videoHeight));
       release(grabbed);
-      const blob = await new Promise((res) => full.toBlob(res, 'image/jpeg', 0.94));
       const small = canvasOf(full, CHECK_MAX);
       const v = check(small);
-      release(small); release(full);
+      // feuille trouvée (le contour vert) : la photo est la feuille seule, redressée à pleine définition —
+      // rien de ce qui dépasse du contour vert n'est gardé ; sinon, l'intérieur du cadre en pointillé
+      let shot = full;
+      if (v.quad && Extract.warpQuad) {
+        const k = full.width / small.width, q = v.quad.map(([x, y]) => [x * k, y * k]);
+        const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+        let w = Math.max(len(q[0], q[1]), len(q[3], q[2])), h = Math.max(len(q[0], q[3]), len(q[1], q[2]));
+        const sc = Math.min(1, Math.max(full.width, full.height) / Math.max(w, h));
+        w = Math.max(8, Math.round(w * sc)); h = Math.max(8, Math.round(h * sc));
+        try { shot = Extract.warpQuad(full, q, w, h); } catch (e) { shot = full; }
+      }
+      const blob = await new Promise((res) => shot.toBlob(res, 'image/jpeg', 0.94));
+      release(small); release(full); if (shot !== full) release(shot);
       // bonne ou correcte : gardée d'office, la visée continue ; à reprendre : on la montre, avec la raison
       if (v.level !== 'bad') { addShot(blob, v); flash(); toast(v.worst ? tr`✓ Photo gardée — ${v.worst.text.toLowerCase()}` : tr('✓ Photo gardée')); return; }
       S.review = { blob, verdict: v };

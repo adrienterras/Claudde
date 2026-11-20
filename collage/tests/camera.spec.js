@@ -190,8 +190,17 @@ test.describe('Photographier un dessin', () => {
     // marge de chaque côté de la vidéo, aux proportions de la vidéo, même si la photo de l'appareil en a d'autres)
     expect(await page.evaluate(() => Camera.frameRect(640, 480))).toEqual({ x: 77, y: 58, w: 486, h: 365 });
     expect(await page.evaluate(() => Camera.frameRect(4000, 3000, 640, 360))).toEqual({ x: 480, y: 645, w: 3040, h: 1710 });
-    const shot = await page.evaluate(async () => { const i = document.querySelector('#camera-last img'); await i.decode(); const v = document.getElementById('camera-video'); return { w: i.naturalWidth, h: i.naturalHeight, vw: v.videoWidth, vh: v.videoHeight }; });
-    expect(Math.abs(shot.w / shot.h - shot.vw / shot.vh)).toBeLessThan(0.02);
+    // feuille trouvée (contour vert) : la photo est la feuille seule, redressée — ses quatre coins sont du
+    // papier, pas le parquet autour (feuille de synthèse : 350 × 260)
+    const shot = await page.evaluate(async () => {
+      const i = document.querySelector('#camera-last img'); await i.decode();
+      const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight;
+      const x = c.getContext('2d'); x.drawImage(i, 0, 0);
+      const px = (u, v) => Array.from(x.getImageData(Math.round(u * (c.width - 1)), Math.round(v * (c.height - 1)), 1, 1).data.slice(0, 3));
+      return { w: c.width, h: c.height, corners: [px(0.02, 0.02), px(0.98, 0.02), px(0.02, 0.98), px(0.98, 0.98)] };
+    });
+    expect(Math.abs(shot.w / shot.h - 350 / 260)).toBeLessThan(0.04);
+    for (const [r, g, b] of shot.corners) expect(Math.min(r, g, b)).toBeGreaterThan(200);
     await page.locator('#camera-undo').click();
     await expect(page.locator('#camera-last')).toBeHidden();
     await expect(page.locator('#camera-done')).toHaveText('Fermer');

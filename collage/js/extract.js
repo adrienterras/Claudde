@@ -3217,5 +3217,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, warpQuad, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();

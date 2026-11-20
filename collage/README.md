@@ -157,7 +157,9 @@ cd collage && python3 -m http.server 8000
    visée n'analyse que son intérieur (feuille, lumière, objets autour) et la photo prise y est
    recadrée à pleine définition (une photo de l'appareil aux proportions différentes de la vidéo :
    le cadre est pris dans sa partie centrale, celle que montre la vidéo). Le quadrilatère de la
-   feuille, quand elle est trouvée, est tracé en plus, vert, orange ou rouge. En haut, **« Flash »** quand la caméra a une lampe
+   feuille, quand elle est trouvée, est tracé en plus, vert, orange ou rouge ; la feuille trouvée,
+   **la photo est la feuille seule** : redressée (perspective corrigée, `Extract.warpQuad`) d'après ce
+   contour, à pleine définition — rien de ce qui dépasse du contour vert n'est gardé. En haut, **« Flash »** quand la caméra a une lampe
    (`torch` dans ses capacités : Android ; pas Safari sur iPhone, où l'appareil du téléphone en
    secours a le sien) : la lampe reste allumée pendant la visée et la photo, le choix est mémorisé
    (`atelier.flash`) et la lampe s'éteint avec la caméra. **Tant que la consigne de visée est rouge**
@@ -366,6 +368,12 @@ cd collage && python3 -m http.server 8000
 3. **Composition** : l'application propose elle-même une œuvre faite UNIQUEMENT des dessins,
    de TOUS les dessins, et **à leur taille réelle** : rien n'est réduit ni agrandi, puisque l'œuvre
    sera réalisée avec les originaux. C'est la toile qui s'adapte :
+   - **la première proposition remplit l'œuvre** (`fillScore`, `bestFilled`) : à la première
+     composition d'une nouvelle œuvre, chaque proposition est mesurée sur une grille de 30 cases de
+     large (pages de fond, cases du Pop art, découpes d'après leur forme réelle) — part couverte (40 %)
+     et part couverte de sa région la plus vide, l'œuvre coupée en 3 × 3 (60 %) : un ciel resté vide
+     pèse lourd ; la meilleure est montrée d'abord (Paysage à égalité, à 0,02 près ; la Galerie, le
+     Cabinet et le Pop art ne sont pas choisis d'office) ; ensuite le style choisi reste le même
    - **plan de couverture** : l'application choisit les dessins qui font le meilleur fond (pages peintes
      bord à bord **en larges aplats colorés** — la part peinte, la couleur et le « calme » de la page,
      mesuré comme la part de surface sans variation locale, se multiplient ; une page chargée de petits
