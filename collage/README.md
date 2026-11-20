@@ -393,7 +393,7 @@ cd collage && python3 -m http.server 8000
      l'accueil, l'œuvre couvrant l'en-tête, elle reste à portée dans l'angle haut droit) ; la composition affichée (« Commander », pas d'icône panier sur les propositions) ou
      la composition en cours (étape Exporter) s'ajoute au panier avec le produit choisi, au catalogue de la page Tarifs, selon
      l'atelier : impression (encadrée : couleur du cadre — bois clair, bois noir, bois blanc ou
-     métal, celle de la mise en scène par défaut — et avec ou sans passe-partout — avec, pas de 21 × 30,
+     aluminium, celle de la mise en scène par défaut — et avec ou sans passe-partout — avec, pas de 21 × 30,
      remplacé par le 30 × 40 —, avec en clair la taille du
      cadre et celle de l'impression, `printSizeOf` ; fichier HD 29 €, impression papier / encadrée / toile en 21 × 30,
      30 × 40, 40 × 50, 50 × 70 ou 70 × 100, 29 à 199 €, la taille proposée étant le cadre de la composition) ou toile (guide DIY 29 €, kit DIY à options : base 45 € (guide imprimé et gabarits, livrés) + toile vierge sur châssis à la taille de l'œuvre (45 € le 80 × 80, 59 € le 100 × 100, 79 € le 130 × 97, selon la surface, `KIT_CANVAS`) + colle et vernis 11 € + pinceaux 6 €, cochés d'office ; le kit complet à 107, 121 ou 141 € selon la toile, total affiché sur la page Tarifs (`kitPrice`, options gardées avec l'article)),
@@ -672,14 +672,14 @@ cd collage && python3 -m http.server 8000
      la commande) : pas de bande blanche de part et d'autre quand l'œuvre n'a pas les proportions de
      l'affiche — une œuvre de 21 × 29,7 cm, taille avec passe-partout, en affiche 30 × 40 cm)
      (baguette fine et plate, comme un
-     cadre du commerce : 1,5 cm, 0,9 cm pour le métal ; pas de reflet). Le passe-partout est un carton
+     cadre du commerce : 1,5 cm, 0,9 cm pour l’aluminium ; pas de reflet). Le passe-partout est un carton
      blanc chaud en relief : son ouverture est coupée en biseau à 45°, à l'âme blanche visible tout
      autour (3 mm), éclairée en bas et à droite, dans l'ombre en haut et à gauche (la lumière vient de
      la fenêtre), avec l'arête de la coupe en trait fin ; l'œuvre, en retrait sous l'épaisseur du
      carton, reçoit son ombre portée en haut et à gauche. Le cadre (bois clair,
-     bois noir, bois blanc ou métal) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
+     bois noir, bois blanc ou aluminium) se choisit dans un nuancier ; en « Auto » (par défaut, mémorisé),
      il est assorti aux couleurs de l'œuvre : sombre → bois blanc (bois noir avec passe-partout),
-     dominante froide → métal, claire → bois noir, sinon bois clair (plus de bois foncé : un cadre déjà choisi dans ce bois se dessine encore). Le cadre montré est celui choisi
+     dominante froide → aluminium, claire → bois noir, sinon bois clair (plus de bois foncé : un cadre déjà choisi dans ce bois se dessine encore). Le cadre montré est celui choisi
      dans Tailles ; le choix « Sans / Avec passe-partout » y est le même (il change la taille
      d'impression, donc la composition), et le passe-partout se voit dès que l'ouverture du cadre
      dépasse l'œuvre (une composition rouverte d'un ancien format prend le plus petit des quatre

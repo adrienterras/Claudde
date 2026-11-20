@@ -95,7 +95,7 @@
     "Accrochée chez vous, elle raconte leur enfance": "Hanging at home, it tells the story of their childhood",
     "Dans la chambre, le salon ou l’entrée : l’œuvre encadrée, à sa taille réelle, chez vous.": "In the bedroom, the living room or the hallway: the framed artwork, at its real size, in your home.",
     "Dans la chambre d’enfant": "In the child’s bedroom",
-    "Tableau encadré, passe-partout et cadre métal, au-dessus des étagères à jouets": "Framed print, mount and metal frame, above the toy shelves",
+    "Tableau encadré, passe-partout et cadre aluminium, au-dessus des étagères à jouets": "Framed print, mount and aluminium frame, above the toy shelves",
     "Tableau de dessins d’enfants encadré, au-dessus des étagères à jouets d’une chambre d’enfant": "Framed artwork made of children’s drawings, above the toy shelves of a child’s bedroom",
     "Dans le salon": "In the living room",
     "Grand format, cadre bois clair et passe-partout, au-dessus du buffet": "Large format, light wood frame and mount, above the sideboard",

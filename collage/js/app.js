@@ -5293,7 +5293,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     'bois-fonce': { name: tr('bois foncé'), profile: 1.5, rgb: [96, 70, 50], grain: true, retired: true },
     'bois-noir': { name: tr('bois noir'), profile: 1.5, rgb: [38, 36, 34], grain: true, vein: (a) => `rgba(255, 255, 255, ${a * 0.5})` },
     'bois-blanc': { name: tr('bois blanc'), profile: 1.5, rgb: [253, 253, 252], grain: true, flat: true, vein: (a) => `rgba(150, 150, 145, ${a * 0.35})` },
-    metal: { name: tr('métal'), profile: 0.9, rgb: [186, 188, 190], brushed: true },
+    metal: { name: tr('aluminium'), profile: 0.9, rgb: [186, 188, 190], brushed: true },
   };
   // le cadre choisi par l'utilisateur ('auto' : assorti aux couleurs de l'œuvre)
   const sceneFrameChoice = () => { try { const v = localStorage.getItem('atelier.cadre'); return FRAME_KINDS[v] && !FRAME_KINDS[v].retired ? v : 'auto'; } catch (e) { return 'auto'; } };
@@ -5314,7 +5314,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return { light: L / n, warm: warm / n };
   }
   // Œuvre sombre : bois blanc (bois noir avec un passe-partout blanc) ; dominante froide (bleus,
-  // verts) : métal ; œuvre claire ou pastel : bois noir, pour la tenir ; sinon bois clair, chaleureux
+  // verts) : aluminium ; œuvre claire ou pastel : bois noir, pour la tenir ; sinon bois clair, chaleureux
   function pickFrameKind(tone, mat) {
     if (tone.light < 0.36) return mat ? 'bois-noir' : 'bois-blanc';
     if (tone.warm < 0) return 'metal';
