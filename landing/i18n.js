@@ -8,7 +8,7 @@
     "Guide pour photographier les dessins": "Guide to photographing drawings",
     "Pied de page": "Footer",
     "Tarifs : tableau et toile avec les dessins d’enfants | Atelier Gribouille": "Prices: canvas and print of children’s drawings | Atelier Gribouille",
-    "Tableau avec les dessins de vos enfants | Atelier Gribouille": "A canvas of your children’s drawings | Atelier Gribouille",
+    "Atelier Gribouille : créez une œuvre avec les dessins de vos enfants": "Atelier Gribouille: create an artwork with your children’s drawings",
     "Atelier Gribouille — les dessins d’enfants deviennent des œuvres d’art": "Atelier Gribouille — children’s drawings become works of art",
     "Une toile composée de dessins d’enfants découpés et collés, accrochée au mur d’un salon": "A canvas made of cut-out children’s drawings, hanging on a living-room wall",
     "L’atelier en 25 secondes : les dessins importés, découpés et composés en tableau, puis imprimés et encadrés ou collés à la main": "The studio in 25 seconds: the drawings imported, cut out and composed into an artwork, then printed and framed or glued by hand",
