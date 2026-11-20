@@ -525,7 +525,7 @@
         if (sv && sv.part) d.part = sv.part;
         // nouveau dessin couché ou tête en bas (un paysage dont le ciel n'est pas en haut) : remis droit
         // d'office, avant d'être découpé en sujets ; la page telle que scannée reste la base
-        if (!sv && !state.restoring && !(opts && opts.sample)) uprightOnImport(d, X);
+        if (!sv && !state.restoring && !(opts && opts.sample)) await uprightOnImport(d, X);
         if (!d.original && !skey) Extract.release(src.canvas);
         // une page à plusieurs sujets devient un dessin par sujet (voir splitSheet)
         const parts = !sv && !replacing && !state.restoring && !(opts && opts.sample) ? await splitSheet(d) : null;
@@ -547,6 +547,7 @@
     }
     srcs.forEach((x) => { if (!state.drawings.some((d) => d.original === x.canvas)) Extract.release(x.canvas); });
     releases.forEach((release) => { try { release(); } catch (e) { /* déjà libéré */ } });
+    closeReader(); // (le lecteur d'écriture rend sa mémoire : il sera rechargé au prochain import)
     setProgress(1, 1);
     if (replacing) return; // (la suite — place dans la liste et sur l'œuvre — est dans replaceDrawing)
     estimateSizes();
@@ -909,9 +910,11 @@
   // À l'import : le sens du dessin repéré sur sa page (Extract.uprightTurn) ; couché ou tête en bas,
   // la page est tournée et réanalysée dans le bon sens (comme une orientation choisie : orientDeg,
   // relue tournée en haute définition), la page telle que scannée devient la base, sans ses découpes.
-  function uprightOnImport(d, X) {
+  async function uprightOnImport(d, X) {
     let turn = 0;
     try { turn = Extract.uprightTurn(d.analysis.page); } catch (e) { turn = 0; }
+    // sans paysage reconnaissable : l'écriture (un prénom, « Maman je t'aime »), lue dans les quatre sens
+    if (!turn && readerOn()) turn = await writingTurn(d.analysis.page);
     if (!turn) return;
     const a0 = d.analysis;
     const a = withCut(d, () => (X || Extract).rotated(a0, turn));
@@ -923,6 +926,81 @@
     d.orientDeg = turn;
     d.autoTurn = turn;
     d.thumb = thumbOf(a.page);
+  }
+  /*
+   * Sens de l'écriture d'un dessin, lue sur place par Tesseract (vendor/tesseract : moteur WebAssembly et
+   * modèle de français, ≈ 4 Mo chargés au premier import, rien n'est envoyé). La page est posée dans
+   * les quatre sens sur une même mosaïque (2 × 2 cases de 900 px), lue en une fois, et chaque mot est
+   * rendu à sa case : le bon sens est celui où l'on lit de vrais mots. Un sens n'est retenu que s'il
+   * a un mot net (4 lettres et plus, confiance ≥ 85 ; ou 3 lettres à ≥ 93 quand rien d'autre n'est lu)
+   * et au moins deux fois plus de texte lisible que le suivant ; sinon rien ne bouge. Un moteur qui
+   * ne se charge pas (navigateur ancien, page hors ligne) : rien ne bouge non plus, sans message.
+   */
+  const READ_TILE = 900;
+  // paires de lettres du français (relevées dans les textes du site, accents retirés) : un « mot » lu
+  // dans un dessin tourné (« INIVL » pour MAMAN à l'envers) en a presque toujours une impossible
+  const FR_PAIRS = new Set('aaabacadaeafagahaiajakalamanapaqarasatauavawaxayazbabdbebgbibjbkblbmbobpbrbsbtbubycacccechcickclcmcocrcsctcucxcydadbdcdddedfdgdidldmdndodpdrdsdtdudvdyeaebecedeeefegeheiejelemeneoepeqereseteuevewexeyezfafefffgfiflfofrfsftfufygagbgcgeggghgiglgmgngogrgsgtguhahbhdhehihlhohrhthuhwiaibicidieifigiliminioipiqirisitiuivixiyizjajejojpjsjukbkdkekfkgkikmkskylalblcldlelflhlilllmlolplqlsltlulvlymambmdmemfmgmimlmmmnmompmsmtmunancndnenfngnhninknlnmnnnonpnqnrnsntnunvnyoaobocodoeofogoiojokolomonooopoqorosotouovowoxoypapdpepfpgphpiplpnpoppprpsptpupwpxpyqaqlqtqurarbrcrdrerfrgrirkrlrmrnrorprqrrrsrtrurvrxrysascsesfsgshsiskslsmsospsqsrssstsusvswsytatbtctdtetfthtitltmtntotptrtstttutwtyuaubucudueufuguiujulumunuoupurusutuvuxuyvavevgvivovrvuvwwawbwewhwiwnwowpwrwswtwwxaxexixlxpxtxxyeyfylymynyoypyrysytzazezizozy'.match(/../g));
+  const foldWord = (t) => { let f = t.toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae'); try { f = f.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* ignoré */ } return f.replace(/[^a-z]/g, ''); };
+  function frenchLike(t) {
+    const f = foldWord(t);
+    let odd = 0;
+    for (let i = 1; i < f.length; i++) if (!FR_PAIRS.has(f.slice(i - 1, i + 1))) odd++;
+    return odd === 0 || (f.length >= 7 && odd === 1); // (une lettre mal lue dans un long mot)
+  }
+  const readerOn = () => !navigator.webdriver || window.__lecture === true; // (les tests automatiques s'en passent, sauf ceux de l'écriture)
+  let reader = null, readerFailed = false;
+  function simdOk() {
+    try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); } catch (e) { return false; }
+  }
+  function openReader() {
+    if (!reader) {
+      reader = (async () => {
+        if (!window.Tesseract) await loadScript('vendor/tesseract/tesseract.min.js');
+        const base = new URL('vendor/tesseract/', location.href).href;
+        return Tesseract.createWorker('fra', 1, {
+          workerPath: base + 'worker.min.js', workerBlobURL: false,
+          corePath: base + (simdOk() ? 'tesseract-core-simd-lstm.wasm.js' : 'tesseract-core-lstm.wasm.js'),
+          langPath: base.replace(/\/$/, ''), gzip: true, cacheMethod: 'none',
+        });
+      })();
+      reader.catch((e) => { console.warn('lecture de l’écriture indisponible', e); readerFailed = true; reader = null; });
+    }
+    return reader;
+  }
+  function closeReader() {
+    const r = reader;
+    reader = null;
+    if (r) r.then((w) => w.terminate()).catch(() => { /* déjà arrêté */ });
+  }
+  async function writingTurn(page) {
+    if (readerFailed || !page || !page.width) return 0;
+    let worker;
+    try { worker = await openReader(); } catch (e) { return 0; }
+    const T = READ_TILE, m = Extract.makeCanvas(2 * T, 2 * T), x = m.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, 2 * T, 2 * T);
+    // case i : la page tournée de [0, 90, 180, 270][i] degrés (sens horaire, comme rotateCanvas)
+    [0, 90, 180, 270].forEach((deg, i) => {
+      const sw = deg % 180, iw = sw ? page.height : page.width, ih = sw ? page.width : page.height;
+      const k = Math.min((T - 40) / iw, (T - 40) / ih);
+      x.save(); x.translate((i % 2) * T + T / 2, Math.floor(i / 2) * T + T / 2); x.rotate((deg * Math.PI) / 180);
+      x.drawImage(page, (-page.width * k) / 2, (-page.height * k) / 2, page.width * k, page.height * k); x.restore();
+    });
+    let data;
+    try { ({ data } = await worker.recognize(m, {}, { blocks: true })); } catch (e) { console.warn('lecture de l’écriture impossible', e); return 0; } finally { Extract.release(m); }
+    const sc = [0, 90, 180, 270].map((deg) => ({ deg, s: 0, strong: false, best3: 0 }));
+    (data.blocks || []).forEach((bl) => (bl.paragraphs || []).forEach((pa) => (pa.lines || []).forEach((l) => (l.words || []).forEach((w) => {
+      const t = String(w.text || '').replace(/[^A-Za-zÀ-ÿ]/g, '');
+      if (t.length < 3 || w.confidence < 70 || !/[aeiouyàâäéèêëîïôöûüÿ]/i.test(t) || !frenchLike(t)) return;
+      const cx = (w.bbox.x0 + w.bbox.x1) / 2, cy = (w.bbox.y0 + w.bbox.y1) / 2;
+      const c = sc[(cx >= T ? 1 : 0) + (cy >= T ? 2 : 0)];
+      c.s += w.confidence * t.length;
+      if (t.length >= 4 && w.confidence >= 85) c.strong = true;
+      if (t.length === 3) c.best3 = Math.max(c.best3, w.confidence);
+    }))));
+    const sorted = sc.slice().sort((a, b) => b.s - a.s), best = sorted[0], second = sorted[1];
+    writingTurn.debug = sc;
+    const sure = best.strong || (best.best3 >= 93 && second.s === 0);
+    return sure && best.s > 0 && best.s >= 2 * second.s ? best.deg : 0;
   }
   // Orientation retenue : celle de l'utilisateur, sinon celle repérée à l'import, sinon droite, sauf
   // une page de fond trop haute pour la toile, qu'on couche.
@@ -8961,7 +9039,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom };
+  window.AtelierGribouille = { act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

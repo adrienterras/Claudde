@@ -114,8 +114,20 @@ cd collage && python3 -m http.server 8000
    opposé : un paysage couché ou tête en bas est alors tourné et réanalysé dans le bon sens, avant d'être
    découpé en sujets (`orientDeg`, la page telle que scannée gardée comme base, relue tournée en haute
    définition ; le sens repéré, `autoTurn`, est enregistré avec l'œuvre, `turn`). Sans ces deux indices à
-   la fois (dessin sur papier blanc, ciel jaune, mer en bas…), rien ne bouge : mieux vaut un dessin
-   laissé de travers qu'un dessin retourné à tort. Les dessins d'exemple ne sont pas concernés.
+   la fois (dessin sur papier blanc, ciel jaune, mer en bas…), **l'écriture** décide : un prénom,
+   « Maman je t'aime », « Joyeux anniversaire », lus sur place par Tesseract (`writingTurn`,
+   `vendor/tesseract` : moteur WebAssembly, avec SIMD quand l'appareil l'a, et modèle de français
+   compact, ≈ 4,5 Mo chargés au premier import, rendus à la fin de l'import, `closeReader`). La page
+   est posée dans les quatre sens sur une même mosaïque (2 × 2 cases de 900 px) lue en une fois
+   (≈ 0,3 s par dessin sur ordinateur) ; chaque mot est rendu à sa case. Un mot ne compte que s'il a
+   3 lettres et plus, une voyelle, une confiance ≥ 70 et des paires de lettres qui existent en français
+   (`FR_PAIRS`, relevées dans les textes du site : « INIVL », MAMAN lu à l'envers, est écarté). Un sens
+   n'est retenu qu'avec un mot net (4 lettres et plus à ≥ 85, ou 3 lettres à ≥ 93 quand rien d'autre
+   n'est lu) et au moins deux fois plus de texte lisible que le suivant. Sans paysage ni écriture
+   lisible, rien ne bouge : mieux vaut un dessin laissé de travers qu'un dessin retourné à tort. Un
+   moteur qui ne se charge pas (navigateur ancien, page publiée sur Claude) : rien ne bouge non plus,
+   sans message. Les dessins d'exemple ne sont pas concernés ; les tests automatiques ne lisent
+   l'écriture que si on le leur demande (`window.__lecture`).
 1. **Importer** les scans : PDF multipages, JPG ou PNG. La section Importer propose les mêmes choix
    qu'au premier import (`#drop`, `.import-choices`) : « Photothèque » (`#import-photos`, le sélecteur
    de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, les PDF) ; des fichiers

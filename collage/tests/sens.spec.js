@@ -70,4 +70,32 @@ test.describe('Sens des dessins', () => {
     await page.waitForTimeout(300);
     expect(await page.evaluate(() => { const d = AtelierGribouille.state.drawings.find((x) => x.name === 'couche.png'); return [d.autoTurn, d.orientDeg, d.analysis.page.width > d.analysis.page.height]; })).toEqual([270, 270, true]);
   });
+
+  test('écriture : un dessin couché ou tête en bas dont on lit les mots est remis droit ; un dessin sans écriture ne bouge pas', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(() => { window.__lecture = true; AtelierGribouille.setMode('impression'); });
+    const make = (deg, words) => page.evaluate(({ deg, words }) => {
+      const c = document.createElement('canvas'); c.width = 1400; c.height = 1000;
+      const x = c.getContext('2d');
+      x.fillStyle = '#fbfaf5'; x.fillRect(0, 0, 1400, 1000);
+      // un soleil et un bonhomme, au feutre
+      x.lineWidth = 8; x.strokeStyle = '#e8a21a'; x.beginPath(); x.arc(1150, 220, 90, 0, 7); x.stroke();
+      x.strokeStyle = '#2a2a30'; x.beginPath(); x.arc(300, 600, 60, 0, 7); x.moveTo(300, 660); x.lineTo(300, 840); x.moveTo(200, 720); x.lineTo(400, 720); x.stroke();
+      // l'écriture, en capitales
+      x.fillStyle = '#1d3f9a'; x.font = 'bold 96px sans-serif';
+      words.forEach((t, i) => x.fillText(t, 110, 190 + i * 140));
+      const r = deg ? Extract.rotateCanvas(c, deg) : c;
+      return r.toDataURL('image/png').split(',')[1];
+    }, { deg, words });
+    const ecrit = Buffer.from(await make(90, ['JOYEUX', 'ANNIVERSAIRE']), 'base64');
+    const envers = Buffer.from(await make(180, ['JE T’AIME', 'MAMAN']), 'base64');
+    const muet = Buffer.from(await make(90, []), 'base64');
+    await page.setInputFiles('#file', [{ name: 'ecrit.png', mimeType: 'image/png', buffer: ecrit }, { name: 'envers.png', mimeType: 'image/png', buffer: envers }, { name: 'muet.png', mimeType: 'image/png', buffer: muet }]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 3 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    // (une feuille à plusieurs sujets devient un dessin par sujet : « ecrit — 1 », « ecrit — 2 »… ; tous du même sens)
+    const turns = await page.evaluate(() => Object.fromEntries(AtelierGribouille.state.drawings.map((d) => [d.name.replace(/ — \d+$/, '').replace(/\.png$/, ''), d.autoTurn])));
+    expect(turns.ecrit).toBe(270);
+    expect(turns.envers).toBe(180);
+    expect(turns.muet).toBe(0);
+  });
 });
