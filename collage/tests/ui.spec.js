@@ -369,6 +369,29 @@ const waitDraft = async (page) => {
 };
 
 test.describe('Mise en scène de près (téléphone)', () => {
+  test('de près : un bouton enregistre l’image telle qu’affichée (la zone visible, nette), l’aperçu passe devant', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const p = await ctx.newPage();
+    await p.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await p.goto('index.html?mode=impression&exemple');
+    await p.waitForFunction(() => window.AtelierGribouille && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await p.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    await p.locator('#scene-canvas').scrollIntoViewIfNeeded();
+    await p.waitForFunction(() => !!document.getElementById('scene-canvas')._art);
+    await p.locator('#scene-zoom-open').click();
+    await expect(p.locator('#scene-zoom-save')).toBeVisible();
+    await p.locator('#scene-zoom-save').click();
+    await expect(p.locator('#preview')).toBeVisible({ timeout: 20000 });
+    await expect(p.locator('#preview-name')).toContainText('mise-en-scene.jpg');
+    // l'image : la vue de l'écran (proportions de l'écran), au double de sa finesse
+    const dim = await p.evaluate(async () => { const im = document.getElementById('preview-img'); await im.decode(); return [im.naturalWidth, im.naturalHeight]; });
+    const box = await p.locator('#scene-zoom').boundingBox();
+    expect(Math.abs(dim[0] / dim[1] - box.width / box.height)).toBeLessThan(0.02);
+    expect(dim[0]).toBeGreaterThanOrEqual(Math.round(box.width * 2) - 2);
+    // l'aperçu passe devant la vue de près
+    expect(await p.evaluate(() => { const r = document.getElementById('preview').getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + 20); return !!el && !!el.closest('#preview'); })).toBe(true);
+    await ctx.close();
+  });
   test('la loupe ouvre la scène en plein écran, cadrée sur l’œuvre ; la zone visible repeinte nette à chaque zoom ; deux touchers rapprochent ; Échap ferme', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     const p = await ctx.newPage();

@@ -5827,6 +5827,37 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('scene-zoom-open').addEventListener('click', openSceneZoom);
   $('scene-canvas').addEventListener('click', () => { if (mobileQuery.matches) openSceneZoom(); });
   $('scene-zoom-close').addEventListener('click', closeSceneZoom);
+  // Enregistrer l'image telle qu'affichée : la zone visible de la mise en scène, rendue nette, au double
+  // de la finesse de l'écran (4096 px au plus), en JPEG ; sur téléphone, une fenêtre propose
+  // « Enregistrer dans Photos » (voir saveFile)
+  async function saveSceneZoomView() {
+    const Z = sceneZoom, btn = $('scene-zoom-save');
+    if ($('scene-zoom').hidden || !state.comp || btn.disabled) return;
+    btn.disabled = true;
+    const busy = $('scene-zoom-busy'), busyText = busy.textContent;
+    busy.textContent = tr('Préparation de l’image…');
+    busy.hidden = false;
+    await tick();
+    const c = document.createElement('canvas');
+    try {
+      const { vw, vh, dpr } = zoomBox();
+      const k = Math.min(dpr * 2, 4096 / Math.max(vw, vh));
+      const ok = drawRoomScene({ canvas: c, width: Math.round(vw * Z.z * k), aspect: Z.aspect, view: { x: Math.round(-Z.tx * k), y: Math.round(-Z.ty * k), w: Math.round(vw * k), h: Math.round(vh * k) } });
+      if (!ok) throw new Error('rendu');
+      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92));
+      if (!blob) throw new Error('toBlob');
+      await saveFile(blob, exportFileName('jpg', 'mise-en-scene'));
+    } catch (e) {
+      console.error(e);
+      notice(tr('L’image n’a pas pu être préparée sur cet appareil.'));
+    } finally {
+      c.width = c.height = 0;
+      busy.textContent = busyText;
+      busy.hidden = !Z.hdBusy;
+      btn.disabled = false;
+    }
+  }
+  $('scene-zoom-save').addEventListener('click', saveSceneZoomView);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('scene-zoom').hidden) closeSceneZoom(); });
   (() => {
     const el = $('scene-zoom'), Z = sceneZoom;

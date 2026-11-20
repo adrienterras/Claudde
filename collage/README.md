@@ -648,7 +648,10 @@ cd collage && python3 -m http.server 8000
      à l'écran sont relus depuis leur fichier en haute définition comme pour l'export (`sceneZoomHD`,
      `hydrateHD`, ≈ 250 dpi au plus ; « Netteté maximale… » pendant ce temps ; un nouveau geste
      l'interrompt après le dessin en cours ; chaque dessin n'est relu qu'une fois par niveau de zoom),
-     puis la vue est repeinte avec ; tout est rendu à la fermeture, `releaseHD` ; sous la mise en
+     puis la vue est repeinte avec ; tout est rendu à la fermeture, `releaseHD` ; en haut à gauche, un
+     bouton **Enregistrer cette image** (`#scene-zoom-save`, `saveSceneZoomView`) enregistre la vue
+     telle qu'affichée, au cadrage de l'écran, à deux fois sa densité de pixels (4096 px au plus, JPEG,
+     « …-mise-en-scene.jpg » ; sur iPhone, l'aperçu « Enregistrer dans Photos » passe au-dessus) ; sous la mise en
      scène, « Commander l'œuvre », comme dans la fenêtre de l'ordinateur) : trois pièces au choix
      (mémorisé, la chambre d'enfant par défaut) : le salon, une chambre d'enfant ou une entrée au mur vert sauge
      (tableau imprimé seulement) ; la pièce « Posé au sol » (salle à manger) a été retirée, de la mise en scène

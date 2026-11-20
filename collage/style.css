@@ -978,6 +978,11 @@ body.mode-toile .scene-modal .scene-size { display: none !important; }
 .scene-zoom-hint.gone { opacity: 0; }
 .scene-zoom-busy { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 20px); transform: translateX(-50%); margin: 0; padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 0.8rem; pointer-events: none; }
 .scene-zoom-busy[hidden] { display: none; }
+.scene-zoom-save { right: auto; left: 12px; }
+.scene-zoom-save .ico { width: 20px; height: 20px; }
+.scene-zoom-save:disabled { opacity: .5; }
+/* l'aperçu d'enregistrement passe devant la vue de près */
+body.scene-zoom-on .preview { z-index: 960; }
 .scene-mat { margin-bottom: 6px; }
 .scene-finish, .scene-margin { margin: 0; }
 .scene-finish button, .scene-margin button { padding: 7px 4px; font-size: 0.8rem; }
