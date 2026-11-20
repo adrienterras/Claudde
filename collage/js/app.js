@@ -2362,7 +2362,11 @@
   // de 3 cm autour de l'œuvre ; le même choix dans la mise en scène et à la commande, mémorisé
   const MARGIN_CM = 3;
   const sceneFinish = () => { try { return localStorage.getItem('atelier.finition') === 'papier' ? 'papier' : 'cadre'; } catch (e) { return 'cadre'; } };
-  const printMargin = () => { try { return localStorage.getItem('atelier.marge') === '1'; } catch (e) { return false; } };
+  // (pas de bordure blanche sur le cadre 21 × 30 : l'option n'y est pas proposée, l'œuvre remplit la feuille)
+  const NO_MARGIN_SIZE = '21x30';
+  const marginPref = () => { try { return localStorage.getItem('atelier.marge') === '1'; } catch (e) { return false; } };
+  const smallFrame = () => !!($('format') && $('format').value === `cadre:${NO_MARGIN_SIZE}`);
+  const printMargin = () => marginPref() && !smallFrame();
   const setSceneFinish = (v) => { try { localStorage.setItem('atelier.finition', v); } catch (e) { /* ignoré */ } };
   const setPrintMargin = (on) => { try { localStorage.setItem('atelier.marge', on ? '1' : '0'); } catch (e) { /* ignoré */ } };
   function syncFinishButtons() {
@@ -4663,7 +4667,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const f = $('export-margin-field');
     if (!f) return;
     const fc = printMode() ? formatCm() : null;
-    f.hidden = !printMode() || !!(fc && fc.frame && fc.mat); // (avec passe-partout, la feuille est le cadre)
+    f.hidden = !printMode() || !!(fc && fc.frame && fc.mat) || smallFrame(); // (avec passe-partout, la feuille est le cadre ; pas de bordure en 21 × 30)
     const on = printMargin();
     f.querySelectorAll('[data-margin]').forEach((b) => { const sel = (b.dataset.margin === '1') === on; b.classList.toggle('on', sel); b.classList.toggle('ink', sel); b.setAttribute('aria-pressed', sel ? 'true' : 'false'); });
   }
@@ -5409,7 +5413,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const auto = framed ? pickFrameKind(artTone(comp), mat) : null;
     const kind = framed ? (choice === 'auto' ? auto : choice) : null;
     if (!out) {
-      $('scene-margin-field').hidden = !(paper || (framed && !mat));
+      $('scene-margin-field').hidden = !(paper || (framed && !mat)) || smallFrame();
       $('scene-frame-pick').hidden = !framed;
       $('scene-frame-pick').querySelectorAll('button').forEach((b) => {
         b.classList.toggle('on', b.dataset.frame === choice);
@@ -8498,9 +8502,10 @@ Réponds uniquement avec ce JSON :
       b.classList.toggle('on', b.dataset.size === choice.size);
       b.innerHTML = `${sizeLabel(b.dataset.size, comp.W, comp.H).replace(' cm', '')}${b.closest('.cart-hd') ? '' : `<small>${euros(PRICES.print[choice.finish][b.dataset.size])}</small>`}`;
     });
-    // la bordure blanche : sur papier, ou encadré sans passe-partout
+    // la bordure blanche : sur papier, ou encadré sans passe-partout ; jamais en 21 × 30
     const paper = choice.product === 'print' && choice.finish === 'papier';
-    const border = paper || (framed && !choice.mat);
+    choice.margin = marginPref() && choice.size !== NO_MARGIN_SIZE;
+    const border = (paper || (framed && !choice.mat)) && choice.size !== NO_MARGIN_SIZE;
     box.querySelectorAll('.cart-frame').forEach((el) => { el.hidden = el.classList.contains('cart-margin-field') ? !border : !framed; });
     box.querySelectorAll('[data-margin]').forEach((b) => b.classList.toggle('on', (b.dataset.margin === '1') === !!choice.margin));
     box.querySelectorAll('[data-frame-kind]').forEach((b) => {
@@ -8613,7 +8618,7 @@ Réponds uniquement avec ce JSON :
     // celle qu'on vient d'y choisir. La bordure blanche : celle de la mise en scène
     if (!(opts && opts.keepFinish) && sceneFinish() !== 'cadre') setSceneFinish('cadre');
     choice.finish = sceneFinish();
-    choice.margin = printMargin();
+    choice.margin = marginPref() && choice.size !== NO_MARGIN_SIZE;
     const kind = sceneFrameChoice();
     try { choice.frame = kind !== 'auto' ? kind : pickFrameKind(artTone(comp), choice.mat); } catch (e) { choice.frame = 'bois-clair'; }
     renderCartAdd();

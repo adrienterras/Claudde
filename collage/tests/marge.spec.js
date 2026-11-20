@@ -272,4 +272,36 @@ test.describe('Bordure blanche', () => {
     await expect(page.locator('#scene-modal')).toBeVisible();
     await expect(page.locator('#scene-finish [data-finish="cadre"]')).toHaveClass(/on/);
   });
+
+  test('cadre 21 × 30 : pas d’option de bordure blanche (mise en scène, export, commande), l’article n’en a pas', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() => { localStorage.setItem('atelier.passe-partout', '0'); localStorage.setItem('atelier.marge', '1'); });
+    await start(page);
+    await page.selectOption('#format', 'cadre:21x30');
+    await page.evaluate(() => { AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    await page.waitForTimeout(400);
+    // export : pas de choix de bordure, l'image n'en a pas
+    await expect(page.locator('#export-margin-field')).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp && document.getElementById('format').value)).toBe('cadre:21x30');
+    // mise en scène : pas de choix de bordure
+    await page.evaluate(() => document.getElementById('scene-open').click());
+    await expect(page.locator('#scene-modal')).toBeVisible();
+    await expect(page.locator('#scene-margin-field')).toBeHidden();
+    await page.evaluate(() => document.querySelectorAll('.account-modal:not([hidden]) [data-close], #scene-modal [data-close]').forEach((b) => b.click()));
+    // commande en 21 × 30 : pas de choix de bordure, l'article n'en porte pas ; en 30 × 40, le choix revient
+    await page.evaluate(() => document.getElementById('add-cart').click());
+    await expect(page.locator('#cart-add')).toBeVisible();
+    await page.locator('#cart-add [data-finish="cadre"]').click();
+    await page.locator('#cart-add .cart-print-sizes [data-size="21x30"]').click();
+    await expect(page.locator('#cart-add .cart-margin-field')).toBeHidden();
+    await page.locator('#cart-add .cart-print-sizes [data-size="30x40"]').click();
+    await expect(page.locator('#cart-add .cart-margin-field')).toBeVisible();
+    await expect(page.locator('#cart-add .cart-margin-field [data-margin="1"]')).toHaveClass(/on/); // (le choix mémorisé revient)
+    await page.locator('#cart-add .cart-print-sizes [data-size="21x30"]').click();
+    await page.locator('#cart-add-ok').click();
+    await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
+    const it = await page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /panier/.test(x)); return JSON.parse(localStorage.getItem(k)).slice(-1)[0]; });
+    expect(it.size).toBe('21x30');
+    expect(!!it.margin).toBe(false);
+  });
 });

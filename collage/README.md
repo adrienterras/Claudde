@@ -403,7 +403,7 @@ cd collage && python3 -m http.server 8000
      impression d'autres proportions que l'œuvre reçoit l'œuvre mise à ses proportions, à surface
      égale (`printedComp` : `fitCompTo` sur une copie — dessins à leur taille, places en proportion,
      pages de fond couvrantes ; ni marge blanche ni bord rogné ; c'est cette copie qui va au panier,
-     l'œuvre affichée ne change pas). **Bordure blanche** (sur papier, ou encadré sans passe-partout) :
+     l'œuvre affichée ne change pas). **Bordure blanche** (sur papier, ou encadré sans passe-partout ; jamais sur le cadre 21 × 30, où l'option n'est proposée ni dans la mise en scène, ni à l'export, ni à la commande, `NO_MARGIN_SIZE`) :
      « Bordure blanche » sous Papier / Encadré (et sous le passe-partout), « Sans bordure » ou « Avec
      bordure blanche » (3 cm, `MARGIN_CM`) ; avec, l'impression garde la taille choisie et l'œuvre y
      est réduite d'un même facteur pour laisser 3 cm de blanc autour (`printAreaOf`, zone imprimée =
