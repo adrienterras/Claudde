@@ -229,7 +229,6 @@
     "Le fichier HD et le guide de création personnalisé en PDF : taille de la toile, plan de pose à l’échelle 1, ordre de collage et, pour chaque dessin, sa fiche de découpe avec le trait de coupe et ses cotes": "The HD file and the personalised making-of guide as a PDF: canvas size, 1:1 layout plan, gluing order and, for each drawing, its cutting sheet with the cut line and measurements",
         "Un après-midi en famille, et une œuvre unique faite de leurs vrais traits.": "One family afternoon, and a unique artwork made of their real lines.",
     "Commander le kit": "Order the kit",
-    "Composer d’abord": "Compose first",
     // carte kit DIY
     "À réaliser vous-même · dès 29 €": "To make yourself · from €29",
     "Vous découpez et collez vos dessins originaux": "You cut out and glue your original drawings",
