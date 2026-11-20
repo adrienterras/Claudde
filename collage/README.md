@@ -107,6 +107,15 @@ cd collage && python3 -m http.server 8000
    (« Ajouter au panier » de la fenêtre d'ajout : elle se ferme, l'article choisi s'ajoute après la
    connexion) ou commander ouvre la fenêtre de connexion ou d'inscription (`requireAccount`), puis
    l'action demandée reprend d'elle-même une fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
+1. **Sens des dessins à l'import** (`Extract.uprightTurn`, `uprightOnImport`) : repéré sur place, sans
+   rien envoyer, sur la page analysée réduite à 192 px — dans une bande de 20 % le long de chaque bord,
+   la part de « ciel » (bleu) et de « sol » (vert ou brun). Un bord n'est pris pour le haut que si le
+   ciel y domine nettement (face au bord opposé et aux deux côtés) ET que le sol domine de même le bord
+   opposé : un paysage couché ou tête en bas est alors tourné et réanalysé dans le bon sens, avant d'être
+   découpé en sujets (`orientDeg`, la page telle que scannée gardée comme base, relue tournée en haute
+   définition ; le sens repéré, `autoTurn`, est enregistré avec l'œuvre, `turn`). Sans ces deux indices à
+   la fois (dessin sur papier blanc, ciel jaune, mer en bas…), rien ne bouge : mieux vaut un dessin
+   laissé de travers qu'un dessin retourné à tort. Les dessins d'exemple ne sont pas concernés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG. La section Importer propose les mêmes choix
    qu'au premier import (`#drop`, `.import-choices`) : « Photothèque » (`#import-photos`, le sélecteur
    de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, les PDF) ; des fichiers

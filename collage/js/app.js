@@ -502,6 +502,8 @@
           id: ++state.seq, name: pages[i].name, thumb: sv && sv.part && analysis.pieces ? subjectThumb(analysis.page, analysis.pieces[0], analysis.paper) : thumbOf(analysis.page), analysis, base: analysis, role: 'auto',
           cutPrefs: Extract.cutPrefs(), extract: X === Extract ? null : X,
           orient: 'auto', orientDeg: 0,
+          // sens repéré à l'import (ciel en haut, sol en bas : voir Extract.uprightTurn) ; relu tel quel à la réouverture
+          autoTurn: state.restoring ? Number(((opts && opts.turns) || [])[pages[i].fileIndex]) || 0 : 0,
           // l'image de travail d'origine (réanalyse si l'on change de découpe ou de mode photo) ; sur
           // téléphone, une page rouverte ne la garde pas en mémoire : elle est relue du fichier au besoin (originalOf)
           original: sv && phone() && analysis.page !== src.canvas ? null : src.canvas, photo: analysis.photo || null, photoMode: 'auto', photoDebug,
@@ -521,6 +523,9 @@
           d.savedPack = { sig: [analysis.page].concat((analysis.pieces || []).map((q) => q.canvas)), id: sv.pack, page: { w: sv.page.w, h: sv.page.h, data: sv.page.data }, atlases: sv.atlases.map((x) => ({ w: x.w, h: x.h, data: x.data })), at: sv.pieces.map((q) => q.at) };
         }
         if (sv && sv.part) d.part = sv.part;
+        // nouveau dessin couché ou tête en bas (un paysage dont le ciel n'est pas en haut) : remis droit
+        // d'office, avant d'être découpé en sujets ; la page telle que scannée reste la base
+        if (!sv && !state.restoring && !(opts && opts.sample)) uprightOnImport(d, X);
         if (!d.original && !skey) Extract.release(src.canvas);
         // une page à plusieurs sujets devient un dessin par sujet (voir splitSheet)
         const parts = !sv && !replacing && !state.restoring && !(opts && opts.sample) ? await splitSheet(d) : null;
@@ -901,10 +906,29 @@
     } catch (e) { console.error(e); }
   }
 
-  // Orientation retenue : celle de l'utilisateur, sinon droite, sauf une page de fond trop haute
-  // pour la toile, qu'on couche.
+  // À l'import : le sens du dessin repéré sur sa page (Extract.uprightTurn) ; couché ou tête en bas,
+  // la page est tournée et réanalysée dans le bon sens (comme une orientation choisie : orientDeg,
+  // relue tournée en haute définition), la page telle que scannée devient la base, sans ses découpes.
+  function uprightOnImport(d, X) {
+    let turn = 0;
+    try { turn = Extract.uprightTurn(d.analysis.page); } catch (e) { turn = 0; }
+    if (!turn) return;
+    const a0 = d.analysis;
+    const a = withCut(d, () => (X || Extract).rotated(a0, turn));
+    a.kind = a0.kind;
+    if (!a.photo && a0.photo) a.photo = a0.photo;
+    (a0.pieces || []).forEach((p) => Extract.release(p.canvas));
+    d.base = { page: a0.page, paper: a0.paper, kind: a0.kind, pieces: null, texture: null, paperFrac: a0.paperFrac, photo: a0.photo, cut: a0.cut };
+    d.analysis = a;
+    d.orientDeg = turn;
+    d.autoTurn = turn;
+    d.thumb = thumbOf(a.page);
+  }
+  // Orientation retenue : celle de l'utilisateur, sinon celle repérée à l'import, sinon droite, sauf
+  // une page de fond trop haute pour la toile, qu'on couche.
   function effectiveOrient(d) {
     if (d.orient !== 'auto') return Number(d.orient);
+    if (d.autoTurn) return d.autoTurn;
     if (roleOf(d) !== 'texture' || !state.canvasSize) return 0;
     const page = d.base.page;
     const c = d.sizeCm / Math.max(page.width, page.height);
@@ -7257,7 +7281,7 @@ Réponds uniquement avec ce JSON :
       // la page de travail et la découpe de chaque pièce (retouches comprises) : voir savedOf
       const saved = await savedOf(d, refs);
       drawings.push({
-        name: d.name, data, type, ref, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null, work: d.srcLong,
+        name: d.name, data, type, ref, role: roleOf(d), sizeCm: d.sizeCm, orient: d.orient, turn: d.autoTurn || 0, photoMode: d.photoMode, tone: hasTone(d) ? d.tone : null, work: d.srcLong,
         enabled: (d.analysis.pieces || []).map((p) => !!p.enabled), ai: d.ai || null,
         pieceAi: (d.analysis.pieces || []).map((p) => p.ai || null),
         saved,
@@ -7791,7 +7815,7 @@ Réponds uniquement avec ce JSON :
     // automatique de l'époque pour une sauvegarde d'avant les découpes autonomes (v < 2)
     const legacy = rec.drawings.map((sd) => !sd.saved && !(rec.v >= 2));
     if (legacy.some(Boolean)) savedStatus(tr('Ancienne œuvre : les dessins sont redécoupés comme à l’époque…'));
-    try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0), saved: rec.drawings.map((sd) => sd.saved || null), legacy }); } finally { state.restoring = false; }
+    try { await importFiles(files, sizes, { quiet: true, longs: rec.drawings.map((sd) => sd.work || 0), saved: rec.drawings.map((sd) => sd.saved || null), turns: rec.drawings.map((sd) => sd.turn || 0), legacy }); } finally { state.restoring = false; }
     if (!state.drawings.length) { savedStatus(tr('Aucun dessin n’a pu être relu.')); return null; }
     // réglages par dessin
     const sheetsBack = new Map();

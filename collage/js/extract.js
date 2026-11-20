@@ -1924,6 +1924,57 @@
     return c;
   }
   /*
+   * Sens d'un dessin, repéré sur place (rien ne quitte l'appareil) : un paysage d'enfant a le ciel en
+   * haut et le sol en bas. Sur une image réduite (192 px), on mesure dans une bande de 20 % le long
+   * de chaque bord la part de « ciel » (bleu) et de « sol » (vert ou brun). Un bord n'est pris pour
+   * le haut que si le ciel y domine nettement — face au bord opposé comme aux deux côtés — ET que le
+   * sol domine de même le bord opposé ; sinon (dessin sur papier blanc, ciel jaune, mer en bas…) on
+   * ne touche à rien : mieux vaut un dessin laissé de travers qu'un dessin retourné à tort.
+   * Rend le quart de tour (sens horaire, comme rotateCanvas) qui le remet droit : 0, 90, 180 ou 270.
+   */
+  function uprightTurn(src) {
+    if (!src || !src.width || !src.height) return 0;
+    const k = Math.min(1, 192 / Math.max(src.width, src.height));
+    const W = Math.max(8, Math.round(src.width * k)), H = Math.max(8, Math.round(src.height * k));
+    const c = makeCanvas(W, H), x = ctx2d(c);
+    x.drawImage(src, 0, 0, W, H);
+    const d = x.getImageData(0, 0, W, H).data;
+    release(c);
+    const bw = Math.max(2, Math.round(W * 0.2)), bh = Math.max(2, Math.round(H * 0.2));
+    // côtés : 0 haut, 1 droite, 2 bas, 3 gauche
+    const sky = [0, 0, 0, 0], ground = [0, 0, 0, 0], n = [0, 0, 0, 0];
+    for (let y = 0; y < H; y++) {
+      for (let X = 0; X < W; X++) {
+        const sides = [];
+        if (y < bh) sides.push(0);
+        if (X >= W - bw) sides.push(1);
+        if (y >= H - bh) sides.push(2);
+        if (X < bw) sides.push(3);
+        if (!sides.length) continue;
+        const i = (y * W + X) * 4, r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), ch = mx - mn, sat = mx ? ch / mx : 0;
+        let hue = 0;
+        if (ch > 0) hue = mx === r ? 60 * (((g - b) / ch) % 6) : mx === g ? 60 * ((b - r) / ch + 2) : 60 * ((r - g) / ch + 4);
+        if (hue < 0) hue += 360;
+        const isSky = hue >= 185 && hue <= 250 && sat >= 0.22 && mx >= 0.35;
+        const isGround = (hue >= 65 && hue <= 165 && sat >= 0.25 && mx >= 0.18) || (hue >= 10 && hue <= 45 && sat >= 0.3 && mx >= 0.15 && mx <= 0.6);
+        sides.forEach((s) => { n[s]++; if (isSky) sky[s]++; if (isGround) ground[s]++; });
+      }
+    }
+    for (let s = 0; s < 4; s++) { sky[s] /= n[s] || 1; ground[s] /= n[s] || 1; }
+    const ups = [];
+    for (let u = 0; u < 4; u++) {
+      const o = (u + 2) % 4, l1 = (u + 1) % 4, l2 = (u + 3) % 4;
+      if (sky[u] >= 0.2 && ground[o] >= 0.2
+        && sky[u] >= 3 * sky[o] + 0.02 && ground[o] >= 3 * ground[u] + 0.02
+        && sky[u] >= 1.6 * Math.max(sky[l1], sky[l2]) && ground[o] >= 1.6 * Math.max(ground[l1], ground[l2])) ups.push(u);
+    }
+    uprightTurn.debug = { sky, ground, ups };
+    if (ups.length !== 1) return 0;
+    // le haut trouvé à gauche : un quart de tour horaire le remonte ; en bas, un demi-tour ; à droite, trois quarts
+    return [0, 270, 180, 90][ups[0]];
+  }
+  /*
    * Page analysée, tournée d'un quart de tour (ou d'un demi-tour) : un objet photographié garde sa
    * silhouette (tournée avec la page) ; un dessin sur papier est simplement réanalysé dans le bon sens.
    */
@@ -3166,5 +3217,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();
