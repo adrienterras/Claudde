@@ -2603,3 +2603,24 @@ test.describe('Onglet Dessins (téléphone)', () => {
     await ctx.close();
   });
 });
+
+test.describe('Barre d’outils du haut (téléphone)', () => {
+  test('œuvre en grand : la barre se range à gauche, sans toucher l’icône du compte, tous ses boutons visibles (390 et 320 px)', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    for (const width of [390, 320]) {
+      const ctx = await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true });
+      const page = await ctx.newPage();
+      await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+      await page.goto('index.html?mode=impression');
+      await page.waitForFunction(() => window.AtelierGribouille);
+      await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+      await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+      await expect(page.locator('body')).toHaveClass(/stage-full/);
+      const r = await page.evaluate(() => { const a = document.getElementById('acc-head').getBoundingClientRect(), t = document.getElementById('toolbar'), b = t.getBoundingClientRect(); return { left: b.left, right: b.right, acc: a.left, scroll: t.scrollWidth - t.clientWidth }; });
+      expect(r.left).toBeLessThan(20);
+      expect(r.right).toBeLessThanOrEqual(r.acc - 8);
+      expect(r.scroll).toBe(0);
+      await ctx.close();
+    }
+  });
+});

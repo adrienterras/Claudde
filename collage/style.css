@@ -1175,6 +1175,9 @@ body.stage-full .scene-open { display: none; }
   .acc-head.on { background: var(--accent-soft); }
   /* tiroir baissé (et accueil) : l'œuvre couvre l'en-tête ; « Mon compte » reste à portée, dans l'angle haut droit */
   body.stage-full .acc-head { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 43; box-shadow: 0 6px 16px -10px rgba(0, 0, 0, .45); }
+  /* la barre d'outils du haut se range à gauche, pour ne pas coller à l'icône du compte dans l'angle */
+  body.stage-full .toolbar { left: 12px; transform: none; max-width: calc(100% - 78px); }
+  @media (max-width: 370px) { body.stage-full .toolbar button { padding: 8px 4px; } body.stage-full .toolbar .tb-sep { margin: 6px 0; } } /* (petits écrans : tous les boutons tiennent) */
   .acc-head + .mobile-lang { margin-left: 0; }
   /* le panier, dernier onglet du tiroir, avec le compteur en pastille sur l'icône */
   .sheet-tabs .cart-btn-tab { position: relative; box-shadow: none; }
