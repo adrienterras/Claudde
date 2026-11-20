@@ -4468,7 +4468,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     updateHistoryButtons();
     const L = state.selected;
     document.querySelectorAll('#toolbar button').forEach((b) => {
-      if (b.classList.contains('history')) return;
+      if (b.classList.contains('history') || b.id === 'tb-save') return;
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       // (plus de Miroir dans la barre : les miroirs des œuvres déjà faites se gardent et se rouvrent)
       b.disabled = !L || (L.kind === 'bg' && b.dataset.act === 'edit');
@@ -4507,7 +4507,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     el.hidden = !show;
   }
 
-  document.querySelectorAll('#toolbar button').forEach((b) => (b.onclick = () => act(b.dataset.act)));
+  document.querySelectorAll('#toolbar button[data-act]').forEach((b) => (b.onclick = () => act(b.dataset.act)));
 
   window.addEventListener('keydown', (e) => {
     if ((window.Editor && Editor.isOpen()) || (window.Crop && Crop.isOpen())) return;
@@ -5929,8 +5929,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   const drop = $('drop');
   // Les dessins apportés par l'utilisateur remplacent les dessins d'exemple : on ne mélange pas les deux.
-  // Importer ses dessins (fichiers, glisser-déposer) est libre, avec ou sans compte ; seule la prise
-  // de photo depuis l'atelier demande d'être connecté (voir camera-open), comme exporter ou sauvegarder
+  // Importer ses dessins (fichiers, glisser-déposer, photo depuis l'atelier) est libre, avec ou sans
+  // compte ; enregistrer l'œuvre, exporter et ajouter au panier demandent d'être connecté (requireAccount)
   function importUserFiles(files) {
     if (!files.length) return;
     if ($('import-pick') && !$('import-pick').hidden) closeModal($('import-pick')); // (des fichiers déposés pendant le choix d'ajout)
@@ -5966,7 +5966,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       $('camera-advice-go').onclick = () => { if ($('camera-advice-skip').checked) lsSet(TIP_KEY, '1'); closeModal(m); startCamera(); };
       openModal(m);
     };
-    const openCamera = requireAccount(tr('photographier vos dessins'), cameraTip);
+    const openCamera = cameraTip; // (sans compte : la photo est libre, comme l'import de fichiers)
     $('camera-open').addEventListener('click', openCamera);
     $('empty-camera').addEventListener('click', openCamera);
     // « Prendre une photo » du choix d'ajout (téléphone) : l'appareil photo de l'atelier, jamais celui d'iOS
@@ -7889,7 +7889,19 @@ Réponds uniquement avec ce JSON :
     return rec;
   }
 
-  $('save-comp').onclick = freezeWork;
+  // « Enregistrer cette œuvre » (Propositions) et l'icône Enregistrer, tout à gauche de la barre d'outils :
+  // sans compte, la fenêtre de connexion ou de création de compte d'abord, puis l'enregistrement reprend
+  const saveWork = requireAccount(tr('enregistrer votre œuvre'), freezeWork);
+  $('save-comp').onclick = saveWork;
+  let toastTimer = 0;
+  const stageToast = (text) => {
+    const el = $('stage-toast');
+    if (!el || !text) return;
+    el.textContent = text; el.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3500);
+  };
+  // (le message de l'enregistrement, écrit dans Propositions, est aussi montré un instant sur l'œuvre)
+  $('tb-save').onclick = requireAccount(tr('enregistrer votre œuvre'), async () => { await freezeWork(); const st = $('freeze-status'); stageToast(st && st.textContent); });
   renderSaved();
   if (mobileQuery.matches && !state.drawings.length) setStageFull(true); // téléphone : à l'arrivée, l'accueil vide prend tout l'écran
   resumeDraft();
@@ -8666,7 +8678,14 @@ Réponds uniquement avec ce JSON :
     box.querySelectorAll('[data-mat]').forEach((b) => (b.onclick = () => { choice.mat = b.dataset.mat === '1'; renderCartAdd(); }));
     box.querySelectorAll('[data-qty]').forEach((b) => (b.onclick = () => { choice.qty = clamp(choice.qty + Number(b.dataset.qty), 1, maxQty(choice)); renderCartAdd(); }));
     box.querySelectorAll('.cart-kit input[data-kit]').forEach((c) => (c.onchange = () => { choice.kit[c.dataset.kit] = c.checked; renderCartAdd(); }));
-    $('cart-add-ok').onclick = addPendingToCart;
+    // ajouter au panier demande un compte : sans compte, la fenêtre se ferme pour la connexion ou la
+    // création du compte, puis l'article choisi s'ajoute de lui-même
+    const addFlow = requireAccount(tr('ajouter l’œuvre au panier'), addPendingToCart);
+    $('cart-add-ok').onclick = () => {
+      const A = window.Account;
+      if (A && A.enabled && !A.user()) closeModal($('cart-add'));
+      addFlow();
+    };
     // la mise en scène suit la taille de la fenêtre
     if (window.ResizeObserver) new ResizeObserver(() => drawCartScene()).observe($('cart-scene'));
   })();

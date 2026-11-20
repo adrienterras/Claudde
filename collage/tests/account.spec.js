@@ -177,7 +177,7 @@ test.describe('Comptes utilisateurs', () => {
     await ctx.close();
   });
 
-  test('sans compte : l’exemple et l’import de fichiers sont libres ; seule la photo depuis l’atelier demande de se connecter', async ({ acc }) => {
+  test('sans compte : l’exemple, l’import de fichiers et la photo sont libres ; l’icône Enregistrer demande de se connecter, puis enregistre', async ({ acc }) => {
     const { page } = acc;
     // (pas d'étape Importer avant le premier import : le type d'œuvre et le dépôt se font au centre)
     await expect(page.locator('#import-section')).toBeHidden();
@@ -190,27 +190,35 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBeTruthy();
     await expect(page.locator('#account-section')).toBeHidden();
-    // photographier (sur téléphone : le bouton n'est pas sur ordinateur) : la connexion d'abord
+    // photographier (sur téléphone : le bouton n'est pas sur ordinateur) : sans compte, le conseil puis
+    // l'appareil photo, pas de connexion demandée
     await expect(page.locator('#camera-open')).toBeHidden();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('#sheet-tabs [data-tab="import-section"]').click();
     await page.locator('#camera-open').click();
-    await expect(page.locator('#account-section')).toBeVisible();
-    await expect(page.locator('#acc-status')).toContainText('photographier vos dessins');
-    await expect(page.locator('#camera')).toBeHidden();
-    await page.locator('#acc-close').click();
+    await expect(page.locator('#camera-advice')).toBeVisible();
+    await expect(page.locator('#account-section')).toBeHidden();
+    await page.locator('#camera-advice [data-close]').click();
     await page.setViewportSize({ width: 1440, height: 1000 });
     // des fichiers déposés sans compte : importés tout de suite, à la place de l'exemple
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#account-section')).toBeHidden();
-    // connecté ensuite : l'indication disparaît
-    await page.locator('#acc-open').click();
+    // l'icône Enregistrer, tout à gauche de la barre d'outils : sans compte, la connexion ou la création
+    // d'un compte d'abord ; connecté, l'œuvre est enregistrée d'elle-même (un message sur l'œuvre)
+    const first = await page.evaluate(() => document.querySelector('#toolbar button').id);
+    expect(first).toBe('tb-save');
+    await expect(page.locator('#tb-save')).toBeEnabled();
+    await page.locator('#tb-save').click();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#acc-status')).toContainText('enregistrer votre œuvre');
     await page.locator('.auth-tabs [data-mode="signup"]').click();
     await page.fill('#auth-email', 'imp@example.org');
     await page.fill('#auth-password', 'Rouge-Soleil-42');
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-menu')).toBeVisible();
+    await expect(page.locator('#stage-toast')).toContainText('enregistrée dans Mes œuvres', { timeout: 30000 });
+    // connecté : l'indication disparaît
     await expect(page.locator('#import-account')).toBeHidden();
   });
 
@@ -239,12 +247,13 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#exports-box')).toBeVisible();
     await expect(page.locator('#exports-list .saved')).toHaveCount(1);
     await expect(page.locator('#exports-list .saved-meta')).toContainText('JPEG');
-    // déconnecté, l'œuvre s'enregistre toujours sur l'appareil, et « Enregistrer » ne demande pas de compte
+    // déconnecté : « Enregistrer cette œuvre » demande de se connecter ou de créer un compte
     await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
     await openStep(page, 'compose-section');
     await page.locator('#save-comp').click();
-    await expect(page.locator('#freeze-status')).toContainText('enregistrée dans Mes œuvres');
-    await expect(page.locator('#account-section')).toBeHidden();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#acc-status')).toContainText('enregistrer votre œuvre');
+    await expect(page.locator('#freeze-status')).not.toContainText('enregistrée dans Mes œuvres');
   });
 
   test('le compte garde 15 œuvres au plus, 60 jours : la 16e attend avec une alerte, part dès qu’on en supprime une ; une œuvre de plus de 60 jours est effacée', async ({ acc }) => {
@@ -823,17 +832,19 @@ test.describe('Comptes utilisateurs', () => {
     await openStep(page, 'export-section');
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="papier"]').click();
+    // pas connecté : ajouter au panier demande d'abord de se connecter ou de créer un compte, puis
+    // l'article choisi s'ajoute de lui-même
     await page.locator('#cart-add-ok').click();
-    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
-    // pas connecté : la connexion passe devant, puis la commande reprend d'elle-même
-    await page.locator('#cart-order').click();
-    await expect(page.locator('#cart')).toBeHidden();
-    await expect(page.locator('#acc-status')).toContainText('commander');
+    await expect(page.locator('#cart-add')).toBeHidden();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#acc-status')).toContainText('ajouter l’œuvre au panier');
     await page.locator('.auth-tabs [data-mode="signup"]').click();
     await page.fill('#auth-name', 'Sam');
     await page.fill('#auth-email', 'sam@example.org');
     await page.fill('#auth-password', 'Bleu-Nuage-77');
     await page.locator('#auth-submit').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1, { timeout: 60000 });
+    await page.locator('#cart-order').click();
     await expect(page.locator('#cart .cart-status')).toContainText('prête', { timeout: 60000 });
     const uploads = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] !== AtelierGribouille.state.workId).length);
     expect(uploads).toBe(9); // les trois dessins de la composition commandée (image, page, masques), envoyés une seule fois (hors l'œuvre elle-même)

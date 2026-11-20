@@ -162,9 +162,11 @@ Les adresses de retour de Supabase (`https://ateliergribouille.art/**`) couvrent
 ## Ce qui demande un compte
 
 Sans être connecté, on peut voir l'exemple et le manipuler (propositions, retouches, couleur du
-fond). Importer ses propres dessins (fichiers, glisser-déposer, photo), télécharger, sauvegarder et
-commander demandent d'être connecté : la fenêtre de connexion ou d'inscription s'ouvre, puis
-l'action demandée reprend d'elle-même. Sans réglage Supabase dans `config.js`, aucune de ces
+fond), importer ses propres dessins (fichiers, glisser-déposer) et les photographier depuis
+l'atelier. Enregistrer l'œuvre (l'icône Enregistrer, tout à gauche de la barre d'outils, ou
+« Enregistrer cette œuvre » dans Propositions), télécharger, ajouter au panier et commander
+demandent d'être connecté : la fenêtre de connexion ou d'inscription s'ouvre, puis l'action
+demandée reprend d'elle-même. Sans réglage Supabase dans `config.js`, aucune de ces
 restrictions ne s'applique.
 
 ## L'œuvre en cours dans le compte

@@ -98,12 +98,15 @@ cd collage && python3 -m http.server 8000
      liste suit la proposition affichée. Dès que le client choisit une toile dans la liste
      (`state.formatManual`), son choix est gardé pour toutes les propositions, jusqu'à une nouvelle
      œuvre ou un changement d'atelier ; une composition rouverte garde sa toile.
-1. **Compte requis pour photographier, pas pour importer** (quand les comptes sont actifs,
+1. **Compte requis pour enregistrer, pas pour créer** (quand les comptes sont actifs,
    `config.js`) : sans être connecté, on peut voir et manipuler l'exemple (« Tester avec un exemple »,
-   `?exemple`) et importer ses propres dessins (zone d'import, glisser-déposer, sélecteur de
-   fichiers) ; photographier depuis l'atelier, exporter ou commander ouvre la fenêtre
-   de connexion ou d'inscription (`requireAccount`), puis l'action demandée reprend d'elle-même une
-   fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
+   `?exemple`), importer ses propres dessins (zone d'import, glisser-déposer, sélecteur de
+   fichiers) et les photographier depuis l'atelier ; enregistrer l'œuvre — l'icône **Enregistrer**,
+   tout à gauche de la barre d'outils du haut (`#tb-save`, avec un bref message sur l'œuvre,
+   `#stage-toast`), ou « Enregistrer cette œuvre » dans Propositions —, exporter, ajouter au panier
+   (« Ajouter au panier » de la fenêtre d'ajout : elle se ferme, l'article choisi s'ajoute après la
+   connexion) ou commander ouvre la fenêtre de connexion ou d'inscription (`requireAccount`), puis
+   l'action demandée reprend d'elle-même une fois connecté. Une phrase sous la zone d'import le dit aux visiteurs non connectés.
 1. **Importer** les scans : PDF multipages, JPG ou PNG. La section Importer propose les mêmes choix
    qu'au premier import (`#drop`, `.import-choices`) : « Photothèque » (`#import-photos`, le sélecteur
    de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, les PDF) ; des fichiers

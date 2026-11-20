@@ -80,6 +80,7 @@
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
       <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h10v10H9z"/><path d="M15 9V5H5v10h4"/></symbol>
       <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4.3-1 10.2-10.2a2.2 2.2 0 0 0-3.1-3.1L5.2 15.9z"/><path d="M13.6 7.5l3 3"/></symbol>
+      <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4.5h11l3.5 3.5v11.5h-14.5z"/><path d="M8 4.5v4.5h7V4.5M8 19.5v-5.5h8v5.5"/></symbol>
       <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5M10.5 11v5M13.5 11v5"/></symbol>
     </defs>
   </svg>
@@ -182,7 +183,7 @@
       </div>
       <!-- « Importer une meilleure version » d'un dessin (fiche du dessin) -->
       <input id="replace-file" type="file" accept="application/pdf,image/*,image/heic,image/heif" hidden>
-      <p id="import-account" class="hint import-account" hidden>Importez vos dessins librement ; un compte gratuit n’est demandé que pour les photographier depuis l’atelier ou exporter, et il garde vos œuvres sur tous vos appareils.</p>
+      <p id="import-account" class="hint import-account" hidden>Importez et photographiez vos dessins librement ; un compte gratuit n’est demandé que pour enregistrer, exporter ou commander, et il garde vos œuvres sur tous vos appareils.</p>
       <!-- téléphone : les œuvres enregistrées, sous les choix d'import (voir revealSaved) -->
       <button type="button" id="resume-saved" class="btn new-work resume-saved" hidden><svg class="ico"><use href="#i-bookmark"/></svg><span>Reprendre une œuvre</span></button>
       <!-- repartir de zéro -->
@@ -434,6 +435,9 @@
       <button type="button" class="order-cta order-cta-desk" hidden><svg class="ico"><use href="#i-bag"/></svg><span>Commander</span></button>
     </div>
     <div class="toolbar" id="toolbar" role="toolbar" aria-label="Pièce sélectionnée" hidden>
+      <!-- tout à gauche : enregistrer l'œuvre (sans compte : la connexion ou la création d'un compte d'abord) -->
+      <button type="button" id="tb-save" class="tb-save" title="Enregistrer l’œuvre" aria-label="Enregistrer l’œuvre"><svg class="ico"><use href="#i-save"/></svg><span>Enregistrer</span></button>
+      <span class="tb-sep" aria-hidden="true"></span>
       <button data-act="undo" class="history" title="Défaire (Ctrl+Z)" aria-label="Défaire"><svg class="ico"><use href="#i-undo"/></svg><span>Défaire</span></button>
       <button data-act="redo" class="history" title="Refaire (Ctrl+Maj+Z)" aria-label="Refaire"><svg class="ico"><use href="#i-redo"/></svg><span>Refaire</span></button>
       <span class="tb-sep" aria-hidden="true"></span>
@@ -475,6 +479,7 @@
     </div>
     <!-- l'astuce de la zone d'édition : on édite l'œuvre en touchant un dessin (jusqu'au premier dessin touché) -->
     <p id="edit-hint" class="edit-hint" hidden></p>
+    <p id="stage-toast" class="edit-hint stage-toast" role="status" hidden></p>
     <button type="button" id="scene-open" class="scene-open" hidden><svg class="ico"><use href="#i-frame"/></svg><span>Mettre en scène</span></button>
     <p id="label" class="label" hidden><b id="label-title"></b><span id="label-meta"></span></p>
     <!-- l'œuvre affichée a changé sur un autre appareil : choisir la version à garder -->
