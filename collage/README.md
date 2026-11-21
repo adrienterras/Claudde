@@ -28,8 +28,8 @@ cd collage && python3 -m http.server 8000
    carte touchée (fermé sans rien choisir, retour aux deux cartes ; des fichiers déposés le ferment ;
    ordinateur sans écran tactile : sans « Prendre une photo ») ; sur téléphone, un seul bouton
    « Ajouter des dessins » (`#empty-add`) le rouvre : « Photothèque » (le sélecteur du téléphone, `#file`), « Prendre une
-   photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF
-   seulement, pour qu'iOS ouvre Fichiers et non la photothèque) ; « Changer de type d'œuvre » ramène
+   photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF et les images rangées dans Fichiers ou iCloud
+   Drive, par leurs extensions — limité aux PDF, iOS y grisait les photos) ; « Changer de type d'œuvre » ramène
    les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
    le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).
@@ -130,7 +130,7 @@ cd collage && python3 -m http.server 8000
    l'écriture que si on le leur demande (`window.__lecture`).
 1. **Importer** les scans : PDF multipages, JPG ou PNG. La section Importer propose les mêmes choix
    qu'au premier import (`#drop`, `.import-choices`) : « Photothèque » (`#import-photos`, le sélecteur
-   de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, les PDF) ; des fichiers
+   de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, PDF et images) ; des fichiers
    glissés-déposés sur la page sont aussi importés. **Photographier les
    dessins depuis l'atelier** (`js/camera.js`, bouton « Prendre une photo », `#camera-open`,
    sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,

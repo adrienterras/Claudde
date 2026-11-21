@@ -6186,10 +6186,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('empty-drop').addEventListener('click', () => $('file').click());
   // Importer : Photothèque et Fichiers (Prendre une photo : camera-open, plus haut)
   $('import-photos').addEventListener('click', () => $('file').click());
-  // (Fichiers : les PDF sur écran tactile, où Photothèque ouvre les images ; tout sur ordinateur, voir plus bas)
+  // (Fichiers : sur écran tactile, les PDF et les images rangées dans Fichiers ou iCloud Drive ; tout sur ordinateur, voir plus bas)
   $('import-files').addEventListener('click', () => (navigator.maxTouchPoints > 0 ? $('file-docs') : $('file')).click());
   // téléphone : « Ajouter des dessins » ouvre le choix — Photothèque (le sélecteur du téléphone),
-  // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (les PDF, dans Fichiers)
+  // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (PDF et images, dans Fichiers ou iCloud Drive)
   (() => {
     const el = $('import-pick');
     if (!el) return;
