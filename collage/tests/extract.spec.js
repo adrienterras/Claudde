@@ -256,6 +256,29 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.level).not.toBe('bad');
   });
 
+  test('un petit objet colorié (coquille rayée de feutre, peu de blanc) posé sur un tapis à poils est détouré seul', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 900, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // tapis à poils gris : des mèches claires et sombres serrées, sans joints
+      x.fillStyle = 'rgb(132,126,118)'; x.fillRect(0, 0, W, H);
+      let seed = 21; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let k = 0; k < 26000; k++) { const v = rnd() < 0.5 ? 200 + rnd() * 40 : 70 + rnd() * 40; x.strokeStyle = `rgb(${v},${v - 4},${v - 10})`; x.lineWidth = 2 + rnd() * 2; const a = rnd() * 6.28, X = rnd() * W, Y = rnd() * H; x.beginPath(); x.moveTo(X, Y); x.lineTo(X + Math.cos(a) * 9, Y + Math.sin(a) * 9); x.stroke(); }
+      // la coquille : un éventail blanc couvert de rayures de couleur
+      x.save(); x.beginPath(); x.moveTo(450, 760); x.arc(450, 760, 190, Math.PI * 1.08, Math.PI * 1.92); x.closePath(); x.fillStyle = '#f2efe9'; x.fill(); x.clip();
+      ['#2fa84f', '#8b3fd0', '#1f4fd1', '#e8549a', '#e84a3a'].forEach((col, i) => { for (let k = 0; k < 4; k++) { const a = Math.PI * (1.1 + (i * 4 + k) * 0.041); x.strokeStyle = col; x.lineWidth = 14; x.beginPath(); x.moveTo(450, 760); x.lineTo(450 + Math.cos(a) * 200, 760 + Math.sin(a) * 200); x.stroke(); } });
+      x.restore();
+      const a = Extract.analyze(c, 0, { photo: true });
+      const v = Camera.check(c);
+      return { kind: a.kind, pieces: (a.pieces || []).length, w: a.pieces && a.pieces[0] ? a.pieces[0].canvas.width : 0, found: v.found, points: v.points.map((p) => p.code + ':' + p.level).join(' ') };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.pieces).toBe(1);
+    // la coquille seule (≈ 360 px de large dans la photo), pas le tapis
+    expect(r.w).toBeLessThan(600);
+    expect(r.found).toBe(true);
+    expect(r.points).not.toMatch(/objets|feuille/);
+  });
+
   test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

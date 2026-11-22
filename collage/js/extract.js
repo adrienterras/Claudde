@@ -3191,10 +3191,14 @@
     if (!force) {
       // une surface texturée doit montrer au moins un joint hors du dessin, ou un objet franchement papier
       // (un sujet plein et compact posé sur un bois à joints visibles passe même si les joints restent sous lui)
-      if (!uniform && linesOut < 1 && paperFrac < 0.45 && !(lines >= 1 && solid >= 0.6)) return null;
+      // (une moquette, un tapis à poils : surface sans joints, adoucie plus haut ; un objet plein et net
+      // posé dessus — une coquille peinte de rayures, une découpe coloriée — y tranche sans être blanc)
+      const onPile = dk !== d && solid >= 0.6;
+      if (!uniform && linesOut < 1 && paperFrac < 0.45 && !(lines >= 1 && solid >= 0.6) && !onPile) return null;
       // et le dessin occupe une part raisonnable de la photo (sinon ce sont des taches sur une page
-      // de couleur) — une petite découpe bien pleine, franchement papier, passe dès 2,5 %
-      if (area < 0.06 * n && !(area >= 0.025 * n && solid >= 0.8 && paperFrac >= 0.3)) return null;
+      // de couleur) — une petite découpe bien pleine, franchement papier, passe dès 2,5 % (sur une
+      // moquette, un objet plein dès 2 %)
+      if (area < 0.06 * n && !(area >= 0.025 * n && solid >= 0.8 && paperFrac >= 0.3) && !(onPile && area >= 0.02 * n)) return null;
     }
     // une feuille photographiée de près peut toucher trois bords : on l'accepte si elle est bien du papier
     // ... et qu'un bord entier de la photo montre la surface (le sol file sous la feuille)

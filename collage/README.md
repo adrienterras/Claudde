@@ -587,7 +587,9 @@ cd collage && python3 -m http.server 8000
      un sol à joints, soit est franchement de papier blanc (≥ 45 % — une découpe sur un béton lisse) ;
      une surface très texturée (moquette, béton grenu, métal brossé : 90ᵉ centile des écarts de
      clarté sur la bordure > 26) est jugée sur une image adoucie (moyenne locale ≈ 1 %), où ses fibres
-     claires ne passent plus pour du papier ; une **table foncée d'une autre couleur** (bordeaux, vert
+     claires ne passent plus pour du papier — et un objet plein et net posé dessus (une coquille rayée
+     de feutre, une découpe coloriée, peu de blanc) y est accepté sans joints ni papier blanc, dès 2 % de
+     la photo ; une **table foncée d'une autre couleur** (bordeaux, vert
      sapin, bleu nuit : clarté < 105) est acceptée comme surface, l'ombre de la main y est rendue à la
      table (même teinte à ± 8°, plus sombre) et la tolérance vers le clair y reste étroite (30 à 40
      niveaux : le bandeau brun d'un chapeau n'est pas la table) ; sur un parquet, le bois relié au bord
