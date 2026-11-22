@@ -3022,7 +3022,7 @@
     // une table foncée d'une autre couleur (bordeaux, vert sapin, bleu nuit) : bien plus sombre que le
     // papier, elle s'en distingue aussi nettement qu'un bois ; les conditions qui suivent (forme
     // pleine, part de papier…) écartent une page peinte sombre et ses petits motifs clairs
-    const tinted = !neutral && !wood && L < 105;
+    const tinted = !neutral && !wood && L < 105 && S < 0.7; // (un cadre au crayon vif, saturé, n’est pas une table)
     // forcé par l'utilisateur : on fait confiance à la couleur de bordure, quelle qu'elle soit
     if (!neutral && !wood && !tinted && !force) return null;
 
