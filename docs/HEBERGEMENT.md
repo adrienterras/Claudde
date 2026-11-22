@@ -12,42 +12,44 @@ GitHub Pages n'est pas prévu pour un site commercial ; Cloudflare Pages l'accep
 les en-têtes de `_site/_headers` (HSTS, interdiction d'afficher le site dans un cadre, etc.), ce
 qu'une balise `<meta>` ne peut pas faire.
 
-### 1. Le projet Pages
+### 1. La publication, après les tests
 
-Cloudflare → **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → dépôt
-`adrienterras/Claudde`, puis :
+Le site n'est publié que si les tests passent : c'est le workflow `.github/workflows/pages.yml` qui,
+après les tests, envoie `_site/` au projet Cloudflare Pages **`ateliergribouille`** (envoi direct,
+`wrangler pages deploy`), en plus de GitHub Pages tant que celui-ci n'est pas coupé. Un projet relié
+au dépôt (« Connect to Git ») publierait chaque envoi **sans** les tests : à ne pas utiliser (le
+projet d'essai `claudde`, relié au dépôt, est à supprimer).
 
-| Réglage | Valeur |
-|---|---|
-| Production branch | `claude/children-drawings-art-app-kr5f77` |
-| Framework preset | None |
-| Build command | `bash deploy/preparer-site.sh` |
-| Build output directory | `_site` |
-| Root directory | (vide) |
-
-**Save and Deploy**. Le site est alors en ligne sur une adresse `….pages.dev` : le vérifier
-(accueil, `/atelier/`, connexion à un compte, import d'un dessin) avant de toucher au domaine.
-Dans **Settings → Builds → Branch control**, on peut limiter les déploiements à la branche de
-production (sinon chaque autre branche a sa propre adresse d'aperçu).
+1. **Clé d'accès** : Cloudflare → icône du profil → **My Profile → API Tokens → Create Token →
+   Create Custom Token**. Nom : `GitHub Actions — Pages`. Permissions : **Account → Cloudflare
+   Pages → Edit**. Account Resources : votre compte. **Create Token**, puis copier la clé (affichée
+   une seule fois).
+2. **Identifiant du compte** : Cloudflare → **Workers & Pages** (ou la page du domaine) → **Account
+   ID**, à droite.
+3. **GitHub** → dépôt → **Settings → Secrets and variables → Actions → New repository secret** :
+   `CLOUDFLARE_API_TOKEN` (la clé) et `CLOUDFLARE_ACCOUNT_ID` (l'identifiant).
+4. Relancer la dernière publication (**Actions → Publier sur GitHub Pages → Run workflow**) : le
+   projet `ateliergribouille` est créé au premier envoi ; le site est sur
+   `https://ateliergribouille.pages.dev`. Le vérifier (accueil, `/atelier/`, connexion, import).
 
 ### 2. Le domaine (il reste enregistré chez Spaceship)
 
-1. Cloudflare → **Add a domain** → `ateliergribouille.art` → offre **Free**. Cloudflare importe les
-   enregistrements DNS existants.
-2. **Vérifier** l'import, surtout la messagerie : enregistrements `MX`, et `TXT` (SPF `v=spf1…`, DKIM,
-   DMARC), ainsi que celui de la vérification GitHub (`_github-pages-challenge-…`) et ceux d'un
-   service d'envoi (Resend, Brevo). Les enregistrements qui pointent vers GitHub Pages (`A`
-   `185.199.108–111.153`, `CNAME www` vers `….github.io`) seront remplacés à l'étape 4.
-3. Chez **Spaceship** → le domaine → **Nameservers** → **Custom** → les deux serveurs donnés par
-   Cloudflare. La propagation prend de quelques minutes à quelques heures ; pendant ce temps GitHub
-   Pages continue de servir le site (le même), il n'y a pas de coupure.
-4. Quand Cloudflare indique le domaine **Active** : projet Pages → **Custom domains** → **Set up a
-   custom domain** → `ateliergribouille.art`, puis `www.ateliergribouille.art` (Cloudflare crée les
-   enregistrements et le certificat HTTPS).
-5. Vérifier `https://ateliergribouille.art` et `/atelier/`, une connexion (Google et e-mail) et un
+1. Cloudflare → **Add a domain** → `ateliergribouille.art` → offre **Free** ; vérifier l'import des
+   enregistrements (messagerie : `MX`, SPF, DKIM, `SRV` autodiscover ; vérifications Google et
+   GitHub). Ceux du site (`A` `185.199.108–111.153`, `AAAA` `2606:50c0:8000–8003::153`, `CNAME www`
+   vers `….github.io`) en **DNS only**.
+2. Chez **Spaceship** : DNSSEC désactivé (attendre que l'enregistrement `DS` ait disparu, plus une
+   heure), puis **Nameservers → Custom** → les deux serveurs donnés par Cloudflare. Fait le
+   22 novembre 2026 ; domaine **Active** le jour même.
+3. Projet `ateliergribouille` → **Custom domains → Set up a custom domain** → `ateliergribouille.art` :
+   Cloudflare propose de remplacer les `A` et `AAAA` de GitHub par son propre enregistrement, et crée
+   le certificat HTTPS. Puis `www.ateliergribouille.art` (le `CNAME www` vers GitHub est remplacé).
+4. Vérifier `https://ateliergribouille.art` et `/atelier/`, une connexion (Google et e-mail) et un
    import.
-6. Ensuite seulement : GitHub → dépôt → **Settings → Pages** → retirer le domaine personnalisé, puis
-   désactiver Pages (ou supprimer le workflow `pages.yml`).
+5. Ensuite seulement : GitHub → dépôt → **Settings → Pages** → retirer le domaine personnalisé, puis
+   désactiver Pages ; retirer de `pages.yml` les étapes GitHub Pages ; supprimer le projet `claudde`.
+   DNSSEC peut alors être réactivé dans Cloudflare (DNS → Settings), l'enregistrement `DS` donné
+   étant à coller chez Spaceship.
 
 Rien ne change pour Supabase (même domaine : les adresses de retour restent valables), ni pour
 Umami, ni pour les e-mails.

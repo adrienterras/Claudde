@@ -32,6 +32,10 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # Cloudflare Pages : publié seulement quand la clé est enregistrée dans les secrets du dépôt
+      # (Settings → Secrets and variables → Actions : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID)
+      CF_ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -57,6 +61,22 @@ jobs:
           fi
       - name: Préparer le site
         run: bash deploy/preparer-site.sh "$GITHUB_SHA"
+      # Le même site, sur Cloudflare Pages (projet « ateliergribouille », envoi direct) : publié ici,
+      # après les tests, et non par Cloudflare depuis le dépôt (qui publierait sans les tests)
+      - name: Publier sur Cloudflare Pages
+        if: env.CF_ENABLED == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          W="npx --yes wrangler@4.152.0"
+          # (le projet est créé au premier envoi ; ensuite, la création échoue sans conséquence)
+          $W pages project create ateliergribouille --production-branch=main || echo "Projet déjà créé"
+          for i in 1 2 3; do
+            $W pages deploy _site --project-name=ateliergribouille --branch=main --commit-hash="$GITHUB_SHA" --commit-message="${GITHUB_SHA:0:7}" && exit 0
+            echo "Nouvel essai dans $((i * 20)) s"; sleep $((i * 20))
+          done
+          exit 1
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: _site
