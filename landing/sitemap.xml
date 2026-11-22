@@ -2,28 +2,28 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://ateliergribouille.art/</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/?lang=en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/"/>
   </url>
   <url>
     <loc>https://ateliergribouille.art/?lang=en</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/?lang=en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/"/>
   </url>
   <url>
     <loc>https://ateliergribouille.art/atelier/</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/atelier/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/atelier/?lang=en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/atelier/"/>
   </url>
   <url>
     <loc>https://ateliergribouille.art/atelier/?lang=en</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://ateliergribouille.art/atelier/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://ateliergribouille.art/atelier/?lang=en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://ateliergribouille.art/atelier/"/>
@@ -72,6 +72,6 @@
   </url>
   <url>
     <loc>https://ateliergribouille.art/confidentialite.html</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-11-21</lastmod>
   </url>
 </urlset>
