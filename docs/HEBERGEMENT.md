@@ -54,7 +54,8 @@ projet d'essai `claudde`, relié au dépôt, est à supprimer).
 Rien ne change pour Supabase (même domaine : les adresses de retour restent valables), ni pour
 Umami, ni pour les e-mails.
 
-## GitHub Pages (actuel)
+## GitHub Pages (ancien)
 
-`.github/workflows/pages.yml` lance `deploy/preparer-site.sh` puis publie `_site/` à chaque envoi
-sur la branche de production.
+Le site y était publié jusqu'au 22 novembre 2026. Les étapes GitHub Pages ont été retirées de
+`pages.yml` (qui réactivait Pages à chaque publication) ; Pages est à désactiver dans les réglages
+du dépôt (Settings → Pages), après avoir retiré le domaine personnalisé.

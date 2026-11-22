@@ -1128,8 +1128,9 @@ Les optimisations ne changent aucun pixel :
 ## Mise en ligne
 
 L'application est un site statique (aucun serveur, les scans restent dans le navigateur). Le
-workflow `.github/workflows/pages.yml` publie le dossier `collage/` sur GitHub Pages à chaque
-push de la branche de l'application. Hors site, `tools/artefact.py` fabrique l'atelier en une
+workflow `.github/workflows/pages.yml` (« Publier le site ») publie le site sur Cloudflare Pages
+(projet `ateliergribouille`, domaine `ateliergribouille.art`) à chaque push de la branche de
+l'application, une fois la suite de tests passée (voir `docs/HEBERGEMENT.md`). Hors site, `tools/artefact.py` fabrique l'atelier en une
 seule page (feuille de style, scripts, pdf.js, jsPDF et images incorporés ; sans compte ; le jeu
 d'exemple et le worker de pdf.js publiés à côté), pour l'artefact de démonstration. Le site publié a deux parties : la page d'accueil (`landing/`,
 présentation du concept avec, en tête, la vidéo de présentation en 16:9, bord à bord sur toute la

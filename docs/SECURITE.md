@@ -63,8 +63,9 @@ bas ; il reste quelques réglages à faire dans les tableaux de bord Supabase et
 
 ## Limites connues, acceptées
 
-- GitHub Pages ne permet pas d'en-têtes HTTP personnalisés : pas de `Content-Security-Policy`
-  ni de `HSTS` côté serveur (HTTPS forcé par GitHub Pages). Une CSP par balise `<meta>` est
+- (Jusqu'au 22 novembre 2026, sur GitHub Pages : pas d'en-têtes HTTP personnalisés. Depuis le
+  passage à Cloudflare Pages, `_headers` applique HSTS, `frame-ancestors 'none'`, `nosniff`, etc.)
+  La CSP complète reste en balise `<meta>`. Une CSP par balise `<meta>` est
   possible mais demande une liste précise des origines (Supabase, Umami, Google Fonts, blob:,
   data:, workers) et des tests : à envisager quand le site sera stable.
 - Le jeton de session Supabase est gardé dans `localStorage` (comportement par défaut de la

@@ -1,7 +1,8 @@
-# Publie l'application Atelier Gribouille (dossier collage/) sur GitHub Pages.
+# Publie le site Atelier Gribouille (accueil landing/ et atelier collage/) sur Cloudflare Pages
+# (projet « ateliergribouille », domaine ateliergribouille.art) ; GitHub Pages n'est plus utilisé.
 # Déclenché à chaque push sur la branche de l'application, ou à la main depuis l'onglet Actions.
 # La suite de tests passe d'abord (tests.yml) : si un seul test échoue, rien n'est publié.
-name: Publier sur GitHub Pages
+name: Publier le site
 
 on:
   push:
@@ -27,19 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
     environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      name: production
+      url: https://ateliergribouille.art
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - name: Activer Pages si besoin
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
-        with:
-          enablement: true
       # Un run relancé sur un ancien commit ne doit pas écraser un site plus récent :
       # on ne déploie que si ce commit est encore la pointe de la branche.
       - name: Vérifier que le commit est le plus récent
@@ -57,45 +52,22 @@ jobs:
           fi
       - name: Préparer le site
         run: bash deploy/preparer-site.sh "$GITHUB_SHA"
-      # Le même site, sur Cloudflare Pages (projet « ateliergribouille », envoi direct) : publié ici,
-      # après les tests, et non par Cloudflare depuis le dépôt (qui publierait sans les tests)
-      # (seulement quand la clé est enregistrée dans les secrets du dépôt — Settings → Secrets and
-      # variables → Actions : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID ; sinon l'étape le dit et passe)
+      # Cloudflare Pages (projet « ateliergribouille », envoi direct) : publié ici, après les tests, et
+      # non par Cloudflare depuis le dépôt (qui publierait sans les tests). Clé dans les secrets du
+      # dépôt (Settings → Secrets and variables → Actions : CLOUDFLARE_API_TOKEN, jeton « Cloudflare
+      # Pages : Modifier », et CLOUDFLARE_ACCOUNT_ID).
       - name: Publier sur Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::notice::Cloudflare Pages non publié : secret absent (CLOUDFLARE_API_TOKEN : $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo présent || echo absent), CLOUDFLARE_ACCOUNT_ID : $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo présent || echo absent))"
-            exit 0
+            echo "::error::Publication impossible : secret absent (CLOUDFLARE_API_TOKEN : $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo présent || echo absent), CLOUDFLARE_ACCOUNT_ID : $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo présent || echo absent))"
+            exit 1
           fi
           W="npx --yes wrangler@4.152.0"
-          # (le projet est créé au premier envoi ; ensuite, la création échoue sans conséquence)
-          $W pages project create ateliergribouille --production-branch=main || echo "Projet déjà créé"
           for i in 1 2 3; do
             $W pages deploy _site --project-name=ateliergribouille --branch=main --commit-hash="$GITHUB_SHA" --commit-message="${GITHUB_SHA:0:7}" --commit-dirty=true && exit 0
             echo "Nouvel essai dans $((i * 20)) s"; sleep $((i * 20))
           done
           exit 1
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
-        with:
-          path: _site
-      # Le service Pages met parfois plus de 10 min (le maximum accepté par l'action) : on retente
-      # une fois avant de déclarer l'échec. L'URL du site vient de la tentative qui a réussi.
-      - id: deploy1
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
-        continue-on-error: true
-        with:
-          timeout: 600000
-          error_count: 20
-      - id: deploy2
-        if: steps.deploy1.outcome == 'failure'
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
-        with:
-          timeout: 600000
-          error_count: 20
-      - id: deployment
-        env:
-          PAGE_URL: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}
-        run: echo "page_url=$PAGE_URL" >> "$GITHUB_OUTPUT"
