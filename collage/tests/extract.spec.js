@@ -143,6 +143,35 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(plain.photo).toBeNull();
   });
 
+  test('une découpe aux bras fins (peu de place dans sa boîte) posée sur un béton lisse, sans joints, est détourée', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1200, H = 900, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // béton gris, sans joints : un grain fin et quelques taches
+      const img = x.createImageData(W, H), d = img.data;
+      let seed = 11; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let i = 0; i < W * H; i++) { const v = (rnd() - 0.5) * 22; d[i * 4] = 122 + v; d[i * 4 + 1] = 114 + v; d[i * 4 + 2] = 96 + v; d[i * 4 + 3] = 255; }
+      x.putImageData(img, 0, 0);
+      x.fillStyle = 'rgba(70,60,45,0.35)'; for (let k = 0; k < 30; k++) { x.beginPath(); x.arc(rnd() * W, rnd() * H, 2 + rnd() * 6, 0, 7); x.fill(); }
+      // un bonhomme découpé dans du papier blanc : un tronc et deux bras fins, en biais
+      x.lineCap = 'square'; x.lineJoin = 'miter'; x.strokeStyle = '#f8f8f5'; x.lineWidth = 70;
+      x.beginPath(); x.moveTo(420, 760); x.lineTo(520, 520); x.lineTo(560, 200); x.lineTo(700, 160); x.stroke();
+      x.beginPath(); x.moveTo(540, 330); x.lineTo(760, 370); x.lineTo(880, 360); x.stroke();
+      x.beginPath(); x.moveTo(530, 500); x.lineTo(700, 470); x.lineTo(860, 440); x.stroke();
+      // de la peinture vaporisée par taches
+      [['#1f4fd1', 600, 190], ['#1f4fd1', 820, 365], ['#2fa84f', 610, 360], ['#8b3fd0', 780, 455], ['#f08a1c', 470, 660], ['#e8549a', 560, 420]].forEach(([col, cx, cy]) => {
+        x.fillStyle = col; for (let k = 0; k < 220; k++) { const a = rnd() * 6.28, rr = rnd() * 34; x.fillRect(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, 3, 3); }
+      });
+      const a = Extract.analyze(c, 0, { photo: true });
+      return { photo: a.photo ? a.photo.kind : null, kind: a.kind, pieces: (a.pieces || []).length, fill: Extract.removeSurface.debug && Extract.removeSurface.debug.fill, lines: Extract.removeSurface.debug && Extract.removeSurface.debug.lines };
+    });
+    // la forme remplit peu sa boîte et le béton n'a pas de joints : c'est son papier blanc qui la fait reconnaître
+    expect(r.fill).toBeLessThan(0.4);
+    expect(r.lines).toBe(0);
+    expect(r.photo).not.toBeNull();
+    expect(r.kind).toBe('cutout');
+    expect(r.pieces).toBe(1);
+  });
+
   test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

@@ -572,7 +572,10 @@ cd collage && python3 -m http.server 8000
      verni, ou neutre ; unie, ou structurée par des joints qui se prolongent au-delà du dessin), et le
      dessin doit être une forme pleine qui occupe au moins 6 % de la photo (des traits sur une feuille
      de couleur ne le sont pas ; une petite découpe bien pleine et franchement papier passe dès
-     2,5 %) ; une feuille photographiée de près, qui touche les bords, est
+     2,5 %) ; une forme fine qui remplit moins de 40 % de sa boîte (bonhomme aux bras fins, fleur et sa
+     tige) est acceptée si elle est pleine (≥ 85 %), remplit au moins 20 % de sa boîte, et soit pose sur
+     un sol à joints, soit est franchement de papier blanc (≥ 45 % — une découpe sur un béton lisse) ;
+     une feuille photographiée de près, qui touche les bords, est
      acceptée si un bord entier montre encore la surface, dont la couleur est alors lue hors du
      papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface avant même
      de chercher le dessin (une lame sous un reflet ; ce qui est plus sombre que la surface, les

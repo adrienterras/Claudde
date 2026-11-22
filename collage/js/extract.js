@@ -3074,9 +3074,11 @@
     });
     Object.assign(removeSurface.debug, { edgeSurf: +edgeSurf.toFixed(2) });
     if (!force && touches >= 3 && !(paperFrac >= 0.35 && solid >= 0.8 && surfFrac >= 0.12 && edgeSurf >= 0.92)) return null;
-    // une forme fine et oblique (une fleur avec sa tige) remplit peu sa boîte : on l'accepte si elle est pleine et posée sur un sol à joints
+    // une forme fine et oblique (une fleur avec sa tige, un bonhomme découpé) remplit peu sa boîte : on
+    // l'accepte si elle est pleine et posée sur un sol à joints — ou, sur un sol lisse (béton, table),
+    // si elle est franchement de papier blanc (une découpe aux bras fins sur du béton gris)
     const fillBox = area / ((x1 - x0 + 1) * (y1 - y0 + 1));
-    if (!force && fillBox < 0.4 && !(fillBox >= 0.2 && solid >= 0.85 && lines >= 1)) return null;
+    if (!force && fillBox < 0.4 && !(fillBox >= 0.2 && solid >= 0.85 && (lines >= 1 || paperFrac >= 0.45))) return null;
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const finMask = new Uint8Array(n);
     for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) finMask[p] = 1;
