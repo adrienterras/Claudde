@@ -29,7 +29,11 @@ cd collage && python3 -m http.server 8000
    ordinateur sans écran tactile : sans « Prendre une photo ») ; sur téléphone, un seul bouton
    « Ajouter des dessins » (`#empty-add`) le rouvre : « Photothèque » (le sélecteur du téléphone, `#file`), « Prendre une
    photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF et les images rangées dans Fichiers ou iCloud
-   Drive, par leurs extensions — limité aux PDF, iOS y grisait les photos) ; « Changer de type d'œuvre » ramène
+   Drive, par leurs extensions — limité aux PDF, iOS y grisait les photos); avec beaucoup de photos, l'iPhone les
+   prépare avant de les remettre à la page — la fenêtre d'ajout le dit, et le sélecteur refermé sans
+   que rien ne soit encore arrivé, « Réception des photos… » s'affiche jusqu'à leur arrivée (`armPickWait`,
+   `endPickWait` : retour du focus, puis 400 ms ; fin à l'arrivée, à un sélecteur refermé sans rien,
+   à un toucher sur l'attente ou au bout de 90 s)) ; « Changer de type d'œuvre » ramène
    les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
    le type d'œuvre ne change plus ; mode gardé avec chaque sauvegarde et chaque brouillon).

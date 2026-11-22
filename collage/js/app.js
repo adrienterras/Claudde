@@ -2335,15 +2335,49 @@
   // choisir : on ne compte pas dessus) ; des fichiers choisis, l'écran d'import revient le temps de
   // l'analyse
   let pickPending = false;
-  const pickOpen = (input) => { pickPending = true; backToCards(); input.click(); };
+  /*
+   * Le temps que l'appareil remette les photos choisies : avec beaucoup de photos (rangées dans
+   * iCloud, surtout), l'iPhone les prépare avant de les donner à la page, qui ne reçoit rien entre-temps.
+   * Le sélecteur refermé (la page retrouve le focus) et toujours rien : « Réception des photos… »
+   * s'affiche jusqu'à leur arrivée — ou un sélecteur refermé sans rien (cancel), un toucher sur
+   * l'écran d'attente, ou 90 s.
+   */
+  let pickWaitArmed = false, pickWaitShown = false, pickWaitTimer = 0, pickWaitFocus = null;
+  const pickWaitOn = () => !navigator.webdriver || window.__pickWait === true; // (les tests automatiques s'en passent, sauf le sien)
+  function endPickWait() {
+    pickWaitArmed = false;
+    clearTimeout(pickWaitTimer);
+    if (pickWaitFocus) { window.removeEventListener('focus', pickWaitFocus); pickWaitFocus = null; }
+    if (pickWaitShown) { pickWaitShown = false; busyOff(); }
+  }
+  function armPickWait() {
+    endPickWait();
+    if (!pickWaitOn()) return;
+    pickWaitArmed = true;
+    pickWaitFocus = () => {
+      window.removeEventListener('focus', pickWaitFocus); pickWaitFocus = null;
+      setTimeout(() => {
+        if (!pickWaitArmed || pickWaitShown) return;
+        pickWaitShown = true;
+        busyOn(tr('Réception des photos…'));
+        busyStep(tr('L’appareil prépare les photos choisies : avec beaucoup de photos, ou des photos rangées dans iCloud, cela peut prendre un moment.'));
+        pickWaitTimer = setTimeout(endPickWait, 90000);
+      }, 400);
+    };
+    window.addEventListener('focus', pickWaitFocus);
+  }
+  const openPicker = (input) => { armPickWait(); input.click(); };
+  const pickOpen = (input) => { pickPending = true; backToCards(); openPicker(input); };
   const pickedFiles = () => { if (!state.drawings.length && !$('empty').hidden) emptyChoice(true); };
   ['file', 'file-docs'].forEach((id) => {
     const inp = document.getElementById(id);
     if (!inp) return;
-    inp.addEventListener('cancel', () => { pickPending = false; });
+    inp.addEventListener('cancel', () => { pickPending = false; endPickWait(); });
     // (en capture : avant l'import, qui vide le champ)
-    inp.addEventListener('change', () => { if (pickPending && inp.files && inp.files.length) pickedFiles(); pickPending = false; }, true);
+    inp.addEventListener('change', () => { endPickWait(); if (pickPending && inp.files && inp.files.length) pickedFiles(); pickPending = false; }, true);
   });
+  // (un toucher sur l'écran d'attente le referme : un sélecteur fermé sans rien que le navigateur n'aurait pas signalé)
+  $('busy').addEventListener('click', () => { if (pickWaitShown) endPickWait(); });
   function emptyChoice(done) {
     $('mode-pick').hidden = done;
     // les cartes affichées : aucune n'est présélectionnée, le choix revient à l'utilisateur (le dernier
@@ -6183,11 +6217,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if ($('import-pick')) openModal($('import-pick'));
   }));
   $('empty-change').addEventListener('click', () => emptyChoice(false));
-  $('empty-drop').addEventListener('click', () => $('file').click());
+  $('empty-drop').addEventListener('click', () => openPicker($('file')));
   // Importer : Photothèque et Fichiers (Prendre une photo : camera-open, plus haut)
-  $('import-photos').addEventListener('click', () => $('file').click());
+  $('import-photos').addEventListener('click', () => openPicker($('file')));
   // (Fichiers : sur écran tactile, les PDF et les images rangées dans Fichiers ou iCloud Drive ; tout sur ordinateur, voir plus bas)
-  $('import-files').addEventListener('click', () => (navigator.maxTouchPoints > 0 ? $('file-docs') : $('file')).click());
+  $('import-files').addEventListener('click', () => openPicker(navigator.maxTouchPoints > 0 ? $('file-docs') : $('file')));
   // téléphone : « Ajouter des dessins » ouvre le choix — Photothèque (le sélecteur du téléphone),
   // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (PDF et images, dans Fichiers ou iCloud Drive)
   (() => {

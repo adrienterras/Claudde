@@ -2624,3 +2624,38 @@ test.describe('Barre d’outils du haut (téléphone)', () => {
     }
   });
 });
+
+test.describe('Réception des photos (téléphone)', () => {
+  test('le sélecteur refermé, les photos pas encore là : « Réception des photos… » jusqu’à leur arrivée ; un toucher referme l’attente', async ({ browser }) => {
+    const { fixture } = require('./helpers');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.addInitScript(() => { window.__pickWait = true; });
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    // la fenêtre d'ajout prévient : l'iPhone prépare d'abord les photos
+    await page.locator('#mode-pick [data-mode="impression"]').click();
+    await expect(page.locator('#import-pick .resume-note')).toContainText('patientez');
+    // Photothèque : le sélecteur s'ouvre ; la page retrouve le focus sans photos (l'appareil les prépare)
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-photos').click()]);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.locator('#busy')).toBeVisible();
+    await expect(page.locator('#busy-title')).toHaveText('Réception des photos…');
+    await expect(page.locator('#busy-step')).toContainText('iCloud');
+    // les photos arrivent : l'attente laisse la place à l'analyse, puis l'œuvre
+    await chooser.setFiles([fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#busy')).toBeHidden();
+    // un sélecteur refermé sans rien, sans que le navigateur le signale : un toucher referme l'attente
+    await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
+    await page.locator('#drawings-add').click();
+    const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-photos').click()]);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(page.locator('#busy')).toBeVisible();
+    await page.locator('#busy').click();
+    await expect(page.locator('#busy')).toBeHidden();
+    expect(chooser2).toBeTruthy();
+    await ctx.close();
+  });
+});
