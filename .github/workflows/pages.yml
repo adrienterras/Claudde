@@ -32,10 +32,6 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      # Cloudflare Pages : publié seulement quand la clé est enregistrée dans les secrets du dépôt
-      # (Settings → Secrets and variables → Actions : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID)
-      CF_ENABLED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -63,12 +59,17 @@ jobs:
         run: bash deploy/preparer-site.sh "$GITHUB_SHA"
       # Le même site, sur Cloudflare Pages (projet « ateliergribouille », envoi direct) : publié ici,
       # après les tests, et non par Cloudflare depuis le dépôt (qui publierait sans les tests)
+      # (seulement quand la clé est enregistrée dans les secrets du dépôt — Settings → Secrets and
+      # variables → Actions : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID ; sinon l'étape le dit et passe)
       - name: Publier sur Cloudflare Pages
-        if: env.CF_ENABLED == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare Pages non publié : secret absent (CLOUDFLARE_API_TOKEN : $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo présent || echo absent), CLOUDFLARE_ACCOUNT_ID : $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo présent || echo absent))"
+            exit 0
+          fi
           W="npx --yes wrangler@4.152.0"
           # (le projet est créé au premier envoi ; ensuite, la création échoue sans conséquence)
           $W pages project create ateliergribouille --production-branch=main || echo "Projet déjà créé"
