@@ -138,7 +138,11 @@
       }
     }
     if (region !== canvas) release(region);
-    return verdict(points, quad, found);
+    const v = verdict(points, quad, found);
+    // une découpe repérée sur la surface : sa silhouette, tracée en vert comme le contour d'une feuille
+    if (!quad && lying && lying.shape) v.outline = { mask: lying.shape, w: lying.w, h: lying.h };
+    else if (sheet && sheet.kind === 'object' && sheet.mask) v.outline = { mask: sheet.mask, w: sheet.w, h: sheet.h };
+    return v;
   }
   /*
    * Des objets autour du dessin ? Sur une image réduite (200 px), dans la couronne hors du centre
@@ -260,6 +264,15 @@
       v.quad.forEach(([x, y], i) => { const X = ox + (r.x + x * kw) * k, Y = oy + (r.y + y * kw) * k; if (i) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); });
       ctx.closePath();
       ctx.stroke();
+    } else if (v.outline) {
+      // le bord de la silhouette (pixels du masque qui touchent la surface), point par point
+      const { mask: m, w: mw, h: mh } = v.outline;
+      const sx = (work.width / mw) * kw * k, sy = (work.height / mh) * kw * k, dot = Math.max(2.5, Math.min(sx, sy) * 1.3);
+      ctx.fillStyle = v.level === 'ok' ? '#3fb66b' : v.level === 'warn' ? '#e0a21a' : '#e04b3a';
+      for (let y = 1; y < mh - 1; y++) for (let x = 1; x < mw - 1; x++) {
+        const p = y * mw + x;
+        if (m[p] && (!m[p - 1] || !m[p + 1] || !m[p - mw] || !m[p + mw])) ctx.fillRect(ox + r.x * k + x * sx - dot / 2, oy + r.y * k + y * sy - dot / 2, dot, dot);
+      }
     }
   }
 

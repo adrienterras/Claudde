@@ -3221,7 +3221,8 @@
     if (woodSeen) for (let p = 0; p < n; p++) if (woodSeen[p]) finMask[p] = 0;
     // (visée de l'appareil photo : savoir qu'un dessin est posé suffit, sans le découper ; sa silhouette
     // grossière, bien rentrée, sert à juger la lumière sur lui seul — pas sur la table et ses reflets)
-    if (quick) return { quick: true, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac }, mask: inset ? null : erode(finMask, w, h, unit * 0.02), w, h };
+    // (shape : la silhouette entière, tracée en vert pendant la visée)
+    if (quick) return { quick: true, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac }, mask: inset ? null : erode(finMask, w, h, unit * 0.02), shape: inset ? null : finMask, w, h };
     const fin = erode(finMask, w, h, unit * 0.004);
     const cut = cutObject(src, fin, w, h);
     Object.assign(removeSurface.debug, { rect: +cut.rectFill.toFixed(2), refined: cut.refined });

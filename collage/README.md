@@ -167,7 +167,9 @@ cd collage && python3 -m http.server 8000
    passe plus pour une ombre — et, pour une découpe, sur sa silhouette seule (masque grossier de
    `removeSurface`, bien rentré : ni la table ni ses reflets), l'ombre jugée sur le papier le plus
    clair de chaque case (90ᵉ centile : les aplats gris au feutre d'un coloriage ne passent pas pour
-   du papier à l'ombre ; une vraie ombre assombrit tout le papier de la case) ;
+   du papier à l'ombre ; une vraie ombre assombrit tout le papier de la case) ; la silhouette d'une
+   découpe ainsi repérée (ou d'une forme libre trouvée par `findSheet`) est tracée en vert pendant la
+   visée (`v.outline`, le bord du masque, point par point), comme le contour d'une feuille ;
    ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
    (simplicité demandée). Le **cadre en pointillé** (12 % de marge de chaque côté de la vidéo,
    `FRAME_INSET`, `Camera.frameRect`) est toujours tracé : **rien de ce qui en sort n'est gardé** — la

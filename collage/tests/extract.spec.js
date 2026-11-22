@@ -293,11 +293,13 @@ test.describe('Analyse des pages (Extract)', () => {
         x.strokeStyle = '#222'; x.lineWidth = 4; x.strokeRect(200, 300, 160, 110); x.strokeRect(420, 230, 120, 120);
         if (shadow) { x.fillStyle = 'rgba(0,0,0,0.38)'; x.beginPath(); x.ellipse(170, 700, 260, 200, -0.4, 0, 7); x.fill(); }
         const v = Camera.check(c);
-        return { level: v.level, found: v.found, points: v.points.map((p) => p.code + ':' + p.level).join(' ') };
+        return { level: v.level, found: v.found, outline: !!(v.outline && v.outline.mask.some((q) => q)), points: v.points.map((p) => p.code + ':' + p.level).join(' ') };
       };
       return { clean: shot(false), shaded: shot(true) };
     });
     expect(r.clean.found).toBe(true);
+    // la silhouette repérée est tracée en vert pendant la visée, comme le contour d'une feuille
+    expect(r.clean.outline).toBe(true);
     expect(r.clean.points).not.toMatch(/ombre|lumiere:bad|objets/);
     expect(r.clean.level).not.toBe('bad');
     // l'ombre d'une main sur la moitié basse de la découpe : signalée
