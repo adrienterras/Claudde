@@ -68,8 +68,17 @@
     let sheet = null;
     Extract.findSheet.debug = null;
     try { sheet = Extract.findSheet(canvas); } catch (e) { sheet = null; }
-    const found = !!sheet;
-    const quad = sheet && sheet.kind === 'sheet' ? sheet.quad : null;
+    // pas de feuille blanche : une feuille peinte jusqu'aux bords (posée sur un sol gris), ou un dessin
+    // découpé posé sur une surface que l'import sait retirer (métal, moquette, table bordeaux, parquet) ;
+    // l'un ou l'autre est « repéré » : pas de « Trop d'objets », la photo est bonne à prendre
+    let painted = null, lying = null;
+    if (!sheet) {
+      try { painted = Extract.paintedSheet ? Extract.paintedSheet(canvas, true) : null; } catch (e) { painted = null; }
+      // (sur une image réduite : la visée doit rester fluide)
+      if (!painted && Extract.removeSurface) { const sm = Extract.scaleTo(canvas, 360); try { lying = Extract.removeSurface(sm, false, true); } catch (e) { lying = null; } if (sm !== canvas) release(sm); }
+    }
+    const found = !!(sheet || painted || lying);
+    const quad = sheet && sheet.kind === 'sheet' ? sheet.quad : painted ? painted.quad : null;
     // feuille non repérée (fond aussi clair qu'elle, feuille coupée par le cadre) : la découpe
     // risque de prendre la table pour du papier ; on le dit plutôt que « Prêt »
     // (une feuille qui remplit l'image, comme un scan, n'a rien à repérer : la découpe la prend entière)
@@ -84,6 +93,12 @@
     const region = sheet && sheet.kind === 'sheet' ? sheet.canvas : centreOf(canvas);
     let img = null;
     try { img = Quality.gray(region, 1000); } catch (e) { img = null; }
+    // un dessin posé sur une surface grise (métal brossé, moquette, béton) : la lumière se juge sur le
+    // papier seul, nettement plus clair que la surface — pas sur la surface, grise comme une ombre
+    if (img && lying) {
+      const sL = Extract.lum(lying.surface.color);
+      for (let i = 0; i < img.g.length; i++) if (img.g[i] < sL + 30) img.neutral[i] = 0;
+    }
     if (img) {
       const l = Quality.lighting(img);
       if (l > Quality.LIGHT.bad) add('lumiere', 'bad', tr('Ombre ou lampe sur la feuille'), tr('Lumière du jour, sans flash ; ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur la feuille : placez-vous face à la fenêtre'));

@@ -172,6 +172,90 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.pieces).toBe(1);
   });
 
+  test('une découpe posée sur une table bordeaux est détourée sans l’ombre de la main, et son bandeau brun reste au dessin', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 1000, H = 1300, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // table bordeaux laquée, un léger grain
+      const img = x.createImageData(W, H), d = img.data;
+      let seed = 5; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let i = 0; i < W * H; i++) { const v = (rnd() - 0.5) * 14; d[i * 4] = 118 + v; d[i * 4 + 1] = 58 + v * 0.5; d[i * 4 + 2] = 56 + v * 0.5; d[i * 4 + 3] = 255; }
+      x.putImageData(img, 0, 0);
+      // l'ombre de la main : même teinte, plus sombre, depuis le bas de la photo
+      x.fillStyle = 'rgb(76,20,20)'; x.beginPath(); x.ellipse(560, 1260, 260, 180, 0, 0, 7); x.fill();
+      // le personnage découpé : un chapeau orange à bandeau brun, un corps blanc
+      x.fillStyle = '#ef9a52'; x.fillRect(330, 150, 340, 120);
+      x.fillStyle = 'rgb(196,98,68)'; x.fillRect(330, 270, 340, 90);
+      x.fillStyle = '#f4f2ee'; x.fillRect(340, 360, 320, 240); x.fillRect(220, 600, 560, 420); x.fillRect(330, 1020, 110, 140); x.fillRect(560, 1020, 110, 100);
+      x.strokeStyle = '#222'; x.lineWidth = 6; x.beginPath(); x.moveTo(260, 760); x.lineTo(740, 760); x.stroke();
+      x.fillStyle = '#e8743a'; for (let k = 0; k < 40; k++) x.fillRect(240 + rnd() * 500, 620 + rnd() * 380, 18, 5);
+      const a = Extract.analyze(c, 0, { photo: true });
+      const p = a.pieces && a.pieces[0];
+      if (!p) return { kind: a.kind, pieces: 0 };
+      // opacité de la pièce à l'endroit du bandeau brun et de l'ombre (coordonnées de la photo → pièce)
+      const pc = p.canvas, pd = pc.getContext('2d').getImageData(0, 0, pc.width, pc.height).data;
+      const box = JSON.parse(JSON.stringify(Extract.removeSurface.debug || {})); box.sheet = Extract.findSheet.debug && Extract.findSheet.debug.result;
+      return { kind: a.kind, pieces: a.pieces.length, w: pc.width, h: pc.height, ratio: pc.height / pc.width, alphaMid: pd[((pc.height >> 1) * pc.width + (pc.width >> 1)) * 4 + 3], box };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.pieces).toBe(1);
+    // le personnage seul fait ≈ 1010 × 560 (ratio 1,8) : l'ombre gardée l'allongerait vers le bas, le
+    // chapeau perdu (son bandeau pris pour la table) le raccourcirait
+    expect(r.ratio).toBeGreaterThan(1.65);
+    expect(r.ratio).toBeLessThan(2.0);
+    expect(r.box.touches).toBe(0);
+    expect(r.box.solid).toBeGreaterThan(0.9);
+  });
+
+  test('une feuille peinte jusqu’aux bords, posée sur un béton gris, est trouvée, redressée et recadrée', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 900, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      const img = x.createImageData(W, H), d = img.data;
+      let seed = 9; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let i = 0; i < W * H; i++) { const v = (rnd() - 0.5) * 40; d[i * 4] = 112 + v; d[i * 4 + 1] = 112 + v; d[i * 4 + 2] = 114 + v; d[i * 4 + 3] = 255; }
+      x.putImageData(img, 0, 0);
+      // la feuille (un liseré de béton de 3 à 4 % autour) : fond jaune en haut, bleu ailleurs, une tortue verte
+      const quad = [[40, 50], [860, 36], [872, 1160], [30, 1170]];
+      x.save(); x.beginPath(); quad.forEach((q, i) => (i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]))); x.closePath(); x.clip();
+      x.fillStyle = '#1a62c9'; x.fillRect(0, 0, W, H); x.fillStyle = '#f2c230'; x.fillRect(0, 0, W, 420);
+      x.fillStyle = '#4f9a4a'; x.beginPath(); x.ellipse(450, 640, 230, 330, 0, 0, 7); x.fill();
+      x.fillStyle = '#f4f4f4'; for (let k = 0; k < 30; k++) { x.beginPath(); x.arc(300 + rnd() * 300, 380 + rnd() * 520, 14, 0, 7); x.fill(); }
+      x.restore();
+      const a = Extract.analyze(c, 0, { photo: true });
+      const pd = a.page.getContext('2d').getImageData(0, 0, a.page.width, a.page.height).data;
+      // les quatre coins de la page : de la peinture (jaune en haut, bleu en bas), pas du béton gris
+      const at = (px, py) => { const i = (Math.round(py) * a.page.width + Math.round(px)) * 4; return [pd[i], pd[i + 1], pd[i + 2]]; };
+      const m = 6, cs = [at(m, m), at(a.page.width - m, m), at(a.page.width - m, a.page.height - m), at(m, a.page.height - m)];
+      return { photo: a.photo, w: a.page.width, h: a.page.height, corners: cs.map((q) => (Math.max(...q) - Math.min(...q)) / Math.max(1, Math.max(...q))), dbg: Extract.paintedSheet.debug };
+    });
+    expect(r.dbg.result).toBe('sheet');
+    expect(r.photo && r.photo.sheet).toBe(true);
+    // la page est la feuille seule : ≈ 830 × 1125, sans le béton
+    expect(r.w).toBeGreaterThan(760); expect(r.w).toBeLessThan(860);
+    expect(r.h).toBeGreaterThan(1060); expect(r.h).toBeLessThan(1160);
+    r.corners.forEach((s) => expect(s).toBeGreaterThan(0.4));
+  });
+
+  test('visée : une découpe posée sur du métal brossé est repérée — ni « Trop d’objets » ni ombre, le déclencheur reste actif', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 720, H = 960, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // métal brossé : des stries horizontales claires et sombres, un dégradé
+      const img = x.createImageData(W, H), d = img.data;
+      let seed = 3; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      const row = new Float32Array(H); for (let y = 0; y < H; y++) row[y] = (rnd() - 0.5) * 50;
+      for (let y = 0; y < H; y++) for (let X = 0; X < W; X++) { const i = (y * W + X) * 4, v = 112 + row[y] + (rnd() - 0.5) * 30 - (X / W) * 30; d[i] = v; d[i + 1] = v + 2; d[i + 2] = v + 6; d[i + 3] = 255; }
+      x.putImageData(img, 0, 0);
+      // le personnage découpé (essuie-tout blanc), un chapeau orange, des croix au feutre
+      x.fillStyle = '#ee9446'; x.fillRect(250, 120, 220, 120);
+      x.fillStyle = '#f3f3f1'; x.fillRect(260, 240, 200, 170); x.fillRect(170, 410, 380, 300); x.fillRect(110, 380, 70, 110); x.fillRect(540, 420, 70, 110); x.fillRect(250, 710, 80, 100); x.fillRect(400, 710, 80, 90);
+      x.strokeStyle = '#e8743a'; x.lineWidth = 4; for (let k = 0; k < 30; k++) { const a = 190 + rnd() * 330, b = 430 + rnd() * 260; x.beginPath(); x.moveTo(a - 8, b); x.lineTo(a + 8, b); x.moveTo(a, b - 8); x.lineTo(a, b + 8); x.stroke(); }
+      const v = Camera.check(c);
+      return { level: v.level, found: v.found, points: v.points.map((p) => p.code + ':' + p.level) };
+    });
+    expect(r.found).toBe(true);
+    expect(r.points.join(' ')).not.toMatch(/objets|ombre:bad|lumiere:bad/);
+    expect(r.level).not.toBe('bad');
+  });
+
   test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

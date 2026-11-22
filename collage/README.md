@@ -154,7 +154,13 @@ cd collage && python3 -m http.server 8000
    pleines, ni papier ni couleur de la surface, dans la couronne hors du centre de l'image, `clutter`) :
    « Trop d'objets : dégagez la table autour du dessin », en rouge, déclencheur grisé, car la découpe les
    prendrait pour des dessins (feuille repérée, les objets autour ne gênent pas : la photo est
-   recadrée) ; une feuille qui remplit l'image, comme un scan, n'est pas concernée ;
+   recadrée) ; une feuille qui remplit l'image, comme un scan, n'est pas concernée ; un dessin que
+   l'import sait détacher de sa surface compte aussi comme repéré — feuille peinte jusqu'aux bords
+   sur un sol gris (`Extract.paintedSheet`, contour vert, photo redressée sur elle), découpe posée sur
+   du métal, une moquette, une table bordeaux ou un parquet (`Extract.removeSurface` en mode rapide,
+   sur une image de 360 px) : ni « Trop d'objets », ni « Feuille non repérée », et la lumière se juge
+   alors sur le papier seul (plus clair que la surface de 30 niveaux), le gris du métal brossé ne
+   passe plus pour une ombre ;
    ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
    (simplicité demandée). Le **cadre en pointillé** (12 % de marge de chaque côté de la vidéo,
    `FRAME_INSET`, `Camera.frameRect`) est toujours tracé : **rien de ce qui en sort n'est gardé** — la
@@ -575,6 +581,17 @@ cd collage && python3 -m http.server 8000
      2,5 %) ; une forme fine qui remplit moins de 40 % de sa boîte (bonhomme aux bras fins, fleur et sa
      tige) est acceptée si elle est pleine (≥ 85 %), remplit au moins 20 % de sa boîte, et soit pose sur
      un sol à joints, soit est franchement de papier blanc (≥ 45 % — une découpe sur un béton lisse) ;
+     une surface très texturée (moquette, béton grenu, métal brossé : 90ᵉ centile des écarts de
+     clarté sur la bordure > 26) est jugée sur une image adoucie (moyenne locale ≈ 1 %), où ses fibres
+     claires ne passent plus pour du papier ; une **table foncée d'une autre couleur** (bordeaux, vert
+     sapin, bleu nuit : clarté < 105) est acceptée comme surface, l'ombre de la main y est rendue à la
+     table (même teinte à ± 8°, plus sombre) et la tolérance vers le clair y reste étroite (30 à 40
+     niveaux : le bandeau brun d'un chapeau n'est pas la table) ; sur un parquet, le bois relié au bord
+     n'est rendu à la surface que s'il en a la teinte (± 16°) et pas plus saturé qu'elle (+ 0,22 :
+     le chapeau orange d'une découpe reste au dessin) ; une **feuille peinte jusqu'aux bords** (fond
+     bleu et jaune, gouache) posée sur un sol neutre, qui n'apparaît qu'en un mince liseré autour
+     d'elle, est trouvée par `paintedSheet` (surface apprise sur le pourtour extrême, feuille d'un seul
+     tenant, rectangulaire ≥ 0,9, colorée, touchant au plus un bord), redressée et recadrée ;
      une feuille photographiée de près, qui touche les bords, est
      acceptée si un bord entier montre encore la surface, dont la couleur est alors lue hors du
      papier ; le bois clair pris pour du papier et relié au bord est rendu à la surface avant même

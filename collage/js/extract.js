@@ -2865,16 +2865,22 @@
     return out;
   }
 
-  function woodFromBorder(d, w, h) {
+  // sMax : la saturation au-delà de laquelle une couleur n'est plus du bois (le feutre orange vif d'un
+  // chapeau, posé contre un chêne, a sa teinte mais pas sa matité : il reste au dessin)
+  // hue0 : la teinte du bois photographié ; le bois réel reste à ±16° de sa teinte (un marron de feutre
+  // plus rouge, une bande de chapeau, n'en est pas)
+  function woodFromBorder(d, w, h, sMax, hue0) {
     const n = w * h;
     const woodish = new Uint8Array(n);
+    const top = sMax === undefined ? 2 : sMax;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
       const R = d[i], G = d[i + 1], B = d[i + 2];
       const mx = R > G ? (R > B ? R : B) : (G > B ? G : B), mn = R < G ? (R < B ? R : B) : (G < B ? G : B);
-      if (mx === mn || (mx === 0 ? 0 : (mx - mn) / mx) < 0.28 || 0.299 * R + 0.587 * G + 0.114 * B > 235) continue;
+      const sv = mx === 0 ? 0 : (mx - mn) / mx;
+      if (mx === mn || sv < 0.28 || sv > top || 0.299 * R + 0.587 * G + 0.114 * B > 235) continue;
       let hh = mx === R ? ((G - B) / (mx - mn)) % 6 : mx === G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
       hh = (hh * 60 + 360) % 360;
-      if (hh >= 8 && hh <= 52) woodish[p] = 1;
+      if (hh >= 8 && hh <= 52 && (hue0 === undefined || Math.abs(hh - hue0) <= 16)) woodish[p] = 1;
     }
     const seen = new Uint8Array(n);
     const stack = [];
@@ -2893,7 +2899,106 @@
     return { seen, woodish };
   }
 
-  function removeSurface(src, force) {
+  // Moyenne locale (boîte de rayon r, en deux passes) d'une image RGBA : rend un tableau de même forme.
+  function blurRGBA(d, w, h, r) {
+    const tmp = new Float32Array(w * h * 3), out = new Uint8ClampedArray(d.length);
+    for (let y = 0; y < h; y++) {
+      for (let c = 0; c < 3; c++) {
+        let acc = 0, cnt = 0;
+        for (let x = -r; x <= r; x++) if (x >= 0 && x < w) { acc += d[(y * w + x) * 4 + c]; cnt++; }
+        for (let x = 0; x < w; x++) {
+          tmp[(y * w + x) * 3 + c] = acc / cnt;
+          const xo = x - r, xi = x + r + 1;
+          if (xo >= 0) { acc -= d[(y * w + xo) * 4 + c]; cnt--; }
+          if (xi < w) { acc += d[(y * w + xi) * 4 + c]; cnt++; }
+        }
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      for (let c = 0; c < 3; c++) {
+        let acc = 0, cnt = 0;
+        for (let y = -r; y <= r; y++) if (y >= 0 && y < h) { acc += tmp[(y * w + x) * 3 + c]; cnt++; }
+        for (let y = 0; y < h; y++) {
+          out[(y * w + x) * 4 + c] = acc / cnt;
+          const yo = y - r, yi = y + r + 1;
+          if (yo >= 0) { acc -= tmp[(yo * w + x) * 3 + c]; cnt--; }
+          if (yi < h) { acc += tmp[(yi * w + x) * 3 + c]; cnt++; }
+        }
+      }
+    }
+    for (let i = 3; i < d.length; i += 4) out[i] = d[i];
+    return out;
+  }
+
+  /*
+   * Feuille peinte jusqu'aux bords (fond bleu et jaune, gouache…) posée sur un sol neutre (béton, gris) :
+   * le papier n'est pas blanc, la voie par la couleur du papier ne la voit pas, et la surface n'apparaît
+   * qu'en un mince liseré autour d'elle. La surface est apprise sur ce liseré (le pourtour extrême de la
+   * photo) ; la feuille est ce qui s'en distingue franchement (couleur vive ou clarté très différente),
+   * d'un seul tenant, pleine et rectangulaire. Elle est redressée et recadrée comme une feuille blanche.
+   */
+  function paintedSheet(src, quick) {
+    const work = scaleTo(src, 400);
+    const w = work.width, h = work.height, n = w * h;
+    const d0 = ctx2d(work).getImageData(0, 0, w, h).data;
+    const d = blurRGBA(d0, w, h, Math.max(1, Math.round(Math.max(w, h) * 0.006)));
+    const ring = Math.max(2, Math.round(Math.min(w, h) * 0.012));
+    const lr = [], sr = [], cols = [[], [], []];
+    forEachBorder(w, h, ring, (p) => { const i = p * 4, c = [d[i], d[i + 1], d[i + 2]]; lr.push(lum(c)); sr.push(sat(c)); cols[0].push(c[0]); cols[1].push(c[1]); cols[2].push(c[2]); });
+    const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+    const q9 = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length * 0.9)]; };
+    const col = cols.map(med), L = lum(col), S = sat(col);
+    paintedSheet.debug = { L: Math.round(L), S: +S.toFixed(2) };
+    // un sol neutre et à peu près uni sur le liseré (un bord de la feuille peut l'effleurer)
+    const neutralRing = sr.filter((v) => v < 0.2).length / sr.length;
+    Object.assign(paintedSheet.debug, { neutralRing: +neutralRing.toFixed(2), s90: +q9(sr).toFixed(2) });
+    if (S >= 0.18 || neutralRing < 0.8) return null;
+    const sheet = new Uint8Array(n);
+    let vivid = 0;
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const c = [d[i], d[i + 1], d[i + 2]], s = sat(c), l = lum(c);
+      if (s > S + 0.22 || Math.abs(l - L) > 60) { sheet[p] = 1; if (s > 0.35) vivid++; }
+    }
+    let mask = dilate(sheet, w, h, Math.max(w, h) * 0.01);
+    mask = erode(mask, w, h, Math.max(w, h) * 0.01);
+    mask = fillHoles(mask, w, h);
+    const { comps, labels } = components(mask, w, h);
+    const big = comps.reduce((m, c) => (!m || c.area > m.area ? c : m), null);
+    if (!big) return null;
+    const own = new Uint8Array(n);
+    for (let p = 0; p < n; p++) if (labels[p] === big.id) own[p] = 1;
+    const rect = rectangularity(own, w, h);
+    const touches = [big.x0 <= 0, big.y0 <= 0, big.x1 >= w - 1, big.y1 >= h - 1].filter(Boolean).length;
+    Object.assign(paintedSheet.debug, { area: +(big.area / n).toFixed(2), rect: +rect.toFixed(2), vivid: +(vivid / Math.max(1, big.area)).toFixed(2), touches });
+    // une vraie feuille : grande, rectangulaire, colorée (une feuille blanche passe par l'autre voie),
+    // et cernée de sol au moins sur trois côtés
+    if (big.area < 0.35 * n || big.area > 0.97 * n || rect < 0.9 || vivid < 0.3 * big.area || touches > 1) return null;
+    const pts = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (own[p] && (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !own[p - 1] || !own[p + 1] || !own[p - w] || !own[p + w])) pts.push([x, y]);
+    }
+    const hull = convexHull(pts);
+    const quad = quadOf(hull, Math.max(w, h));
+    const quadFill = big.area / Math.max(1, polyArea(quad));
+    paintedSheet.debug.quadFill = +quadFill.toFixed(2);
+    if (quadFill < 0.9) return null;
+    const k = src.width / w;
+    const cx = quad.reduce((a, p) => a + p[0], 0) / 4, cy = quad.reduce((a, p) => a + p[1], 0) / 4;
+    const inset = 0.985;
+    const surface = { color: col, kind: 'neutre', frac: 1 - big.area / n, sheet: true };
+    if (quick) return { quick: true, quad: quad.map(([x, y]) => [(cx + (x - cx) * inset) * k, (cy + (y - cy) * inset) * k]), surface };
+    const qd = quad.map(([x, y]) => [(cx + (x - cx) * inset) * k, (cy + (y - cy) * inset) * k]);
+    const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    let outW = Math.round(Math.max(len(qd[0], qd[1]), len(qd[3], qd[2]))), outH = Math.round(Math.max(len(qd[0], qd[3]), len(qd[1], qd[2])));
+    const cap = Math.min(FINE_MAX, Math.max(src.width, src.height));
+    const sc = Math.min(1, cap / Math.max(outW, outH));
+    outW = Math.max(8, Math.round(outW * sc)); outH = Math.max(8, Math.round(outH * sc));
+    paintedSheet.debug.result = 'sheet';
+    return { canvas: warpQuad(src, qd, outW, outH), quad: qd, surface };
+  }
+
+  function removeSurface(src, force, quick) {
     const inset = trimMargins(src);
     if (inset) src = inset;
     const work = scaleTo(src, WORK_MAX);
@@ -2914,11 +3019,27 @@
     removeSurface.debug = { L: Math.round(L), S: +S.toFixed(2), hue: Math.round(hue), gate: 'couleur' };
     const neutral = S < 0.18 && L < 228;                 // gris, béton, plan de travail
     const wood = S >= 0.15 && S < 0.96 && hue >= 5 && hue <= 55 && L < 230; // bois, parquet, liège, chêne verni (la structure en lames tranche ensuite)
+    // une table foncée d'une autre couleur (bordeaux, vert sapin, bleu nuit) : bien plus sombre que le
+    // papier, elle s'en distingue aussi nettement qu'un bois ; les conditions qui suivent (forme
+    // pleine, part de papier…) écartent une page peinte sombre et ses petits motifs clairs
+    const tinted = !neutral && !wood && L < 105;
     // forcé par l'utilisateur : on fait confiance à la couleur de bordure, quelle qu'elle soit
-    if (!neutral && !wood && !force) return null;
+    if (!neutral && !wood && !tinted && !force) return null;
 
+    // surface très texturée (moquette, béton grenu, métal brossé) : ses fibres claires ont la clarté du
+    // papier, pixel à pixel on ne les sépare pas ; on juge alors sur une image adoucie (moyenne locale,
+    // ≈ 1 % de la photo), où la moquette devient un gris moyen et le papier reste clair
+    let dk = d;
+    {
+      const bandR = Math.max(2, Math.round(Math.min(w, h) * 0.06)), lr = [];
+      forEachBorder(w, h, bandR, (p) => { if (onSurf && !onSurf(p)) return; const i = p * 4; lr.push(Math.abs(lum([d[i], d[i + 1], d[i + 2]]) - L)); });
+      lr.sort((a, b) => a - b);
+      const rough = lr.length ? lr[Math.floor(lr.length * 0.9)] : 0;
+      removeSurface.debug.rough = Math.round(rough);
+      if (neutral && rough > 26) dk = blurRGBA(d, w, h, Math.max(1, Math.round(Math.max(w, h) * 0.008)));
+    }
     // chromaticité (indépendante de l'éclairage) et luminance de chaque pixel
-    const chroma = (i) => { const t = d[i] + d[i + 1] + d[i + 2] || 1; return [d[i] / t, d[i + 1] / t]; };
+    const chroma = (i) => { const t = dk[i] + dk[i + 1] + dk[i + 2] || 1; return [dk[i] / t, dk[i + 1] / t]; };
     const ct = col[0] + col[1] + col[2] || 1, cr = col[0] / ct, cg = col[1] / ct;
     // tolérances tirées de la bordure elle-même (veines du bois, joints du carrelage)
     const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
@@ -2927,16 +3048,18 @@
       if (onSurf && !onSurf(p)) return;
       const i = p * 4, c = chroma(i);
       dc.push(Math.hypot(c[0] - cr, c[1] - cg));
-      dl.push(Math.abs(lum([d[i], d[i + 1], d[i + 2]]) - L));
+      dl.push(Math.abs(lum([dk[i], dk[i + 1], dk[i + 2]]) - L));
     });
     dc.sort((a, b) => a - b); dl.sort((a, b) => a - b);
     const q = (arr, f) => arr[Math.min(arr.length - 1, Math.floor(arr.length * f))];
     const cTol = Math.min(0.12, Math.max(0.028, q(dc, 0.9) * 1.6));
-    const lTol = Math.min(120, Math.max(48, q(dl, 0.9) * 1.8));
+    // (sur une table foncée colorée, un brun ou un orange plus clair qu'elle — le bandeau d'un chapeau —
+    // n'est pas la table : la tolérance vers le clair suit seulement ses propres reflets)
+    const lTol = tinted ? Math.min(40, Math.max(30, q(dl, 0.9) * 1.3)) : Math.min(120, Math.max(48, q(dl, 0.9) * 1.8));
     const obj = new Uint8Array(n), joint = new Uint8Array(n);
     let surfCount = 0, paperCount = 0;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
-      const R = d[i], G = d[i + 1], B = d[i + 2];
+      const R = dk[i], G = dk[i + 1], B = dk[i + 2];
       const t = R + G + B || 1;
       const dch = Math.hypot(R / t - cr, G / t - cg);
       const l = 0.299 * R + 0.587 * G + 0.114 * B;
@@ -2947,7 +3070,16 @@
       // une couleur sombre et franche d'une autre teinte (des cheveux brun foncé au feutre) n'est pas un joint
       const dark = l < L * 0.6 && (s < 0.45 || dch < cTol) && dch < cTol * 2.2;
       const same = dch < cTol && l < L + lTol;
-      if (same || dark) { surfCount++; if (dark || l < L * 0.62) joint[p] = 1; }
+      // table foncée colorée (bordeaux…) : l'ombre de la main y est la même teinte, plus sombre et plus
+      // saturée, sa chromaticité s'écarte ; on la juge à la teinte
+      let shade = false;
+      if (tinted && !same && !dark && l < L && mx > mn) {
+        let hh = mx === R ? ((G - B) / (mx - mn)) % 6 : mx === G ? (B - R) / (mx - mn) + 2 : (R - G) / (mx - mn) + 4;
+        hh = (hh * 60 + 360) % 360;
+        const dh = Math.min(Math.abs(hh - hue), 360 - Math.abs(hh - hue));
+        shade = dh <= 8 || l < 28;
+      }
+      if (same || dark || shade) { surfCount++; if (dark || l < L * 0.62) joint[p] = 1; }
       else { obj[p] = 1; if (s < 0.22 && l > Math.max(165, L + 12)) paperCount++; }
     }
     // du bois pris pour autre chose (une lame claire sous un reflet, un veinage sombre d'une autre
@@ -2956,7 +3088,7 @@
     // feuille, isolé dans le blanc, n'est pas touché)
     // (ici seulement ce qui est plus clair que la surface : une lame sous un reflet ; les cheveux
     // bruns d'un personnage, plus sombres, restent au dessin, la coupe fine tranchera à la fin)
-    const woodBorder = wood ? woodFromBorder(d, w, h) : null;
+    const woodBorder = wood ? woodFromBorder(d, w, h, S + 0.22, hue) : null;
     const woodSeen = woodBorder ? woodBorder.seen : null, woodish = woodBorder ? woodBorder.woodish : null;
     const flooded = new Uint8Array(n);
     if (woodSeen) for (let p = 0, i = 0; p < n; p++, i += 4) if (woodSeen[p] && obj[p] && 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] >= L) { obj[p] = 0; surfCount++; flooded[p] = 1; }
@@ -3079,6 +3211,8 @@
     // si elle est franchement de papier blanc (une découpe aux bras fins sur du béton gris)
     const fillBox = area / ((x1 - x0 + 1) * (y1 - y0 + 1));
     if (!force && fillBox < 0.4 && !(fillBox >= 0.2 && solid >= 0.85 && (lines >= 1 || paperFrac >= 0.45))) return null;
+    // (visée de l'appareil photo : savoir qu'un dessin est posé suffit, sans le découper)
+    if (quick) return { quick: true, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac } };
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const finMask = new Uint8Array(n);
     for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) finMask[p] = 1;
@@ -3161,7 +3295,9 @@
       const cleaned = removeSurface(src, !!opts.force);
       // (sur un mur ou une table clairs, la silhouette d'une feuille blanche est incertaine : si la
       // « forme » est surtout du papier, c'est une feuille, à découper comme une page)
-      if (cleaned && cleaned.object && cleaned.surface.kind !== 'bois' && paperish(cleaned.object.alpha, cleaned.canvas)) cleaned.object = null;
+      // (sur une surface sombre ou moyenne — métal, béton, moquette grise, table bordeaux — le bord du papier
+      // tranche nettement : la silhouette est sûre, une découpe en essuie-tout reste une découpe)
+      if (cleaned && cleaned.object && cleaned.surface.kind !== 'bois' && lum(cleaned.surface.color) >= 160 && paperish(cleaned.object.alpha, cleaned.canvas)) cleaned.object = null;
       if (cleaned && removeSurface.debug) removeSurface.debug.paperish = paperish.last || null;
       if (cleaned && cleaned.object) {
         // objet découpé posé sur la surface : sa silhouette entière est la pièce
@@ -3173,6 +3309,14 @@
       if (cleaned) {
         const r = analyze(cleaned.canvas, 0, {});
         r.photo = cleaned.surface;
+        r.original = src;
+        return r;
+      }
+      // feuille peinte jusqu'aux bords sur un sol neutre : redressée, recadrée, puis lue comme une page
+      const painted = paintedSheet(src);
+      if (painted) {
+        const r = analyze(painted.canvas, 1, { flat: false });
+        r.photo = painted.surface;
         r.original = src;
         return r;
       }
@@ -3219,5 +3363,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, warpQuad, textureStats, release, removeSurface, findSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, warpQuad, textureStats, release, removeSurface, findSheet, paintedSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();
