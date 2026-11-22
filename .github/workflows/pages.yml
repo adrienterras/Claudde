@@ -74,7 +74,7 @@ jobs:
           # (le projet est créé au premier envoi ; ensuite, la création échoue sans conséquence)
           $W pages project create ateliergribouille --production-branch=main || echo "Projet déjà créé"
           for i in 1 2 3; do
-            $W pages deploy _site --project-name=ateliergribouille --branch=main --commit-hash="$GITHUB_SHA" --commit-message="${GITHUB_SHA:0:7}" && exit 0
+            $W pages deploy _site --project-name=ateliergribouille --branch=main --commit-hash="$GITHUB_SHA" --commit-message="${GITHUB_SHA:0:7}" --commit-dirty=true && exit 0
             echo "Nouvel essai dans $((i * 20)) s"; sleep $((i * 20))
           done
           exit 1

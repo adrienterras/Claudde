@@ -279,6 +279,31 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.points).not.toMatch(/objets|feuille/);
   });
 
+  test('visée : une découpe coloriée sur une table noire brillante n’a pas d’« ombre » (reflets de la table, aplats gris au feutre) ; une vraie ombre sur la découpe, si', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const shot = (shadow) => {
+        const W = 720, H = 960, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+        // table noire laquée, deux reflets de fenêtre gris clair
+        x.fillStyle = 'rgb(40,36,32)'; x.fillRect(0, 0, W, H);
+        const g1 = x.createRadialGradient(80, 860, 10, 80, 860, 260); g1.addColorStop(0, 'rgba(150,146,140,0.9)'); g1.addColorStop(1, 'rgba(150,146,140,0)'); x.fillStyle = g1; x.fillRect(0, 0, W, H);
+        const g2 = x.createRadialGradient(650, 120, 10, 650, 120, 200); g2.addColorStop(0, 'rgba(140,136,130,0.8)'); g2.addColorStop(1, 'rgba(140,136,130,0)'); x.fillStyle = g2; x.fillRect(0, 0, W, H);
+        // la découpe (papier blanc à bords irréguliers), coloriée : un engin, avec des aplats gris
+        x.fillStyle = '#f4f1ec'; x.beginPath(); x.moveTo(150, 170); x.lineTo(560, 190); x.lineTo(600, 420); x.lineTo(590, 780); x.lineTo(380, 800); x.lineTo(130, 620); x.closePath(); x.fill();
+        [['#8b3fd0', 200, 300, 160, 110], ['#9a9a98', 260, 330, 70, 60], ['#2fa84f', 430, 520, 120, 220], ['#1f4fd1', 420, 230, 120, 120], ['#a3a3a1', 230, 480, 120, 70], ['#e84a3a', 250, 600, 110, 90]].forEach(([col, a, b, w, h]) => { x.fillStyle = col; x.fillRect(a, b, w, h); });
+        x.strokeStyle = '#222'; x.lineWidth = 4; x.strokeRect(200, 300, 160, 110); x.strokeRect(420, 230, 120, 120);
+        if (shadow) { x.fillStyle = 'rgba(0,0,0,0.38)'; x.beginPath(); x.ellipse(170, 700, 260, 200, -0.4, 0, 7); x.fill(); }
+        const v = Camera.check(c);
+        return { level: v.level, found: v.found, points: v.points.map((p) => p.code + ':' + p.level).join(' ') };
+      };
+      return { clean: shot(false), shaded: shot(true) };
+    });
+    expect(r.clean.found).toBe(true);
+    expect(r.clean.points).not.toMatch(/ombre|lumiere:bad|objets/);
+    expect(r.clean.level).not.toBe('bad');
+    // l'ombre d'une main sur la moitié basse de la découpe : signalée
+    expect(r.shaded.points).toMatch(/ombre:(warn|bad)|lumiere:(warn|bad)/);
+  });
+
   test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

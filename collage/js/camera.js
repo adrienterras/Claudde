@@ -90,7 +90,9 @@
     else if (!found && !pageFills) add('feuille', 'warn', tr('Feuille non repérée'), tr('Posez la feuille entière dans le cadre, à plat, sur une surface plus foncée qu’elle (bois, nappe), sans ombre dessus.'), tr('Feuille non repérée : entière dans le cadre, sur un fond plus foncé'));
     // la lumière se juge sur la feuille ; à défaut, au centre de l'image, là où elle devrait être
     // (pas sur la table autour, souvent mieux éclairée que la feuille sous le téléphone)
-    const region = sheet && sheet.kind === 'sheet' ? sheet.canvas : centreOf(canvas);
+    // (un dessin découpé repéré sur la surface : toute l'image, la lumière jugée sur sa silhouette seule)
+    const onObject = !quad && lying && lying.mask;
+    const region = sheet && sheet.kind === 'sheet' ? sheet.canvas : onObject ? canvas : centreOf(canvas);
     let img = null;
     try { img = Quality.gray(region, 1000); } catch (e) { img = null; }
     // un dessin posé sur une surface grise (métal brossé, moquette, béton) : la lumière se juge sur le
@@ -98,6 +100,14 @@
     if (img && lying) {
       const sL = Extract.lum(lying.surface.color);
       for (let i = 0; i < img.g.length; i++) if (img.g[i] < sL + 30) img.neutral[i] = 0;
+      // hors de la silhouette du dessin (la table, ses reflets, le sol au bord) : ne compte pas
+      if (onObject) {
+        const m = lying.mask, mw = lying.w, mh = lying.h;
+        for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+          const i = y * img.w + x;
+          if (img.neutral[i] && !m[Math.min(mh - 1, Math.floor((y * mh) / img.h)) * mw + Math.min(mw - 1, Math.floor((x * mw) / img.w))]) img.neutral[i] = 0;
+        }
+      }
     }
     if (img) {
       const l = Quality.lighting(img);
@@ -107,7 +117,7 @@
       // une ombre locale (la main, le téléphone, une lampe) : une partie de la feuille bien plus sombre.
       // Jugée aussi au centre de l'image entière : une ombre franche coupe la feuille repérée (la
       // partie à l'ombre n'en fait plus partie), le centre de l'image la voit encore
-      let sh = Quality.shading(img);
+      let sh = Quality.shading(img, onObject ? 0.9 : 0.5);
       if (quad) { const cc = centreOf(canvas); try { sh = Math.max(sh, Quality.shading(Quality.gray(cc, 1000))); } catch (e) { /* ignoré */ } release(cc); }
       if (sh > Quality.SHADE.bad) add('ombre', 'bad', tr('Ombre portée sur la feuille'), tr('Votre main ou le téléphone fait de l’ombre : reculez un peu, ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur la feuille : reculez, ne cachez pas la lumière'));
       else if (sh > Quality.SHADE.warn) add('ombre', 'warn', tr('Une ombre sur une partie de la feuille'), tr('Reculez un peu, ne vous placez pas entre la lumière et le dessin.'), tr('Ombre sur un coin : reculez un peu'));

@@ -3215,12 +3215,13 @@
     // si elle est franchement de papier blanc (une découpe aux bras fins sur du béton gris)
     const fillBox = area / ((x1 - x0 + 1) * (y1 - y0 + 1));
     if (!force && fillBox < 0.4 && !(fillBox >= 0.2 && solid >= 0.85 && (lines >= 1 || paperFrac >= 0.45))) return null;
-    // (visée de l'appareil photo : savoir qu'un dessin est posé suffit, sans le découper)
-    if (quick) return { quick: true, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac } };
     // masque final, légèrement rétréci pour ne pas garder un liseré de surface
     const finMask = new Uint8Array(n);
     for (let p = 0; p < n; p++) if (mask[p] && kept[labels[p]]) finMask[p] = 1;
     if (woodSeen) for (let p = 0; p < n; p++) if (woodSeen[p]) finMask[p] = 0;
+    // (visée de l'appareil photo : savoir qu'un dessin est posé suffit, sans le découper ; sa silhouette
+    // grossière, bien rentrée, sert à juger la lumière sur lui seul — pas sur la table et ses reflets)
+    if (quick) return { quick: true, surface: { color: col, kind: wood ? 'bois' : 'neutre', frac: surfFrac }, mask: inset ? null : erode(finMask, w, h, unit * 0.02), w, h };
     const fin = erode(finMask, w, h, unit * 0.004);
     const cut = cutObject(src, fin, w, h);
     Object.assign(removeSurface.debug, { rect: +cut.rectFill.toFixed(2), refined: cut.refined });

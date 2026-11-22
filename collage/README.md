@@ -164,7 +164,10 @@ cd collage && python3 -m http.server 8000
    du métal, une moquette, une table bordeaux ou un parquet (`Extract.removeSurface` en mode rapide,
    sur une image de 360 px) : ni « Trop d'objets », ni « Feuille non repérée », et la lumière se juge
    alors sur le papier seul (plus clair que la surface de 30 niveaux), le gris du métal brossé ne
-   passe plus pour une ombre ;
+   passe plus pour une ombre — et, pour une découpe, sur sa silhouette seule (masque grossier de
+   `removeSurface`, bien rentré : ni la table ni ses reflets), l'ombre jugée sur le papier le plus
+   clair de chaque case (90ᵉ centile : les aplats gris au feutre d'un coloriage ne passent pas pour
+   du papier à l'ombre ; une vraie ombre assombrit tout le papier de la case) ;
    ni cadrage, ni inclinaison, ni netteté, ni définition ne sont contrôlés
    (simplicité demandée). Le **cadre en pointillé** (12 % de marge de chaque côté de la vidéo,
    `FRAME_INSET`, `Camera.frameRect`) est toujours tracé : **rien de ce qui en sort n'est gardé** — la
