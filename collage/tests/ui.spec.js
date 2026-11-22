@@ -2271,11 +2271,12 @@ test.describe('Couleur du fond', () => {
     await expect(p.locator('#empty-import')).toBeHidden();
     await p.locator('#mode-pick [data-mode="toile"]').click();
     await expect(p.locator('#import-pick')).toBeVisible();
-    // « Fichiers » : le sélecteur de fichiers, PDF et images enregistrées dans Fichiers ou iCloud Drive
-    // (limité aux PDF, iOS y grisait les photos)
+    // « Fichiers » : le sélecteur de fichiers, limité aux PDF — une image acceptée (même par son extension)
+    // et iOS affiche son menu « Photothèque / Prendre une photo / Choisir les fichiers » au lieu d'ouvrir Fichiers
     const [chooser] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pick-files').click()]);
     expect(chooser.isMultiple()).toBe(true);
-    for (const t of ['application/pdf', '.jpg', '.png', '.heic']) expect(await chooser.element().getAttribute('accept')).toContain(t);
+    expect(await chooser.element().getAttribute('accept')).toContain('application/pdf');
+    expect(await chooser.element().getAttribute('accept')).not.toMatch(/image|jpe?g|png|hei[cf]|webp/);
     await expect(p.locator('#import-pick')).toBeHidden();
     // le sélecteur ouvert : les deux cartes reviennent derrière lui (refermé sans rien choisir, le menu
     // d'iOS ne le signale pas toujours : on est déjà revenu au choix)

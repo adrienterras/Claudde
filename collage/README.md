@@ -28,8 +28,10 @@ cd collage && python3 -m http.server 8000
    carte touchée (fermé sans rien choisir, retour aux deux cartes ; des fichiers déposés le ferment ;
    ordinateur sans écran tactile : sans « Prendre une photo ») ; sur téléphone, un seul bouton
    « Ajouter des dessins » (`#empty-add`) le rouvre : « Photothèque » (le sélecteur du téléphone, `#file`), « Prendre une
-   photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF et les images rangées dans Fichiers ou iCloud
-   Drive, par leurs extensions — limité aux PDF, iOS y grisait les photos); avec beaucoup de photos, l'iPhone les
+   photo » (l'appareil photo de l'atelier, jamais celui d'iOS) et « Fichiers » (`#file-docs`, les PDF
+   seulement : dès qu'un sélecteur accepte des images, iOS affiche son menu « Photothèque / Prendre une
+   photo / Choisir les fichiers » au lieu d'ouvrir Fichiers ; les images rangées dans iCloud Drive y sont
+   donc grisées, elles passent par Photothèque — choix demandé) ; avec beaucoup de photos, l'iPhone les
    prépare avant de les remettre à la page — la fenêtre d'ajout le dit, et le sélecteur refermé sans
    que rien ne soit encore arrivé, « Réception des photos… » s'affiche jusqu'à leur arrivée (`armPickWait`,
    `endPickWait` : retour du focus, puis 400 ms ; fin à l'arrivée, à un sélecteur refermé sans rien,
@@ -134,7 +136,7 @@ cd collage && python3 -m http.server 8000
    l'écriture que si on le leur demande (`window.__lecture`).
 1. **Importer** les scans : PDF multipages, JPG ou PNG. La section Importer propose les mêmes choix
    qu'au premier import (`#drop`, `.import-choices`) : « Photothèque » (`#import-photos`, le sélecteur
-   de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, PDF et images) ; des fichiers
+   de l'appareil), « Prendre une photo » et « Fichiers » (`#import-files`, les PDF) ; des fichiers
    glissés-déposés sur la page sont aussi importés. **Photographier les
    dessins depuis l'atelier** (`js/camera.js`, bouton « Prendre une photo », `#camera-open`,
    sur téléphone et tablette — largeur ≤ 860 px, ou tout écran tactile (`html.touch`,

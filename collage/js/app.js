@@ -6220,10 +6220,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('empty-drop').addEventListener('click', () => openPicker($('file')));
   // Importer : Photothèque et Fichiers (Prendre une photo : camera-open, plus haut)
   $('import-photos').addEventListener('click', () => openPicker($('file')));
-  // (Fichiers : sur écran tactile, les PDF et les images rangées dans Fichiers ou iCloud Drive ; tout sur ordinateur, voir plus bas)
+  // (Fichiers : les PDF seuls sur écran tactile — avec des images acceptées, iOS afficherait son menu
+  // Photothèque / Prendre une photo / Choisir les fichiers au lieu d'ouvrir Fichiers ; tout sur ordinateur, voir plus bas)
   $('import-files').addEventListener('click', () => openPicker(navigator.maxTouchPoints > 0 ? $('file-docs') : $('file')));
   // téléphone : « Ajouter des dessins » ouvre le choix — Photothèque (le sélecteur du téléphone),
-  // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (PDF et images, dans Fichiers ou iCloud Drive)
+  // Prendre une photo (l'appareil photo de l'atelier, voir plus haut), Fichiers (les PDF, dans Fichiers)
   (() => {
     const el = $('import-pick');
     if (!el) return;

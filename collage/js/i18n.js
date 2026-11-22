@@ -55,7 +55,7 @@
     'Photothèque': 'Photo library',
     'Prendre une photo': 'Take a photo',
     'Fichiers': 'Files',
-    'Photothèque : photos ou scans déjà sur l’appareil ; avec beaucoup de photos, l’iPhone les prépare d’abord (cercle bleu autour du bouton de validation), patientez · Fichiers : PDF et images': 'Photo library: photos or scans already on the device; with many photos, the iPhone prepares them first (blue circle around the confirm button), please wait · Files: PDFs and images',
+    'Photothèque : photos ou scans déjà sur l’appareil ; avec beaucoup de photos, l’iPhone les prépare d’abord (cercle bleu autour du bouton de validation), patientez · Fichiers : PDF': 'Photo library: photos or scans already on the device; with many photos, the iPhone prepares them first (blue circle around the confirm button), please wait · Files: PDFs',
     'Réception des photos…': 'Receiving the photos…',
     'L’appareil prépare les photos choisies : avec beaucoup de photos, ou des photos rangées dans iCloud, cela peut prendre un moment.': 'Your device is preparing the selected photos: with many photos, or photos stored in iCloud, this can take a moment.',
     'Flash': 'Flash',
