@@ -2638,12 +2638,13 @@ test.describe('Réception des photos (téléphone)', () => {
     // la fenêtre d'ajout prévient : l'iPhone prépare d'abord les photos
     await page.locator('#mode-pick [data-mode="impression"]').click();
     await expect(page.locator('#import-pick .resume-note')).toContainText('patientez');
-    // Photothèque : le sélecteur s'ouvre ; la page retrouve le focus sans photos (l'appareil les prépare)
+    // Photothèque : le sélecteur s'ouvre ; sur écran tactile, l'attente s'installe derrière lui sans attendre
+    // que la page retrouve le focus (Safari ne le rend pas toujours) — elle est là quand il se referme
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-photos').click()]);
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(page.locator('#busy')).toBeVisible();
     await expect(page.locator('#busy-title')).toHaveText('Réception des photos…');
     await expect(page.locator('#busy-step')).toContainText('iCloud');
+    await expect(page.locator('#busy-step')).toContainText('Touchez l’écran pour revenir');
     // les photos arrivent : l'attente laisse la place à l'analyse, puis l'œuvre
     await chooser.setFiles([fixture('page-cutout.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
@@ -2652,7 +2653,6 @@ test.describe('Réception des photos (téléphone)', () => {
     await page.locator('#sheet-tabs [data-tab="drawings-section"]').click();
     await page.locator('#drawings-add').click();
     const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#pick-photos').click()]);
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(page.locator('#busy')).toBeVisible();
     await page.locator('#busy').click();
     await expect(page.locator('#busy')).toBeHidden();

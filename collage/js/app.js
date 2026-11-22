@@ -2354,15 +2354,21 @@
     endPickWait();
     if (!pickWaitOn()) return;
     pickWaitArmed = true;
+    const show = () => {
+      if (!pickWaitArmed || pickWaitShown) return;
+      pickWaitShown = true;
+      busyOn(tr('Réception des photos…'));
+      busyStep(tr('L’appareil prépare les photos choisies : avec beaucoup de photos, ou des photos rangées dans iCloud, cela peut prendre un moment. Rien choisi ? Touchez l’écran pour revenir.'));
+      clearTimeout(pickWaitTimer);
+      pickWaitTimer = setTimeout(endPickWait, 90000);
+    };
+    // écran tactile (iPhone, iPad) : Safari ne rend pas toujours le focus à la page quand le sélecteur se
+    // referme ; l'attente s'installe donc derrière le sélecteur dès son ouverture, et elle est là quand il
+    // se referme — les photos arrivées, ou le sélecteur annulé (cancel), elle s'efface
+    if (navigator.maxTouchPoints > 0) pickWaitTimer = setTimeout(show, 700);
     pickWaitFocus = () => {
       window.removeEventListener('focus', pickWaitFocus); pickWaitFocus = null;
-      setTimeout(() => {
-        if (!pickWaitArmed || pickWaitShown) return;
-        pickWaitShown = true;
-        busyOn(tr('Réception des photos…'));
-        busyStep(tr('L’appareil prépare les photos choisies : avec beaucoup de photos, ou des photos rangées dans iCloud, cela peut prendre un moment.'));
-        pickWaitTimer = setTimeout(endPickWait, 90000);
-      }, 400);
+      setTimeout(show, 400);
     };
     window.addEventListener('focus', pickWaitFocus);
   }

@@ -34,7 +34,9 @@ cd collage && python3 -m http.server 8000
    donc grisées, elles passent par Photothèque — choix demandé) ; avec beaucoup de photos, l'iPhone les
    prépare avant de les remettre à la page — la fenêtre d'ajout le dit, et le sélecteur refermé sans
    que rien ne soit encore arrivé, « Réception des photos… » s'affiche jusqu'à leur arrivée (`armPickWait`,
-   `endPickWait` : retour du focus, puis 400 ms ; fin à l'arrivée, à un sélecteur refermé sans rien,
+   `endPickWait` : sur écran tactile, 700 ms après l'ouverture du sélecteur, derrière lui — Safari sur
+   iPhone ne rend pas toujours le focus à la page quand il se referme — ; ailleurs, au retour du focus,
+   puis 400 ms ; fin à l'arrivée, à un sélecteur refermé sans rien,
    à un toucher sur l'attente ou au bout de 90 s)) ; « Changer de type d'œuvre » ramène
    les cartes — `emptyChoice`),
    l'étape Importer du menu restant là pour ajouter des dessins ensuite ; une fois l'œuvre commencée,
