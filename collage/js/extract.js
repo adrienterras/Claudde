@@ -2207,6 +2207,60 @@
     return n > 0 && pap / n >= 0.6;
   }
 
+  // Part de la silhouette d'un objet laissée en papier vide : pixels de l'objet à plus de ≈ 5 % de sa
+  // taille de tout trait ou de toute couleur. Un bout de papier où l'on a dessiné (la bande où est la
+  // clé, la feuille déchirée de l'engin) en a beaucoup : c'est le dessin qu'il faut découper, comme sur
+  // un scan. Une découpe en forme (bonhomme, cœur, coquille coloriée) est remplie par son dessin.
+  function blankFrac(alpha, canvas) {
+    const W0 = canvas.width, H0 = canvas.height;
+    const k = Math.min(1, 220 / Math.max(W0, H0));
+    const w = Math.max(8, Math.round(W0 * k)), h = Math.max(8, Math.round(H0 * k)), n = w * h;
+    const sm = scaleTo(canvas, 220);
+    const d = ctx2d(sm).getImageData(0, 0, sm.width, sm.height).data;
+    release(sm);
+    const inObj = new Uint8Array(n), ink = new Uint8Array(n);
+    const pv = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const a = alpha[Math.min(H0 - 1, Math.floor((y + 0.5) / k)) * W0 + Math.min(W0 - 1, Math.floor((x + 0.5) / k))];
+      if (a >= 0.5) { inObj[y * w + x] = 1; const i = (y * w + x) * 4; pv.push(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]); }
+    }
+    if (!pv.length) return 0;
+    pv.sort((a, b) => a - b);
+    const pL = pv[Math.floor(pv.length * 0.8)]; // le papier : les plus clairs de l'objet
+    // (un objet tout près du bord de sa propre boîte n'a pas de voisinage : on érode d'un pixel)
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      if (!inObj[p]) continue;
+      const r = d[i], g = d[i + 1], b = d[i + 2], l = 0.299 * r + 0.587 * g + 0.114 * b;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), s = mx ? (mx - mn) / mx : 0;
+      if (l < pL - 55 || s > 0.3) ink[p] = 1;
+    }
+    const near = dilate(ink, w, h, Math.max(w, h) * 0.03);
+    let obj = 0, blank = 0;
+    for (let p = 0; p < n; p++) if (inObj[p]) { obj++; if (!near[p]) blank++; }
+    blankFrac.last = { obj, blank: obj ? +(blank / obj).toFixed(2) : 0 };
+    return obj ? blank / obj : 0;
+  }
+
+  // Le bout de papier d'un objet posé, mis à plat comme une page : hors de sa silhouette (un peu
+  // rentrée, pour effacer le liseré sombre du bord découpé, que la découpe prendrait pour un trait), la
+  // couleur de son propre papier. Le dessin s'y découpe alors comme sur un scan.
+  function objectAsPage(canvas, alpha) {
+    const W = canvas.width, H = canvas.height, N = W * H;
+    const out = makeCanvas(W, H), ctx = ctx2d(out);
+    ctx.drawImage(canvas, 0, 0);
+    const img = ctx.getImageData(0, 0, W, H), d = img.data;
+    const m = new Uint8Array(N), ls = [];
+    for (let p = 0, i = 0; p < N; p++, i += 4) if (alpha[p] >= 0.5) { m[p] = 1; if (!(p % 7)) ls.push([0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2], d[i], d[i + 1], d[i + 2]]); }
+    if (!ls.length) return out;
+    ls.sort((a, b) => a[0] - b[0]);
+    const top = ls.slice(Math.floor(ls.length * 0.7), Math.floor(ls.length * 0.9) + 1);
+    const pc = [1, 2, 3].map((j) => top.reduce((t, v) => t + v[j], 0) / top.length);
+    const inner = erode(m, W, H, Math.max(2, Math.max(W, H) * 0.012));
+    for (let p = 0, i = 0; p < N; p++, i += 4) if (!inner[p]) { d[i] = pc[0]; d[i + 1] = pc[1]; d[i + 2] = pc[2]; d[i + 3] = 255; }
+    ctx.putImageData(img, 0, 0);
+    return out;
+  }
+
   function convexHull(pts) {
     pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
     if (pts.length < 3) return pts;
@@ -3309,6 +3363,20 @@
       if (cleaned && cleaned.object && cleaned.surface.kind !== 'bois' && lum(cleaned.surface.color) >= 160 && paperish(cleaned.object.alpha, cleaned.canvas)) cleaned.object = null;
       if (cleaned && removeSurface.debug) removeSurface.debug.paperish = paperish.last || null;
       if (cleaned && cleaned.object) {
+        // un bout de papier où l'on a dessiné (du papier vide autour du dessin) : c'est le dessin qu'on
+        // découpe, comme sur un scan ; une découpe en forme, remplie par son dessin, garde sa silhouette
+        const asPage = objectAsPage(cleaned.canvas, cleaned.object.alpha);
+        const rp = analyze(asPage, 1, {});
+        // (un seul sujet : une découpe en forme que la découpe « comme un scan » morcellerait — tête,
+        // corps, jambes au papier blanc peu dessiné — garde sa silhouette)
+        if (rp.kind === 'cutout' && rp.pieces && rp.pieces.length === 1) {
+          let objA = 0; for (let p = 0; p < cleaned.object.alpha.length; p++) if (cleaned.object.alpha[p] >= 0.5) objA++;
+          let pa = 0;
+          rp.pieces.forEach((q) => { const qd = ctx2d(q.canvas).getImageData(0, 0, q.canvas.width, q.canvas.height).data; let c = 0; for (let i = 3; i < qd.length; i += 4) if (qd[i] > 127) c++; pa += c * (asPage.width / rp.page.width) ** 2; });
+          const cover = pa / Math.max(1, objA);
+          if (removeSurface.debug) removeSurface.debug.asPageCover = +cover.toFixed(2);
+          if (cover < 0.94) { rp.photo = cleaned.surface; rp.original = src; return rp; }
+        }
         // objet découpé posé sur la surface : sa silhouette entière est la pièce
         const page = flatten(cleaned.canvas, true);
         const r = { page, paper: [250, 250, 250], texture: null, kind: 'cutout', paperFrac: 1, objectAlpha: cleaned.object };
@@ -3372,5 +3440,5 @@
     return result;
   }
 
-  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, warpQuad, textureStats, release, removeSurface, findSheet, paintedSheet, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
+  window.Extract = { analyze, segment, flatten, recut, learnCut, setCutPrefs, cutPrefs, cutIsDefault, CUT_DEFAULT, CUT_TIGHT, rotated, rotateCanvas, uprightTurn, warpQuad, textureStats, release, removeSurface, findSheet, paintedSheet, blankFrac, textOnly, trimMargins, cutPieces, textureFrom, enhance, sharpen, scaleTo, makeCanvas, averageColor, lum };
 })();

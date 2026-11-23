@@ -329,6 +329,43 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.h).toBeGreaterThan(700);
   });
 
+  test('un bout de papier où l’on a dessiné, posé sur un sol gris : le dessin est découpé seul, sans le papier vide autour ; un bonhomme découpé garde sa silhouette', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const shot = (strip) => {
+        const W = 900, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+        const img = x.createImageData(W, H), d = img.data;
+        let seed = 23; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        for (let i = 0; i < W * H; i++) { const v = (rnd() - 0.5) * 26; d[i * 4] = 118 + v; d[i * 4 + 1] = 114 + v; d[i * 4 + 2] = 106 + v; d[i * 4 + 3] = 255; }
+        x.putImageData(img, 0, 0);
+        x.fillStyle = '#f2f0eb';
+        if (strip) {
+          // une bande de papier, une petite clé au stylo bleu au milieu
+          x.beginPath(); x.moveTo(330, 200); x.lineTo(560, 190); x.lineTo(600, 1000); x.lineTo(360, 1010); x.closePath(); x.fill();
+          x.strokeStyle = '#2440c8'; x.lineWidth = 7; x.beginPath(); x.arc(460, 360, 60, 0, 7); x.stroke();
+          x.beginPath(); x.moveTo(462, 420); x.lineTo(470, 760); x.stroke(); x.strokeRect(430, 760, 80, 60);
+        } else {
+          // un bonhomme découpé : tête, corps, bras et jambes, colorié partout
+          x.beginPath(); x.arc(450, 300, 110, 0, 7); x.fill(); x.fillRect(320, 400, 260, 360); x.fillRect(200, 430, 120, 70); x.fillRect(580, 430, 120, 70); x.fillRect(340, 760, 80, 200); x.fillRect(480, 760, 80, 200);
+          x.fillStyle = '#e8743a'; for (let k = 0; k < 120; k++) x.fillRect(210 + rnd() * 480, 200 + rnd() * 750, 22, 6);
+          x.strokeStyle = '#222'; x.lineWidth = 5; x.beginPath(); x.arc(450, 300, 110, 0, 7); x.stroke(); x.strokeRect(320, 400, 260, 360);
+        }
+        const a = Extract.analyze(c, 0, { photo: true });
+        const p = a.pieces && a.pieces[0];
+        return { kind: a.kind, pieces: (a.pieces || []).length, w: p ? p.canvas.width : 0, h: p ? p.canvas.height : 0 };
+      };
+      return { strip: shot(true), man: shot(false) };
+    });
+    expect(r.strip.kind).toBe('cutout');
+    expect(r.strip.pieces).toBe(1);
+    // la clé seule, avec la marge de découpe (≈ 225 × 650 px), pas la bande entière (≈ 270 × 820)
+    expect(r.strip.w).toBeLessThan(250);
+    expect(r.strip.h).toBeLessThan(720);
+    // le bonhomme garde toute sa silhouette (≈ 500 × 760)
+    expect(r.man.pieces).toBe(1);
+    expect(r.man.w).toBeGreaterThan(440);
+    expect(r.man.h).toBeGreaterThan(680);
+  });
+
   test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

@@ -618,7 +618,12 @@ cd collage && python3 -m http.server 8000
      l'objet est repris à pleine résolution (≈ 1600 px) le long du contour, d'après les couleurs de
      l'objet et de la surface (apprise sur le pourtour de la photo), avec une extension mesurée aux
      parties de l'objet de la couleur du sol. Un **objet découpé** (forme libre : cœur, bougie,
-     ovale…) devient lui-même la pièce, papier blanc compris ; une feuille rectangulaire garde son
+     ovale…) devient lui-même la pièce, papier blanc compris — sauf un **bout de papier où l'on a
+     dessiné** (une bande avec une clé au stylo, la feuille déchirée d'un coloriage) : mis à plat comme
+     une page (`objectAsPage` : hors de sa silhouette un peu rentrée, la couleur de son papier, pour
+     effacer le liseré sombre du bord découpé), il est découpé comme un scan ; ce résultat est gardé
+     s'il donne un seul sujet qui laisse au moins 6 % de la silhouette en papier vide (une découpe en
+     forme remplie par son dessin, ou que la découpe morcellerait, garde sa silhouette) ; une feuille rectangulaire garde son
      dessin à découper. C'est
      signalé dans le panneau (avec un bouton pour garder la photo
      entière) et sur la fiche de découpe ; la détection tourne sur toutes les pages (un scan à plat a
