@@ -306,6 +306,29 @@ test.describe('Analyse des pages (Extract)', () => {
     expect(r.shaded.points).toMatch(/ombre:(warn|bad)|lumiere:(warn|bad)/);
   });
 
+  test('une découpe coloriée sur une moquette grise, l’ombre du téléphone sur un coin de la photo : le papier blanc reste à la découpe', async ({ app }) => {
+    const r = await app.page.evaluate(() => {
+      const W = 900, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');
+      // moquette grise bouclée
+      x.fillStyle = 'rgb(126,122,114)'; x.fillRect(0, 0, W, H);
+      let seed = 17; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+      for (let k = 0; k < 22000; k++) { const v = rnd() < 0.5 ? 165 + rnd() * 30 : 80 + rnd() * 30; x.strokeStyle = `rgb(${v},${v - 3},${v - 9})`; x.lineWidth = 2 + rnd() * 2; const a = rnd() * 6.28, X = rnd() * W, Y = rnd() * H; x.beginPath(); x.moveTo(X, Y); x.lineTo(X + Math.cos(a) * 7, Y + Math.sin(a) * 7); x.stroke(); }
+      // l'ombre du téléphone, depuis le coin bas gauche
+      x.fillStyle = 'rgba(20,20,22,0.55)'; x.fillRect(0, 820, 420, 380); x.fillRect(0, 700, 160, 500);
+      // la découpe : papier blanc à bords irréguliers, un engin colorié au centre
+      x.fillStyle = '#f3f1ec'; x.beginPath(); x.moveTo(260, 230); x.lineTo(700, 250); x.lineTo(720, 560); x.lineTo(700, 1000); x.lineTo(520, 990); x.lineTo(240, 720); x.closePath(); x.fill();
+      [['#8b3fd0', 330, 380, 200, 140], ['#2fa84f', 560, 600, 120, 330], ['#1f4fd1', 520, 300, 140, 140], ['#e84a3a', 380, 560, 150, 120], ['#9a9a98', 360, 420, 90, 60]].forEach(([col, a, b, w, h]) => { x.fillStyle = col; x.fillRect(a, b, w, h); });
+      const a = Extract.analyze(c, 0, { photo: true });
+      const p = a.pieces && a.pieces[0];
+      return { kind: a.kind, pieces: (a.pieces || []).length, w: p ? p.canvas.width : 0, h: p ? p.canvas.height : 0, paper: Extract.removeSurface.debug && Extract.removeSurface.debug.paper };
+    });
+    expect(r.kind).toBe('cutout');
+    expect(r.pieces).toBe(1);
+    // la découpe entière (≈ 480 × 770 px, papier compris), pas seulement les aplats coloriés (≈ 350 × 630)
+    expect(r.w).toBeGreaterThan(430);
+    expect(r.h).toBeGreaterThan(700);
+  });
+
   test('une feuille photographiée de biais sur un mur clair est trouvée, redressée et recadrée', async ({ app }) => {
     const r = await app.page.evaluate(() => {
       const W = 1600, H = 1200, c = Extract.makeCanvas(W, H), x = c.getContext('2d');

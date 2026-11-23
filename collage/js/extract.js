@@ -3043,19 +3043,22 @@
     const ct = col[0] + col[1] + col[2] || 1, cr = col[0] / ct, cg = col[1] / ct;
     // tolérances tirées de la bordure elle-même (veines du bois, joints du carrelage)
     const band = Math.max(2, Math.round(Math.min(w, h) * 0.06));
-    const dc = [], dl = [];
+    const dc = [], dl = [], du = [];
     forEachBorder(w, h, band, (p) => {
       if (onSurf && !onSurf(p)) return;
       const i = p * 4, c = chroma(i);
       dc.push(Math.hypot(c[0] - cr, c[1] - cg));
-      dl.push(Math.abs(lum([dk[i], dk[i + 1], dk[i + 2]]) - L));
+      const e = lum([dk[i], dk[i + 1], dk[i + 2]]) - L;
+      dl.push(Math.abs(e)); du.push(Math.max(0, e));
     });
-    dc.sort((a, b) => a - b); dl.sort((a, b) => a - b);
+    dc.sort((a, b) => a - b); dl.sort((a, b) => a - b); du.sort((a, b) => a - b);
     const q = (arr, f) => arr[Math.min(arr.length - 1, Math.floor(arr.length * f))];
     const cTol = Math.min(0.12, Math.max(0.028, q(dc, 0.9) * 1.6));
     // (sur une table foncée colorée, un brun ou un orange plus clair qu'elle — le bandeau d'un chapeau —
     // n'est pas la table : la tolérance vers le clair suit seulement ses propres reflets)
-    const lTol = tinted ? Math.min(40, Math.max(30, q(dl, 0.9) * 1.3)) : Math.min(120, Math.max(48, q(dl, 0.9) * 1.8));
+    // (vers le clair, la tolérance suit les reflets de la surface seulement : l'ombre du téléphone sur la
+    // bordure — sombre — ne doit pas l'élargir au point d'y faire entrer le papier blanc)
+    const lTol = tinted ? Math.min(40, Math.max(30, q(du, 0.9) * 1.3)) : Math.min(120, Math.max(48, q(du, 0.9) * 1.8));
     const obj = new Uint8Array(n), joint = new Uint8Array(n);
     let surfCount = 0, paperCount = 0;
     for (let p = 0, i = 0; p < n; p++, i += 4) {
