@@ -39,6 +39,10 @@ test.describe('Bordure blanche', () => {
     await page.locator('#scene-margin [data-margin="1"]').click();
     const borderSig = await sig(page, 'scene-canvas');
     expect(borderSig).not.toBe(framedSig);
+    // encadré avec bordure : 3 cm de blanc en haut et en bas comme sur les côtés (comme à l'export)
+    const b = await page.evaluate(() => document.getElementById('scene-canvas')._border);
+    expect(b.x).toBeCloseTo(3, 1);
+    expect(b.y).toBeCloseTo(3, 1);
     await page.locator('#scene-margin [data-margin="0"]').click();
     expect(await sig(page, 'scene-canvas')).not.toBe(borderSig);
     // papier : plus de cadre ni de passe-partout ; le poster a la taille d'impression du format
@@ -54,6 +58,9 @@ test.describe('Bordure blanche', () => {
     await page.locator('#scene-margin [data-margin="1"]').click();
     // (l'affiche : l'œuvre mise aux proportions de la zone imprimée, comme à la commande — la bordure fait 3 cm partout)
     expect(await sig(page, 'scene-canvas')).not.toBe(paperSig);
+    const pb = await page.evaluate(() => document.getElementById('scene-canvas')._border);
+    expect(pb.x).toBeCloseTo(3, 1);
+    expect(pb.y).toBeCloseTo(3, 1);
     expect(await page.evaluate(() => [localStorage.getItem('atelier.finition'), localStorage.getItem('atelier.marge')])).toEqual(['papier', '1']);
     // la commande reprend papier + bordure, et le texte le dit
     await page.locator('#scene-order').click();

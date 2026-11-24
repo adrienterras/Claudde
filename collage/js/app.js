@@ -5620,8 +5620,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     // affiche : l'œuvre aux proportions de la zone imprimée (dessins à leur taille, places ajustées,
     // comme à la commande), sans bande blanche de part et d'autre
-    const shown = paper ? fitCopy(comp, (Pw - 2 * margin) / (Ph - 2 * margin)) : comp;
-    paintRoom(cv, out, room, { comp: shown, framed, kind, mat, Fw, Fh, Pw, Ph, paper, margin });
+    // (avec bordure blanche, de même : voir paintRoom)
+    paintRoom(cv, out, room, { comp, framed, kind, mat, Fw, Fh, Pw, Ph, paper, margin });
     if (out) return true;
     return true;
   }
@@ -5630,8 +5630,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // entière dedans ; par défaut, l'œuvre à sa taille), paper (impression sur papier, sans cadre) }
   function paintRoom(cv, out, room, spec) {
     const S = SCENES[room], [photo, plant, light] = sceneImgs[room];
-    const { comp, framed, kind, mat, Fw, Fh, paper } = spec;
-    const Pw = spec.Pw || comp.W, Ph = spec.Ph || comp.H;
+    const { framed, kind, mat, Fw, Fh, paper } = spec;
+    const Pw = spec.Pw || spec.comp.W, Ph = spec.Ph || spec.comp.H;
+    // affiche, ou bordure blanche : l'œuvre aux proportions de la zone imprimée, comme à l'export —
+    // la bordure est la même en haut, en bas et sur les côtés
+    const comp = paper || spec.margin ? fitCopy(spec.comp, (Pw - 2 * (spec.margin || 0)) / (Ph - 2 * (spec.margin || 0))) : spec.comp;
     const f = framed ? FRAME_KINDS[kind].profile : 0;
     const Wo = Fw + 2 * f, Ho = Fh + 2 * f;
     // le téléchargement a un format fixe (2000 × 1500) : la photo s'y ajuste à une fraction de pixel près
@@ -5709,6 +5712,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const m = spec.margin || 0;
     const a = Math.min((Pw - 2 * m) / comp.W, (Ph - 2 * m) / comp.H), ac = a * pc;
     if (Pw - comp.W * a > 0.05 || Ph - comp.H * a > 0.05) { x.fillStyle = '#fff'; x.fillRect(ix, iy, Pw * pc, Ph * pc); }
+    cv._border = { x: (Pw - comp.W * a) / 2, y: (Ph - comp.H * a) / 2 }; // (le blanc autour de l'œuvre, en cm, de chaque côté)
     x.save();
     x.translate(ix + ((Pw - comp.W * a) / 2) * pc, iy + ((Ph - comp.H * a) / 2) * pc);
     x.beginPath(); x.rect(0, 0, comp.W * ac, comp.H * ac); x.clip();
