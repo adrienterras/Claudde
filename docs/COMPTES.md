@@ -179,7 +179,12 @@ fichiers qui ne servent plus sont effacés à l'envoi suivant. La liste « Mes �
 la connexion, au retour sur la page après au moins 30 secondes d'absence et à l'ouverture de « Mes
 œuvres » (si sa dernière lecture date de plus de 30 secondes) : une œuvre faite sur un autre appareil
 y apparaît sans recharger la page. Un envoi manqué (réseau coupé) repart de lui-même 30 secondes plus
-tard, ou dès que la connexion revient. Sur un autre appareil, connecté,
+tard, ou dès que la connexion revient ; un refus du serveur est dit tel quel sous le compte (« l'envoi
+dans votre compte a échoué (…) »). Connecté, une œuvre qui n'est que sur l'appareil a un bouton
+« Envoyer dans mon compte ». Ce que l'appareil sait du compte (`atelier.oeuvres-vues:<utilisateur>`)
+est retenu compte par compte : une œuvre faite sans être connecté part dans le compte qui se connecte ;
+une œuvre déjà enregistrée dans un autre compte de l'appareil y reste (appareil partagé), et la ligne
+d'état le dit (« … et dans un autre compte : elle n'est pas copiée dans celui-ci »). Sur un autre appareil, connecté,
 l'atelier rouvre cette œuvre de lui-même (ou la propose, si une œuvre plus récente jamais envoyée
 est en cours sur place). Aucun changement de schéma : la ligne et le dossier suivent les règles
 existantes (propriétaire seulement). Place : une photo de téléphone pèse 2 à 5 Mo ; une œuvre de

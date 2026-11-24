@@ -1405,6 +1405,7 @@ body.stage-full .scene-open { display: none; }
 @media (min-width: 861px) { html:not(.touch) .camera-open { display: none !important; } } /* ordinateur sans écran tactile : pas de bouton photo (on photographie au téléphone ou à la tablette) ; iPad : oui */
 .cloud-sync { margin: 4px 0 12px; display: grid; } /* une ligne discrète : l'œuvre s'enregistre d'elle-même */
 .cloud-sync .hint { margin: 0; font-size: 0.76rem; }
+.cloud-sync #cloud-sync-send { justify-self: start; font-size: 0.76rem; margin-top: 2px; }
 .cloud-sync[hidden] { display: none !important; }
 .import-account { margin-top: 8px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink-2); }
 .camera-stage { position: relative; min-height: 0; background: #0f1214; overflow: hidden; }

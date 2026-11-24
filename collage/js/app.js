@@ -6656,9 +6656,22 @@ Réponds uniquement avec ce JSON :
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const newWorkId = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === 'x' ? r : ((r & 3) | 8)).toString(16); }));
-  const seenAll = () => { try { return JSON.parse(lsGet(SEEN_KEY) || '{}') || {}; } catch (e) { return {}; } };
+  // (retenu compte par compte : une œuvre envoyée dans un compte n'est pas pour autant dans un autre ;
+  // sans cela, passer d'un compte à l'autre sur un appareil laissait l'œuvre hors du second, dite
+  // « enregistrée dans votre compte ». L'ancienne liste commune, d'avant, est oubliée : les œuvres
+  // d'ici qui manquent au compte connecté y repartent, celles qu'il a déjà ne sont pas renvoyées)
+  const seenKey = () => { const u = window.Account && window.Account.user && window.Account.user(); return u && u.id ? `${SEEN_KEY}:${u.id}` : null; };
+  try { localStorage.removeItem(SEEN_KEY); } catch (e) { /* ignoré */ }
+  const seenAll = () => { const k = seenKey(); if (!k) return {}; try { return JSON.parse(lsGet(k) || '{}') || {}; } catch (e) { return {}; } };
   const seenOf = (id) => seenAll()[id] || null;
-  const setSeen = (id, date) => { const m = seenAll(); if (date) m[id] = date; else delete m[id]; lsSet(SEEN_KEY, JSON.stringify(m)); };
+  const setSeen = (id, date) => { const k = seenKey(); if (!k) return; const m = seenAll(); if (date) m[id] = date; else delete m[id]; lsSet(k, JSON.stringify(m)); };
+  // une œuvre déjà enregistrée dans un autre compte de cet appareil : elle reste à ce compte (appareil
+  // partagé : chacun garde ses œuvres) ; une œuvre faite sans être connecté part dans celui qui se connecte
+  const ownedElsewhere = (id) => {
+    const mine = seenKey();
+    if (!id || !mine) return false;
+    try { return Object.keys(localStorage).some((k) => k.startsWith(`${SEEN_KEY}:`) && k !== mine && (JSON.parse(localStorage.getItem(k) || '{}') || {})[id] && !seenOf(id)); } catch (e) { return false; }
+  };
   const accountOn = () => { const A = window.Account; return !!(A && A.enabled); };
   const signedIn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
   const deviceName = (code) => (code === 'phone' ? tr('téléphone') : code === 'computer' ? tr('ordinateur') : '');
@@ -6975,7 +6988,7 @@ Réponds uniquement avec ce JSON :
    * changée sur un autre appareil, un bandeau le dit : « Ouvrir cette version » ou « Garder celle-ci » ;
    * rien ne part ni ne vient pour elle tant qu'on n'a pas choisi, pour n'écraser ni l'une ni l'autre.
    */
-  let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, cloudFailed = false, cloudSent = null;
+  let pendingCloud = null, cloudTimer = 0, cloudBusy = false, cloudAgain = false, cloudFailed = false, cloudSent = null, cloudErrorText = '';
   let cloudFull = false; // le compte a déjà son maximum d'œuvres : une nouvelle œuvre n'y part pas tant qu'on n'en supprime pas
   // (le compte administrateur n'est pas limité en nombre : il rouvre en copie les œuvres des autres)
   const workMax = () => { const A = window.Account; if (A && A.isAdmin && A.isAdmin()) return Infinity; return A && A.limits ? A.limits.max : 15; };
@@ -7011,14 +7024,19 @@ Réponds uniquement avec ce JSON :
     else if (!signedIn()) t = tr('✓ Enregistrée sur cet appareil. Connectez-vous pour la retrouver sur tous vos appareils.');
     else if (cloudHold && cloudHold.workId === state.workId) t = tr('Une version plus récente de cette œuvre est dans votre compte.');
     else if (cloudFull && pendingCloud && pendingCloud.workId === state.workId && !seenOf(state.workId)) t = tr`Votre compte a atteint son maximum de ${workMax()} œuvres : supprimez-en dans Mes œuvres pour y enregistrer l’œuvre en cours (elle reste enregistrée sur cet appareil).`;
+    else if (state.workId && ownedElsewhere(state.workId)) t = tr('✓ Enregistrée sur cet appareil et dans un autre compte : elle n’est pas copiée dans celui-ci.');
     else if (cloudBusy) t = tr('Enregistrement dans votre compte…');
-    // (un envoi manqué : l'œuvre attend encore, mais le dire « en cours d'enregistrement » serait faux)
-    else if (cloudFailed) t = tr('✓ Enregistrée sur cet appareil ; elle partira dans votre compte dès que la connexion le permettra.');
+    // (un envoi manqué : l'œuvre attend encore, mais le dire « en cours d'enregistrement » serait faux ;
+    // la raison est donnée, pour savoir ce qui bloque)
+    else if (cloudFailed) t = cloudErrorText ? tr`✓ Enregistrée sur cet appareil ; l’envoi dans votre compte a échoué (${cloudErrorText}) : il sera retenté de lui-même.` : tr('✓ Enregistrée sur cet appareil ; elle partira dans votre compte dès que la connexion le permettra.');
     else if (pendingCloud && pendingCloud.workId === state.workId) t = tr('Enregistrement dans votre compte…');
     else if (state.workId && seenOf(state.workId)) t = tr`✓ Enregistrée dans votre compte (${clockText(seenOf(state.workId))}).`;
     else t = tr('✓ Enregistrée sur cet appareil.');
     el.textContent = t;
-    el.classList.toggle('warn', !!(cloudFull && pendingCloud && pendingCloud.workId === state.workId && !seenOf(state.workId)));
+    el.classList.toggle('warn', !!(cloudFull && pendingCloud && pendingCloud.workId === state.workId && !seenOf(state.workId)) || !!(cloudFailed && cloudErrorText));
+    // connecté, l'œuvre n'est que sur l'appareil (ni envoyée, ni en cours, ni à un autre compte) : un bouton l'envoie
+    const send = $('cloud-sync-send');
+    if (send) send.hidden = !(signedIn() && state.workId && !state.copyOf && !cloudBusy && !seenOf(state.workId) && !ownedElsewhere(state.workId) && !(cloudHold && cloudHold.workId === state.workId));
     savedFull();
   }
   // l'alerte dans Mes œuvres : le compte est plein, une œuvre attend
@@ -7049,7 +7067,7 @@ Réponds uniquement avec ce JSON :
       const blocked = new Set();
       cloudFull = false;
       while (true) {
-        const ok = (r) => r && !held(r) && !blocked.has(r);
+        const ok = (r) => r && !held(r) && !blocked.has(r) && !ownedElsewhere(r.workId);
         const rec = ok(pendingCloud) ? pendingCloud : cloudQueue.find(ok);
         if (!rec) break;
         // une œuvre de plus alors que le compte est plein : elle attend qu'on fasse de la place
@@ -7059,7 +7077,7 @@ Réponds uniquement avec ce JSON :
         const i = cloudQueue.indexOf(rec);
         if (i >= 0) cloudQueue.splice(i, 1);
         setSeen(rec.workId, rec.date);
-        cloudFailed = false;
+        cloudFailed = false; cloudErrorText = '';
         cloudSent = rec;
         if (cloudWorks) {
           const c = cloudWorks.find((x) => x.workId === rec.workId);
@@ -7071,6 +7089,9 @@ Réponds uniquement avec ce JSON :
       }
     } catch (e) {
       cloudFailed = true;
+      cloudErrorText = String((e && (e.message || e.error_description || e.error)) || e || '').slice(0, 160);
+      // (réseau coupé : le message habituel suffit ; un refus du serveur, lui, est dit tel quel)
+      if (/failed to fetch|load failed|networkerror|network request failed|pas de réponse|timeout/i.test(cloudErrorText) || (typeof navigator !== 'undefined' && navigator.onLine === false)) cloudErrorText = '';
       console.warn('œuvre non envoyée dans le compte', e);
     } finally {
       cloudBusy = false;
@@ -7161,6 +7182,16 @@ Réponds uniquement avec ce JSON :
     saveDraft();
   }
   if ($('work-newer-open')) $('work-newer-open').addEventListener('click', openNewer);
+  // « Envoyer dans mon compte » : l'œuvre affichée part tout de suite (elle est relue telle qu'enregistrée ici)
+  if ($('cloud-sync-send')) $('cloud-sync-send').addEventListener('click', async () => {
+    if (!signedIn() || !state.workId) return;
+    clearTimeout(draftTimer);
+    while (draftBusy) await wait(100);
+    state.workPrint = null; state.workBaseline = false; // (envoyée telle quelle, même sans changement depuis)
+    await saveDraft();
+    cloudFailed = false; cloudErrorText = '';
+    await syncCloud();
+  });
   if ($('work-newer-keep')) $('work-newer-keep').addEventListener('click', keepMine);
 
   // à l'arrivée et à la connexion : la liste du compte ; rien d'affiché ici (nouvel appareil) → la plus
@@ -7201,10 +7232,11 @@ Réponds uniquement avec ce JSON :
       // les œuvres d'ici pas encore dans le compte (faites hors connexion, ou avant de se connecter)
       const locals = (await dbAll().catch(() => [])).filter((r) => r.work && r.workId && UUID.test(r.workId));
       locals.forEach((r) => {
+        if (ownedElsewhere(r.workId)) return; // (à un autre compte de cet appareil : elle y reste)
         const c = works.find((x) => x.workId === r.workId), seen = seenOf(r.workId);
         if ((!c && !seen) || (c && c.date === seen && r.date !== seen)) { if (!cloudQueue.some((q) => q.workId === r.workId)) cloudQueue.push(r); }
       });
-      if (state.workId && !state.copyOf && !cur && !seenOf(state.workId) && !pendingCloud) { state.workPrint = null; state.workBaseline = false; scheduleDraft(); }
+      if (state.workId && !state.copyOf && !cur && !seenOf(state.workId) && !ownedElsewhere(state.workId) && !pendingCloud) { state.workPrint = null; state.workBaseline = false; scheduleDraft(); }
       if (cloudQueue.length || pendingCloud) scheduleCloudSync(1000);
     } finally { checking = false; workStatus(); }
   }

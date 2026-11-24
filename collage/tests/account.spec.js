@@ -354,7 +354,7 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#saved-list .saved.current .saved-meta')).toContainText('2 dessins');
     await expect(page.locator('#saved-list .saved-tag')).not.toContainText(['sur cet appareil']);
     // un autre appareil (rien en local) : la plus récente se rouvre d'elle-même, les deux sont dans la liste
-    await page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    await page.evaluate(() => new Promise((res) => { Object.keys(localStorage).filter((k) => k.startsWith('atelier.oeuvres-vues')).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
     await page.reload();
     await page.waitForFunction((id) => window.AtelierGribouille && AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length === 2 && document.getElementById('progress').hidden, w2, { timeout: 120000 });
     await openStep(page, 'saved-section');
@@ -552,7 +552,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => AtelierGribouille.syncCloud());
     await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id && r.meta.work), w1);
     // un autre appareil (rien en local), arrivée par un lien : on demande, rien ne se télécharge
-    const wipe = () => page.evaluate(() => new Promise((res) => { localStorage.removeItem('atelier.oeuvres-vues'); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
+    const wipe = () => page.evaluate(() => new Promise((res) => { Object.keys(localStorage).filter((k) => k.startsWith('atelier.oeuvres-vues')).forEach((k) => localStorage.removeItem(k)); localStorage.removeItem('atelier.nouvelle'); const r = indexedDB.deleteDatabase('atelier-gribouille'); r.onsuccess = res; r.onerror = res; r.onblocked = res; }));
     await wipe();
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
@@ -593,7 +593,7 @@ test.describe('Comptes utilisateurs', () => {
     const id = await page.evaluate(() => AtelierGribouille.state.workId);
     await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), id);
     const t1 = await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, id);
-    expect(await page.evaluate((id) => JSON.parse(localStorage.getItem('atelier.oeuvres-vues'))[id], id)).toBe(t1);
+    expect(await page.evaluate((id) => JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('atelier.oeuvres-vues:'))))[id], id)).toBe(t1);
     const style0 = await page.evaluate(() => AtelierGribouille.state.comp.style);
     // l'autre appareil (un téléphone) a envoyé une version plus récente : la même œuvre, dans un autre style
     const bump = (n) => page.evaluate(({ id, n }) => { const r = window.__fake.db.rows.find((x) => x.id === id); const t = new Date(Date.now() + n * 60000).toISOString(); r.meta = Object.assign({}, r.meta, { date: t, device: 'phone', comp: Object.assign({}, r.meta.comp, { style: r.meta.comp.style === 'frise' ? 'nuage' : 'frise' }) }); return { t, style: r.meta.comp.style }; }, { id, n });
@@ -620,7 +620,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction((st) => AtelierGribouille.state.comp && AtelierGribouille.state.comp.style === st && document.getElementById('progress').hidden, other.style, { timeout: 120000 });
     await expect(page.locator('#work-newer')).toBeHidden();
     await expect(page.locator('#save-status')).toContainText('plus récente');
-    expect(await page.evaluate((id) => JSON.parse(localStorage.getItem('atelier.oeuvres-vues'))[id], id)).toBe(other.t);
+    expect(await page.evaluate((id) => JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => k.startsWith('atelier.oeuvres-vues:'))))[id], id)).toBe(other.t);
     // la copie d'ici n'est pas renvoyée au compte (pas de ping-pong entre appareils)
     await page.waitForTimeout(3500);
     await page.evaluate(() => AtelierGribouille.syncCloud());
@@ -676,6 +676,44 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => { window.Account.cloud.workPut = window.__put; window.dispatchEvent(new Event('online')); });
     await page.waitForFunction(({ id, t0 }) => window.__fake.db.rows.find((r) => r.id === id).meta.date !== t0, { id, t0 }, { timeout: 10000 });
     await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
+  });
+
+  test('deux comptes sur un appareil : une œuvre du premier compte reste à lui, la ligne le dit ; une œuvre faite sans compte part dans celui qui se connecte ; « Envoyer dans mon compte » et la raison d’un échec', async ({ acc }) => {
+    test.setTimeout(240000);
+    const { page } = acc;
+    await signUpAndIn(page, 'pro@example.org', 'Rouge-Soleil-42', 'Pro');
+    await page.setInputFiles('#file', ['page-cutout.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    const id = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.waitForFunction((id) => window.__fake.db.rows.filter((r) => r.id === id).length === 1, id);
+    await page.locator('#acc-menu').click();
+    await page.locator('#acc-signout').click();
+    await expect(page.locator('#cloud-sync-status')).toContainText('Connectez-vous pour la retrouver');
+    // l'autre compte : l'œuvre du premier n'y est pas copiée, et la ligne ne prétend pas qu'elle y est
+    await signUpAndIn(page, 'perso@example.org', 'Rouge-Soleil-42', 'Perso');
+    await expect(page.locator('#cloud-sync-status')).toContainText('dans un autre compte');
+    await expect(page.locator('#cloud-sync-send')).toBeHidden();
+    await page.waitForTimeout(4000);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await page.waitForTimeout(800);
+    expect(await page.evaluate(() => window.__fake.db.rows.length)).toBe(1);
+    // une œuvre faite ici avec ce compte-là : l'envoi échoue (le serveur refuse), la raison est dite, le bouton l'envoie ensuite
+    await page.locator('#new-work').click();
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 0);
+    await page.evaluate(() => { window.__put = window.Account.cloud.workPut; window.Account.cloud.workPut = () => Promise.reject(new Error('new row violates row-level security policy')); });
+    await page.setInputFiles('#file', ['page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 2);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await expect(page.locator('#cloud-sync-status')).toContainText('row-level security');
+    await expect(page.locator('#cloud-sync-send')).toBeVisible();
+    await page.evaluate(() => { window.Account.cloud.workPut = window.__put; });
+    await page.locator('#cloud-sync-send').click();
+    await page.waitForFunction(() => window.__fake.db.rows.length === 2, null, { timeout: 15000 });
+    await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
+    await expect(page.locator('#cloud-sync-send')).toBeHidden();
   });
 
   test('Mes œuvres : une lecture du compte bloquée ou en échec ne laisse jamais la liste vide ; « Réessayer »', async ({ acc }) => {
