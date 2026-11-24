@@ -6969,8 +6969,20 @@ Réponds uniquement avec ce JSON :
       Object.assign(rec, { id, workId: id, work: true, frozen: true, workName: rec.name, device: phone() ? 'phone' : 'computer' });
       rec.print = printOf(rec);
       await dbPut(rec);
-      cloudQueue.push(rec); syncCloud();
-      freezeStatus(tr`Œuvre « ${rec.name} » enregistrée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
+      if (!signedIn()) {
+        freezeStatus(tr`Œuvre « ${rec.name} » enregistrée dans Mes œuvres : vos prochains changements ne la touchent plus.`);
+        renderSaved();
+        return;
+      }
+      // connecté : l'œuvre part tout de suite dans le compte, et le message attend sa réponse
+      // (la copie de l'appareil ne sert que de réserve, si l'envoi échoue : elle repart d'elle-même)
+      freezeStatus(tr('Enregistrement de l’œuvre dans votre compte…'));
+      renderSaved();
+      cloudQueue.push(rec);
+      await sendNow(rec);
+      if (seenOf(rec.workId)) freezeStatus(tr`Œuvre « ${rec.name} » enregistrée dans votre compte : vous la retrouverez dans Mes œuvres sur tous vos appareils ; vos prochains changements ne la touchent plus.`);
+      else if (cloudFull) freezeStatus(tr`Votre compte a atteint son maximum de ${workMax()} œuvres : « ${rec.name} » est gardée sur cet appareil ; supprimez des œuvres dans Mes œuvres pour l’y enregistrer.`);
+      else freezeStatus(cloudErrorText ? tr`« ${rec.name} » n’a pas pu être envoyée dans votre compte (${cloudErrorText}) : elle est gardée sur cet appareil et partira d’elle-même dès que possible.` : tr`« ${rec.name} » n’a pas pu être envoyée dans votre compte (pas de connexion) : elle est gardée sur cet appareil et partira d’elle-même dès que la connexion reviendra.`);
       renderSaved();
     } catch (e) {
       console.error(e);
@@ -7101,6 +7113,13 @@ Réponds uniquement avec ce JSON :
       // (envoi manqué, réseau coupé : on réessaie de soi-même, sans attendre un nouveau changement)
       else if (cloudFailed && (pendingCloud || cloudQueue.length)) scheduleCloudSync(CLOUD_RETRY);
     }
+  }
+  // envoie tout de suite ce qui attend (après l'envoi déjà en cours, s'il y en a un) ; rend la main
+  // une fois l'œuvre donnée partie, refusée ou en échec
+  async function sendNow(rec) {
+    for (let i = 0; i < 600 && cloudBusy; i++) await new Promise((r) => setTimeout(r, 100));
+    if (seenOf(rec.workId)) return;
+    await syncCloud();
   }
   async function dropLegacyDraft() {
     state.workLegacy = false;

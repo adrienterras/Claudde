@@ -217,7 +217,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.fill('#auth-password', 'Rouge-Soleil-42');
     await page.locator('#auth-submit').click();
     await expect(page.locator('#acc-menu')).toBeVisible();
-    await expect(page.locator('#stage-toast')).toContainText('enregistrée dans Mes œuvres', { timeout: 30000 });
+    await expect(page.locator('#stage-toast')).toContainText('enregistrée dans votre compte', { timeout: 30000 });
     // connecté : l'indication disparaît
     await expect(page.locator('#import-account')).toBeHidden();
   });
@@ -714,6 +714,27 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => window.__fake.db.rows.length === 2, null, { timeout: 15000 });
     await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
     await expect(page.locator('#cloud-sync-send')).toBeHidden();
+  });
+
+  test('connecté, « Enregistrer » envoie l’œuvre dans le compte et le dit ; un envoi refusé le dit aussi', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'fige@example.org', 'Rouge-Soleil-42', 'Fige');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await openStep(page, 'compose-section');
+    const before = await page.evaluate(() => window.__fake.db.rows.length);
+    await page.locator('#save-comp').click();
+    await expect(page.locator('#freeze-status')).toContainText('enregistrée dans votre compte', { timeout: 30000 });
+    // (la ligne est dans le compte au moment où le message le dit)
+    const rows = await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.frozen).length);
+    expect(rows).toBe(1);
+    expect(await page.evaluate(() => window.__fake.db.rows.length)).toBeGreaterThan(before);
+    // le serveur refuse : la raison est dite, l'œuvre est gardée sur l'appareil
+    await page.evaluate(() => { window.Account.cloud.workPut = () => Promise.reject(new Error('new row violates row-level security policy')); });
+    await page.locator('#save-comp').click();
+    await expect(page.locator('#freeze-status')).toContainText('n’a pas pu être envoyée dans votre compte (new row violates', { timeout: 30000 });
+    await expect(page.locator('#freeze-status')).toContainText('gardée sur cet appareil');
   });
 
   test('Mes œuvres : une lecture du compte bloquée ou en échec ne laisse jamais la liste vide ; « Réessayer »', async ({ acc }) => {
