@@ -6968,8 +6968,10 @@ Réponds uniquement avec ce JSON :
   /*
    * Connecté, chaque œuvre part d'elle-même dans le compte (15 s après le dernier changement sur
    * ordinateur, 6 s sur téléphone, ou dès que la page passe en arrière-plan ; chaque image n'est
-   * envoyée qu'une fois). Le compte n'est lu qu'à l'arrivée, à la connexion (la liste) et au retour sur
-   * la page après une absence (la date de l'œuvre affichée, rien d'autre). Si l'œuvre affichée a été
+   * envoyée qu'une fois ; un envoi manqué repart de lui-même 30 s plus tard, ou dès que la connexion
+   * revient). La liste du compte est lue à l'arrivée, à la connexion, au retour sur la page après au
+   * moins 30 s d'absence et à l'ouverture de « Mes œuvres » (si sa dernière lecture a plus de 30 s) :
+   * une œuvre faite sur un autre appareil y apparaît sans recharger la page. Si l'œuvre affichée a été
    * changée sur un autre appareil, un bandeau le dit : « Ouvrir cette version » ou « Garder celle-ci » ;
    * rien ne part ni ne vient pour elle tant qu'on n'a pas choisi, pour n'écraser ni l'une ni l'autre.
    */
@@ -6984,6 +6986,9 @@ Réponds uniquement avec ce JSON :
   let cloudHold = null; // { workId, date, device } : une version plus récente dans le compte, pas encore tranchée
   let cloudWorks = null; // la dernière liste lue du compte
   const CLOUD_DELAY = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 6000 : 15000;
+  const CLOUD_RETRY = 30000; // nouvel essai après un envoi manqué
+  const CLOUD_FRESH = 30000; // la liste du compte est relue si sa dernière lecture est plus ancienne
+  let lastCloudRead = 0;
   // « 14:32 » le jour même, « 12 oct., 14:32 » sinon
   function clockText(iso) {
     const d = new Date(iso);
@@ -7006,8 +7011,10 @@ Réponds uniquement avec ce JSON :
     else if (!signedIn()) t = tr('✓ Enregistrée sur cet appareil. Connectez-vous pour la retrouver sur tous vos appareils.');
     else if (cloudHold && cloudHold.workId === state.workId) t = tr('Une version plus récente de cette œuvre est dans votre compte.');
     else if (cloudFull && pendingCloud && pendingCloud.workId === state.workId && !seenOf(state.workId)) t = tr`Votre compte a atteint son maximum de ${workMax()} œuvres : supprimez-en dans Mes œuvres pour y enregistrer l’œuvre en cours (elle reste enregistrée sur cet appareil).`;
-    else if (cloudBusy || (pendingCloud && pendingCloud.workId === state.workId)) t = tr('Enregistrement dans votre compte…');
+    else if (cloudBusy) t = tr('Enregistrement dans votre compte…');
+    // (un envoi manqué : l'œuvre attend encore, mais le dire « en cours d'enregistrement » serait faux)
     else if (cloudFailed) t = tr('✓ Enregistrée sur cet appareil ; elle partira dans votre compte dès que la connexion le permettra.');
+    else if (pendingCloud && pendingCloud.workId === state.workId) t = tr('Enregistrement dans votre compte…');
     else if (state.workId && seenOf(state.workId)) t = tr`✓ Enregistrée dans votre compte (${clockText(seenOf(state.workId))}).`;
     else t = tr('✓ Enregistrée sur cet appareil.');
     el.textContent = t;
@@ -7070,6 +7077,8 @@ Réponds uniquement avec ce JSON :
       workStatus();
       renderSaved();
       if (cloudAgain) { cloudAgain = false; scheduleCloudSync(); }
+      // (envoi manqué, réseau coupé : on réessaie de soi-même, sans attendre un nouveau changement)
+      else if (cloudFailed && (pendingCloud || cloudQueue.length)) scheduleCloudSync(CLOUD_RETRY);
     }
   }
   async function dropLegacyDraft() {
@@ -7083,11 +7092,23 @@ Réponds uniquement avec ce JSON :
   }
   // la page se ferme ou passe en arrière-plan : on n'attend pas le délai ; elle revient après une
   // absence : la date de l'œuvre affichée est relue (un autre appareil l'a peut-être changée)
+  // (toute la liste du compte, pas seulement l'œuvre affichée : une œuvre faite sur un autre appareil
+  // pendant ce temps y apparaît, sans recharger la page)
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); if (pendingCloud || cloudQueue.length) syncCloud(); return; }
-    if (hiddenAt && Date.now() - hiddenAt > 120e3) checkCurrentWork();
+    if (hiddenAt && Date.now() - hiddenAt >= CLOUD_FRESH) refreshCloud(0);
   });
+  // page rendue telle quelle par le navigateur (retour arrière, onglet rouvert sur iPhone)
+  window.addEventListener('pageshow', (e) => { if (e.persisted) refreshCloud(0); });
+  // la connexion revient : ce qui n'a pas pu partir part, et le compte est relu
+  window.addEventListener('online', () => { if (pendingCloud || cloudQueue.length) scheduleCloudSync(1000); refreshCloud(CLOUD_FRESH); });
+  // relit le compte (la liste, l'œuvre affichée, ce qui reste à envoyer) si sa dernière lecture a plus de minAge ms
+  function refreshCloud(minAge) {
+    if (!signedIn() || checking || cloudLoading || state.restoring || state.resuming) return;
+    if (Date.now() - lastCloudRead < minAge) return;
+    checkWorks();
+  }
   // l'œuvre affichée a-t-elle changé dans le compte depuis la dernière version connue ici ?
   async function checkCurrentWork(remote) {
     const id = state.workId;
@@ -7510,7 +7531,7 @@ Réponds uniquement avec ce JSON :
           got.push(...page);
           cloudWorks = got.slice();
           cloudError = '';
-          if (page.length < CLOUD_PAGE) break;
+          if (page.length < CLOUD_PAGE) { lastCloudRead = Date.now(); break; }
           drawSaved(await readLocals()); // (les premières œuvres, sans attendre les suivantes)
         }
       } catch (e) {
@@ -8349,7 +8370,7 @@ Réponds uniquement avec ce JSON :
       sec._expand = () => apply(false);
       sec._collapse = () => apply(true);
       apply(true);
-      const toggle = () => apply(!sec.classList.contains('collapsed'));
+      const toggle = () => { apply(!sec.classList.contains('collapsed')); if (sec.id === 'saved-section' && !sec.classList.contains('collapsed')) refreshCloud(CLOUD_FRESH); };
       h.addEventListener('click', toggle);
     });
   })();
@@ -8381,6 +8402,7 @@ Réponds uniquement avec ce JSON :
     btn.disabled = false;
     // Tailles (choix du cadre, orientation, mise en scène) : le tiroir s'ouvre en grand ; un autre
     // onglet le ramène à sa hauteur normale, sauf si c'est un geste qui l'avait agrandi
+    if (id === 'import-section') refreshCloud(CLOUD_FRESH); // (Mes œuvres y est : la liste à jour)
     if (id === 'sizes-section') { document.body.classList.add('sheet-tall'); autoTall = true; }
     else if (autoTall) { document.body.classList.remove('sheet-tall'); autoTall = false; }
     // la fiche d'un dessin (tiroir à mi-hauteur) ne reste ouverte que dans l'onglet Dessins

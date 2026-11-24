@@ -644,6 +644,40 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cloud-sync-status')).toContainText('Connectez-vous pour la retrouver');
   });
 
+  test('appareils synchronisés : une œuvre faite ailleurs apparaît au retour sur la page, sans recharger ; un envoi manqué repart de lui-même quand la connexion revient', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'sync@example.org', 'Rouge-Soleil-42', 'Sync');
+    await page.setInputFiles('#file', ['page-cutout.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    const id = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), id);
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#saved-list .saved')).toHaveCount(1);
+    // sur le téléphone, pendant ce temps, une autre œuvre est faite et part dans le compte
+    await page.evaluate((id) => { const r = window.__fake.db.rows.find((x) => x.id === id); const t = new Date(Date.now() + 60000).toISOString(); window.__fake.db.rows.push(Object.assign({}, r, { id: '0b9c6e2a-4a1d-4c4e-9a43-2f5d0c1e7b11', name: 'Œuvre du téléphone', meta: Object.assign({}, r.meta, { date: t, device: 'phone' }) })); }, id);
+    // la page passe en arrière-plan, puis revient 40 s plus tard : la liste est relue, l'œuvre du téléphone y est
+    await page.evaluate(() => {
+      let vis = 'visible'; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => vis });
+      vis = 'hidden'; document.dispatchEvent(new Event('visibilitychange'));
+      const real = Date.now; Date.now = () => real() + 40000;
+      vis = 'visible'; document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await expect(page.locator('#saved-list .saved')).toHaveCount(2);
+    await expect(page.locator('#saved-list')).toContainText('Œuvre du téléphone');
+    // un changement qui ne part pas (réseau coupé) : l'œuvre reste ici, puis part d'elle-même quand la connexion revient
+    const t0 = await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.date, id);
+    await page.evaluate(() => { window.__put = window.Account.cloud.workPut; window.Account.cloud.workPut = () => Promise.reject(new Error('Failed to fetch')); });
+    await page.evaluate(() => AtelierGribouille.selectProposal(1));
+    await page.waitForTimeout(3500);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await expect(page.locator('#cloud-sync-status')).toContainText('dès que la connexion le permettra');
+    await page.evaluate(() => { window.Account.cloud.workPut = window.__put; window.dispatchEvent(new Event('online')); });
+    await page.waitForFunction(({ id, t0 }) => window.__fake.db.rows.find((r) => r.id === id).meta.date !== t0, { id, t0 }, { timeout: 10000 });
+    await expect(page.locator('#cloud-sync-status')).toContainText('Enregistrée dans votre compte');
+  });
+
   test('Mes œuvres : une lecture du compte bloquée ou en échec ne laisse jamais la liste vide ; « Réessayer »', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'lent@example.org', 'Rouge-Soleil-42', 'Lent');

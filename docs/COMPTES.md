@@ -175,7 +175,11 @@ Connecté, l'œuvre en cours (le brouillon gardé dans le navigateur) est aussi 
 une quinzaine de secondes après le dernier changement : une ligne `compositions` marquée `draft`
 (une seule par compte, remplacée à chaque envoi, jamais listée parmi les compositions) et le dossier
 `<utilisateur>/brouillon/` du bucket `drawings`, où chaque image n'est envoyée qu'une fois ; les
-fichiers qui ne servent plus sont effacés à l'envoi suivant. Sur un autre appareil, connecté,
+fichiers qui ne servent plus sont effacés à l'envoi suivant. La liste « Mes œuvres » est relue dans le compte à l'arrivée, à
+la connexion, au retour sur la page après au moins 30 secondes d'absence et à l'ouverture de « Mes
+œuvres » (si sa dernière lecture date de plus de 30 secondes) : une œuvre faite sur un autre appareil
+y apparaît sans recharger la page. Un envoi manqué (réseau coupé) repart de lui-même 30 secondes plus
+tard, ou dès que la connexion revient. Sur un autre appareil, connecté,
 l'atelier rouvre cette œuvre de lui-même (ou la propose, si une œuvre plus récente jamais envoyée
 est en cours sur place). Aucun changement de schéma : la ligne et le dossier suivent les règles
 existantes (propriétaire seulement). Place : une photo de téléphone pèse 2 à 5 Mo ; une œuvre de
