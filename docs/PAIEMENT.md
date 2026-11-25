@@ -15,8 +15,9 @@ l'arrête. Pour tous les autres visiteurs, rien ne change tant que la configurat
    - crée la commande (table `orders`, statut « attente_paiement ») ;
    - renvoie l'adresse de la page de paiement Stripe, qui demande l'adresse de livraison (France
      uniquement) et le téléphone.
-3. Après le paiement, Stripe ramène le client sur `/atelier/?commande=AG-…` : Mon compte s'ouvre sur
-   **« Mes commandes »**, avec un merci ; le panier se vide.
+3. Après le paiement, Stripe ramène le client sur la page **Mes commandes** du site
+   (`/commandes.html?commande=AG-…`), avec un merci ; la commande y paraît dès que Stripe a prévenu le
+   serveur, et le panier se vide.
 4. Stripe prévient la fonction **`stripe-webhook`**, qui vérifie la signature. Elle passe alors la
    commande en « payée », garde l'adresse et les coordonnées, et marque les œuvres « commandées » : elles
    sont figées, gardées hors de la purge et renommées `AG-… · titre`. Si la page de paiement est
@@ -24,7 +25,13 @@ l'arrête. Pour tous les autres visiteurs, rien ne change tant que la configurat
 
 Statuts : `attente_paiement`, `payee`, `en_preparation`, `expediee`, `livree`, `annulee`,
 `abandonnee`. Ils avancent depuis l'atelier (voir « Suivre les commandes »). Le client les voit dans
-Mon compte → **Mes commandes** (lien aussi dans le menu du compte des pages du site, `?commandes`).
+**Mes commandes** est une page du site, hors de l'atelier : `/commandes.html` (`landing/commandes.html`,
+`commandes.js`), ouverte par le menu du compte de l'en-tête, par « Mes commandes » dans Mon compte de
+l'atelier, et par les e-mails (`commandes.html#AG-…` ouvre la commande). Chaque commande y a son détail,
+dans une fenêtre : la frise d'avancement, les œuvres dans leur cadre, les prix, la livraison et
+l'adresse, le suivi du colis, l'annulation tant qu'elle est payée. L'ancien lien de l'atelier
+(`atelier/?commandes`) y mène. La gestion des commandes (administrateur) reste dans l'atelier :
+`atelier/?gestion-commandes`, lien de l'e-mail « Nouvelle commande ».
 
 ## Mise en place (une fois)
 
@@ -101,8 +108,9 @@ Envoyés par **Resend**, depuis `commandes@ateliergribouille.art` (réponses ver
 Chaque e-mail montre l'œuvre commandée **telle qu'elle sera livrée** : dans son cadre (teinte et
 baguettes du bois ou de l'aluminium, passe-partout ou bordure blanche) ou sur sa feuille pour une
 affiche, aux proportions réelles. La vignette est jointe au message (image intégrée, jamais mise en
-ligne). Le même visuel accompagne chaque article dans **Mes commandes**, sous le nom du compte ; le
-calcul (`framePlan`, dans `_shared/commande.js`) est le même des deux côtés, un test le vérifie.
+ligne). Le même visuel accompagne chaque article dans **Mes commandes** (page du site) ; le
+calcul (`framePlan`, dans `_shared/commande.js`) est le même des deux côtés : la page charge ce module,
+publié à la racine du site sous le nom `commande-partage.js` (deploy/preparer-site.sh).
 
 À régler une fois : Resend → API Keys → créer une clé « Envoi », puis la coller dans Supabase → Edge
 Functions → Secrets → `RESEND_API_KEY`. Sans cette clé, rien n'est envoyé et rien ne casse. Réglages
@@ -110,7 +118,7 @@ facultatifs : `ORDER_FROM` (l'expéditeur) et `ORDER_NOTIFY` (l'adresse de la bo
 
 ## Annulation par le client
 
-Dans Mes commandes (sous le nom du compte), **Annuler la commande** reste proposé tant que la commande est
+Dans Mes commandes (détail de la commande), **Annuler la commande** reste proposé tant que la commande est
 « Payée », c'est-à-dire tant que vous ne l'avez pas passée « En préparation » ; l'annulation demande une
 deuxième touche pour confirmer. Les œuvres sont personnalisées : une fois lancées, elles ne s'annulent
 plus en ligne. Fonction `commande-annuler` : la commande passe « annulée », puis **Stripe rembourse le

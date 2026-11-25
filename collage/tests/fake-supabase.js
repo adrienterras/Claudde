@@ -190,7 +190,7 @@
       db.rows.push({ __table: 'orders', id: `o-${orderN}`, user_id: u.id, ref, status: 'payee', email: u.email, consent: body.consent === true, items, subtotal_cents: 1000, shipping_cents: shipping, total_cents: 1000 + shipping, created_at: now, paid_at: now, carrier: null, tracking: null });
       cart.forEach((r) => { const c = r.meta.cart; delete r.meta.cart; r.meta.ordered = true; r.meta.order = Object.assign({}, c, { ref, at: now, paid: true }); r.name = `${ref} · ${r.name}`; });
       persist();
-      return ok({ url: `${location.pathname}?commande=${ref}`, ref });
+      return ok({ url: `/commandes.html?commande=${ref}`, ref }); // (comme le serveur : la page Mes commandes du site)
     },
   };
   window.supabase = { createClient: () => ({ auth, from, storage, rpc, functions }) };

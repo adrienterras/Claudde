@@ -11,7 +11,9 @@
  * Sujets courts : certaines messageries lisent mal un sujet long coupé sur deux lignes.
  */
 
-import { framePlan, framePixels } from './commande.js';
+import { framePlan, framePixels, trackingUrl } from './commande.js';
+
+export { trackingUrl };
 
 export const SITE = 'https://ateliergribouille.art';
 const LOGO = `${SITE}/img/logo-mark-80.png`;
@@ -24,15 +26,6 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 // (typographie française : une espace insécable avant ! ? : ; et dans les guillemets, pour qu'ils ne tombent pas seuls à la ligne)
 const fr = (s) => String(s == null ? '' : s).replace(/ ([!?:;»])/g, '\u00a0$1').replace(/« /g, '«\u00a0');
 
-// le lien de suivi du colis, selon le transporteur (Colissimo, Chronopost) ; sinon rien
-export function trackingUrl(carrier, tracking) {
-  const t = String(tracking || '').trim();
-  if (!t) return null;
-  const c = String(carrier || '').toLowerCase();
-  if (/chrono/.test(c)) return `https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=${encodeURIComponent(t)}`;
-  if (/colissimo|la poste|laposte/.test(c) || !c) return `https://www.laposte.fr/outils/suivre-vos-envois?code=${encodeURIComponent(t)}`;
-  return null;
-}
 
 const deliveryName = (order) => (order.delivery === 'express' ? 'Chronopost express (24 h)' : 'Colissimo (2 à 3 jours)');
 const nameOf = (order) => (order.customer && order.customer.name) || (order.shipping && order.shipping.name) || '';
@@ -40,7 +33,8 @@ const addressLines = (order) => {
   const s = order.shipping || {}, a = s.address || {};
   return [s.name, a.line1, a.line2, [a.postal_code, a.city].filter(Boolean).join(' '), a.country === 'FR' ? 'France' : a.country].filter(Boolean);
 };
-const ordersLink = `${SITE}/atelier/?commandes`;
+// la page « Mes commandes » du site (hors de l'atelier), ouverte sur la commande (#REF)
+const ordersLink = (order) => `${SITE}/commandes.html${order && order.ref ? `#${encodeURIComponent(order.ref)}` : ''}`;
 const subtotalOf = (order) => order.subtotal_cents != null ? order.subtotal_cents : Number(order.total_cents || 0) - Number(order.shipping_cents || 0);
 
 // ---------- les morceaux de la page ----------
@@ -140,7 +134,7 @@ function page({ preheader, title, body, footnote }) {
 function textOf({ title, paras, order, extra }) {
   const items = (order.items || []).map((it) => `- ${it.title} — ${it.label}${it.qty > 1 ? ` × ${it.qty}` : ''}${it.unit != null ? ` : ${eur(Math.round(it.unit * 100) * (it.qty || 1))}` : ''}`);
   const total = `Total : ${eur(order.total_cents)}${order.shipping_cents ? ` (dont ${eur(order.shipping_cents)} de livraison${order.delivery === 'express' ? ' express' : ''})` : ''}`;
-  return [title, '', ...paras, '', `Commande ${order.ref}`, ...items, total, ...(extra || []), '', `Suivre la commande : ${ordersLink}`, '', 'Atelier Gribouille · ateliergribouille.art · contact@ateliergribouille.art'].join('\n');
+  return [title, '', ...paras, '', `Commande ${order.ref}`, ...items, total, ...(extra || []), '', `Suivre la commande : ${ordersLink(order)}`, '', 'Atelier Gribouille · ateliergribouille.art · contact@ateliergribouille.art'].join('\n');
 }
 
 // l'e-mail au client pour une étape de la commande (status : payee, en_preparation, expediee, livree, annulee)
@@ -153,17 +147,17 @@ export function customerEmail(status, order, visuals) {
     payee: {
       subject: `Commande ${order.ref} confirmée`, title: 'Merci pour votre commande !',
       paras: ['Nous avons bien reçu votre paiement. Nous allons imprimer et préparer votre œuvre avec soin, et nous vous écrirons dès son expédition.', 'Un changement d’avis ? Vous pouvez annuler la commande depuis Mon compte, tant que nous ne l’avons pas mise en préparation.'],
-      cta: [ordersLink, 'Suivre ma commande'],
+      cta: [ordersLink(order), 'Suivre ma commande'],
     },
     en_preparation: {
       subject: `Commande ${order.ref} en préparation`, title: 'Votre œuvre est en préparation',
       paras: ['Nous imprimons et emballons votre œuvre. Vous recevrez un e-mail avec le suivi du colis dès son départ.'],
-      cta: [ordersLink, 'Suivre ma commande'],
+      cta: [ordersLink(order), 'Suivre ma commande'],
     },
     expediee: {
       subject: `Commande ${order.ref} expédiée`, title: 'Votre colis est en route',
       paras: ['Votre œuvre vient de partir, bien protégée.', order.tracking ? `Transporteur : ${order.carrier || 'Colissimo'} · numéro de suivi : ${order.tracking}` : 'Le numéro de suivi vous sera envoyé dès qu’il est disponible.'],
-      cta: url ? [url, 'Suivre le colis'] : [ordersLink, 'Suivre ma commande'],
+      cta: url ? [url, 'Suivre le colis'] : [ordersLink(order), 'Suivre ma commande'],
     },
     livree: {
       subject: `Commande ${order.ref} livrée`, title: 'Votre œuvre est arrivée',
@@ -173,7 +167,7 @@ export function customerEmail(status, order, visuals) {
     annulee: {
       subject: `Commande ${order.ref} annulée`, title: 'Votre commande est annulée',
       paras: [`La commande est annulée : ${eur(order.total_cents)} vous sont remboursés sur votre moyen de paiement, généralement sous 5 à 10 jours.`, 'Une question ? Répondez simplement à cet e-mail.'],
-      cta: [ordersLink, 'Voir mes commandes'],
+      cta: [ordersLink(order), 'Voir mes commandes'],
     },
   }[status];
   if (!C1) return null;
@@ -201,7 +195,8 @@ export function shopEmail(kind, order, visuals) {
   const c = order.customer || {};
   const who = [c.name, c.email || order.email, c.phone].filter(Boolean).join(' · ');
   const addr = addressLines(order);
-  const admin = `${SITE}/atelier/?commandes`;
+  // (la gestion des commandes, dans l'atelier : espace administrateur)
+  const admin = `${SITE}/atelier/?gestion-commandes`;
   const cancelled = kind === 'annulee';
   const title = cancelled ? 'Commande annulée par le client' : 'Nouvelle commande';
   const lead = cancelled ? `Commande ${order.ref} : le client l’a annulée, il est remboursé automatiquement.` : `Commande ${order.ref} · paiement reçu : ${eur(order.total_cents)}.`;

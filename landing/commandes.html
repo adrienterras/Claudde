@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mes commandes | Atelier Gribouille</title>
+  <meta name="description" content="Vos commandes Atelier Gribouille : suivi, détail, livraison.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#f8f5ef">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://lh3.googleusercontent.com; connect-src 'self' data: blob: https://yfrerlyndrpfgerkbkyr.supabase.co wss://yfrerlyndrpfgerkbkyr.supabase.co https://gateway.umami.is; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" sizes="48x48" href="img/favicon-48.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="img/favicon-96.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+  <link rel="stylesheet" href="atelier/fonts/fonts.css"><!-- les polices, servies par le site (pas par Google) -->
+  <style>
+    :root {
+      --craie: #f8f5ef; --surface: #faf7f1; --surface-2: #f0e9dd; --line: #ded3c2; --wall: #ddd3c4;
+      --ink: #2b2a22; --ink-2: #4e4c3e; --muted: #7f7868;
+      --accent: #3e5a4c; --accent-soft: rgba(62, 90, 76, .12); --argile: #c26f56; --blush: #d9a7a0; --olive: #6b6f4e;
+      --f-display: "Playfair Display", Georgia, "Times New Roman", serif; --f-body: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-family: var(--f-body); color: var(--ink); line-height: 1.55; font-size: 16px; -webkit-font-smoothing: antialiased;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(0,0,0,.012) 0 1px, transparent 1px 3px), var(--craie); }
+    a { color: inherit; }
+    .wrap { width: min(1120px, 100% - 40px); margin: 0 auto; }
+    /* barre */
+    .nav { position: sticky; top: 0; z-index: 10; background: rgba(248, 245, 239, .86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid rgba(0,0,0,.06); }
+    .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .brand img { width: 36px; height: 36px; }
+    .brand b { font-family: var(--f-display); font-weight: 400; font-size: 1.3rem; }
+    .brand small { display: block; font-size: .62rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink-2); line-height: 1; margin-bottom: 2px; }
+    .nav nav { display: flex; gap: 22px; align-items: center; font-size: .9rem; }
+    .nav nav a { text-decoration: none; color: var(--ink-2); }
+    .nav nav a:hover { color: var(--ink); }
+    .nav nav a.btn-primary, .nav nav a.btn-primary:hover { color: var(--craie); }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: .95rem; text-decoration: none; border: 1px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--ink); color: var(--craie); box-shadow: 0 10px 26px -14px rgba(0,0,0,.7); }
+    .btn-primary:hover { background: #000; }
+    .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line); }
+    .btn-sm { padding: 9px 16px; font-size: .85rem; }
+    .btn-sm .short { display: none; }
+    @media (max-width: 900px) { .btn-sm .short { display: inline; } }
+    .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    /* héros */
+    .kicker { margin: 0 0 14px; font-size: .78rem; letter-spacing: .45em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+    h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(2.4rem, 5vw, 3.9rem); line-height: 1.08; letter-spacing: -.005em; }
+    h1 em { font-style: italic; color: var(--accent); }
+    /* sections */
+    h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(1.8rem, 3.2vw, 2.5rem); line-height: 1.15; }
+    footer { border-top: 1px solid var(--line); padding: 30px 0 40px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; align-items: center; font-size: .78rem; color: var(--muted); }
+    footer .values i { font-style: normal; color: var(--accent); margin: 0 6px; }
+    footer nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+    footer nav a { text-decoration: none; white-space: nowrap; }
+    footer nav a.ig { display: inline-flex; align-items: center; gap: 5px; }
+    footer nav a.ig svg { width: 14px; height: 14px; }
+    footer nav a:hover { text-decoration: underline; }
+    @media (max-width: 700px) { footer .wrap { flex-direction: column; align-items: flex-start; gap: 16px; } footer nav { gap: 10px 16px; } }
+    @media (prefers-reduced-motion: reduce) { .rise { animation: none; } html { scroll-behavior: auto; } }
+    @media (max-width: 900px) {
+      .nav nav a.hide-sm { display: none; }
+      .nav .wrap { width: calc(100% - 32px); height: 58px; gap: 10px; }
+      .nav nav { gap: 10px; }
+      .nav nav .btn-sm { white-space: nowrap; padding: 8px 12px; font-size: .8rem; }
+      .nav nav .btn-sm .full { display: none; }
+    }
+    @media (max-width: 380px) {
+      .nav .wrap { width: calc(100% - 24px); gap: 8px; }
+      .nav nav { gap: 8px; }
+      .nav nav .btn-sm { padding: 8px 10px; }
+      .brand img { width: 30px; height: 30px; }
+      .brand small { display: none; }
+      .brand b { font-size: 1.15rem; }
+    }
+    .article { width: min(760px, 100% - 40px); margin: 0 auto; padding: 56px 0 24px; }
+    .article h1 { font-size: clamp(2.1rem, 4.6vw, 3.2rem); }
+    .lead { font-size: 1.08rem; color: var(--ink-2); margin: 20px 0 0; }
+    .crumbs { font-size: .78rem; color: var(--muted); margin: 0 0 18px; }
+    .crumbs a { text-decoration: none; }
+    .crumbs a:hover { text-decoration: underline; }
+    .toc { margin: 32px 0 8px; padding: 20px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+    .toc p { margin: 0 0 8px; font-weight: 600; font-size: .9rem; }
+    .toc ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: .93rem; }
+    .toc a { text-decoration: none; color: var(--ink-2); }
+    .toc a:hover { color: var(--ink); text-decoration: underline; }
+    .idea { padding: 26px 0 0; scroll-margin-top: 80px; }
+    .idea h2 { font-size: clamp(1.45rem, 2.6vw, 1.85rem); display: flex; gap: 14px; align-items: baseline; }
+    .idea .num { font-family: var(--f-body); font-size: .8rem; font-weight: 600; color: var(--accent); letter-spacing: .1em; min-width: 1.6em; }
+    .idea p { margin: 12px 0 0; color: var(--ink-2); }
+    .figure { margin: 34px 0 0; }
+    .figure img { width: 100%; height: auto; border-radius: 14px; box-shadow: 0 18px 40px -28px rgba(0,0,0,.6); }
+    .figure figcaption { font-size: .8rem; color: var(--muted); margin-top: 8px; }
+    .cta-box { margin: 44px 0 0; padding: 30px; border-radius: 22px; background: var(--ink); color: var(--craie); }
+    .cta-box h2 { color: var(--craie); font-size: clamp(1.5rem, 2.8vw, 2rem); }
+    .cta-box p { color: rgba(248,245,239,.8); margin: 10px 0 20px; }
+    .cta-box .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .cta-box .btn-primary { background: var(--craie); color: var(--ink); }
+    .cta-box .btn-ghost { background: transparent; color: var(--craie); border-color: rgba(248,245,239,.4); }
+    /* ---- l'en-tête, comme sur l'accueil : compte, menu à trois traits sur téléphone (menu.js), choix
+       de langue flottant en bas à droite ---- */
+    .nav nav a.nav-account { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .nav nav a.nav-account svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .nav nav a.nav-account.on { color: var(--ink); font-weight: 600; gap: 8px; padding: 5px 14px 5px 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+    .nav nav a.nav-account.on:hover { border-color: var(--accent); }
+    .nav nav a.nav-account .acc-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent) center / cover no-repeat; color: #f8f5ef; display: grid; place-items: center; font-style: normal; font-weight: 600; font-size: .72rem; line-height: 1; flex: none; }
+    .nav nav a.nav-account svg[hidden] { display: none; }
+    .nav-burger { display: none; appearance: none; padding: 0; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); place-items: center; cursor: pointer; flex: none; }
+    .nav-burger svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+    .nav-burger .close, .nav-burger[aria-expanded="true"] .open { display: none; }
+    .nav-burger[aria-expanded="true"] .close { display: block; }
+    .nav-menu { border-top: 1px solid var(--line); }
+    .nav .nav-menu nav { display: flex; flex-direction: column; align-items: stretch; gap: 0; width: calc(100% - 32px); margin: 0 auto; padding: 6px 0 14px; font-size: 1rem; }
+    .nav .nav-menu nav a { display: block; padding: 13px 2px; border-bottom: 1px solid var(--line); color: var(--ink); }
+    .nav .nav-menu nav a:last-child { border-bottom: 0; }
+    .lang-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+    .lang-switch button { appearance: none; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: .72rem; letter-spacing: .1em; padding: 6px 10px; cursor: pointer; line-height: 1.2; }
+    .lang-switch button:hover { color: var(--ink); }
+    .lang-switch button.on { background: var(--ink); color: var(--craie); cursor: default; }
+    .lang-float { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px)); z-index: 30; box-shadow: 0 6px 20px rgba(43, 42, 34, .16); }
+    .lang-float button { padding: 9px 13px; font-size: .78rem; }
+    /* « Créer une œuvre », en haut de la page, comme sur l'accueil */
+    .page-cta { margin: 26px 0 0; }
+    @media (max-width: 900px) {
+      .nav-burger { display: grid; }
+      .nav .wrap > nav { margin-left: auto; }
+      .nav nav a.nav-account { font-size: .8rem; gap: 4px; }
+      .nav nav a.nav-account svg { width: 17px; height: 17px; }
+      .nav nav a.nav-account .acc-avatar { width: 22px; height: 22px; font-size: .68rem; }
+      .nav nav a.nav-account.on { gap: 6px; padding: 4px 11px 4px 4px; }
+      .page-cta .btn { display: flex; width: 100%; justify-content: center; }
+    }
+    @media (max-width: 480px) {
+      .nav .wrap { width: calc(100% - 24px); gap: 8px; }
+      .nav nav { gap: 7px; }
+      .nav nav a.nav-account { font-size: .74rem; }
+    }
+  </style>
+  <link rel="stylesheet" href="commandes.css">
+  <style>
+    /* le logo de l'en-tête : « Atelier » collé à « Gribouille » */
+    .brand > span { line-height: 1; }
+    .brand b { display: block; line-height: 1.05; margin-left: -.06em; } /* (le G a une petite marge à gauche, et sa courbe paraît en retrait : décalé pour l’œil, aligné sur le A) */
+    .brand small { margin-bottom: 1px; }
+    /* téléphone : le premier titre et le premier paragraphe centrés (avec la petite ligne au-dessus du
+       titre), le texte courant un peu plus petit */
+    @media (max-width: 640px) {
+      body { font-size: 15px; }
+      main h1, main h1 + p, main .kicker:has(+ h1) { text-align: center; }
+      main h1 + p { margin-left: auto; margin-right: auto; }
+      /* paragraphes et boutons à la même taille (celle du texte courant) ; l'accroche de l'accueil, les
+         prix, les citations et les petites lignes gardent la leur */
+      main .lead, main p:not([class]), main li, main .promise li, main .duo-steps li, main .faq-more, main .btn { font-size: 15px; }
+      main .hero .lead { font-size: 1.1rem; }
+    }
+  </style>
+  <style>
+    /* le menu à trois traits aussi sur ordinateur, comme sur téléphone : les liens de l'en-tête y passent ;
+       sur grand écran, il s'ouvre en carte sous le bouton, à droite */
+    .nav-burger { display: grid; }
+    .nav nav a.hide-sm { display: none; }
+    .nav .wrap > nav { margin-left: auto; }
+    .nav .wrap { gap: 10px; }
+    @media (min-width: 901px) {
+      .nav-menu { position: absolute; top: calc(100% + 8px); right: max(20px, calc((100% - 1120px) / 2)); width: 300px; border: 1px solid var(--line); border-radius: 16px; background: var(--craie); box-shadow: 0 22px 50px -24px rgba(43, 42, 34, .45); }
+      .nav .nav-menu nav { width: auto; padding: 4px 18px 8px; font-size: .95rem; }
+      .nav .nav-menu nav a { padding: 11px 2px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="img/logo-mark-80.png" width="36" height="36" alt=""><span><small>Atelier</small><b>Gribouille</b></span></a>
+      <nav aria-label="Navigation principale">
+        <a class="hide-sm" href="./#comment">Comment ça marche</a>
+        <a class="nav-account" id="nav-account" href="atelier/?connexion" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Se connecter</span></a>
+      </nav>
+      <!-- téléphone : le menu (menu.js) -->
+      <button type="button" class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false" aria-controls="nav-menu"><svg class="open" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><svg class="close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="nav-menu" id="nav-menu" hidden>
+      <nav aria-label="Menu">
+        <a href="./#comment">Comment ça marche</a>
+        <a href="atelier/" target="_blank" rel="noopener">L’atelier</a>
+        <a href="tarifs.html">Tarifs</a>
+        <a href="photographier-les-dessins.html">Guide pour photographier les dessins</a>
+        <a href="./#questions">Questions fréquentes</a>
+        <a href="a-propos.html">À propos</a>
+        <a href="mailto:contact@ateliergribouille.art">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <article class="article orders-page">
+      <p class="crumbs"><a href="./">Accueil</a> › Mes commandes</p>
+      <h1>Mes commandes</h1>
+      <p class="lead">Suivez chaque commande, de la préparation à la livraison. Choisissez une commande pour voir son détail.</p>
+      <p class="o-status" id="o-status" role="status" hidden></p>
+      <!-- non connecté : la connexion (fenêtre de compte.js) -->
+      <div class="o-box" id="o-signin" hidden>
+        <p>Connectez-vous pour voir vos commandes.</p>
+        <button type="button" class="btn btn-primary" id="o-signin-btn">Se connecter</button>
+      </div>
+      <p class="o-loading" id="o-loading">Chargement de vos commandes…</p>
+      <div class="o-box" id="o-empty" hidden>
+        <p>Aucune commande pour l’instant.</p>
+        <a class="btn btn-primary" href="atelier/?nouveau" target="_blank" rel="noopener">Créer une œuvre</a>
+      </div>
+      <ul class="o-list" id="o-list" aria-label="Commandes"></ul>
+      <p class="o-help">Une question sur une commande ? Écrivez-nous à <a href="mailto:contact@ateliergribouille.art">contact@ateliergribouille.art</a>.</p>
+    </article>
+  </main>
+  <!-- le détail d'une commande, par-dessus la page (commandes.js le remplit) -->
+  <div class="o-modal" id="o-detail" role="dialog" aria-modal="true" aria-labelledby="od-title" hidden>
+    <div class="o-sheet">
+      <button type="button" class="o-close" id="od-close" aria-label="Fermer">×</button>
+      <div id="od-body"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span class="values">Créativité <i>·</i> Tendresse <i>·</i> Savoir-faire</span>
+      <nav aria-label="Pied de page"><a href="atelier/" target="_blank" rel="noopener">L’atelier</a><a href="tarifs.html">Tarifs</a><a href="a-propos.html">À propos</a><a href="confidentialite.html">Confidentialité</a><a href="mailto:contact@ateliergribouille.art">Contact</a><a class="ig" href="https://www.instagram.com/ateliergribouille.art/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor"/></svg>Instagram</a></nav>
+      <span>© Atelier Gribouille</span>
+    </div>
+  </footer>
+  <!-- le choix de langue flotte en bas à droite, sur téléphone comme sur ordinateur (comme sur l’accueil) -->
+  <span class="lang-switch lang-float" role="group" aria-label="Langue / Language"><button type="button" data-lang="fr" lang="fr">FR</button><button type="button" data-lang="en" lang="en">EN</button></span>
+  <script src="compte.js"></script>
+  <script src="menu.js"></script>
+  <script src="i18n.js"></script>
+  <script src="atelier/config.js"></script>
+  <script src="atelier/js/analytics.js"></script>
+  <script type="module" src="commandes.js"></script>
+</body>
+</html>

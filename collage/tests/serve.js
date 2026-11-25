@@ -14,6 +14,13 @@ http.createServer((req, res) => {
   if (url.startsWith('/atelier/')) rel = url.slice('/atelier'.length);
   let file = path.join(base, rel === '/' ? 'index.html' : rel);
   if (!file.startsWith(base)) { res.writeHead(403); res.end(); return; }
+  // comme en ligne : les pages du site (landing/) à la racine, à côté de l'atelier (Mes commandes…), et le
+  // module des commandes partagé avec le serveur
+  if (!url.startsWith('/atelier/')) {
+    const site = path.resolve(root, '..', 'landing');
+    if (url === '/commande-partage.js') file = path.resolve(root, '..', 'supabase', 'functions', '_shared', 'commande.js');
+    else if (!fs.existsSync(file) && fs.existsSync(path.join(site, url))) file = path.join(site, url);
+  }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end('introuvable'); return; }

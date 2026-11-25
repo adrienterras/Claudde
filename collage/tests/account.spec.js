@@ -1065,30 +1065,19 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate((files) => files.every((f) => !!window.__fake.db.files[f]), files)).toBe(true);
   });
 
-  test('Mes commandes, sous le nom du compte : cachée sans commande ; ?commandes l’ouvre, « Aucune commande pour l’instant »', async ({ acc }) => {
+  test('Mes commandes : une page du site, hors de l’atelier ; ?commandes y mène ; sans commande, « Aucune commande pour l’instant »', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'sanscommande@example.org', 'Rouge-Soleil-42', 'Sans');
-    await expect(page.locator('#orders-box')).toBeHidden();
+    // plus de liste dans l'atelier ; Mon compte a un lien vers la page
+    await expect(page.locator('#orders-box')).toHaveCount(0);
     await page.locator('#acc-menu').click();
-    await expect(page.locator('#profile-box')).toBeVisible();
-    await expect(page.locator('#profile-box #orders-box')).toHaveCount(0); // (plus dans la fenêtre Mon compte)
+    await expect(page.locator('#profile-box .acc-orders-link')).toHaveAttribute('href', '../commandes.html');
+    // l'ancien lien (?commandes) mène à la page du site
     await page.goto('index.html?commandes');
-    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('#orders-empty')).toBeVisible();
-    await expect(page.locator('#orders-list .order')).toHaveCount(0);
-    await expect(page.locator('#account-section')).toBeHidden(); // (la fenêtre Mon compte reste fermée)
-    // sur téléphone : l'onglet Compte, Mes commandes juste sous le nom du compte, avant Exporter
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('index.html?commandes');
-    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('#orders-empty')).toBeInViewport();
-    await expect(page.locator('#account-section')).toBeHidden();
-    await expect(page.locator('.sheet-tabs [data-tab="more"]')).toHaveClass(/\bon\b/);
-    const y = (sel) => page.locator(sel).evaluate((el) => el.getBoundingClientRect().top);
-    expect(await y('#acc-menu')).toBeLessThan(await y('#orders-box'));
-    if (await page.locator('#export-section').isVisible()) expect(await y('#orders-box')).toBeLessThan(await y('#export-section'));
+    await page.waitForURL(/\/commandes\.html/, { timeout: 30000 });
+    await expect(page.locator('#o-empty')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#o-empty')).toContainText('Aucune commande pour l’instant');
+    await expect(page.locator('#o-signin')).toBeHidden();
   });
 
   test('une œuvre que le serveur a déjà dans un autre compte (trace perdue sur l’appareil) : pas d’erreur technique, la ligne dit « dans un autre compte »', async ({ acc }) => {
@@ -1112,6 +1101,75 @@ test.describe('Comptes utilisateurs', () => {
     const uid = await page.evaluate(() => window.Account.user().id);
     expect(await page.evaluate(({ id, uid }) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(`${uid}/${id}/`)).length, { id, uid })).toBe(0);
     expect(await page.evaluate((id) => window.__fake.db.rows.filter((r) => r.id === id).length, id)).toBe(1);
+  });
+
+  test('page Mes commandes : la liste (visuels encadrés, statut, total), le détail dans une fenêtre (frise, œuvres, livraison, suivi) ; le lien #REF l’ouvre ; sans session, la connexion', async ({ acc }) => {
+    const { page } = acc;
+    // sans session : la page propose de se connecter
+    await page.goto('commandes.html');
+    await expect(page.locator('#o-signin')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#o-list .o-item')).toHaveCount(0);
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await signUpAndIn(page, 'suivi@example.org', 'Rouge-Soleil-42', 'Suivi');
+    // deux commandes, leurs œuvres (vignettes) dans le compte
+    await page.evaluate(() => {
+      const uid = window.Account.user().id, now = new Date().toISOString();
+      const c = document.createElement('canvas'); c.width = 140; c.height = 100; const x = c.getContext('2d'); x.fillStyle = '#c44'; x.fillRect(0, 0, 140, 100);
+      const thumb = c.toDataURL('image/jpeg', 0.8);
+      const A = 'aaaaaaaa-1111-4111-8111-111111111111', B = 'bbbbbbbb-2222-4222-8222-222222222222';
+      [A, B].forEach((id) => window.__fake.db.rows.push({ id, user_id: uid, name: 'x', thumb, created_at: now, meta: { ordered: true } }));
+      window.__fake.db.rows.push({ __table: 'orders', id: '11111111-1111-1111-1111-111111111111', user_id: uid, ref: 'AG-261125-OLD1', status: 'expediee', carrier: 'Colissimo', tracking: '6A12345678901', created_at: '2026-11-20T10:00:00Z', paid_at: '2026-11-20T10:00:00Z', subtotal_cents: 12900, shipping_cents: 2490, total_cents: 15390, delivery: 'domicile',
+        shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } },
+        items: [{ compId: A, product: 'print', finish: 'cadre', size: '50x70', frame: 'bois-noir', mat: true, W: 70, H: 50, title: 'Le grand voyage', label: 'Tableau encadré 70 × 50 cm, cadre bois noir, avec passe-partout', qty: 1, unit: 129 }] });
+      window.__fake.db.rows.push({ __table: 'orders', id: '22222222-2222-2222-2222-222222222222', user_id: uid, ref: 'AG-261125-NEW2', status: 'payee', created_at: now, paid_at: now, subtotal_cents: 3900, shipping_cents: 990, total_cents: 4890, delivery: 'domicile',
+        items: [{ compId: B, product: 'print', finish: 'papier', size: '21x30', margin: true, W: 30, H: 21, title: 'Courtepointe', label: 'Affiche 30 × 21 cm, bordure blanche', qty: 1, unit: 39 }] });
+      window.__fake.db.rows.push({ __table: 'orders', id: '33333333-3333-3333-3333-333333333333', user_id: uid, ref: 'AG-261125-GONE', status: 'abandonnee', created_at: now, total_cents: 100, items: [] });
+      localStorage.setItem('fake.rows', JSON.stringify(window.__fake.db.rows));
+    });
+    // le lien des e-mails : commandes.html#REF ouvre cette commande
+    await page.goto('commandes.html#AG-261125-OLD1');
+    const detail = page.locator('#o-detail');
+    await expect(detail).toBeVisible({ timeout: 30000 });
+    await expect(detail.locator('#od-title')).toHaveText('AG-261125-OLD1');
+    // la frise : confirmée, en préparation, expédiée (en cours), livrée
+    await expect(detail.locator('.od-steps li')).toHaveCount(4);
+    await expect(detail.locator('.od-steps li.done')).toHaveCount(3);
+    await expect(detail.locator('.od-steps li.now')).toHaveText('Expédiée');
+    // l'œuvre dans son cadre noir (paysage), le prix, la livraison, l'adresse, le suivi (lien La Poste)
+    const vis = detail.locator('.od-items .o-vis');
+    await expect(vis).toHaveCount(1);
+    expect(await vis.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(38, 36, 34)');
+    const box = await vis.boundingBox();
+    expect(box.width).toBeGreaterThan(box.height);
+    await expect(detail.locator('.od-items')).toContainText('129,00');
+    await expect(detail.locator('.od-sum .total')).toContainText('153,90');
+    await expect(detail).toContainText('3 rue des Lilas');
+    await expect(detail.locator('.od-track a')).toHaveAttribute('href', /laposte\.fr.*6A12345678901/);
+    await expect(detail.locator('.od-cancel')).toHaveCount(0); // (expédiée : plus annulable en ligne)
+    if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-detail.png` });
+    await detail.locator('#od-close').click();
+    await expect(detail).toBeHidden();
+    expect(page.url()).not.toContain('#');
+    // la liste : la plus récente d'abord, sans la commande abandonnée ; statut, total, visuels
+    const items = page.locator('#o-list .o-item');
+    await expect(items).toHaveCount(2);
+    await expect(items.nth(0)).toContainText('AG-261125-NEW2');
+    await expect(items.nth(0).locator('.o-pill')).toHaveText('Payée');
+    await expect(items.nth(0)).toContainText('48,90');
+    await expect(items.nth(1).locator('.o-pill')).toHaveText('Expédiée');
+    await expect(page.locator('#o-list .o-vis')).toHaveCount(2);
+    if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-liste.png` });
+    // téléphone : la fenêtre monte du bas, sur toute la largeur ; rien ne déborde
+    await page.setViewportSize({ width: 390, height: 844 });
+    await items.nth(0).click();
+    await expect(detail).toBeVisible();
+    const sheet = await detail.locator('.o-sheet').boundingBox();
+    expect(sheet.width).toBeGreaterThan(385);
+    expect(Math.abs(sheet.y + sheet.height - 844)).toBeLessThan(4);
+    await expect(detail.locator('.od-cancel')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-detail-telephone.png` });
   });
 
   test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {
@@ -1145,37 +1203,41 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => { window.__fake.fns = { commande: () => ({ data: null, error: { name: 'FunctionsFetchError', message: 'Failed to send a request to the Edge Function', context: {} } }) }; });
     await page.locator('#cart-order').click();
     await expect(page.locator('#cart .cart-status')).toContainText('le service de paiement ne répond pas', { timeout: 30000 });
-    // payé : retour sur l'atelier (?commande=…), merci, panier vidé, la commande dans « Mes commandes »
+    // payé : retour sur la page « Mes commandes » du site (?commande=…), merci, panier vidé, la commande
     await page.evaluate(() => { window.__fake.fns = {}; });
     await page.locator('#cart-consent').check();
     await page.locator('#cart-order').click();
-    await page.waitForURL(/[?&]commande=AG-/, { timeout: 30000 }).catch(() => {});
-    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    // (« Mes commandes », sous le nom du compte, avec le merci)
-    await expect(page.locator('#orders-status')).toContainText('Merci', { timeout: 30000 });
-    await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('#orders-list .order')).toHaveCount(1);
-    await expect(page.locator('#orders-list .order')).toContainText('AG-261125-T1');
-    await expect(page.locator('#orders-list .order-status')).toHaveText('Payée');
+    await page.waitForURL(/commandes\.html\?commande=AG-/, { timeout: 30000 });
+    await expect(page.locator('#o-status')).toContainText('Merci', { timeout: 30000 });
+    const item = page.locator('#o-list .o-item');
+    await expect(item).toHaveCount(1, { timeout: 30000 });
+    await expect(item).toContainText('AG-261125-T1');
+    await expect(item.locator('.o-pill')).toHaveText('Payée');
     // le visuel de l'article : l'œuvre commandée, sur sa feuille (une affiche), à ses proportions
-    await expect(page.locator('#orders-list .order-vis.paper img')).toHaveCount(1);
-    expect(await page.locator('#orders-list .order-vis img').evaluate((img) => img.src.startsWith('data:image/') && img.complete && Math.abs(img.width / img.height - img.naturalWidth / img.naturalHeight) < 0.05)).toBe(true);
+    await expect(item.locator('.o-vis img')).toHaveCount(1);
+    expect(await item.locator('.o-vis img').evaluate((img) => img.src.startsWith('data:image/') && img.complete && Math.abs(img.width / img.height - img.naturalWidth / img.naturalHeight) < 0.05)).toBe(true);
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 30000 }).toBe(0);
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier') || '[]').length), { timeout: 30000 }).toBe(0);
-    // ?commandes (lien « Mes commandes » du menu du site) : ses commandes, sous le nom du compte
-    await page.goto('index.html?commandes');
-    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await expect(page.locator('#orders-list .order')).toHaveCount(1, { timeout: 30000 });
-    expect(page.url()).not.toContain('commandes');
-    // tant qu'elle est « payée », le client l'annule (deux touches) : remboursée, « Annulée »
-    const cancel = page.locator('#orders-list .order-cancel');
+    // (l'adresse oublie le retour de paiement)
+    await expect.poll(() => page.url(), { timeout: 60000 }).not.toContain('commande=');
+    // le détail, dans une fenêtre ; tant qu'elle est « payée », le client l'annule (deux touches) : remboursée
+    await item.click();
+    const detail = page.locator('#o-detail');
+    await expect(detail).toBeVisible();
+    await expect(detail.locator('#od-title')).toHaveText('AG-261125-T1');
+    await expect(detail.locator('.od-steps li.now')).toHaveText('Confirmée');
+    await expect(detail.locator('.od-items li')).toHaveCount(1);
+    const cancel = detail.locator('.od-cancel');
     await expect(cancel).toHaveText('Annuler la commande');
     await cancel.click();
     await expect(cancel).toContainText('remboursement de');
     await cancel.click();
-    await expect(page.locator('#orders-status')).toContainText('annulée', { timeout: 30000 });
-    await expect(page.locator('#orders-list .order-status')).toHaveText('Annulée');
-    await expect(page.locator('#orders-list .order-cancel')).toHaveCount(0);
+    await expect(page.locator('#o-status')).toContainText('annulée', { timeout: 30000 });
+    await expect(detail.locator('.od-cancelled')).toBeVisible();
+    await expect(detail.locator('.od-cancel')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(detail).toBeHidden();
+    await expect(item.locator('.o-pill')).toHaveText('Annulée');
     expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders').status)).toBe('annulee');
     // (l'adresse oublie le retour de paiement)
     expect(page.url()).not.toContain('commande=');

@@ -13,6 +13,8 @@ cp -r collage/. _site/atelier/
 rm -rf _site/atelier/README.md _site/atelier/tests _site/atelier/node_modules _site/atelier/package.json _site/atelier/package-lock.json _site/atelier/playwright.config.js _site/atelier/.gitignore
 cp -r landing/. _site/
 cp collage/confidentialite.html _site/confidentialite.html
+# le module des commandes partagé avec le serveur (visuel encadré, suivi du colis) : la page Mes commandes
+cp supabase/functions/_shared/commande.js _site/commande-partage.js
 # (copiée à la racine : ses polices et ses icônes sont sous atelier/)
 sed -i -E 's#(href=")(fonts|assets)/#\1atelier/\2/#g' _site/confidentialite.html
 # pas d'outils de fabrication en ligne (scripts et données de travail : vidéo, artefact, dessins d'exemple)
@@ -21,7 +23,7 @@ rm -f _site/atelier/samples/*.py
 # Chaque déploiement change l'adresse des scripts et des feuilles de style : les navigateurs
 # (Safari surtout) ne gardent plus une vieille version en cache après une mise à jour.
 sed -i -E "s#(src=\"(js/[a-z0-9-]+|config)\.js)\"#\1?v=$V\"#g; s#href=\"style\.css\"#href=\"style.css?v=$V\"#" _site/atelier/index.html
-sed -i -E "s#(src=\"[a-z0-9-]+\.js)\"#\1?v=$V\"#g; s#(href=\"[a-z0-9-]+\.css)\"#\1?v=$V\"#g" _site/index.html _site/tarifs.html _site/idees-dessins-enfants.html _site/photographier-les-dessins.html _site/a-propos.html
+sed -i -E "s#(src=\"[a-z0-9-]+\.js)\"#\1?v=$V\"#g; s#(href=\"[a-z0-9-]+\.css)\"#\1?v=$V\"#g" _site/index.html _site/tarifs.html _site/idees-dessins-enfants.html _site/photographier-les-dessins.html _site/a-propos.html _site/commandes.html
 touch _site/.nojekyll
 # En-têtes HTTP (Cloudflare Pages les applique ; GitHub Pages les ignore) : ce qu'une balise meta ne
 # peut pas faire — interdire l'affichage du site dans le cadre d'un autre site (clickjacking), imposer

@@ -172,6 +172,16 @@ export function framePixels(plan, size) {
   };
 }
 
+// le lien de suivi du colis, selon le transporteur (Colissimo, Chronopost) ; sinon rien
+export function trackingUrl(carrier, tracking) {
+  const t = String(tracking || '').trim();
+  if (!t) return null;
+  const c = String(carrier || '').toLowerCase();
+  if (/chrono/.test(c)) return `https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=${encodeURIComponent(t)}`;
+  if (/colissimo|la poste|laposte/.test(c) || !c) return `https://www.laposte.fr/outils/suivre-vos-envois?code=${encodeURIComponent(t)}`;
+  return null;
+}
+
 // les lignes du panier du compte → les articles de la commande (les non valables sont écartés)
 export function orderItems(rows) {
   return (rows || []).map((row) => {
@@ -204,7 +214,7 @@ export function checkoutParams({ order, items, email, origin, now = Date.now() }
     ['expires_at', String(Math.floor(now / 1000) + 31 * 60)],
     ['client_reference_id', order.id], ['metadata[order_id]', order.id], ['metadata[ref]', order.ref],
     ['payment_intent_data[metadata][order_id]', order.id], ['payment_intent_data[metadata][ref]', order.ref],
-    ['success_url', `${site}/atelier/?commande=${encodeURIComponent(order.ref)}`],
+    ['success_url', `${site}/commandes.html?commande=${encodeURIComponent(order.ref)}`],
     ['cancel_url', `${site}/atelier/?panier`],
   ];
   if (email) p.push(['customer_email', email]);

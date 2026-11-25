@@ -56,7 +56,7 @@ test.describe('page d’accueil en anglais', () => {
   test('tout le texte de l’accueil, de la page Tarifs et des articles est traduit', async ({ browser }) => {
     const path = require('path');
     const LANDING = path.resolve(__dirname, '..', '..', 'landing');
-    const ALLOW = new Set(['Atelier', 'Gribouille', 'Atelier Gribouille', '© Atelier Gribouille', 'ateliergribouille.art', 'FR', 'EN', '×', 'This site is also available in English.', 'View in English', 'Contact', 'Instagram', 'Pop art', 'Menu', 'Guide']);
+    const ALLOW = new Set(['Atelier', 'Gribouille', 'Atelier Gribouille', '© Atelier Gribouille', 'ateliergribouille.art', 'FR', 'EN', '×', 'This site is also available in English.', 'View in English', 'Contact', 'Instagram', 'Pop art', 'Menu', 'Guide', 'contact@ateliergribouille.art']);
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     const collect = () => page.evaluate(() => {
@@ -69,7 +69,7 @@ test.describe('page d’accueil en anglais', () => {
       }
       return out;
     });
-    for (const f of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'a-propos.html']) {
+    for (const f of ['index.html', 'tarifs.html', 'idees-dessins-enfants.html', 'photographier-les-dessins.html', 'a-propos.html', 'commandes.html']) {
       await page.goto(`file://${LANDING}/${f}?lang=fr`);
       const fr = await collect();
       await page.goto(`file://${LANDING}/${f}?lang=en`);

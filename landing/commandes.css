@@ -1,0 +1,91 @@
+/* Mes commandes (commandes.html) : la liste des commandes du compte, et le détail de chacune dans une
+   fenêtre. Mêmes couleurs et polices que les autres pages du site. */
+.orders-page { padding-bottom: 40px; }
+.orders-page .lead { margin-bottom: 22px; }
+.o-status { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); color: var(--ink); font-size: .92rem; }
+.o-status.err { background: #f6e3dc; color: #8a3a26; }
+.o-status[hidden], .o-box[hidden], .o-loading[hidden] { display: none; }
+.o-box { display: grid; gap: 14px; justify-items: start; padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.o-box p { margin: 0; color: var(--ink-2); }
+.o-loading { color: var(--muted); font-size: .92rem; }
+.o-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.o-help { margin: 28px 0 0; font-size: .86rem; color: var(--muted); }
+.o-help a { color: var(--ink-2); }
+
+/* une commande dans la liste : ses visuels, sa référence, sa date, son statut, son total */
+.o-item { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; width: 100%; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.o-item:hover { border-color: var(--accent); box-shadow: 0 10px 24px -18px rgba(43, 42, 34, .5); }
+.o-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.o-item.o-new { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.o-vis-row { display: flex; align-items: center; gap: 6px; min-width: 64px; }
+.o-more { font-size: .78rem; color: var(--muted); }
+.o-main { display: grid; gap: 3px; min-width: 0; }
+.o-main b { font-size: .98rem; letter-spacing: .02em; }
+.o-meta { font-size: .84rem; color: var(--muted); }
+.o-side { display: grid; justify-items: end; gap: 6px; }
+.o-side .o-total { font-weight: 600; font-size: .95rem; }
+.o-side .o-see { font-size: .78rem; color: var(--accent); white-space: nowrap; }
+.o-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); font-size: .74rem; font-weight: 600; white-space: nowrap; }
+.o-pill.s-payee, .o-pill.s-en_preparation, .o-pill.s-expediee, .o-pill.s-livree { background: var(--accent-soft); color: var(--accent); }
+.o-pill.s-annulee { background: #f6e3dc; color: #8a3a26; }
+@media (max-width: 560px) {
+  .o-item { grid-template-columns: auto 1fr; gap: 12px; padding: 14px; }
+  .o-side { grid-column: 1 / -1; grid-auto-flow: column; justify-content: space-between; align-items: center; justify-items: start; }
+}
+
+/* le visuel d'un article : l'œuvre dans son cadre (teinte en ligne), ou sur sa feuille (calcul partagé
+   avec les e-mails : framePlan, supabase/functions/_shared/commande.js) */
+.o-vis { flex: none; display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--line); box-shadow: 0 3px 8px rgba(43, 42, 34, .16); }
+.o-vis-white { display: block; background: #fff; border: 1px solid transparent; }
+.o-vis-white.sheet { border: 0; }
+.o-vis img { display: block; height: auto; max-width: none; }
+.o-vis img.mat { outline: 1px solid #e2dccd; }
+
+/* le détail, dans une fenêtre (sur téléphone : une feuille qui monte du bas) */
+.o-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(43, 42, 34, .45); overflow-y: auto; }
+.o-modal[hidden] { display: none; }
+.o-sheet { position: relative; width: min(620px, 100%); margin: auto; padding: 30px 26px 24px; background: var(--craie); border-radius: 22px; box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .6); }
+.o-close { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border: 0; border-radius: 50%; background: var(--surface-2); font-size: 1.5rem; line-height: 1; color: var(--ink-2); cursor: pointer; }
+.o-close:hover { background: var(--line); }
+.o-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .o-modal { place-items: end center; padding: 0; }
+  .o-sheet { width: 100%; margin: auto 0 0; border-radius: 22px 22px 0 0; padding: 26px 18px calc(22px + env(safe-area-inset-bottom, 0px)); max-height: 92vh; overflow-y: auto; }
+}
+.od-kicker { margin: 0; font-size: .74rem; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+.od-title { margin: 4px 0 2px; font-family: var(--f-display); font-weight: 400; font-size: clamp(1.6rem, 4vw, 2rem); line-height: 1.15; padding-right: 40px; }
+.od-date { margin: 0; color: var(--muted); font-size: .88rem; }
+.od-sec { margin-top: 22px; }
+.od-sec h3 { margin: 0 0 10px; font-size: .74rem; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.od-sec p { margin: 0; color: var(--ink-2); font-size: .92rem; line-height: 1.55; }
+.od-cancelled { margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: #f6e3dc; color: #8a3a26; font-size: .9rem; }
+
+/* la frise : Confirmée · En préparation · Expédiée · Livrée */
+.od-steps { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
+.od-steps li { position: relative; display: grid; justify-items: center; gap: 6px; text-align: center; font-size: .74rem; color: var(--muted); }
+.od-steps li::before { content: ''; position: absolute; top: 6px; left: -50%; right: 50%; height: 2px; background: var(--line); }
+.od-steps li:first-child::before { display: none; }
+.od-steps li i { position: relative; width: 14px; height: 14px; border-radius: 50%; background: var(--line); }
+.od-steps li.done::before, .od-steps li.done i { background: var(--accent); }
+.od-steps li.now { color: var(--ink); font-weight: 600; }
+.od-steps li.now i { box-shadow: 0 0 0 4px var(--accent-soft); }
+
+/* les articles : le visuel, le titre, l'article, le prix */
+.od-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.od-items li { display: grid; grid-template-columns: 120px 1fr auto; gap: 16px; align-items: center; }
+.od-items .od-vis { display: flex; justify-content: center; }
+.od-items b { display: block; font-size: .95rem; }
+.od-items small { display: block; color: var(--muted); font-size: .84rem; line-height: 1.45; }
+.od-items .od-price { font-weight: 600; font-size: .92rem; white-space: nowrap; }
+@media (max-width: 480px) { .od-items li { grid-template-columns: 92px 1fr; gap: 12px; } .od-items .od-price { grid-column: 2; margin-top: -6px; } }
+.od-sum { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); display: grid; gap: 6px; font-size: .9rem; }
+.od-sum div { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
+.od-sum div.total { color: var(--ink); font-weight: 700; font-size: 1rem; }
+.od-sum span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.od-track a { color: var(--accent); font-weight: 600; }
+.od-actions { margin-top: 24px; display: grid; gap: 10px; }
+.od-cancel { appearance: none; border: 1px solid var(--line); border-radius: 999px; padding: 12px 18px; background: var(--surface); font: inherit; font-size: .9rem; color: var(--ink-2); cursor: pointer; }
+.od-cancel:hover { border-color: #8a3a26; color: #8a3a26; }
+.od-cancel.confirm { border-color: #8a3a26; background: #8a3a26; color: #fff; font-weight: 600; }
+.od-cancel:disabled { opacity: .6; cursor: default; }
+.od-note { margin: 0; font-size: .8rem; color: var(--muted); text-align: center; }

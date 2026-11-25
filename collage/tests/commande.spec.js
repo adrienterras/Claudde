@@ -92,12 +92,12 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(m.summary(many).length).toBeLessThanOrEqual(1200);
     expect(m.summary(many)).toMatch(/et \d+ autre\(s\) article\(s\) · Livraison : Colissimo .* · Total : /);
     // une origine inconnue revient sur le site
-    expect(p.get('success_url')).toBe('https://ateliergribouille.art/atelier/?commande=AG-261125-AB12');
+    expect(p.get('success_url')).toBe('https://ateliergribouille.art/commandes.html?commande=AG-261125-AB12'); // (la page Mes commandes du site)
     expect(p.get('cancel_url')).toBe('https://ateliergribouille.art/atelier/?panier');
     // sans rien à livrer : pas d'adresse demandée
     const digital = new Map(m.checkoutParams({ order: { id: 'o-2', ref: 'R' }, items: [items[1]], origin: 'https://ateliergribouille.pages.dev' }));
     expect(digital.has('shipping_address_collection[allowed_countries][0]')).toBe(false);
-    expect(digital.get('success_url')).toBe('https://ateliergribouille.pages.dev/atelier/?commande=R');
+    expect(digital.get('success_url')).toBe('https://ateliergribouille.pages.dev/commandes.html?commande=R');
     expect(m.formBody([['a[b]', 'é & x']])).toBe('a%5Bb%5D=%C3%A9%20%26%20x');
     expect(m.orderRef(new Date('2026-11-25T10:00:00Z'), () => 0.5)).toMatch(/^AG-261125-[0-9A-Z]{4}$/);
   });
@@ -124,7 +124,9 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(paid.text).toContain('Bonjour Camille,');
     expect(paid.text).toContain('Courtepointe — Affiche 21 × 30 cm');
     expect(paid.text).toContain('Total : 48,90 € (dont 9,90 € de livraison)');
-    expect(paid.html).toContain('https://ateliergribouille.art/atelier/?commandes');
+    expect(paid.html).toContain('https://ateliergribouille.art/commandes.html#AG-261125-AB12'); // (la page Mes commandes, sur cette commande)
+    expect(paid.text).toContain('https://ateliergribouille.art/commandes.html#AG-261125-AB12');
+    expect(e.shopEmail('nouvelle', order).html).toContain('https://ateliergribouille.art/atelier/?gestion-commandes');
     // expédiée : le lien de suivi du transporteur
     const sent = e.customerEmail('expediee', Object.assign({}, order, { carrier: 'Colissimo', tracking: '6A12345678901' }));
     expect(sent.html).toContain('https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901');
@@ -160,7 +162,7 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(e.customerAddress({ email: 'compte@example.org' })).toBe('compte@example.org');
     expect(e.customerAddress(order)).toBe('camille@example.org');
   });
-  test('le visuel d’un article commandé (Mes commandes, e-mails) : le cadre, le passe-partout ou la bordure, aux proportions réelles ; même calcul dans l’atelier', async ({ page }) => {
+  test('le visuel d’un article commandé (Mes commandes, e-mails) : le cadre, le passe-partout ou la bordure, aux proportions réelles ; un seul calcul, partagé', async () => {
     const m = await load();
     const e = await import(MAILS);
     // les mesures sont celles de l'atelier (tirages, bordure, cadres)
@@ -183,19 +185,11 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(e.framedHtml({ product: 'print', finish: 'papier', size: '30x40', W: 30, H: 40 }, 'cid:x', 60)).not.toContain('#262422');
     const order = { ref: 'AG-1', total_cents: 13890, shipping_cents: 990, items: [Object.assign(m.normalizeItem(cart({ frame: 'bois-clair' })), { compId: 'c1', title: 'Lou', label: 'x', unit: 129 })] };
     expect(e.customerEmail('payee', order, e.visualsOf(order, { c1: 'data:image/jpeg;base64,QUJD' })).html).toContain('background:#d4b892');
-    // l'atelier fait le même calcul (Mes commandes)
-    await page.goto('index.html');
-    await page.waitForFunction(() => window.AtelierGribouille && window.AtelierGribouille.framePlanOf);
-    const items = [];
-    for (const size of Object.keys(m.SIZES)) {
-      for (const [W, H] of [[30, 40], [40, 30]]) {
-        for (const finish of ['papier', 'cadre']) {
-          for (const mat of [false, true]) for (const margin of [false, true]) for (const frame of ['bois-clair', 'bois-noir', 'bois-blanc', 'metal']) items.push(m.normalizeItem({ product: 'print', finish, size, W, H, mat, margin, frame }));
-        }
-      }
-    }
-    items.push(m.normalizeItem({ product: 'kit', W: 80, H: 80 }));
-    const client = await page.evaluate((items) => items.map((it) => window.AtelierGribouille.framePlanOf(it)), items);
-    expect(client).toEqual(items.map((it) => m.framePlan(it)));
+    // la page Mes commandes du site se sert du même module (publié sous le nom commande-partage.js)
+    const build = fs.readFileSync(path.join(__dirname, '..', '..', 'deploy', 'preparer-site.sh'), 'utf8');
+    expect(build).toContain('cp supabase/functions/_shared/commande.js _site/commande-partage.js');
+    expect(fs.readFileSync(path.join(__dirname, '..', '..', 'landing', 'commandes.js'), 'utf8')).toMatch(/import\(`\.\/commande-partage\.js/);
+    expect(m.trackingUrl('Chronopost', 'XY1')).toMatch(/chronopost\.fr.*XY1/);
+    expect(e.trackingUrl).toBe(m.trackingUrl);
   });
 });
