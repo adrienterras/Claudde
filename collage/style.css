@@ -816,6 +816,8 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   body.stage-full .gen-hint span { width: 160px; }
   body.stage-full .gen-hint-arrow.d { display: none; }
   body.stage-full .gen-hint-arrow.m { display: block; flex: none; width: 34px; height: 26px; margin: 8px 0 0; }
+  /* (téléphone : pas de ciseaux dans la barre du haut — « Retoucher » est à côté de « Mettre en scène ») */
+  .toolbar [data-act="edit"] { display: none; }
 }
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;

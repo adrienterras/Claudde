@@ -4169,7 +4169,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       const free = cmd && cmd.offsetParent ? fab.getBoundingClientRect().left + 4 - (arrow ? arrow.getBoundingClientRect().width || 34 : 34) - (cmd.getBoundingClientRect().right + 8) : 160;
       span.style.width = `${Math.round(Math.max(90, Math.min(160, free)))}px`;
     }
-    h.style.bottom = `${Math.round(stage.clientHeight - bar.offsetTop + 6)}px`; // (un peu d’air : la note est inclinée)
+    h.style.bottom = `${Math.round(stage.clientHeight - bar.offsetTop + 12)}px`; // (un peu d’air au-dessus du curseur)
     h.style.right = `${Math.round(stage.clientWidth - fab.offsetLeft - 4)}px`;
   }
   window.addEventListener('resize', () => placeGenHint());

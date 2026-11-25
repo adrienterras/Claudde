@@ -266,7 +266,7 @@ test.describe('Interface', () => {
     const phb = await ph.boundingBox();
     expect(dens).toBeTruthy();
     expect(phb.y + phb.height).toBeLessThanOrEqual(dens.y + 3);
-    expect(phb.y + phb.height).toBeGreaterThan(dens.y - 12);
+    expect(phb.y + phb.height).toBeGreaterThan(dens.y - 18);
     expect(phb.x + phb.width).toBeLessThanOrEqual(box.x + 8);
     expect(phb.x + phb.width).toBeGreaterThan(box.x - 14);
     expect(phb.x).toBeGreaterThanOrEqual(0);
@@ -2636,6 +2636,8 @@ test.describe('Barre d’outils du haut (téléphone)', () => {
       expect(r.left).toBeLessThan(20);
       expect(r.right).toBeLessThanOrEqual(r.acc - 8);
       expect(r.scroll).toBe(0);
+      // pas de ciseaux dans la barre (« Retoucher » est à côté de « Mettre en scène »)
+      await expect(page.locator('#toolbar [data-act="edit"]')).toBeHidden();
       await ctx.close();
     }
   });
