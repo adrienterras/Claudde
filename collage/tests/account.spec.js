@@ -1025,15 +1025,17 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     // la livraison à domicile est comptée dans le total ; le paiement passe par Stripe
     await expect(page.locator('#cart .cart-ship')).toBeVisible();
-    // (une affiche : point relais ou domicile, au choix à la page de paiement)
-    await expect(page.locator('#cart .cart-ship b')).toHaveText(/^(5,90|6,90)\s€ en point relais\s+(9,90|11,90)\s€ à domicile$/);
-    await expect(page.locator('#cart .cart-total span')).toHaveText('Total TTC, hors livraison');
+    await expect(page.locator('#cart .cart-ship b')).toHaveText(/^(9,90|11,90)\s€$/);
     await expect(page.locator('#cart .cart-note')).toContainText('Stripe');
     // le serveur refuse : la raison est dite, rien n'est perdu
     await page.evaluate(() => { window.__fake.fns = { commande: () => ({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context: { json: async () => ({ error: 'paiement non configuré' }) } } }) }; });
     await page.locator('#cart-order').click();
     await expect(page.locator('#cart .cart-status')).toContainText('paiement non configuré', { timeout: 30000 });
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    // le service ne répond pas (réseau, fonction absente) : un message clair
+    await page.evaluate(() => { window.__fake.fns = { commande: () => ({ data: null, error: { name: 'FunctionsFetchError', message: 'Failed to send a request to the Edge Function', context: {} } }) }; });
+    await page.locator('#cart-order').click();
+    await expect(page.locator('#cart .cart-status')).toContainText('le service de paiement ne répond pas', { timeout: 30000 });
     // payé : retour sur l'atelier (?commande=…), merci, panier vidé, la commande dans « Mes commandes »
     await page.evaluate(() => { window.__fake.fns = {}; });
     await page.locator('#cart-consent').check();

@@ -531,6 +531,8 @@
     if (error) {
       let msg = error.message || String(error);
       try { const j = error.context && (await error.context.json()); if (j && j.error) msg = j.error; } catch (e) { /* réponse sans détail */ }
+      // (serveur injoignable : réseau coupé, ou fonction pas encore installée)
+      if (error.name === 'FunctionsFetchError' || /failed to send a request|failed to fetch|load failed|networkerror/i.test(msg)) msg = tr('le service de paiement ne répond pas : réessayez dans un instant');
       throw new Error(msg);
     }
     if (!data || !data.url) throw new Error(tr('réponse inattendue du serveur'));

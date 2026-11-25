@@ -9,7 +9,7 @@ import { rest } from '../_shared/supabase.js';
 const SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
 
-// le mode de livraison choisi sur la page de paiement (domicile, relais) : relu chez Stripe, avec le tarif
+// le mode de livraison choisi sur la page de paiement (domicile) : relu chez Stripe, avec le tarif
 async function delivery(session: any) {
   try {
     const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${session.id}?expand[]=shipping_cost.shipping_rate`, { headers: { Authorization: `Bearer ${STRIPE_KEY}` } });

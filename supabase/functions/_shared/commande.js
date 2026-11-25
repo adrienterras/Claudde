@@ -22,28 +22,19 @@ export const KIT_CANVAS = [[1200, 17], [2000, 22], [3600, 27], [5400, 35], [7500
 export const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] };
 
 /*
- * Livraison en France métropolitaine (Corse comprise), en euros TTC — montants PROVISOIRES, à remplacer
- * par les coûts réels (transporteur, emballage) avant le passage en production. Deux modes, au choix du
- * client sur la page de paiement : à domicile, ou en point relais (le plus proche de l'adresse donnée ;
- * null : format trop grand pour un point relais, le 70 × 100 encadré). Prix : l'article le plus cher à
- * expédier, plus EXTRA par article imprimé de plus (quantités comprises). Le kit DIY a sa livraison
- * comprise dans son prix (KIT_BASE) ; fichier HD et guide : rien à livrer.
+ * Livraison à domicile en France métropolitaine (Corse comprise), en euros TTC — montants PROVISOIRES, à
+ * remplacer par les coûts réels (transporteur, emballage) avant le passage en production. Prix :
+ * l'article le plus cher à expédier, plus EXTRA par article imprimé de plus (quantités comprises). Le
+ * kit DIY a sa livraison comprise dans son prix (KIT_BASE) ; fichier HD et guide : rien à livrer.
  */
 export const SHIPPING = {
   domicile: {
     papier: { '21x30': 9.9, '30x40': 9.9, '40x50': 9.9, '50x70': 9.9, '70x100': 11.9 },
     cadre: { '21x30': 14.9, '30x40': 19.9, '40x50': 19.9, '50x70': 24.9, '70x100': 39.9 },
   },
-  relais: {
-    papier: { '21x30': 5.9, '30x40': 5.9, '40x50': 5.9, '50x70': 5.9, '70x100': 6.9 },
-    cadre: { '21x30': 8.9, '30x40': 10.9, '40x50': 12.9, '50x70': 16.9, '70x100': null },
-  },
   extra: 5,
 };
-export const DELIVERY = {
-  domicile: 'Livraison à domicile',
-  relais: 'Point relais (le plus proche de votre adresse)',
-};
+export const DELIVERY = { domicile: 'Livraison à domicile' };
 export const COUNTRIES = ['FR'];
 
 const FRAMES = { 'bois-clair': 'bois clair', 'bois-noir': 'bois noir', 'bois-blanc': 'bois blanc', metal: 'aluminium', 'bois-fonce': 'bois foncé' };
@@ -84,8 +75,8 @@ export function unitPrice(it) {
   return PRICES[it.product];
 }
 
-// frais de livraison de tout le panier, en centimes, pour un mode (domicile, relais) ; null : ce mode
-// n'est pas possible pour ce panier (un article trop grand pour un point relais)
+// frais de livraison de tout le panier, en centimes, pour un mode de livraison (domicile) ; null : ce
+// mode n'est pas possible pour ce panier
 export function shippingCents(items, mode = 'domicile') {
   const each = [];
   items.filter((it) => it.product === 'print').forEach((it) => { for (let i = 0; i < it.qty; i++) each.push(SHIPPING[mode][it.finish][it.size]); });
@@ -93,14 +84,11 @@ export function shippingCents(items, mode = 'domicile') {
   if (each.some((v) => v == null)) return null;
   return cents(Math.max(...each) + SHIPPING.extra * (each.length - 1));
 }
-// les modes possibles pour ce panier, avec leur prix en centimes (domicile toujours, en premier)
+// les modes de livraison proposés pour ce panier, avec leur prix en centimes : à domicile seulement
+// (un kit seul : sa livraison est comprise)
 export function deliveryOptions(items) {
   if (!needsDelivery(items)) return [];
-  const out = [{ mode: 'domicile', cents: shippingCents(items, 'domicile') }];
-  const relais = shippingCents(items, 'relais');
-  // (rien d'imprimé, seulement un kit : sa livraison est comprise, à domicile)
-  if (relais != null && items.some((it) => it.product === 'print')) out.push({ mode: 'relais', cents: relais });
-  return out;
+  return Object.keys(DELIVERY).map((mode) => ({ mode, cents: shippingCents(items, mode) })).filter((o) => o.cents != null);
 }
 // à livrer (une adresse est demandée) : un tirage ou un kit
 export const needsDelivery = (items) => items.some((it) => it.product === 'print' || it.product === 'kit');

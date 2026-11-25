@@ -49,31 +49,23 @@ dans Supabase → Table Editor → `orders`. Le client voit le suivi dans « Mes
 
 ## Livraison
 
-France métropolitaine uniquement. Le client choisit sur la page de paiement entre deux modes :
+France métropolitaine uniquement, à domicile. Le prix est celui de l'article le plus cher à expédier,
+plus 5 € par article imprimé de plus. Le kit DIY a sa livraison comprise ; le fichier HD et le guide
+n'ont rien à livrer. Le panier affiche la livraison et le total à payer. Les montants sont
+**provisoires**, à remplacer par les coûts réels (transporteur et emballage) avant la production :
 
-- **à domicile** ;
-- **en point relais**. Stripe n'a pas de carte des points relais : vous expédiez au point relais le plus
-  proche de l'adresse donnée, comme l'annonce le libellé. Un vrai choix du point relais demandera un
-  compte chez un transporteur (Mondial Relay, Boxtal…) et son outil de sélection.
-
-Le prix est celui de l'article le plus cher à expédier, plus 5 € par article imprimé de plus. Le
-70 × 100 encadré est trop grand pour un point relais : un panier qui en contient un ne propose que le
-domicile. Le kit DIY a sa livraison comprise ; le fichier HD et le guide n'ont rien à livrer. Le mode
-choisi est gardé dans la commande (colonne `delivery`). Les montants sont **provisoires**, à remplacer
-par les coûts réels (transporteur et emballage) avant la production :
-
-| Format   | Affiche, relais | Affiche, domicile | Encadré, relais | Encadré, domicile |
-|----------|-----------------|-------------------|-----------------|-------------------|
-| 21 × 30  | 5,90 €          | 9,90 €            | 8,90 €          | 14,90 €           |
-| 30 × 40  | 5,90 €          | 9,90 €            | 10,90 €         | 19,90 €           |
-| 40 × 50  | 5,90 €          | 9,90 €            | 12,90 €         | 19,90 €           |
-| 50 × 70  | 5,90 €          | 9,90 €            | 16,90 €         | 24,90 €           |
-| 70 × 100 | 6,90 €          | 11,90 €           | —               | 39,90 €           |
+| Format   | Affiche | Encadré |
+|----------|---------|---------|
+| 21 × 30  | 9,90 €  | 14,90 € |
+| 30 × 40  | 9,90 €  | 19,90 € |
+| 40 × 50  | 9,90 €  | 19,90 € |
+| 50 × 70  | 9,90 €  | 24,90 € |
+| 70 × 100 | 11,90 € | 39,90 € |
 
 Pour les changer, modifier `SHIPPING` à **deux endroits identiques** : dans
 `supabase/functions/_shared/commande.js`, qui fait foi pour le paiement, et dans `collage/js/app.js`,
 pour l'affichage du panier. Un test (`collage/tests/commande.spec.js`) vérifie qu'ils sont égaux, ainsi
-que les prix des articles.
+que les prix des articles. (Un essai de livraison en point relais, le 25 novembre 2026, a été retiré.)
 
 ## Passage en production (plus tard)
 
