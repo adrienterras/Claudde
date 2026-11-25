@@ -425,6 +425,13 @@
           </div>
           <p class="hint">Appareil partagé ? <button type="button" class="link" id="acc-signout-wipe">Se déconnecter et effacer cet appareil</button></p>
         </form>
+        <!-- les commandes du compte (paiement en ligne) : statut, articles, suivi du colis ; ?commandes y mène -->
+        <div id="orders-box" class="acc-orders" hidden>
+          <h3>Mes commandes</h3>
+          <p id="orders-status" class="cart-status" role="status" hidden></p>
+          <p id="orders-empty" class="hint" hidden>Aucune commande pour l’instant.</p>
+          <ul id="orders-list" class="orders-list"></ul>
+        </div>
         <div class="danger-zone">
           <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte, ainsi que ceux de cet appareil.</p>
           <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
@@ -736,11 +743,6 @@
       <p class="cart-status" role="status" hidden></p>
       <button type="button" class="btn btn-primary btn-wide" id="cart-order"><span>Commander</span></button>
       <button type="button" class="btn btn-wide" data-close>Continuer mes créations</button>
-      <!-- paiement en ligne : les commandes du compte, leur statut et le suivi du colis -->
-      <div id="orders-box" class="cart-orders" hidden>
-        <h3>Mes commandes</h3>
-        <ul id="orders-list" class="orders-list"></ul>
-      </div>
     </div>
   </section>
 

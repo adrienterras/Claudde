@@ -21,6 +21,7 @@
   const $ = (id) => document.getElementById(id);
   // (définis ici, avant tout : loadCutPrefs les appelle au chargement, bien avant la zone « réglages »)
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  let showAccount = () => {}; // ouvre Mon compte (défini avec les comptes, plus bas)
   let genHintSeen = false; // la note « Cliquez pour générer… » a servi pendant cette visite
   const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
@@ -8219,16 +8220,23 @@ Réponds uniquement avec ce JSON :
     // la connexion ou sur le profil selon l'état du compte
     // sur téléphone, c'est le tiroir qui s'ouvre, sur l'onglet Compte (et le panneau de connexion par-dessus
     // s'il faut encore se connecter)
-    if (/[?&](connexion|compte)\b/.test(location.search)) {
+    // Mon compte ouvert (sur téléphone, le tiroir en grand, onglet Compte) ; opts.orders : sur « Mes commandes »
+    showAccount = (opts) => {
+      const u = A.user();
+      // (le tiroir s'ouvre en grand : « Mon compte » se voit en entier)
+      if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u) openPanel(true); }
+      else openPanel(true);
+      if (opts && opts.orders && u) renderOrders({ showEmpty: true }).then(() => { const b = $('orders-box'); if (b && !b.hidden && b.scrollIntoView) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+    };
+    if (/[?&](connexion|compte|commandes)\b/.test(location.search)) {
+      const orders = /[?&]commandes\b/.test(location.search);
       let once = false;
-      A.onChange((u) => {
+      A.onChange(() => {
         if (once) return;
         once = true;
-        // (le tiroir s'ouvre en grand : « Mon compte » se voit en entier)
-        if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u) openPanel(true); }
-        else openPanel(true);
+        showAccount({ orders });
         // une fois fait, l'adresse l'oublie : actualiser la page ne rouvre pas le compte
-        try { const url = new URL(location.href); url.searchParams.delete('connexion'); url.searchParams.delete('compte'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
+        try { const url = new URL(location.href); ['connexion', 'compte', 'commandes'].forEach((k) => url.searchParams.delete(k)); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
       });
     }
     $('acc-close').onclick = () => openPanel(false);
@@ -8342,6 +8350,7 @@ Réponds uniquement avec ce JSON :
       $('acc-menu').hidden = !signed;
       $('auth-box').hidden = signed || recovering;
       $('profile-box').hidden = !signed || recovering;
+      if (signed) renderOrders(); else { ordersWanted = false; $('orders-box').hidden = true; }
       $('recover-form').hidden = !recovering;
       if (signed) {
         const name = A.displayName(u);
@@ -9096,21 +9105,24 @@ Réponds uniquement avec ce JSON :
     openModal($('cart'));
     // connecté : le panier est relu depuis le compte (articles ajoutés ou retirés sur un autre appareil)
     if (cloudCartOn()) syncCloudCart().then(() => { if (!$('cart').hidden) renderCart(); });
-    renderOrders();
   }
-  // « Mes commandes » (paiement en ligne, connecté), sous le panier : statut, articles, suivi du colis
+  // « Mes commandes », dans Mon compte (connecté) : statut, articles, suivi du colis ; cachée tant qu'il
+  // n'y en a aucune, sauf venu exprès (showEmpty : ?commandes, retour de paiement)
   const orderStatus = (s) => ({
     attente_paiement: tr('Paiement en attente'), payee: tr('Payée'), en_preparation: tr('En préparation'),
     expediee: tr('Expédiée'), livree: tr('Livrée'), annulee: tr('Annulée'),
   })[s] || '';
-  async function renderOrders() {
+  let ordersWanted = false;
+  async function renderOrders(opts) {
     const box = $('orders-box'), list = $('orders-list');
     if (!box) return [];
+    if (opts && opts.showEmpty) ordersWanted = true;
     const A = window.Account;
-    if (!(payOnline() && A && A.enabled && A.user() && A.orders)) { box.hidden = true; return []; }
+    if (!(A && A.enabled && A.user() && A.orders)) { box.hidden = true; return []; }
     let rows = [];
-    try { rows = (await A.orders.list()).filter((o) => orderStatus(o.status)); } catch (e) { console.error(e); box.hidden = true; return []; }
-    box.hidden = !rows.length;
+    try { rows = (await A.orders.list()).filter((o) => orderStatus(o.status)); } catch (e) { console.error(e); box.hidden = !ordersWanted; $('orders-empty').hidden = true; return []; }
+    box.hidden = !rows.length && !ordersWanted;
+    $('orders-empty').hidden = rows.length > 0;
     list.innerHTML = '';
     rows.forEach((o) => {
       const li = document.createElement('li');
@@ -9228,13 +9240,16 @@ Réponds uniquement avec ce JSON :
       const ref = m[1];
       try { const url = new URL(location.href); url.searchParams.delete('commande'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
       const thanks = async () => {
-        openCart(tr`Merci ! Votre paiement est bien reçu (commande ${ref}). Vous suivez son avancement ici, dans « Mes commandes ».`);
+        // Mon compte s'ouvre sur « Mes commandes », avec le merci
+        showAccount({ orders: true });
+        const st = $('orders-status');
+        st.textContent = tr`Merci ! Votre paiement est bien reçu (commande ${ref}). Vous suivez son avancement ici, dans « Mes commandes ».`;
+        st.hidden = false;
         for (const wait of [0, 2000, 4000, 8000, 15000]) {
           await new Promise((r) => setTimeout(r, wait));
           if (!cloudCartOn()) return;
           await syncCloudCart();
-          const rows = await renderOrders();
-          if (!$('cart').hidden) renderCart();
+          const rows = await renderOrders({ showEmpty: true });
           if (rows.some((o) => o.ref === ref && o.status !== 'attente_paiement')) { renderSaved({ refresh: true }); return; }
         }
       };

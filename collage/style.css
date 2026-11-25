@@ -510,10 +510,11 @@ body.stage-full .stage-cta { display: none; }
 .cart-note, .cart-empty { margin: 0; }
 .cart-ship { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px; font-size: 0.86rem; color: var(--muted); }
 .cart-ship[hidden] { display: none; }
-/* Mes commandes (paiement en ligne), sous le panier */
-.cart-orders { display: grid; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px dashed var(--line); }
-.cart-orders[hidden] { display: none; }
-.cart-orders h3 { margin: 0; font-size: 1rem; }
+/* Mes commandes (paiement en ligne), dans Mon compte */
+.acc-orders { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.acc-orders[hidden] { display: none; }
+.acc-orders h3 { margin: 0; font-size: 1rem; }
+.acc-orders .cart-status[hidden], .acc-orders .hint[hidden] { display: none; }
 .orders-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .order { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 0.84rem; }
 .order-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

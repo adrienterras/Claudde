@@ -1005,6 +1005,19 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate((files) => files.every((f) => !!window.__fake.db.files[f]), files)).toBe(true);
   });
 
+  test('Mes commandes, dans Mon compte : cachée sans commande ; ?commandes l’ouvre, « Aucune commande pour l’instant »', async ({ acc }) => {
+    const { page } = acc;
+    await signUpAndIn(page, 'sanscommande@example.org', 'Rouge-Soleil-42', 'Sans');
+    await page.locator('#acc-menu').click();
+    await expect(page.locator('#profile-box')).toBeVisible();
+    await expect(page.locator('#orders-box')).toBeHidden();
+    await page.goto('index.html?commandes');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#orders-empty')).toBeVisible();
+    await expect(page.locator('#orders-list .order')).toHaveCount(0);
+  });
+
   test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {
     test.setTimeout(180000);
     const { page } = acc;
@@ -1042,12 +1055,21 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#cart-order').click();
     await page.waitForURL(/[?&]commande=AG-/, { timeout: 30000 }).catch(() => {});
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await expect(page.locator('#cart .cart-status')).toContainText('Merci', { timeout: 30000 });
+    // (Mon compte s'ouvre sur « Mes commandes », avec le merci)
+    await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#orders-status')).toContainText('Merci', { timeout: 30000 });
     await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-list .order')).toHaveCount(1);
     await expect(page.locator('#orders-list .order')).toContainText('AG-261125-T1');
     await expect(page.locator('#orders-list .order-status')).toHaveText('Payée');
-    await expect(page.locator('#cart .cart-item')).toHaveCount(0, { timeout: 30000 });
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 30000 }).toBe(0);
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier') || '[]').length), { timeout: 30000 }).toBe(0);
+    // ?commandes (lien « Mes commandes » du menu du site) : Mon compte, sur ses commandes
+    await page.goto('index.html?commandes');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#orders-list .order')).toHaveCount(1, { timeout: 30000 });
+    expect(page.url()).not.toContain('commandes');
     // (l'adresse oublie le retour de paiement)
     expect(page.url()).not.toContain('commande=');
     const order = await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders'));

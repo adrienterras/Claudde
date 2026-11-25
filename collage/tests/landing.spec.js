@@ -66,15 +66,16 @@ test('accueil : la pastille du compte, ronde, l’icône sans session, la photo 
   await expect(acc2.locator('svg')).toBeHidden();
   expect(await acc2.locator('span').evaluate((e) => e.getBoundingClientRect().width)).toBeLessThanOrEqual(1); // (pas de prénom visible)
   expect(await round(acc2)).toEqual({ w: 38, h: 38, radius: '50%', border: 'solid' });
-  // la pastille ouvre un menu : « L'atelier », « Mon compte » (l'atelier, panneau du compte), « Mon panier » et « Se déconnecter »
+  // la pastille ouvre un menu : « L'atelier », « Mon compte » (l'atelier, panneau du compte), « Mes commandes », « Mon panier » et « Se déconnecter »
   await acc2.click();
   const pop = page2.locator('.acc-pop');
   await expect(pop).toBeVisible();
-  await expect(pop.locator('[role="menuitem"]')).toHaveText(['L’atelier', 'Mon compte', 'Mon panier', 'Se déconnecter']);
+  await expect(pop.locator('[role="menuitem"]')).toHaveText(['L’atelier', 'Mon compte', 'Mes commandes', 'Mon panier', 'Se déconnecter']);
   // ouvert au doigt ou à la souris : aucune entrée ne prend le curseur (pas de contour)
   expect(await page2.evaluate(() => !!document.activeElement.closest('.acc-pop'))).toBe(false);
   expect(await pop.locator('a').first().getAttribute('href')).toBe('atelier/'); // « L'atelier », tel quel
   expect(await pop.locator('a').nth(1).getAttribute('href')).toBe('atelier/?compte');
+  expect(await pop.locator('a').nth(2).getAttribute('href')).toBe('atelier/?commandes'); // « Mes commandes » : Mon compte, sur ses commandes
   // « Mon panier » : l'icône du chariot, pas de nombre sans article ; ouvre le panier dans l'atelier
   const cart = pop.locator('a.cart');
   expect(await cart.getAttribute('href')).toBe('atelier/?panier');

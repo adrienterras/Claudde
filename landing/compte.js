@@ -6,7 +6,7 @@
  * - Non connecté : la pastille ouvre, sur la page même, la fenêtre de connexion (Google, e-mail et mot
  *   de passe, création de compte, lien par e-mail, mot de passe oublié). On reste sur la page.
  * - Connecté : la pastille ouvre un petit menu, « L'atelier », « Mon compte » (l'atelier, tiroir du compte ouvert en
- *   grand) et « Se déconnecter ».
+ *   grand), « Mes commandes » (Mon compte, sur ses commandes), « Mon panier » et « Se déconnecter ».
  *
  * L'atelier (même origine) garde la session Supabase dans le stockage local (« sb-<projet>-auth-token ») :
  * à l'arrivée, on y lit seulement si quelqu'un est connecté, sans rien charger. Le client Supabase et le
@@ -197,6 +197,8 @@
     // l'atelier, tel quel (comme « Créer une œuvre »), puis le compte et le panier
     pop.appendChild(el('a', { role: 'menuitem', href: `atelier/${en() ? '?lang=en' : ''}`, target: '_blank', rel: 'noopener', text: t('L’atelier') }));
     pop.appendChild(el('a', { role: 'menuitem', href: `atelier/?compte${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', text: t('Mon compte') }));
+    // les commandes, dans Mon compte de l'atelier (statut, suivi du colis)
+    pop.appendChild(el('a', { role: 'menuitem', href: `atelier/?commandes${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', text: t('Mes commandes') }));
     // le panier, comme dans l'atelier : l'icône du chariot et le nombre d'articles ; il s'ouvre dans l'atelier
     const items = cartCount();
     const cart = el('a', { role: 'menuitem', class: 'cart', href: `atelier/?panier${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', 'aria-label': items ? trFn`Mon panier : ${items} article(s)` : t('Mon panier') });

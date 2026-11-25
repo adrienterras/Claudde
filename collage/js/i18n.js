@@ -197,6 +197,7 @@
     'Livraison à domicile (France métropolitaine)': 'Home delivery (mainland France)',
     'Prix TTC, livraison à domicile comprise (France métropolitaine). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.': 'Prices include VAT and home delivery (mainland France). The HD file is included with every print. Secure payment by Stripe.',
     'Mes commandes': 'My orders',
+    'Aucune commande pour l’instant.': 'No orders yet.',
     'Paiement en attente': 'Awaiting payment',
     'Payée': 'Paid',
     'En préparation': 'Being prepared',
