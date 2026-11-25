@@ -116,7 +116,7 @@ test.describe('Commandes : calcul côté serveur', () => {
 
   test('les e-mails des commandes : un par étape, sujets courts, lien de suivi selon le transporteur ; sans clé Resend, rien ne part', async () => {
     const e = await import(MAILS);
-    const order = { ref: 'AG-261125-AB12', total_cents: 4890, shipping_cents: 990, delivery: 'domicile', items: [{ title: 'Courtepointe', label: 'Affiche 21 × 30 cm', qty: 1 }], customer: { name: 'Camille Martin', email: 'camille@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } };
+    const order = { ref: 'AG-261125-AB12', total_cents: 4890, shipping_cents: 990, delivery: 'domicile', items: [{ title: 'Courtepointe', label: 'Affiche 21 × 30 cm', qty: 1, unit: 39 }], customer: { name: 'Camille Martin', email: 'camille@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } };
     const subjects = ['payee', 'en_preparation', 'expediee', 'livree', 'annulee'].map((st) => e.customerEmail(st, order).subject);
     expect(subjects).toEqual(['Commande AG-261125-AB12 confirmée', 'Commande AG-261125-AB12 en préparation', 'Commande AG-261125-AB12 expédiée', 'Commande AG-261125-AB12 livrée', 'Commande AG-261125-AB12 annulée']);
     subjects.forEach((x) => expect(x.length).toBeLessThan(60));
@@ -136,7 +136,13 @@ test.describe('Commandes : calcul côté serveur', () => {
     const shop = e.shopEmail('nouvelle', Object.assign({}, order, { delivery: 'express' }));
     expect(shop.subject).toBe('Nouvelle commande AG-261125-AB12');
     expect(shop.text).toContain('Camille Martin · camille@example.org · +33600000000');
-    expect(shop.text).toContain('EXPRESS (Chronopost 24 h) : Camille Martin, 3 rue des Lilas, 75011 Paris, FR');
+    expect(shop.text).toContain('EXPRESS (Chronopost 24 h) : Camille Martin, 3 rue des Lilas, 75011 Paris, France');
+    // le gabarit : la frise d'avancement, le logo, le récapitulatif avec les prix, l'adresse
+    expect(paid.html).toContain('https://ateliergribouille.art/img/logo-mark-80.png');
+    expect(paid.html).toContain('Confirmée');
+    expect(paid.html).toContain('Total TTC');
+    expect(paid.html).toContain('Adresse de livraison');
+    expect(paid.html).toContain('Merci pour votre commande\u00a0!');
     expect(e.shopEmail('annulee', order).subject).toBe('Annulation AG-261125-AB12');
     // sans clé : rien ne part, sans erreur
     expect(await e.send('x@example.org', paid, () => undefined)).toBe(false);
