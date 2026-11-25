@@ -273,3 +273,52 @@ create policy "drawings: quota" on storage.objects
   as restrictive
   for insert to authenticated
   with check (bucket_id <> 'drawings' or public.drawings_room());
+
+-- Commandes payées en ligne (Stripe, 25 novembre 2026). Une ligne par commande, écrite seulement par les
+-- fonctions « commande » (création, en attente de paiement) et « stripe-webhook » (payée, abandonnée),
+-- avec la clé serveur : le navigateur ne peut ni en créer ni en modifier une. Chaque compte lit les
+-- siennes (« Mes commandes ») ; l'administrateur (double authentification) les lit toutes et en change
+-- le statut et le suivi. Gardées après la suppression du compte (obligations comptables) : user_id passe
+-- alors à null. Statuts : attente_paiement, payee, en_preparation, expediee, livree, annulee, abandonnee.
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users (id) on delete set null,
+  ref text not null unique,
+  status text not null default 'attente_paiement'
+    check (status in ('attente_paiement', 'payee', 'en_preparation', 'expediee', 'livree', 'annulee', 'abandonnee')),
+  email text,
+  consent boolean not null default false,   -- accord pour montrer l'œuvre (réseaux, publicité)
+  items jsonb not null,                     -- articles : œuvre (compId, title), produit, taille, quantité, prix unitaire
+  subtotal_cents integer not null,
+  shipping_cents integer not null default 0,
+  total_cents integer not null,
+  stripe_session text,
+  payment_intent text,
+  shipping jsonb,                           -- nom et adresse de livraison (Stripe)
+  customer jsonb,                           -- nom, e-mail, téléphone (Stripe)
+  carrier text,
+  tracking text,                            -- numéro de suivi du colis
+  created_at timestamptz not null default now(),
+  paid_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+create index if not exists orders_user_idx on public.orders (user_id, created_at desc);
+alter table public.orders enable row level security;
+revoke all on public.orders from anon;
+revoke insert, delete on public.orders from authenticated;
+drop policy if exists "orders: own rows" on public.orders;
+create policy "orders: own rows" on public.orders
+  for select to authenticated
+  using (auth.uid() = user_id);
+drop policy if exists "orders: admin reads" on public.orders;
+create policy "orders: admin reads" on public.orders
+  for select to authenticated
+  using (public.is_admin());
+drop policy if exists "orders: admin updates" on public.orders;
+create policy "orders: admin updates" on public.orders
+  for update to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+-- (l'administrateur ne change que le statut, le transporteur et le numéro de suivi)
+revoke update on public.orders from authenticated;
+grant update (status, carrier, tracking, updated_at) on public.orders to authenticated;

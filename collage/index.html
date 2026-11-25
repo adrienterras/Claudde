@@ -728,6 +728,7 @@
       <h2 id="cart-title" class="acc-title">Votre panier</h2>
       <p class="cart-empty hint" hidden>Votre panier est vide. Ajoutez une proposition depuis l’onglet Propositions ou l’étape Exporter.</p>
       <ul class="cart-list"></ul>
+      <div class="cart-ship" hidden><span>Livraison à domicile (France métropolitaine)</span><b></b></div>
       <div class="cart-total"><span>Total TTC</span><b></b></div>
       <p class="hint cart-note">Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.</p>
       <!-- accord facultatif, non coché d'office, demandé à chaque commande : montrer l'œuvre (réseaux, publicité) -->
@@ -735,6 +736,11 @@
       <p class="cart-status" role="status" hidden></p>
       <button type="button" class="btn btn-primary btn-wide" id="cart-order"><span>Commander</span></button>
       <button type="button" class="btn btn-wide" data-close>Continuer mes créations</button>
+      <!-- paiement en ligne : les commandes du compte, leur statut et le suivi du colis -->
+      <div id="orders-box" class="cart-orders" hidden>
+        <h3>Mes commandes</h3>
+        <ul id="orders-list" class="orders-list"></ul>
+      </div>
     </div>
   </section>
 

@@ -1,0 +1,10 @@
+# Réglages du projet Supabase pour la ligne de commande (déploiement des fonctions par pages.yml).
+project_id = "atelier-gribouille"
+
+# Les fonctions du paiement vérifient elles-mêmes l'appelant : « commande », le jeton de session du
+# compte ; « stripe-webhook », la signature de Stripe (qui n'envoie pas de jeton Supabase).
+[functions.commande]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false

@@ -144,5 +144,31 @@
     delete db.users[u.email]; db.session = null; persist();
     return ok(null);
   };
-  window.supabase = { createClient: () => ({ auth, from, storage, rpc }) };
+  // Fonctions du serveur : « commande » fait comme la vraie fonction, puis comme Stripe et sa
+  // notification aussitôt (paiement reçu : la commande « payée », les œuvres quittent le panier) ;
+  // window.__fake.fns[nom] la remplace (erreur, réponse lente…)
+  let orderN = 0;
+  const fnError = (message) => Promise.resolve({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context: { json: async () => ({ error: message }) } } });
+  const functions = {
+    invoke(name, opts) {
+      const body = (opts && opts.body) || {};
+      window.__fake.calls.push(['invoke', name, body]);
+      const h = window.__fake.fns && window.__fake.fns[name];
+      if (h) return Promise.resolve(h(body));
+      if (name !== 'commande') return fnError('fonction inconnue');
+      const u = db.session && db.session.user;
+      if (!u) return fnError('connexion requise');
+      const cart = db.rows.filter((r) => r.user_id === u.id && (r.__table || 'compositions') === 'compositions' && r.meta && r.meta.cart);
+      if (!cart.length) return fnError('panier vide');
+      const ref = `AG-261125-T${++orderN}`;
+      const now = new Date().toISOString();
+      const items = cart.map((r) => Object.assign({}, r.meta.cart, { compId: r.id, title: r.name, label: 'article', unit: 10 }));
+      const shipping = window.__fake.shipping == null ? 990 : window.__fake.shipping;
+      db.rows.push({ __table: 'orders', id: `o-${orderN}`, user_id: u.id, ref, status: 'payee', email: u.email, consent: body.consent === true, items, subtotal_cents: 1000, shipping_cents: shipping, total_cents: 1000 + shipping, created_at: now, paid_at: now, carrier: null, tracking: null });
+      cart.forEach((r) => { const c = r.meta.cart; delete r.meta.cart; r.meta.ordered = true; r.meta.order = Object.assign({}, c, { ref, at: now, paid: true }); r.name = `${ref} · ${r.name}`; });
+      persist();
+      return ok({ url: `${location.pathname}?commande=${ref}`, ref });
+    },
+  };
+  window.supabase = { createClient: () => ({ auth, from, storage, rpc, functions }) };
 })();

@@ -973,6 +973,53 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(() => localStorage.getItem('atelier-gribouille:commandes'))).toBeNull();
   });
 
+  test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await page.goto('index.html?paiement=test');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await signUpAndIn(page, 'paye@example.org', 'Rouge-Soleil-42', 'Paye');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    await openStep(page, 'export-section');
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart-add')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    // (le panier s'ouvre de lui-même après l'ajout)
+    if (!(await page.locator('#cart').isVisible())) await page.locator('.cart-btn-desk').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    // la livraison à domicile est comptée dans le total ; le paiement passe par Stripe
+    await expect(page.locator('#cart .cart-ship')).toBeVisible();
+    await expect(page.locator('#cart .cart-ship b')).toHaveText(/^(9,90|11,90)\s€$/);
+    await expect(page.locator('#cart .cart-note')).toContainText('Stripe');
+    // le serveur refuse : la raison est dite, rien n'est perdu
+    await page.evaluate(() => { window.__fake.fns = { commande: () => ({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context: { json: async () => ({ error: 'paiement non configuré' }) } } }) }; });
+    await page.locator('#cart-order').click();
+    await expect(page.locator('#cart .cart-status')).toContainText('paiement non configuré', { timeout: 30000 });
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    // payé : retour sur l'atelier (?commande=…), merci, panier vidé, la commande dans « Mes commandes »
+    await page.evaluate(() => { window.__fake.fns = {}; });
+    await page.locator('#cart-consent').check();
+    await page.locator('#cart-order').click();
+    await page.waitForURL(/[?&]commande=AG-/, { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await expect(page.locator('#cart .cart-status')).toContainText('Merci', { timeout: 30000 });
+    await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#orders-list .order')).toHaveCount(1);
+    await expect(page.locator('#orders-list .order')).toContainText('AG-261125-T1');
+    await expect(page.locator('#orders-list .order-status')).toHaveText('Payée');
+    await expect(page.locator('#cart .cart-item')).toHaveCount(0, { timeout: 30000 });
+    // (l'adresse oublie le retour de paiement)
+    expect(page.url()).not.toContain('commande=');
+    const order = await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders'));
+    expect(order.consent).toBe(true);
+    // l'œuvre commandée est dans Mes œuvres, marquée « commandée »
+    expect(await page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.ordered).length)).toBe(1);
+  });
+
   test('venu de l’en-tête du site : ?connexion ouvre le panneau de connexion ; ?compte, connecté, le profil', async ({ acc }) => {
     const { page } = acc;
     await page.goto('index.html?connexion');

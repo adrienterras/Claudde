@@ -500,6 +500,29 @@
     return `cloud:${id}`;
   }
 
+  // ---------- Commandes payées en ligne (Stripe) ----------
+  // le panier du compte devient une commande : la fonction « commande » (serveur) relit le panier,
+  // recalcule les prix et la livraison et renvoie l'adresse de la page de paiement Stripe
+  async function ordersCheckout(consent) {
+    if (!user) throw new Error(tr('connexion requise'));
+    const { data, error } = await client.functions.invoke('commande', { body: { consent: !!consent } });
+    if (error) {
+      let msg = error.message || String(error);
+      try { const j = error.context && (await error.context.json()); if (j && j.error) msg = j.error; } catch (e) { /* réponse sans détail */ }
+      throw new Error(msg);
+    }
+    if (!data || !data.url) throw new Error(tr('réponse inattendue du serveur'));
+    return data;
+  }
+  // les commandes du compte (« Mes commandes »), les plus récentes d'abord
+  async function ordersList() {
+    if (!user) return [];
+    const { data, error } = await client.from('orders').select('id, ref, status, created_at, paid_at, items, subtotal_cents, shipping_cents, total_cents, carrier, tracking')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).range(0, 49);
+    err(error);
+    return data || [];
+  }
+
   // ---------- Exports (fichiers téléchargés) dans le compte ----------
   async function exportsList() {
     const { data, error } = await client.from('exports').select('id, name, kind, dpi, width, height, size, thumb, path, comp_name, created_at').order('created_at', { ascending: false });
@@ -614,6 +637,7 @@
     isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
+    orders: { checkout: ordersCheckout, list: ordersList },
     contactEmail: cfg.contactEmail || '',
   };
 })();

@@ -6,9 +6,9 @@ on:
   push:
     # (la branche publiée passe par « Publier le site », qui appelle ces tests avant de publier)
     branches-ignore: [claude/children-drawings-art-app-kr5f77]
-    paths: ['collage/**', '.github/workflows/tests.yml']
+    paths: ['collage/**', 'supabase/functions/**', '.github/workflows/tests.yml']
   pull_request:
-    paths: ['collage/**', '.github/workflows/tests.yml']
+    paths: ['collage/**', 'supabase/functions/**', '.github/workflows/tests.yml']
   workflow_dispatch:
   workflow_call:
 

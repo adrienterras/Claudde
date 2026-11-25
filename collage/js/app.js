@@ -8624,6 +8624,33 @@ Réponds uniquement avec ce JSON :
   const kitOptionPrice = (k, W, H) => (k === 'toile' ? kitCanvasPrice(W, H) : KIT_OPTIONS[k]);
   const kitPrice = (it) => { const o = kitOpts(it); return Object.keys(KIT_OPTIONS).reduce((t, k) => t + (o[k] ? kitOptionPrice(k, it.W, it.H) : 0), KIT_BASE); };
   const unitPrice = (it) => (it.product === 'print' ? PRICES.print[it.finish][it.size] : it.product === 'kit' ? kitPrice(it) : PRICES[it.product]);
+  /*
+   * Paiement en ligne (Stripe) : activé pour tous par la configuration (ATELIER_CONFIG.payments =
+   * 'stripe'), ou, en essai, pour l'onglet ouvert avec ?paiement=test (?paiement=non l'arrête) ; sinon
+   * « Commander » prépare l'e-mail de commande. Livraison à domicile en France métropolitaine : les
+   * montants de la fonction serveur (supabase/functions/_shared/commande.js, qui seule fait foi ; un
+   * test vérifie qu'ils sont les mêmes) — l'article le plus cher à expédier, plus 5 € par article
+   * imprimé de plus ; le kit a sa livraison comprise ; fichier et guide : rien à livrer.
+   */
+  const SHIPPING = {
+    papier: { '21x30': 9.9, '30x40': 9.9, '40x50': 9.9, '50x70': 9.9, '70x100': 11.9 },
+    cadre: { '21x30': 14.9, '30x40': 19.9, '40x50': 19.9, '50x70': 24.9, '70x100': 39.9 },
+    extra: 5,
+  };
+  const shippingOf = (items) => {
+    const each = [];
+    items.filter((it) => it.product === 'print').forEach((it) => { for (let i = 0; i < it.qty; i++) each.push(SHIPPING[it.finish][it.size]); });
+    return each.length ? Math.round((Math.max(...each) + SHIPPING.extra * (each.length - 1)) * 100) / 100 : 0;
+  };
+  const PAY_TEST_KEY = 'atelier.paiement-test';
+  try {
+    if (/[?&]paiement=test\b/.test(location.search)) sessionStorage.setItem(PAY_TEST_KEY, '1');
+    if (/[?&]paiement=non\b/.test(location.search)) sessionStorage.removeItem(PAY_TEST_KEY);
+  } catch (e) { /* stockage indisponible */ }
+  const payOnline = () => {
+    if ((window.ATELIER_CONFIG || {}).payments === 'stripe') return true;
+    try { return sessionStorage.getItem(PAY_TEST_KEY) === '1'; } catch (e) { return false; }
+  };
   // produits de chaque atelier : impression (tirages, fichier) ou toile (guide et kit, à réaliser soi-même)
   const MODE_PRODUCTS = { impression: ['print', 'hd'], toile: ['guide', 'kit'] };
   const euros = (v) => v.toLocaleString(I18n.locale, { style: 'currency', currency: 'EUR' });
@@ -9036,11 +9063,19 @@ Réponds uniquement avec ce JSON :
       };
       list.appendChild(li);
     });
-    const total = items.reduce((s, it) => s + it.unit * it.qty, 0);
+    const online = payOnline();
+    const ship = online ? shippingOf(items) : 0;
+    const total = items.reduce((s, it) => s + it.unit * it.qty, 0) + ship;
     box.querySelector('.cart-empty').hidden = items.length > 0;
+    const shipRow = box.querySelector('.cart-ship');
+    shipRow.hidden = !(online && items.length && ship);
+    shipRow.querySelector('b').textContent = euros(ship);
     box.querySelector('.cart-total').hidden = !items.length;
     box.querySelector('.cart-total b').textContent = euros(total);
     box.querySelector('.cart-note').hidden = !items.length;
+    box.querySelector('.cart-note').textContent = online
+      ? tr('Prix TTC, livraison à domicile comprise (France métropolitaine). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.')
+      : tr('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.');
     $('cart-consent-field').hidden = !items.length;
     $('cart-order').hidden = !items.length;
   }
@@ -9050,6 +9085,38 @@ Réponds uniquement avec ce JSON :
     openModal($('cart'));
     // connecté : le panier est relu depuis le compte (articles ajoutés ou retirés sur un autre appareil)
     if (cloudCartOn()) syncCloudCart().then(() => { if (!$('cart').hidden) renderCart(); });
+    renderOrders();
+  }
+  // « Mes commandes » (paiement en ligne, connecté), sous le panier : statut, articles, suivi du colis
+  const orderStatus = (s) => ({
+    attente_paiement: tr('Paiement en attente'), payee: tr('Payée'), en_preparation: tr('En préparation'),
+    expediee: tr('Expédiée'), livree: tr('Livrée'), annulee: tr('Annulée'),
+  })[s] || '';
+  async function renderOrders() {
+    const box = $('orders-box'), list = $('orders-list');
+    if (!box) return [];
+    const A = window.Account;
+    if (!(payOnline() && A && A.enabled && A.user() && A.orders)) { box.hidden = true; return []; }
+    let rows = [];
+    try { rows = (await A.orders.list()).filter((o) => orderStatus(o.status)); } catch (e) { console.error(e); box.hidden = true; return []; }
+    box.hidden = !rows.length;
+    list.innerHTML = '';
+    rows.forEach((o) => {
+      const li = document.createElement('li');
+      li.className = 'order';
+      const when = new Date(o.paid_at || o.created_at).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'long', year: 'numeric' });
+      const lines = (o.items || []).map((it) => {
+        let label = it.label || '';
+        try { label = productLabel(it) || label; } catch (e) { /* article d'un autre format : le libellé gardé */ }
+        return `<li>${esc(it.title || '')} — ${esc(label)}${it.qty > 1 ? ` × ${it.qty}` : ''}</li>`;
+      }).join('');
+      const track = o.tracking ? `<p class="order-track">${esc(tr`Suivi du colis : ${[o.carrier, o.tracking].filter(Boolean).join(' ')}`)}</p>` : '';
+      li.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>
+        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}</p>
+        <ul class="order-items">${lines}</ul>${track}`;
+      list.appendChild(li);
+    });
+    return rows;
   }
 
   // ---------- Panier partagé par compte ----------
@@ -9132,6 +9199,29 @@ Réponds uniquement avec ce JSON :
     if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); } else setTimeout(go, 0);
   }
 
+  // Retour de la page de paiement (?commande=REF) : merci, le panier se vide dès que le paiement est
+  // enregistré (Stripe prévient le serveur, quelques secondes au plus), « Mes commandes » le montre
+  {
+    const m = /[?&]commande=([A-Z0-9-]{4,40})\b/.exec(location.search);
+    if (m) {
+      const ref = m[1];
+      try { const url = new URL(location.href); url.searchParams.delete('commande'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
+      const thanks = async () => {
+        openCart(tr`Merci ! Votre paiement est bien reçu (commande ${ref}). Vous suivez son avancement ici, dans « Mes commandes ».`);
+        for (const wait of [0, 2000, 4000, 8000, 15000]) {
+          await new Promise((r) => setTimeout(r, wait));
+          if (!cloudCartOn()) return;
+          await syncCloudCart();
+          const rows = await renderOrders();
+          if (!$('cart').hidden) renderCart();
+          if (rows.some((o) => o.ref === ref && o.status !== 'attente_paiement')) { renderSaved({ refresh: true }); return; }
+        }
+      };
+      const A = window.Account;
+      if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(thanks, 0); }); } else setTimeout(thanks, 0);
+    }
+  }
+
   // Commander : compositions sauvegardées dans le compte, puis message de commande prêt à envoyer.
   async function placeOrder() {
     if (!loadCart().length) return;
@@ -9144,6 +9234,17 @@ Réponds uniquement avec ce JSON :
       if (cloud) { cartStatus(tr('Panier mis à jour depuis votre compte…')); await syncCloudCart(); }
       const items = loadCart();
       if (!items.length) { renderCart(); return; }
+      const consentOnline = !!$('cart-consent').checked;
+      if (payOnline() && cloud) {
+        // la commande et la page de paiement sont préparées par le serveur, qui relit le panier du compte
+        // et en recalcule les prix ; le panier ne se vide qu'une fois le paiement reçu
+        cartStatus(tr('Préparation du paiement sécurisé…'));
+        const res = await A.orders.checkout(consentOnline);
+        window.Atelier.track('Commande', { articles: items.length, total: Math.round(items.reduce((s, it) => s + it.unit * it.qty, 0) + shippingOf(items)), paiement: 'stripe' });
+        cartStatus(tr('Ouverture de la page de paiement…'));
+        location.href = res.url;
+        return;
+      }
       const now = new Date();
       const ref = `AG-${now.toISOString().slice(2, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
       // l'accord (facultatif) pour montrer l'œuvre sur les réseaux et en publicité : dans le message, la

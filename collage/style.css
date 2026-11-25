@@ -508,6 +508,19 @@ body.stage-full .stage-cta { display: none; }
 .cart-total[hidden] { display: none; }
 .cart-total b { font-size: 1.15rem; }
 .cart-note, .cart-empty { margin: 0; }
+.cart-ship { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px; font-size: 0.86rem; color: var(--muted); }
+.cart-ship[hidden] { display: none; }
+/* Mes commandes (paiement en ligne), sous le panier */
+.cart-orders { display: grid; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.cart-orders[hidden] { display: none; }
+.cart-orders h3 { margin: 0; font-size: 1rem; }
+.orders-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.order { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 0.84rem; }
+.order-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.order-status { font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; }
+.order-status.s-payee, .order-status.s-en_preparation, .order-status.s-expediee, .order-status.s-livree { background: var(--accent-soft); }
+.order-meta, .order-track { margin: 4px 0 0; color: var(--muted); }
+.order-items { margin: 4px 0 0; padding-left: 18px; }
 .cart-status { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.84rem; }
 
 /* Réglages */
