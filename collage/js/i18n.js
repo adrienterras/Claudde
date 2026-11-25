@@ -23,6 +23,7 @@
     'Copier le détail': 'Copy details',
     'Recharger la page': 'Reload the page',
     'Fermer': 'Close',
+    'Progression': 'Progress',
     'Se connecter ou créer un compte': 'Sign in or create an account',
     'Continuer avec Google': 'Continue with Google',
     'ou': 'or',
