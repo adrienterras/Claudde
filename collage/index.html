@@ -696,7 +696,6 @@
         </div>
       </div>
       <div class="cart-qty-row"><span>Quantité</span><span class="cart-qty"><button type="button" data-qty="-1" aria-label="Moins">−</button><output>1</output><button type="button" data-qty="1" aria-label="Plus">+</button></span></div>
-      <p class="hint cart-fit" hidden></p>
       <button type="button" class="btn btn-primary btn-wide" id="cart-add-ok"><svg class="ico"><use href="#i-cart"/></svg><span>Ajouter au panier</span><b class="cart-add-total"></b></button>
       </div>
     </div>
@@ -756,8 +755,11 @@
       <div class="cart-total"><span>Total TTC</span><b></b></div>
       <p class="hint cart-note">Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.</p>
       <!-- accord facultatif, non coché d'office, demandé à chaque commande : montrer l'œuvre (réseaux, publicité) -->
-      <label class="cart-consent" id="cart-consent-field" hidden><input type="checkbox" id="cart-consent"><span>J’accepte qu’Atelier Gribouille montre mon œuvre sur ses réseaux sociaux et dans sa communication, y compris publicitaire, sans mon nom ni aucun prénom ou visage d’enfant.<small>Facultatif : votre commande est la même si vous ne cochez pas. Vous pouvez retirer cet accord à tout moment en écrivant à contact@ateliergribouille.art.</small></span></label>
+      <label class="cart-consent" id="cart-consent-field" hidden><input type="checkbox" id="cart-consent"><span>J’accepte qu’Atelier Gribouille montre mon œuvre sur ses réseaux sociaux et dans sa communication, y compris publicitaire, sans mon nom ni aucun prénom ou visage d’enfant.</span></label>
+      <!-- ce qui se passe (envoi des fichiers dans le compte, préparation du paiement) : le texte, puis sa barre
+           de progression juste au-dessus de « Commander » (avance avec les fichiers ; animée quand l'étape n'a pas de compte) -->
       <p class="cart-status" role="status" hidden></p>
+      <div class="cart-progress" hidden><div class="cart-progress-bar" role="progressbar" aria-label="Progression" aria-valuemin="0" aria-valuemax="100"><i></i></div></div>
       <button type="button" class="btn btn-primary btn-wide" id="cart-order"><span>Commander</span></button>
       <button type="button" class="btn btn-wide" data-close>Continuer mes créations</button>
     </div>

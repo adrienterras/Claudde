@@ -87,7 +87,7 @@ test.describe('Ajouter au panier : mise en scène', () => {
       return Object.keys(sizes).find((k) => { const [a, b] = sizes[k]; const q = r >= 1 ? b / a : a / b; return Math.abs(q - r) > 0.03; });
     }, before.W / before.H);
     await page.locator(`#cart-add .cart-print-sizes [data-size="${size}"]`).click();
-    await expect(page.locator('.cart-fit')).toContainText('mise aux proportions de l’impression');
+    await expect(page.locator('.cart-fit')).toHaveCount(0); // (plus de note sur les proportions)
     await page.locator('#cart-add-ok').click();
     await page.waitForFunction(() => document.getElementById('cart-add').hidden || !document.getElementById('cart-add-ok').disabled);
     const it = await page.evaluate(() => { const k = Object.keys(localStorage).find((x) => /panier/.test(x)); return JSON.parse(localStorage.getItem(k)).slice(-1)[0]; });

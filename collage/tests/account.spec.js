@@ -1036,10 +1036,22 @@ test.describe('Comptes utilisateurs', () => {
     await openStep(page, 'export-section');
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="papier"]').click();
+    // (la barre de progression du panier, au-dessus de « Commander » : ses états pendant l'envoi)
+    await page.evaluate(() => {
+      window.__bar = [];
+      const wrap = document.querySelector('#cart .cart-progress');
+      new MutationObserver(() => { if (!wrap.hidden) window.__bar.push(wrap.classList.contains('busy') ? 'busy' : wrap.querySelector('.cart-progress-bar').getAttribute('aria-valuenow')); }).observe(wrap, { attributes: true, subtree: true });
+    });
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart-add')).toBeHidden();
     await expect(page.locator('#cart-add-ok')).toBeEnabled();
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    // la barre s'est animée (préparation), puis a avancé avec les fichiers copiés, jusqu'au bout
+    const bar = await page.evaluate(() => window.__bar);
+    expect(bar).toContain('busy');
+    expect(bar).toContain('100');
+    // elle est juste au-dessus de « Commander », sous le message
+    expect(await page.evaluate(() => document.querySelector('#cart .cart-status').nextElementSibling.classList.contains('cart-progress') && document.querySelector('#cart .cart-progress').nextElementSibling.id === 'cart-order')).toBe(true);
     const calls = await page.evaluate((id) => {
       const cart = window.__fake.db.rows.find((r) => r.meta && r.meta.cart);
       const inCart = (c) => c[1].split('/')[1] === cart.id;

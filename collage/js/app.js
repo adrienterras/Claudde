@@ -9026,17 +9026,6 @@ Réponds uniquement avec ce JSON :
     choice.qty = clamp(choice.qty, 1, maxQty(choice));
     box.querySelector('.cart-qty-row').hidden = maxQty(choice) === 1;
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
-    // proportions : si l'impression n'a pas celles de l'œuvre, l'œuvre imprimée y est mise (printedComp :
-    // pas de marge blanche, rien de rogné) ; on le dit dès que la différence se voit
-    const fit = box.querySelector('.cart-fit');
-    if (choice.product === 'print') {
-      const [pw, ph] = printAreaOf(Object.assign({ W: comp.W, H: comp.H }, choice));
-      const sameShape = Math.abs(pw / ph - comp.W / comp.H) < 0.02;
-      fit.hidden = sameShape;
-      fit.textContent = choice.margin && border
-        ? tr`L’œuvre est mise aux proportions de la zone imprimée (${fmt(pw)} × ${fmt(ph)} cm, dans la bordure) : les dessins gardent leur taille, leurs places s’ajustent.`
-        : tr`L’œuvre est mise aux proportions de l’impression (${fmt(pw)} × ${fmt(ph)} cm) : les dessins gardent leur taille, leurs places s’ajustent, sans bordure blanche.`;
-    } else fit.hidden = true;
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
     requestAnimationFrame(drawCartScene);
@@ -9174,7 +9163,23 @@ Réponds uniquement avec ce JSON :
     } finally { btn.disabled = false; }
   }
 
-  function cartStatus(txt) { const el = $('cart').querySelector('.cart-status'); el.textContent = txt || ''; el.hidden = !txt; }
+  // le message du panier, et sa barre de progression au-dessus de « Commander » : progress de 0 à 1 (elle
+  // avance), 'busy' (une étape sans compte : la barre s'anime), rien (pas de barre : message final, erreur)
+  function cartStatus(txt, progress) {
+    const box = $('cart'), el = box.querySelector('.cart-status'), wrap = box.querySelector('.cart-progress');
+    el.textContent = txt || ''; el.hidden = !txt;
+    if (!wrap) return;
+    const bar = wrap.querySelector('.cart-progress-bar'), fill = wrap.querySelector('i');
+    const on = !!txt && progress != null;
+    wrap.hidden = !on;
+    if (!on) return;
+    const busy = progress === 'busy';
+    wrap.classList.toggle('busy', busy);
+    if (busy) { bar.removeAttribute('aria-valuenow'); fill.style.width = ''; return; }
+    const pct = Math.round(Math.max(0, Math.min(1, Number(progress) || 0)) * 100);
+    bar.setAttribute('aria-valuenow', String(pct));
+    fill.style.width = `${pct}%`;
+  }
   function renderCart() {
     const box = $('cart'), items = loadCart(), list = box.querySelector('.cart-list');
     list.innerHTML = '';
@@ -9395,14 +9400,14 @@ Réponds uniquement avec ce JSON :
     cartUploading.add(it.id);
     try {
       // (chaque étape est dite dans le panier : préparation sur l'appareil, puis copie ou envoi des fichiers)
-      const say = (t) => { if (!$('cart').hidden) cartStatus(t); };
-      say(tr`Préparation de « ${it.title} » pour votre compte…`);
+      const say = (t, p) => { if (!$('cart').hidden) cartStatus(t, p); };
+      say(tr`Préparation de « ${it.title} » pour votre compte…`, 'busy');
       const rec = await cartRecForCloud(it);
       if (!rec) return;
       let copies = 0; // (fichiers repris de l'œuvre du compte, copiés sur le serveur)
       const cid = await window.Account.cloud.put(rec, (n, total, info) => {
         if (info && info.copies != null) copies = info.copies;
-        say(copies === total ? tr`Copie de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…` : tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`);
+        say(copies === total ? tr`Copie de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…` : tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, total ? n / total : 'busy');
       });
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
@@ -9484,17 +9489,17 @@ Réponds uniquement avec ce JSON :
       const A = window.Account;
       const cloud = cloudCartOn();
       // connecté : le panier du compte fait foi (articles ajoutés ailleurs, ou ici hors connexion)
-      if (cloud) { cartStatus(tr('Panier mis à jour depuis votre compte…')); await syncCloudCart(); }
+      if (cloud) { cartStatus(tr('Panier mis à jour depuis votre compte…'), 'busy'); await syncCloudCart(); }
       const items = loadCart();
       if (!items.length) { renderCart(); return; }
       const consentOnline = !!$('cart-consent').checked;
       if (payOnline() && cloud) {
         // la commande et la page de paiement sont préparées par le serveur, qui relit le panier du compte
         // et en recalcule les prix ; le panier ne se vide qu'une fois le paiement reçu
-        cartStatus(tr('Préparation du paiement sécurisé…'));
+        cartStatus(tr('Préparation du paiement sécurisé…'), 'busy');
         const res = await A.orders.checkout(consentOnline);
         window.Atelier.track('Commande', { articles: items.length, total: Math.round(items.reduce((s, it) => s + it.unit * it.qty, 0) + (shippingOf(items) || 0)), paiement: 'stripe' });
-        cartStatus(tr('Ouverture de la page de paiement…'));
+        cartStatus(tr('Ouverture de la page de paiement…'), 1);
         location.href = res.url;
         return;
       }
@@ -9510,7 +9515,7 @@ Réponds uniquement avec ce JSON :
         const it = items[i];
         let saved = '';
         if (cloud) {
-          cartStatus(tr`Enregistrement des compositions dans votre compte : ${i + 1} / ${items.length}…`);
+          cartStatus(tr`Enregistrement des compositions dans votre compte : ${i + 1} / ${items.length}…`, i / items.length);
           const name = `${ref} · ${it.title}`.slice(0, 80);
           if (isCloudItem(it)) {
             // déjà dans le compte : la composition prend le nom de la commande et quitte le panier
@@ -9518,7 +9523,7 @@ Réponds uniquement avec ce JSON :
             saved = it.recId;
           } else {
             const rec = await cartRecForCloud(it);
-            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; rec.order = orderOf(it); saved = await A.cloud.put(rec, (n, total) => cartStatus(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`)); }
+            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; rec.order = orderOf(it); saved = await A.cloud.put(rec, (n, total) => cartStatus(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, total ? n / total : 'busy')); }
           }
         }
         lines.push(`${i + 1}. ${it.title} (${it.styleName}, ${fmt(it.W)} × ${fmt(it.H)} cm) — ${productLabel(it)} × ${it.qty} = ${euros(it.unit * it.qty)}${saved ? ` [${saved}]` : ''}`);

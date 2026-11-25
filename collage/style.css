@@ -479,7 +479,6 @@ body.stage-full .stage-cta { display: none; }
 .cart-qty button:hover:not(:disabled) { background: var(--accent-soft); }
 .cart-qty button:disabled { opacity: .35; cursor: default; }
 .cart-qty output { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.86rem; }
-.cart-fit { margin: 0; }
 /* encadré : couleur du cadre (pastilles des mêmes cadres que la mise en scène) et passe-partout */
 .cart-frame { display: grid; gap: 7px; padding-top: 2px; }
 .cart-frame[hidden] { display: none; }
@@ -550,6 +549,14 @@ body.stage-full .stage-cta { display: none; }
 .admin-order .admin-order-form select, .admin-order .admin-order-form input { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface, #fff); color: inherit; min-width: 0; }
 .admin-order .admin-order-form input[name="tracking"] { flex: 1 1 140px; }
 .cart-status { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.84rem; }
+/* la barre de progression du panier, sous le message, juste au-dessus de « Commander » */
+.cart-progress { margin: 8px 0 4px; }
+.cart-progress[hidden] { display: none; }
+.cart-progress-bar { position: relative; height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
+.cart-progress-bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--accent); transition: width .25s ease; }
+.cart-progress.busy .cart-progress-bar i { width: 35%; animation: cart-busy 1.2s ease-in-out infinite; }
+@keyframes cart-busy { from { left: -35%; } to { left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .cart-progress.busy .cart-progress-bar i { animation: none; width: 100%; opacity: .45; } .cart-progress-bar i { transition: none; } }
 
 /* Réglages */
 
@@ -623,7 +630,6 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
 .cart-consent { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 4px; font-size: 0.85rem; line-height: 1.45; color: var(--ink); cursor: pointer; }
 .cart-consent[hidden] { display: none; }
 .cart-consent input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
-.cart-consent small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.78rem; }
 /* l'alerte de qualité, seule pastille des vignettes : un « ! » orange (à vérifier) ou rouge (insuffisante) */
 .thumb .q { position: absolute; left: 4px; top: 4px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.7rem; font-weight: 700; color: #fff; box-shadow: 0 0 0 2px var(--surface); }
 .thumb .q.warn { background: #c98a1b; }
