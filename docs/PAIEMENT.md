@@ -15,16 +15,16 @@ l'arrête. Pour tous les autres visiteurs, rien ne change tant que la configurat
    - crée la commande (table `orders`, statut « attente_paiement ») ;
    - renvoie l'adresse de la page de paiement Stripe, qui demande l'adresse de livraison (France
      uniquement) et le téléphone.
-3. Après le paiement, Stripe ramène le client sur `/atelier/?commande=AG-…` : « Merci », le panier se
-   vide, la commande apparaît dans **« Mes commandes »** (sous le panier).
+3. Après le paiement, Stripe ramène le client sur `/atelier/?commande=AG-…` : Mon compte s'ouvre sur
+   **« Mes commandes »**, avec un merci ; le panier se vide.
 4. Stripe prévient la fonction **`stripe-webhook`**, qui vérifie la signature. Elle passe alors la
    commande en « payée », garde l'adresse et les coordonnées, et marque les œuvres « commandées » : elles
    sont figées, gardées hors de la purge et renommées `AG-… · titre`. Si la page de paiement est
    abandonnée, la commande passe en « abandonnée ».
 
 Statuts : `attente_paiement`, `payee`, `en_preparation`, `expediee`, `livree`, `annulee`,
-`abandonnee`. Pour l'instant, le statut, le transporteur et le numéro de suivi se changent à la main
-dans Supabase → Table Editor → `orders`. Le client voit le suivi dans « Mes commandes ».
+`abandonnee`. Ils avancent depuis l'atelier (voir « Suivre les commandes »). Le client les voit dans
+Mon compte → **Mes commandes** (lien aussi dans le menu du compte des pages du site, `?commandes`).
 
 ## Mise en place (une fois)
 
@@ -49,23 +49,73 @@ dans Supabase → Table Editor → `orders`. Le client voit le suivi dans « Mes
 
 ## Livraison
 
-France métropolitaine uniquement, à domicile. Le prix est celui de l'article le plus cher à expédier,
-plus 5 € par article imprimé de plus. Le kit DIY a sa livraison comprise ; le fichier HD et le guide
-n'ont rien à livrer. Le panier affiche la livraison et le total à payer. Les montants sont
-**provisoires**, à remplacer par les coûts réels (transporteur et emballage) avant la production :
+France métropolitaine uniquement, à domicile. Le client choisit sur la page de paiement :
 
-| Format   | Affiche | Encadré |
-|----------|---------|---------|
-| 21 × 30  | 9,90 €  | 14,90 € |
-| 30 × 40  | 9,90 €  | 19,90 € |
-| 40 × 50  | 9,90 €  | 19,90 € |
-| 50 × 70  | 9,90 €  | 24,90 € |
-| 70 × 100 | 11,90 € | 39,90 € |
+- **Colissimo**, en 2 à 3 jours ouvrés ;
+- **Chronopost express**, en 24 h, s'il y a un tirage dans le panier.
+
+Le prix est celui de l'article le plus cher à expédier, plus 5 € par article imprimé de plus. Le kit DIY
+a sa livraison standard comprise ; le fichier HD et le guide n'ont rien à livrer. Le panier affiche la
+livraison Colissimo dans le total, et le prix de l'express. Le mode choisi est gardé dans la commande
+(`delivery` : `domicile` ou `express`).
+
+Les montants sont **provisoires**, à remplacer par les coûts réels :
+
+| Format   | Affiche Colissimo | Affiche express | Encadré Colissimo | Encadré express |
+|----------|-------------------|-----------------|-------------------|-----------------|
+| 21 × 30  | 9,90 €            | 19,90 €         | 14,90 €           | 24,90 €         |
+| 30 × 40  | 9,90 €            | 19,90 €         | 19,90 €           | 29,90 €         |
+| 40 × 50  | 9,90 €            | 19,90 €         | 19,90 €           | 29,90 €         |
+| 50 × 70  | 9,90 €            | 19,90 €         | 24,90 €           | 34,90 €         |
+| 70 × 100 | 11,90 €           | 21,90 €         | 39,90 €           | 49,90 €         |
 
 Pour les changer, modifier `SHIPPING` à **deux endroits identiques** : dans
 `supabase/functions/_shared/commande.js`, qui fait foi pour le paiement, et dans `collage/js/app.js`,
-pour l'affichage du panier. Un test (`collage/tests/commande.spec.js`) vérifie qu'ils sont égaux, ainsi
-que les prix des articles. (Un essai de livraison en point relais, le 25 novembre 2026, a été retiré.)
+pour l'affichage du panier. Un test (`collage/tests/commande.spec.js`) vérifie qu'ils sont égaux. (Un
+essai de livraison en point relais, le 25 novembre 2026, a été retiré.)
+
+Une page de paiement abandonnée expire au bout de 31 minutes : la commande passe alors « abandonnée »
+et sort de « Mes commandes ».
+
+## Suivre les commandes (administrateur)
+
+Dans l'atelier, avec le compte administrateur, sous Mes œuvres, après la double authentification :
+section **Commandes**, en haut, au-dessus de « Toutes les œuvres ». Chaque commande payée y affiche :
+
+- le client (nom, e-mail, téléphone), l'adresse et le mode de livraison ;
+- les œuvres, avec **Ouvrir l'œuvre** : elle se rouvre en copie, pour l'exporter et l'imprimer ;
+- le statut, le transporteur et le numéro de suivi, puis **Enregistrer et prévenir le client** ;
+- **Annuler et rembourser**, jusqu'à l'expédition.
+
+Fonction `commande-statut` : réservée à l'administrateur avec la double authentification.
+
+## E-mails
+
+Envoyés par **Resend**, depuis `commandes@ateliergribouille.art` (réponses vers contact@) :
+
+- **au client** : commande confirmée (paiement reçu), en préparation, expédiée (avec le lien de suivi
+  Colissimo ou Chronopost), livrée, annulée ;
+- **à la boutique** (`contact@ateliergribouille.art`) : nouvelle commande (avec l'adresse), commande
+  annulée par le client.
+
+À régler une fois : Resend → API Keys → créer une clé « Envoi », puis la coller dans Supabase → Edge
+Functions → Secrets → `RESEND_API_KEY`. Sans cette clé, rien n'est envoyé et rien ne casse. Réglages
+facultatifs : `ORDER_FROM` (l'expéditeur) et `ORDER_NOTIFY` (l'adresse de la boutique).
+
+## Annulation par le client
+
+Dans Mon compte → Mes commandes, **Annuler la commande** reste proposé tant que la commande est
+« Payée », c'est-à-dire tant que vous ne l'avez pas passée « En préparation » ; l'annulation demande une
+deuxième touche pour confirmer. Les œuvres sont personnalisées : une fois lancées, elles ne s'annulent
+plus en ligne. Fonction `commande-annuler` : la commande passe « annulée », puis **Stripe rembourse le
+montant entier** (`refund`, `cancelled_at`). Le client et la boutique reçoivent un e-mail.
+
+Colonnes ajoutées à la table `orders` (SQL à exécuter une fois) :
+
+```sql
+alter table public.orders add column if not exists refund text;
+alter table public.orders add column if not exists cancelled_at timestamptz;
+```
 
 ## Passage en production (plus tard)
 

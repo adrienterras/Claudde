@@ -33,3 +33,28 @@ export async function userOf(req) {
   const u = await r.json();
   return u && u.id ? u : null;
 }
+
+// l'administrateur (rôle écrit par le serveur dans app_metadata) connecté avec la double
+// authentification (niveau aal2 du jeton, comme public.is_admin()) ; sinon null
+export async function adminOf(req) {
+  const u = await userOf(req);
+  if (!u || !(u.app_metadata && u.app_metadata.atelier_role === 'admin')) return null;
+  try {
+    const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const claims = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    return claims.aal === 'aal2' ? u : null;
+  } catch (e) { return null; }
+}
+
+// la réponse JSON d'une fonction appelée par l'atelier, avec les en-têtes CORS du site
+export function replier(req, origins) {
+  const origin = req.headers.get('Origin') || '';
+  const cors = {
+    'Access-Control-Allow-Origin': origins.includes(origin) ? origin : origins[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  };
+  return { cors, reply: (status, data) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } }) };
+}

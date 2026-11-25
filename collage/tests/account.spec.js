@@ -467,6 +467,54 @@ test.describe('Comptes utilisateurs', () => {
     expect(left).toEqual([w1]);
   });
 
+  test('administration : Commandes — adresse, œuvres, statut et suivi ; le client est prévenu ; annuler rembourse ; un autre compte ne voit rien', async ({ acc }) => {
+    const { page } = acc;
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
+    await page.evaluate(() => {
+      const now = new Date().toISOString();
+      const items = [{ compId: '55555555-5555-4555-8555-000000000001', title: 'Courtepointe', label: 'Affiche 21 × 30 cm', product: 'print', finish: 'papier', size: '21x30', W: 21, H: 30, qty: 1, unit: 39 }];
+      const base = { __table: 'orders', user_id: 'u-client', email: 'client@example.org', consent: false, items, subtotal_cents: 3900, created_at: now, paid_at: now, carrier: null, tracking: null };
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000001', ref: 'AG-261125-AAAA', status: 'payee', shipping_cents: 990, total_cents: 4890, delivery: 'domicile', customer: { name: 'Camille Martin', email: 'client@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } }));
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000002', ref: 'AG-261125-BBBB', status: 'payee', shipping_cents: 1990, total_cents: 5890, delivery: 'express', customer: { name: 'Sam', email: 'sam@example.org' }, shipping: { name: 'Sam', address: { line1: '1 place Bellecour', postal_code: '69002', city: 'Lyon', country: 'FR' } } }));
+      // (paiements commencés puis abandonnés : pas dans la liste)
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000003', ref: 'AG-261125-CCCC', status: 'abandonnee', shipping_cents: 0, total_cents: 3900 }));
+    });
+    await openStep(page, 'saved-section');
+    await adminMfa(page, { enroll: true });
+    const orders = page.locator('#admin-orders .admin-order');
+    await expect(orders).toHaveCount(2);
+    await expect(page.locator('#admin-orders-count')).toHaveText('(2)');
+    const first = orders.filter({ hasText: 'AG-261125-AAAA' });
+    await expect(first).toContainText('Camille Martin');
+    await expect(first).toContainText('3 rue des Lilas');
+    await expect(first).toContainText('Colissimo');
+    await expect(first.locator('[data-open]')).toHaveText('Ouvrir l’œuvre');
+    await expect(orders.filter({ hasText: 'AG-261125-BBBB' })).toContainText('Express Chronopost 24 h');
+    await expect(orders.filter({ hasText: 'AG-261125-BBBB' }).locator('input[name="carrier"]')).toHaveValue('Chronopost');
+    // expédiée, avec le numéro de suivi : enregistrée, le client prévenu
+    await first.locator('select[name="status"]').selectOption('expediee');
+    await first.locator('input[name="tracking"]').fill('6A12345678901');
+    await first.locator('button[type="submit"]').click();
+    await expect(page.locator('#admin-orders-status')).toContainText('le client est prévenu par e-mail');
+    const o = await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261125-AAAA'));
+    expect([o.status, o.carrier, o.tracking]).toEqual(['expediee', 'Colissimo', '6A12345678901']);
+    await expect(orders.filter({ hasText: 'AG-261125-AAAA' }).locator('.order-status')).toHaveText('Expédiée');
+    // annuler et rembourser l'autre (deux touches)
+    const second = orders.filter({ hasText: 'AG-261125-BBBB' });
+    await second.locator('[data-cancel]').click();
+    await expect(second.locator('[data-cancel]')).toContainText('Rembourser');
+    await second.locator('[data-cancel]').click();
+    await expect(page.locator('#admin-orders-status')).toContainText('annulée et remboursée');
+    await expect(orders.filter({ hasText: 'AG-261125-BBBB' }).locator('.order-status')).toHaveText('Annulée');
+    await expect(orders.filter({ hasText: 'AG-261125-BBBB' }).locator('form')).toHaveCount(0);
+    // un compte ordinaire : ni la section, ni les commandes des autres
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await signUpAndIn(page, 'simple@example.org', 'Rouge-Soleil-42', 'Simple');
+    await expect(page.locator('#admin-orders')).toBeHidden();
+    expect(await page.evaluate(() => window.Account.orders.admin())).toEqual([]);
+  });
+
   test('administration : la liste se lit par pages de 60, « Afficher les œuvres suivantes » charge la suite', async ({ acc }) => {
     const { page } = acc;
     await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
@@ -1070,6 +1118,16 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-list .order')).toHaveCount(1, { timeout: 30000 });
     expect(page.url()).not.toContain('commandes');
+    // tant qu'elle est « payée », le client l'annule (deux touches) : remboursée, « Annulée »
+    const cancel = page.locator('#orders-list .order-cancel');
+    await expect(cancel).toHaveText('Annuler la commande');
+    await cancel.click();
+    await expect(cancel).toContainText('remboursement de');
+    await cancel.click();
+    await expect(page.locator('#orders-status')).toContainText('annulée', { timeout: 30000 });
+    await expect(page.locator('#orders-list .order-status')).toHaveText('Annulée');
+    await expect(page.locator('#orders-list .order-cancel')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders').status)).toBe('annulee');
     // (l'adresse oublie le retour de paiement)
     expect(page.url()).not.toContain('commande=');
     const order = await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders'));

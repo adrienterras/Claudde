@@ -22,6 +22,10 @@
   // (définis ici, avant tout : loadCutPrefs les appelle au chargement, bien avant la zone « réglages »)
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   let showAccount = () => {}; // ouvre Mon compte (défini avec les comptes, plus bas)
+  // arrivée pour le compte (Mon compte, Mes commandes, connexion, panier, retour de paiement) : l'œuvre en
+  // cours est rouverte sans la question « Reprendre ? », qui passerait devant (l'adresse est lue ici,
+  // avant que ces paramètres ne s'effacent)
+  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|connexion|panier|commande=)/.test(location.search);
   let genHintSeen = false; // la note « Cliquez pour générer… » a servi pendant cette visite
   const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
@@ -6885,7 +6889,7 @@ Réponds uniquement avec ce JSON :
     let after = null;
     try { after = sessionStorage.getItem(AFTER_AUTH_KEY); sessionStorage.removeItem(AFTER_AUTH_KEY); } catch (e) { after = null; }
     // nouvelle visite (pas une actualisation) : on demande avant de rouvrir
-    if (!manual && !after && newVisit()) { offerResume(rec); return; }
+    if (!manual && !after && !ACCOUNT_ARRIVAL && newVisit()) { offerResume(rec); return; }
     try { localStorage.setItem(RESUME_KEY, String(Date.now())); } catch (e) { /* ignoré */ }
     const big = $('empty-resume');
     box.querySelector('span').textContent = after ? tr('Connexion terminée : votre œuvre est rouverte…') : tr('Réouverture de votre œuvre…');
@@ -7809,6 +7813,7 @@ Réponds uniquement avec ce JSON :
       return;
     }
     mfa.hidden = true;
+    renderAdminOrders();
     adminStatus(tr('Lecture des œuvres de tous les comptes…'));
     let rows = [];
     try { rows = await timed(A.adminList(0)); } catch (e) { failed(e); return; }
@@ -7830,6 +7835,72 @@ Réponds uniquement avec ce JSON :
       };
     };
     show(rows);
+  }
+  // Commandes (administrateur) : chaque commande payée, son adresse, ses œuvres (à rouvrir pour les
+  // exporter), son statut, son transporteur et son numéro de suivi ; le client est prévenu par e-mail
+  const ADMIN_STEPS = ['payee', 'en_preparation', 'expediee', 'livree'];
+  const adminOrdersStatus = (t) => { const el = $('admin-orders-status'); if (el) { el.textContent = t || ''; el.hidden = !t; } };
+  async function renderAdminOrders() {
+    const box = $('admin-orders'), list = $('admin-orders-list');
+    const A = window.Account;
+    if (!box || !(A && A.orders && A.orders.admin)) return;
+    box.hidden = false;
+    let rows = [];
+    try { rows = await A.orders.admin(); } catch (e) { console.error(e); adminOrdersStatus(tr`Commandes indisponibles : ${e.message}`); return; }
+    $('admin-orders-count').textContent = rows.length ? `(${rows.length})` : '';
+    $('admin-orders-empty').hidden = rows.length > 0;
+    list.innerHTML = '';
+    rows.forEach((o) => {
+      const el = document.createElement('div');
+      el.className = 'admin-order';
+      const c = o.customer || {}, sh = o.shipping || {}, a = sh.address || {};
+      const when = new Date(o.paid_at || o.created_at).toLocaleString(I18n.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      const addr = [sh.name, a.line1, a.line2, [a.postal_code, a.city].filter(Boolean).join(' '), a.country].filter(Boolean).join('\n');
+      const express = o.delivery === 'express';
+      const items = (o.items || []).map((it, k) => {
+        let label = it.label || '';
+        try { label = productLabel(it) || label; } catch (e) { /* le libellé gardé */ }
+        return `<li>${esc(it.title || '')} — ${esc(label)}${it.qty > 1 ? ` × ${it.qty}` : ''}${it.compId ? ` <button type="button" class="link" data-open="${k}">${tr('Ouvrir l’œuvre')}</button>` : ''}</li>`;
+      }).join('');
+      const done = !ADMIN_STEPS.includes(o.status);
+      el.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>
+        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}</p>
+        <p>${esc([c.name, c.email || o.email, c.phone].filter(Boolean).join(' · '))}</p>
+        ${addr ? `<p class="ship"><b class="${express ? 'express' : ''}">${esc(express ? tr('Express Chronopost 24 h') : tr('Colissimo'))}</b>\n${esc(addr)}</p>` : ''}
+        <ul>${items}</ul>
+        ${done ? '' : `<form class="admin-order-form">
+          <select name="status" aria-label="${tr('Statut')}">${ADMIN_STEPS.map((x) => `<option value="${x}"${x === o.status ? ' selected' : ''}>${esc(orderStatus(x))}</option>`).join('')}</select>
+          <input name="carrier" list="admin-carriers" aria-label="${tr('Transporteur')}" placeholder="${tr('Transporteur')}" value="${esc(o.carrier || (express ? 'Chronopost' : 'Colissimo'))}">
+          <input name="tracking" aria-label="${tr('Numéro de suivi')}" placeholder="${tr('Numéro de suivi')}" value="${esc(o.tracking || '')}">
+          <button type="submit" class="btn">${tr('Enregistrer et prévenir le client')}</button>
+          <button type="button" class="link" data-cancel>${tr('Annuler et rembourser')}</button>
+        </form>`}`;
+      el.querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => {
+        const it = o.items[Number(b.dataset.open)];
+        openAdminCopy({ id: `cloud:${it.compId}` });
+      }));
+      const form = el.querySelector('form');
+      if (form) {
+        form.onsubmit = async (e) => {
+          e.preventDefault();
+          const btn = form.querySelector('[type="submit"]');
+          btn.disabled = true;
+          try {
+            const r = await A.orders.set(o.id, { status: form.status.value, carrier: form.carrier.value, tracking: form.tracking.value });
+            adminOrdersStatus(r && r.mailed ? tr`Commande ${o.ref} enregistrée ; le client est prévenu par e-mail.` : tr`Commande ${o.ref} enregistrée.`);
+            renderAdminOrders();
+          } catch (err) { console.error(err); adminOrdersStatus(tr`Commande ${o.ref} non enregistrée : ${err.message}`); } finally { btn.disabled = false; }
+        };
+        const cancel = form.querySelector('[data-cancel]');
+        cancel.onclick = async () => {
+          if (!cancel.classList.contains('confirm')) { cancel.classList.add('confirm'); cancel.textContent = tr`Rembourser ${euros((o.total_cents || 0) / 100)} et annuler ?`; setTimeout(() => { cancel.classList.remove('confirm'); cancel.textContent = tr('Annuler et rembourser'); }, 6000); return; }
+          cancel.disabled = true;
+          try { await A.orders.cancel(o.id); adminOrdersStatus(tr`Commande ${o.ref} annulée et remboursée.`); renderAdminOrders(); }
+          catch (err) { console.error(err); adminOrdersStatus(tr`Annulation impossible : ${err.message}`); } finally { cancel.disabled = false; }
+        };
+      }
+      list.appendChild(el);
+    });
   }
   // groupées par compte, le compte à l'œuvre la plus récente en tête
   function drawAdminRows(rows) {
@@ -8646,9 +8717,13 @@ Réponds uniquement avec ce JSON :
       papier: { '21x30': 9.9, '30x40': 9.9, '40x50': 9.9, '50x70': 9.9, '70x100': 11.9 },
       cadre: { '21x30': 14.9, '30x40': 19.9, '40x50': 19.9, '50x70': 24.9, '70x100': 39.9 },
     },
+    express: {
+      papier: { '21x30': 19.9, '30x40': 19.9, '40x50': 19.9, '50x70': 19.9, '70x100': 21.9 },
+      cadre: { '21x30': 24.9, '30x40': 29.9, '40x50': 29.9, '50x70': 34.9, '70x100': 49.9 },
+    },
     extra: 5,
   };
-  // la livraison du panier pour un mode (domicile)
+  // la livraison du panier pour un mode : domicile (Colissimo, 2 à 3 jours), express (Chronopost, 24 h)
   const shippingOf = (items, mode = 'domicile') => {
     const each = [];
     items.filter((it) => it.product === 'print').forEach((it) => { for (let i = 0; i < it.qty; i++) each.push(SHIPPING[mode][it.finish][it.size]); });
@@ -9093,8 +9168,9 @@ Réponds uniquement avec ce JSON :
     box.querySelector('.cart-total').hidden = !items.length;
     box.querySelector('.cart-total b').textContent = euros(total);
     box.querySelector('.cart-note').hidden = !items.length;
+    const express = online && items.some((it) => it.product === 'print') ? shippingOf(items, 'express') : null;
     box.querySelector('.cart-note').textContent = online
-      ? tr('Prix TTC, livraison à domicile comprise (France métropolitaine). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.')
+      ? tr('Prix TTC, livraison à domicile comprise (France métropolitaine). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.') + (express ? ` ${tr`Livraison express en 24 h (Chronopost) possible à la page de paiement : ${euros(express)} au lieu de ${euros(home)}.`}` : '')
       : tr('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.');
     $('cart-consent-field').hidden = !items.length;
     $('cart-order').hidden = !items.length;
@@ -9135,8 +9211,25 @@ Réponds uniquement avec ce JSON :
       }).join('');
       const track = o.tracking ? `<p class="order-track">${esc(tr`Suivi du colis : ${[o.carrier, o.tracking].filter(Boolean).join(' ')}`)}</p>` : '';
       li.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>
-        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}</p>
+        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}${o.delivery === 'express' ? ` · ${esc(tr('express 24 h'))}` : ''}</p>
         <ul class="order-items">${lines}</ul>${track}`;
+      // annuler, tant que la commande est payée (pas encore en préparation) : remboursée aussitôt
+      if (o.status === 'payee') {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'link order-cancel'; b.textContent = tr('Annuler la commande');
+        b.onclick = async () => {
+          if (!b.classList.contains('confirm')) { b.classList.add('confirm'); b.textContent = tr`Annuler la commande (remboursement de ${euros((o.total_cents || 0) / 100)}) ?`; setTimeout(() => { b.classList.remove('confirm'); b.textContent = tr('Annuler la commande'); }, 6000); return; }
+          b.disabled = true;
+          const st = $('orders-status');
+          try {
+            await window.Account.orders.cancel(o.id);
+            st.textContent = tr`Commande ${o.ref} annulée : le remboursement est en route vers votre moyen de paiement (5 à 10 jours en général).`;
+          } catch (e) { console.error(e); st.textContent = tr`Annulation impossible : ${e.message}`; }
+          st.hidden = false;
+          renderOrders({ showEmpty: true });
+        };
+        li.appendChild(b);
+      }
       list.appendChild(li);
     });
     return rows;

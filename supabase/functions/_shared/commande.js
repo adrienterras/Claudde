@@ -23,18 +23,28 @@ export const SIZES = { '21x30': [21, 30], '30x40': [30, 40], '40x50': [40, 50], 
 
 /*
  * Livraison à domicile en France métropolitaine (Corse comprise), en euros TTC — montants PROVISOIRES, à
- * remplacer par les coûts réels (transporteur, emballage) avant le passage en production. Prix :
- * l'article le plus cher à expédier, plus EXTRA par article imprimé de plus (quantités comprises). Le
- * kit DIY a sa livraison comprise dans son prix (KIT_BASE) ; fichier HD et guide : rien à livrer.
+ * remplacer par les coûts réels (transporteur, emballage) avant le passage en production. Deux modes, au
+ * choix du client sur la page de paiement : standard (Colissimo, 2 à 3 jours ouvrés) et express
+ * (Chronopost, 24 h). Prix : l'article le plus cher à expédier, plus EXTRA par article imprimé de plus
+ * (quantités comprises). Le kit DIY a sa livraison standard comprise dans son prix (KIT_BASE) ; fichier
+ * HD et guide : rien à livrer.
  */
 export const SHIPPING = {
   domicile: {
     papier: { '21x30': 9.9, '30x40': 9.9, '40x50': 9.9, '50x70': 9.9, '70x100': 11.9 },
     cadre: { '21x30': 14.9, '30x40': 19.9, '40x50': 19.9, '50x70': 24.9, '70x100': 39.9 },
   },
+  express: {
+    papier: { '21x30': 19.9, '30x40': 19.9, '40x50': 19.9, '50x70': 19.9, '70x100': 21.9 },
+    cadre: { '21x30': 24.9, '30x40': 29.9, '40x50': 29.9, '50x70': 34.9, '70x100': 49.9 },
+  },
   extra: 5,
 };
-export const DELIVERY = { domicile: 'Livraison à domicile' };
+// le nom de chaque mode sur la page de paiement, et son délai en jours ouvrés
+export const DELIVERY = {
+  domicile: { name: 'Colissimo, à domicile', short: 'Colissimo', min: 2, max: 3 },
+  express: { name: 'Chronopost express, à domicile en 24 h', short: 'Chronopost express', min: 1, max: 1 },
+};
 export const COUNTRIES = ['FR'];
 
 const FRAMES = { 'bois-clair': 'bois clair', 'bois-noir': 'bois noir', 'bois-blanc': 'bois blanc', metal: 'aluminium', 'bois-fonce': 'bois foncé' };
@@ -84,11 +94,13 @@ export function shippingCents(items, mode = 'domicile') {
   if (each.some((v) => v == null)) return null;
   return cents(Math.max(...each) + SHIPPING.extra * (each.length - 1));
 }
-// les modes de livraison proposés pour ce panier, avec leur prix en centimes : à domicile seulement
-// (un kit seul : sa livraison est comprise)
+// les modes de livraison proposés pour ce panier, avec leur prix en centimes : standard d'abord, puis
+// express s'il y a un tirage (un kit seul : sa livraison standard est comprise, pas d'express)
 export function deliveryOptions(items) {
   if (!needsDelivery(items)) return [];
-  return Object.keys(DELIVERY).map((mode) => ({ mode, cents: shippingCents(items, mode) })).filter((o) => o.cents != null);
+  const out = [{ mode: 'domicile', cents: shippingCents(items, 'domicile') }];
+  if (items.some((it) => it.product === 'print')) out.push({ mode: 'express', cents: shippingCents(items, 'express') });
+  return out.filter((o) => o.cents != null);
 }
 // à livrer (une adresse est demandée) : un tirage ou un kit
 export const needsDelivery = (items) => items.some((it) => it.product === 'print' || it.product === 'kit');
@@ -130,10 +142,13 @@ export const ORIGINS = ['https://ateliergribouille.art', 'https://www.ateliergri
 export const siteOrigin = (origin) => (ORIGINS.includes(origin) ? origin : ORIGINS[0]);
 
 // La session de paiement Stripe (Checkout), en paramètres de formulaire (l'API Stripe les veut ainsi)
-export function checkoutParams({ order, items, email, origin }) {
+export function checkoutParams({ order, items, email, origin, now = Date.now() }) {
   const site = siteOrigin(origin);
   const p = [
     ['mode', 'payment'], ['locale', 'fr'],
+    // (une page de paiement abandonnée expire au bout de 31 minutes, le minimum de Stripe étant 30 :
+    // la commande passe alors « abandonnée » et sort de « Mes commandes »)
+    ['expires_at', String(Math.floor(now / 1000) + 31 * 60)],
     ['client_reference_id', order.id], ['metadata[order_id]', order.id], ['metadata[ref]', order.ref],
     ['payment_intent_data[metadata][order_id]', order.id], ['payment_intent_data[metadata][ref]', order.ref],
     ['success_url', `${site}/atelier/?commande=${encodeURIComponent(order.ref)}`],
@@ -151,21 +166,25 @@ export function checkoutParams({ order, items, email, origin }) {
     COUNTRIES.forEach((c, i) => p.push([`shipping_address_collection[allowed_countries][${i}]`, c]));
     p.push(['phone_number_collection[enabled]', 'true']);
     deliveryOptions(items).forEach((o, i) => {
-      const s = `shipping_options[${i}][shipping_rate_data]`;
+      const s = `shipping_options[${i}][shipping_rate_data]`, d = DELIVERY[o.mode];
       p.push([`${s}[type]`, 'fixed_amount'], [`${s}[fixed_amount][amount]`, String(o.cents)], [`${s}[fixed_amount][currency]`, 'eur'],
-        [`${s}[display_name]`, o.cents ? DELIVERY[o.mode] : `${DELIVERY[o.mode]} (comprise dans le kit)`], [`${s}[metadata][mode]`, o.mode]);
+        [`${s}[display_name]`, o.cents ? d.name : `${d.name} (comprise dans le kit)`], [`${s}[metadata][mode]`, o.mode],
+        [`${s}[delivery_estimate][minimum][unit]`, 'business_day'], [`${s}[delivery_estimate][minimum][value]`, String(d.min)],
+        [`${s}[delivery_estimate][maximum][unit]`, 'business_day'], [`${s}[delivery_estimate][maximum][value]`, String(d.max)]);
     });
   }
   return p;
 }
 const eur = (c) => `${(c / 100).toFixed(2).replace('.', ',')} €`;
-// « Votre commande : Lou — Affiche 21 × 30 cm : 39,00 € · Livraison à domicile : 9,90 € · Total : 48,90 € »
-// (Stripe limite ce texte à 1 200 caractères : les titres sont raccourcis, les articles au-delà comptés)
+// « Votre commande : Lou — Affiche 21 × 30 cm : 39,00 € · Livraison : Colissimo 9,90 € ou Chronopost
+// express 19,90 € · Total : 48,90 € avec Colissimo » (Stripe limite ce texte à 1 200 caractères : les
+// titres sont raccourcis, les articles au-delà comptés)
 export function summary(items) {
   const lines = items.map((it) => `${it.title.slice(0, 40)} — ${it.label}${it.qty > 1 ? ` × ${it.qty}` : ''} : ${eur(cents(it.unit) * it.qty)}`);
-  const ship = shippingCents(items, 'domicile');
+  const opts = deliveryOptions(items);
   const t = totals(items);
-  const tail = [needsDelivery(items) ? `${DELIVERY.domicile} : ${ship ? eur(ship) : 'comprise'}` : null, `Total : ${eur(t.total)}`].filter(Boolean);
+  const ship = opts.length ? `Livraison : ${opts.map((o) => `${DELIVERY[o.mode].short} ${o.cents ? eur(o.cents) : 'comprise'}`).join(' ou ')}` : null;
+  const tail = [ship, `Total : ${eur(t.total)}${opts.length > 1 ? ` avec ${DELIVERY.domicile.short}` : ''}`].filter(Boolean);
   let shown = lines;
   while (shown.length > 1 && `Votre commande : ${shown.join(' · ')} · ${tail.join(' · ')}`.length > 1100) shown = shown.slice(0, -1);
   if (shown.length < lines.length) shown = shown.concat(`et ${lines.length - shown.length} autre(s) article(s)`);

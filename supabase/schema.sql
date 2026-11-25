@@ -280,7 +280,8 @@ create policy "drawings: quota" on storage.objects
 -- siennes (« Mes commandes ») ; l'administrateur (double authentification) les lit toutes et en change
 -- le statut et le suivi. Gardées après la suppression du compte (obligations comptables) : user_id passe
 -- alors à null. Statuts : attente_paiement, payee, en_preparation, expediee, livree, annulee, abandonnee.
--- Livraison : à domicile (delivery).
+-- Livraison : à domicile, standard ou express (delivery). Annulation (fonction commande-annuler) :
+-- remboursée par Stripe (refund, cancelled_at). E-mails des étapes : fonctions, avec la clé RESEND_API_KEY.
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users (id) on delete set null,
@@ -293,7 +294,7 @@ create table if not exists public.orders (
   subtotal_cents integer not null,
   shipping_cents integer not null default 0,
   total_cents integer not null,
-  delivery text,                           -- mode de livraison : domicile
+  delivery text,                           -- mode de livraison : domicile (Colissimo), express (Chronopost)
   stripe_session text,
   payment_intent text,
   shipping jsonb,                           -- nom et adresse de livraison (Stripe)
@@ -306,6 +307,8 @@ create table if not exists public.orders (
 );
 create index if not exists orders_user_idx on public.orders (user_id, created_at desc);
 alter table public.orders add column if not exists delivery text; -- (table créée avant cette colonne)
+alter table public.orders add column if not exists refund text;               -- remboursement Stripe (annulation)
+alter table public.orders add column if not exists cancelled_at timestamptz;
 alter table public.orders enable row level security;
 revoke all on public.orders from anon;
 revoke insert, delete on public.orders from authenticated;

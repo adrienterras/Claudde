@@ -145,6 +145,16 @@
       </div>
       <!-- administration : les œuvres de tous les comptes, en lecture seule (compte administrateur seulement) -->
       <div id="admin-box" hidden>
+        <!-- les commandes payées de tous les comptes : adresse, œuvres à imprimer, statut et suivi (le client
+             reçoit un e-mail à chaque étape) ; annuler rembourse le client -->
+        <div id="admin-orders" class="admin-orders" hidden>
+          <h3>Commandes <small id="admin-orders-count"></small></h3>
+          <p class="hint">Faites avancer chaque commande : le client reçoit un e-mail à chaque étape (en préparation, expédiée avec le suivi, livrée). « Ouvrir l’œuvre » la rouvre en copie, pour l’exporter et l’imprimer.</p>
+          <p id="admin-orders-empty" class="hint" hidden>Aucune commande payée pour l’instant.</p>
+          <div id="admin-orders-list" class="admin-orders-list"></div>
+          <datalist id="admin-carriers"><option value="Colissimo"><option value="Chronopost"><option value="Mondial Relay"></datalist>
+          <p id="admin-orders-status" class="save-status" role="status" hidden></p>
+        </div>
         <h3>Toutes les œuvres <small id="admin-count"></small></h3>
         <p class="hint">Administration : les œuvres de tous les comptes, en lecture seule. Ouvrir une œuvre en fait une copie dans votre compte ; l’original n’est pas touché.</p>
         <!-- double authentification exigée par le serveur avant toute lecture (voir supabase/schema.sql) -->
@@ -735,7 +745,7 @@
       <h2 id="cart-title" class="acc-title">Votre panier</h2>
       <p class="cart-empty hint" hidden>Votre panier est vide. Ajoutez une proposition depuis l’onglet Propositions ou l’étape Exporter.</p>
       <ul class="cart-list"></ul>
-      <div class="cart-ship" hidden><span>Livraison à domicile (France métropolitaine)</span><b></b></div>
+      <div class="cart-ship" hidden><span>Livraison Colissimo à domicile (2 à 3 jours)</span><b></b></div>
       <div class="cart-total"><span>Total TTC</span><b></b></div>
       <p class="hint cart-note">Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.</p>
       <!-- accord facultatif, non coché d'office, demandé à chaque commande : montrer l'œuvre (réseaux, publicité) -->

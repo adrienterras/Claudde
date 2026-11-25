@@ -8,6 +8,7 @@ const { pathToFileURL } = require('url');
 
 const MOD = pathToFileURL(path.join(__dirname, '..', '..', 'supabase', 'functions', '_shared', 'commande.js')).href;
 const load = () => import(MOD);
+const MAILS = pathToFileURL(path.join(__dirname, '..', '..', 'supabase', 'functions', '_shared', 'emails.js')).href;
 const cart = (o) => Object.assign({ product: 'print', finish: 'cadre', size: '50x70', qty: 1, W: 50, H: 70, frame: 'bois-noir', mat: true }, o);
 
 test.describe('Commandes : calcul côté serveur', () => {
@@ -21,7 +22,7 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(m.KIT_CANVAS).toEqual(grab(/const KIT_CANVAS = (\[[^;]*\]);/));
     // la livraison affichée dans le panier est celle que le serveur fait payer
     expect(m.SHIPPING).toEqual(grab(/const SHIPPING = (\{[\s\S]*?\n {2}\});/));
-    for (const mode of ['domicile']) {
+    for (const mode of ['domicile', 'express']) {
       expect(Object.keys(m.SHIPPING[mode].papier)).toEqual(Object.keys(m.PRICES.print.papier));
       expect(Object.keys(m.SHIPPING[mode].cadre)).toEqual(Object.keys(m.PRICES.print.cadre));
     }
@@ -53,8 +54,8 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(t.subtotal).toBe((129 * 2 + 39 + 96 + 29) * 100);
     expect(t.total).toBe(t.subtotal + 3490);
     expect(m.shippingCents(m.orderItems([{ id: 'x', name: 'x', meta: { cart: { product: 'hd', W: 30, H: 40 } } }]))).toBe(0);
-    // un seul mode : à domicile
-    expect(m.deliveryOptions(items)).toEqual([{ mode: 'domicile', cents: 3490 }]);
+    // deux modes : Colissimo (standard) d'abord, puis Chronopost express (34,90 € + 2 × 5 €)
+    expect(m.deliveryOptions(items)).toEqual([{ mode: 'domicile', cents: 3490 }, { mode: 'express', cents: 4490 }]);
     expect(m.SHIPPING.relais).toBeUndefined();
     // un kit seul : livraison comprise, à domicile ; rien à livrer : aucun mode
     expect(m.deliveryOptions([items[2]])).toEqual([{ mode: 'domicile', cents: 0 }]);
@@ -74,12 +75,22 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(p.get('shipping_address_collection[allowed_countries][0]')).toBe('FR');
     expect(p.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')).toBe('2990');
     expect(p.get('shipping_options[0][shipping_rate_data][metadata][mode]')).toBe('domicile');
-    expect(p.has('shipping_options[1][shipping_rate_data][type]')).toBe(false);
+    expect(p.get('shipping_options[0][shipping_rate_data][display_name]')).toBe('Colissimo, à domicile');
+    expect(p.get('shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]')).toBe('3');
+    // express : 34,90 € (50 × 70 encadré) + 5 €, en 24 h
+    expect(p.get('shipping_options[1][shipping_rate_data][fixed_amount][amount]')).toBe('3990');
+    expect(p.get('shipping_options[1][shipping_rate_data][metadata][mode]')).toBe('express');
+    expect(p.get('shipping_options[1][shipping_rate_data][display_name]')).toBe('Chronopost express, à domicile en 24 h');
+    expect(p.get('shipping_options[1][shipping_rate_data][delivery_estimate][minimum][value]')).toBe('1');
+    expect(p.has('shipping_options[2][shipping_rate_data][type]')).toBe(false);
+    // une page de paiement abandonnée expire au bout de 31 minutes
+    const at = new Map(m.checkoutParams({ order: { id: 'o', ref: 'R' }, items, now: 1795600000000 })).get('expires_at');
+    expect(at).toBe(String(1795600000 + 31 * 60));
     // le récapitulatif écrit au-dessus du bouton Payer (Stripe replie le détail sur téléphone)
-    expect(p.get('custom_text[submit][message]')).toBe('Votre commande : Lou — Tableau encadré 50 × 70 cm, cadre bois noir, avec passe-partout × 2 : 258,00 € · HD — Fichier HD : 29,00 € · Livraison à domicile : 29,90 € · Total : 316,90 €');
+    expect(p.get('custom_text[submit][message]')).toBe('Votre commande : Lou — Tableau encadré 50 × 70 cm, cadre bois noir, avec passe-partout × 2 : 258,00 € · HD — Fichier HD : 29,00 € · Livraison : Colissimo 29,90 € ou Chronopost express 39,90 € · Total : 316,90 € avec Colissimo');
     const many = m.orderItems(Array.from({ length: 40 }, (_, i) => ({ id: `x${i}`, name: `Œuvre numéro ${i} avec un titre assez long`, meta: { cart: cart() } })));
     expect(m.summary(many).length).toBeLessThanOrEqual(1200);
-    expect(m.summary(many)).toMatch(/et \d+ autre\(s\) article\(s\) · Livraison à domicile : .* · Total : /);
+    expect(m.summary(many)).toMatch(/et \d+ autre\(s\) article\(s\) · Livraison : Colissimo .* · Total : /);
     // une origine inconnue revient sur le site
     expect(p.get('success_url')).toBe('https://ateliergribouille.art/atelier/?commande=AG-261125-AB12');
     expect(p.get('cancel_url')).toBe('https://ateliergribouille.art/atelier/?panier');
@@ -101,5 +112,35 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(await m.verifySignature(body, `t=${t},v1=${sig}`, 'whsec_autre', t)).toBe(false);
     expect(await m.verifySignature(body, `t=${t},v1=${sig}`, secret, t + 600)).toBe(false);
     expect(await m.verifySignature(body, '', secret, t)).toBe(false);
+  });
+
+  test('les e-mails des commandes : un par étape, sujets courts, lien de suivi selon le transporteur ; sans clé Resend, rien ne part', async () => {
+    const e = await import(MAILS);
+    const order = { ref: 'AG-261125-AB12', total_cents: 4890, shipping_cents: 990, delivery: 'domicile', items: [{ title: 'Courtepointe', label: 'Affiche 21 × 30 cm', qty: 1 }], customer: { name: 'Camille Martin', email: 'camille@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } };
+    const subjects = ['payee', 'en_preparation', 'expediee', 'livree', 'annulee'].map((st) => e.customerEmail(st, order).subject);
+    expect(subjects).toEqual(['Commande AG-261125-AB12 confirmée', 'Commande AG-261125-AB12 en préparation', 'Commande AG-261125-AB12 expédiée', 'Commande AG-261125-AB12 livrée', 'Commande AG-261125-AB12 annulée']);
+    subjects.forEach((x) => expect(x.length).toBeLessThan(60));
+    const paid = e.customerEmail('payee', order);
+    expect(paid.text).toContain('Bonjour Camille,');
+    expect(paid.text).toContain('Courtepointe — Affiche 21 × 30 cm');
+    expect(paid.text).toContain('Total : 48,90 € (dont 9,90 € de livraison)');
+    expect(paid.html).toContain('https://ateliergribouille.art/atelier/?commandes');
+    // expédiée : le lien de suivi du transporteur
+    const sent = e.customerEmail('expediee', Object.assign({}, order, { carrier: 'Colissimo', tracking: '6A12345678901' }));
+    expect(sent.html).toContain('https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901');
+    expect(e.trackingUrl('Chronopost', 'XY 1')).toBe('https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT=XY%201');
+    expect(e.trackingUrl('Autre', '')).toBeNull();
+    // les textes du client sont échappés dans le HTML
+    expect(e.customerEmail('payee', Object.assign({}, order, { items: [{ title: '<b>x</b>', label: 'y', qty: 1 }] })).html).toContain('&lt;b&gt;x&lt;/b&gt;');
+    // la boutique : nouvelle commande, avec le client et l'adresse
+    const shop = e.shopEmail('nouvelle', Object.assign({}, order, { delivery: 'express' }));
+    expect(shop.subject).toBe('Nouvelle commande AG-261125-AB12');
+    expect(shop.text).toContain('Camille Martin · camille@example.org · +33600000000');
+    expect(shop.text).toContain('EXPRESS (Chronopost 24 h) : Camille Martin, 3 rue des Lilas, 75011 Paris, FR');
+    expect(e.shopEmail('annulee', order).subject).toBe('Annulation AG-261125-AB12');
+    // sans clé : rien ne part, sans erreur
+    expect(await e.send('x@example.org', paid, () => undefined)).toBe(false);
+    expect(e.customerAddress({ email: 'compte@example.org' })).toBe('compte@example.org');
+    expect(e.customerAddress(order)).toBe('camille@example.org');
   });
 });

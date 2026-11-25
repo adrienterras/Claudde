@@ -4,12 +4,13 @@
 // Chaque notification est vérifiée (signature, secret STRIPE_WEBHOOK_SECRET) ; une notification reçue
 // deux fois ne change rien de plus.
 import { verifySignature, orderTrace } from '../_shared/commande.js';
+import { customerEmail, customerAddress, shopEmail, shopAddress, send } from '../_shared/emails.js';
 import { rest } from '../_shared/supabase.js';
 
 const SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
 
-// le mode de livraison choisi sur la page de paiement (domicile) : relu chez Stripe, avec le tarif
+// le mode de livraison choisi sur la page de paiement (domicile, express) : relu chez Stripe, avec le tarif
 async function delivery(session: any) {
   try {
     const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${session.id}?expand[]=shipping_cost.shipping_rate`, { headers: { Authorization: `Bearer ${STRIPE_KEY}` } });
@@ -43,6 +44,12 @@ async function paid(session: any) {
     meta.ordered = true;
     meta.order = orderTrace(it, order, at, order.consent);
     await rest('PATCH', `compositions?id=eq.${row.id}`, { meta, name: `${order.ref} · ${it.title}`.slice(0, 80) });
+  }
+  // les e-mails : la confirmation au client, la nouvelle commande à la boutique (sans clé Resend : rien)
+  const [saved] = (await rest('GET', `orders?id=eq.${id}&select=*`)) || [];
+  if (saved) {
+    await send(customerAddress(saved), customerEmail('payee', saved));
+    await send(shopAddress(), shopEmail('nouvelle', saved));
   }
 }
 

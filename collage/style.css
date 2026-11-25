@@ -522,6 +522,23 @@ body.stage-full .stage-cta { display: none; }
 .order-status.s-payee, .order-status.s-en_preparation, .order-status.s-expediee, .order-status.s-livree { background: var(--accent-soft); }
 .order-meta, .order-track { margin: 4px 0 0; color: var(--muted); }
 .order-items { margin: 4px 0 0; padding-left: 18px; }
+.order-cancel { margin-top: 6px; font-size: 0.8rem; }
+.order-cancel.confirm { color: var(--danger, #b3261e); font-weight: 600; }
+/* espace administrateur : les commandes */
+.admin-orders { display: grid; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.admin-orders[hidden], .admin-orders .hint[hidden] { display: none; }
+.admin-orders h3 { margin: 0; }
+.admin-orders-list { display: grid; gap: 10px; }
+.admin-order { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 0.84rem; display: grid; gap: 6px; }
+.admin-order p { margin: 0; }
+.admin-order .order-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.admin-order .ship { white-space: pre-line; }
+.admin-order .ship b.express { color: var(--accent); }
+.admin-order ul { margin: 0; padding-left: 18px; }
+.admin-order li button { margin-left: 6px; }
+.admin-order .admin-order-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.admin-order .admin-order-form select, .admin-order .admin-order-form input { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface, #fff); color: inherit; min-width: 0; }
+.admin-order .admin-order-form input[name="tracking"] { flex: 1 1 140px; }
 .cart-status { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 0.84rem; }
 
 /* Réglages */

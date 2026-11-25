@@ -527,18 +527,37 @@
   // ---------- Commandes payées en ligne (Stripe) ----------
   // le panier du compte devient une commande : la fonction « commande » (serveur) relit le panier,
   // recalcule les prix et la livraison et renvoie l'adresse de la page de paiement Stripe
-  async function ordersCheckout(consent) {
+  // (l'appel d'une fonction du serveur ; son message d'erreur, en clair)
+  async function fnCall(name, body) {
     if (!user) throw new Error(tr('connexion requise'));
-    const { data, error } = await client.functions.invoke('commande', { body: { consent: !!consent } });
+    const { data, error } = await client.functions.invoke(name, { body });
     if (error) {
       let msg = error.message || String(error);
-      try { const j = error.context && (await error.context.json()); if (j && j.error) msg = j.error; } catch (e) { /* réponse sans détail */ }
+      try { const j = error.context && error.context.json && (await error.context.json()); if (j && j.error) msg = j.error; } catch (e) { /* réponse sans détail */ }
       // (serveur injoignable : réseau coupé, ou fonction pas encore installée)
       if (error.name === 'FunctionsFetchError' || /failed to send a request|failed to fetch|load failed|networkerror/i.test(msg)) msg = tr('le service de paiement ne répond pas : réessayez dans un instant');
       throw new Error(msg);
     }
+    return data;
+  }
+  async function ordersCheckout(consent) {
+    const data = await fnCall('commande', { consent: !!consent });
     if (!data || !data.url) throw new Error(tr('réponse inattendue du serveur'));
     return data;
+  }
+  // annuler (et rembourser) une commande : le client tant qu'elle est payée, l'administrateur jusqu'à l'expédition
+  const ordersCancel = (id) => fnCall('commande-annuler', { id });
+  // l'administrateur fait avancer une commande (statut, transporteur, numéro de suivi) ; le client est prévenu
+  const ordersSet = (id, patch) => fnCall('commande-statut', Object.assign({ id }, patch));
+  // toutes les commandes (administrateur, double authentification), les plus récentes d'abord, sans
+  // les paiements commencés et abandonnés ; leurs œuvres s'ouvrent comme celles de Toutes les œuvres
+  async function ordersAdmin() {
+    if (!isAdmin()) return [];
+    const { data, error } = await withTimeout(client.from('orders').select('*').order('created_at', { ascending: false }).range(0, 149), 45000);
+    err(error);
+    const rows = (data || []).filter((o) => o.status !== 'attente_paiement' && o.status !== 'abandonnee');
+    rows.forEach((o) => (o.items || []).forEach((it) => { if (it.compId) adminOpenable.add(it.compId); }));
+    return rows;
   }
   // les commandes du compte (« Mes commandes »), les plus récentes d'abord
   async function ordersList() {
@@ -663,7 +682,7 @@
     isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
-    orders: { checkout: ordersCheckout, list: ordersList },
+    orders: { checkout: ordersCheckout, list: ordersList, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet },
     contactEmail: cfg.contactEmail || '',
   };
 })();

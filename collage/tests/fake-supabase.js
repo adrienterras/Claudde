@@ -84,7 +84,8 @@
       const uid = db.session && db.session.user.id;
       if (!uid) return ko('JWT expired');
       // (comme les règles RLS : ses propres lignes seulement ; l'administrateur passe par admin_works et admin_open)
-      let rows = db.rows.filter((r) => r.user_id === uid && (r.__table || 'compositions') === table);
+      // (les commandes de tous les comptes : l'administrateur, avec la double authentification, les lit)
+      let rows = db.rows.filter((r) => (r.user_id === uid || (table === 'orders' && isAdm(db.session && db.session.user))) && (r.__table || 'compositions') === table);
       // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
       q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'is' ? x == v : op === 'not-is' ? x != v : op === 'neq' ? x !== v : x === v; }); });
@@ -156,6 +157,25 @@
       window.__fake.calls.push(['invoke', name, body]);
       const h = window.__fake.fns && window.__fake.fns[name];
       if (h) return Promise.resolve(h(body));
+      // l'annulation (le client tant que « payée », l'administrateur jusqu'à l'expédition) et le statut (administrateur)
+      if (name === 'commande-annuler' || name === 'commande-statut') {
+        const u = db.session && db.session.user;
+        if (!u) return fnError('connexion requise');
+        const o = db.rows.find((r) => r.__table === 'orders' && r.id === body.id);
+        const admin = isAdm(u);
+        if (!o || (!admin && o.user_id !== u.id)) return fnError('commande inconnue');
+        if (name === 'commande-statut') {
+          if (!admin) return fnError('réservé à l’administrateur, connecté avec la double authentification');
+          const before = o.status;
+          Object.assign(o, { status: body.status || o.status, carrier: body.carrier == null ? o.carrier : body.carrier, tracking: body.tracking == null ? o.tracking : body.tracking });
+          window.__fake.mails = (window.__fake.mails || []).concat(before !== o.status ? [[o.status, o.ref]] : []);
+          persist();
+          return ok({ order: o, mailed: before !== o.status });
+        }
+        if (!(admin ? ['payee', 'en_preparation'] : ['payee']).includes(o.status)) return fnError('cette commande est déjà en préparation : elle ne peut plus être annulée en ligne, écrivez-nous à contact@ateliergribouille.art');
+        o.status = 'annulee'; o.refund = 're_fake'; persist();
+        return ok({ order: o });
+      }
       if (name !== 'commande') return fnError('fonction inconnue');
       const u = db.session && db.session.user;
       if (!u) return fnError('connexion requise');

@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.commande-statut]
+verify_jwt = false
+
+[functions.commande-annuler]
+verify_jwt = false
