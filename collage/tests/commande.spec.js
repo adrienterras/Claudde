@@ -160,4 +160,42 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(e.customerAddress({ email: 'compte@example.org' })).toBe('compte@example.org');
     expect(e.customerAddress(order)).toBe('camille@example.org');
   });
+  test('le visuel d’un article commandé (Mes commandes, e-mails) : le cadre, le passe-partout ou la bordure, aux proportions réelles ; même calcul dans l’atelier', async ({ page }) => {
+    const m = await load();
+    const e = await import(MAILS);
+    // les mesures sont celles de l'atelier (tirages, bordure, cadres)
+    const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
+    const frames = Function(`return (${/const PRINT_FRAMES = (\[[\s\S]*?\n {2}\]);/.exec(src)[1]});`)();
+    expect(Object.fromEntries(frames.map((f) => [f.key, { print: f.print, mat: f.mat }]))).toEqual(m.PRINT_FRAMES);
+    expect(frames.map((f) => [f.key, [f.w, f.h]])).toEqual(Object.entries(m.SIZES));
+    expect(Number(/const MARGIN_CM = ([\d.]+);/.exec(src)[1])).toBe(m.MARGIN_CM);
+    // encadré avec passe-partout (paysage) : le cadre 70 × 50, la fenêtre 50 × 40 au centre
+    const plan = m.framePlan(m.normalizeItem(cart({ W: 70, H: 50 })));
+    expect(plan).toEqual({ framed: true, mat: true, rgb: [38, 36, 34], profile: 1.5, outerW: 70, outerH: 50, artW: 50, artH: 40, padX: 10, padY: 5 });
+    // affiche avec bordure blanche : la feuille, l'œuvre 3 cm en retrait ; fichier HD : l'œuvre seule
+    expect(m.framePlan(m.normalizeItem({ product: 'print', finish: 'papier', size: '30x40', margin: true, W: 30, H: 40 }))).toMatchObject({ framed: false, outerW: 30, outerH: 40, artW: 24, artH: 34, padX: 3, padY: 3 });
+    expect(m.framePlan(m.normalizeItem({ product: 'hd', size: '30x40', W: 30, H: 40 }))).toBeNull();
+    // l'e-mail : la teinte du cadre autour de l'œuvre, l'image à sa largeur seule (jamais étirée)
+    const html = e.framedHtml(m.normalizeItem(cart({ W: 70, H: 50 })), 'cid:oeuvre-1', 260);
+    expect(html).toContain('background:#262422');
+    expect(html).toMatch(/<img src="cid:oeuvre-1" width="\d+"[^>]*height:auto/);
+    expect(html).not.toMatch(/<img[^>]*height="/);
+    expect(e.framedHtml({ product: 'print', finish: 'papier', size: '30x40', W: 30, H: 40 }, 'cid:x', 60)).not.toContain('#262422');
+    const order = { ref: 'AG-1', total_cents: 13890, shipping_cents: 990, items: [Object.assign(m.normalizeItem(cart({ frame: 'bois-clair' })), { compId: 'c1', title: 'Lou', label: 'x', unit: 129 })] };
+    expect(e.customerEmail('payee', order, e.visualsOf(order, { c1: 'data:image/jpeg;base64,QUJD' })).html).toContain('background:#d4b892');
+    // l'atelier fait le même calcul (Mes commandes)
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.AtelierGribouille.framePlanOf);
+    const items = [];
+    for (const size of Object.keys(m.SIZES)) {
+      for (const [W, H] of [[30, 40], [40, 30]]) {
+        for (const finish of ['papier', 'cadre']) {
+          for (const mat of [false, true]) for (const margin of [false, true]) for (const frame of ['bois-clair', 'bois-noir', 'bois-blanc', 'metal']) items.push(m.normalizeItem({ product: 'print', finish, size, W, H, mat, margin, frame }));
+        }
+      }
+    }
+    items.push(m.normalizeItem({ product: 'kit', W: 80, H: 80 }));
+    const client = await page.evaluate((items) => items.map((it) => window.AtelierGribouille.framePlanOf(it)), items);
+    expect(client).toEqual(items.map((it) => m.framePlan(it)));
+  });
 });

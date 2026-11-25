@@ -566,6 +566,14 @@
     rows.forEach((o) => (o.items || []).forEach((it) => { if (it.compId) adminOpenable.add(it.compId); }));
     return rows;
   }
+  // les vignettes des œuvres commandées (le visuel de chaque article dans « Mes commandes ») : { id: data URL }
+  async function ordersThumbs(ids) {
+    const list = [...new Set((ids || []).map(String).filter((x) => /^[0-9a-f-]{8,40}$/.test(x)))];
+    if (!user || !list.length) return {};
+    const { data, error } = await withTimeout(client.from('compositions').select('id, thumb').in('id', list), 30000);
+    err(error);
+    return Object.fromEntries((data || []).filter((r) => r.thumb).map((r) => [r.id, r.thumb]));
+  }
   // les commandes du compte (« Mes commandes »), les plus récentes d'abord
   async function ordersList() {
     if (!user) return [];
@@ -689,7 +697,7 @@
     isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
-    orders: { checkout: ordersCheckout, list: ordersList, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet },
+    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet },
     contactEmail: cfg.contactEmail || '',
   };
 })();

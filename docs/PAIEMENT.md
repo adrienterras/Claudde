@@ -98,13 +98,19 @@ Envoyés par **Resend**, depuis `commandes@ateliergribouille.art` (réponses ver
 - **à la boutique** (`contact@ateliergribouille.art`) : nouvelle commande (avec l'adresse), commande
   annulée par le client.
 
+Chaque e-mail montre l'œuvre commandée **telle qu'elle sera livrée** : dans son cadre (teinte et
+baguettes du bois ou de l'aluminium, passe-partout ou bordure blanche) ou sur sa feuille pour une
+affiche, aux proportions réelles. La vignette est jointe au message (image intégrée, jamais mise en
+ligne). Le même visuel accompagne chaque article dans **Mes commandes**, sous le nom du compte ; le
+calcul (`framePlan`, dans `_shared/commande.js`) est le même des deux côtés, un test le vérifie.
+
 À régler une fois : Resend → API Keys → créer une clé « Envoi », puis la coller dans Supabase → Edge
 Functions → Secrets → `RESEND_API_KEY`. Sans cette clé, rien n'est envoyé et rien ne casse. Réglages
 facultatifs : `ORDER_FROM` (l'expéditeur) et `ORDER_NOTIFY` (l'adresse de la boutique).
 
 ## Annulation par le client
 
-Dans Mon compte → Mes commandes, **Annuler la commande** reste proposé tant que la commande est
+Dans Mes commandes (sous le nom du compte), **Annuler la commande** reste proposé tant que la commande est
 « Payée », c'est-à-dire tant que vous ne l'avez pas passée « En préparation » ; l'annulation demande une
 deuxième touche pour confirmer. Les œuvres sont personnalisées : une fois lancées, elles ne s'annulent
 plus en ligne. Fonction `commande-annuler` : la commande passe « annulée », puis **Stripe rembourse le

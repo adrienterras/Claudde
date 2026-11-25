@@ -119,6 +119,59 @@ export function itemLabel(it) {
   return `Kit DIY : ${parts.join(', ')}`;
 }
 
+/*
+ * Le visuel d'un tirage tel qu'il sera livré (Mes commandes, e-mails) : la feuille (affiche) ou le cadre,
+ * le passe-partout ou la bordure blanche, et l'œuvre imprimée, en cm. Doit rester identique à l'atelier
+ * (PRINT_FRAMES, MARGIN_CM, FRAME_KINDS dans collage/js/app.js ; un test le vérifie).
+ */
+export const PRINT_FRAMES = {
+  '21x30': { print: [21, 29.7], mat: [13, 18] },
+  '30x40': { print: [30, 40], mat: [21, 29.7] },
+  '40x50': { print: [40, 50], mat: [30, 40] },
+  '50x70': { print: [50, 70], mat: [40, 50] },
+  '70x100': { print: [70, 100], mat: [50, 70] },
+};
+export const MARGIN_CM = 3;
+// la teinte et l'épaisseur (cm) de chaque cadre
+export const FRAME_LOOK = {
+  'bois-clair': { rgb: [212, 184, 146], profile: 1.5 },
+  'bois-fonce': { rgb: [96, 70, 50], profile: 1.5 },
+  'bois-noir': { rgb: [38, 36, 34], profile: 1.5 },
+  'bois-blanc': { rgb: [253, 253, 252], profile: 1.5 },
+  metal: { rgb: [186, 188, 190], profile: 0.9 },
+};
+// null : pas un tirage (fichier HD, guide, kit) — le visuel est alors l'œuvre seule.
+// outerW × outerH : la feuille, ou le cadre sans ses baguettes (profile) ; artW × artH : l'œuvre imprimée,
+// au centre (padX, padY de blanc autour : passe-partout ou bordure) ; mat : avec passe-partout
+export function framePlan(it) {
+  if (!it || it.product !== 'print' || !own(SIZES, it.size)) return null;
+  const land = Number(it.W) >= Number(it.H);
+  const or = ([a, b]) => (land ? [Math.max(a, b), Math.min(a, b)] : [Math.min(a, b), Math.max(a, b)]);
+  const framed = it.finish === 'cadre', mat = framed && !!it.mat;
+  const f = PRINT_FRAMES[it.size];
+  const [Pw, Ph] = or(mat ? f.mat : f.print);
+  const m = it.margin && !mat ? MARGIN_CM : 0;
+  const [outerW, outerH] = framed ? or(SIZES[it.size]) : [Pw, Ph];
+  const artW = Pw - 2 * m, artH = Ph - 2 * m;
+  const look = framed ? FRAME_LOOK[it.frame] || FRAME_LOOK['bois-clair'] : null;
+  const r2 = (x) => Math.round(x * 100) / 100;
+  return {
+    framed, mat, rgb: look ? look.rgb : null, profile: look ? look.profile : 0,
+    outerW: r2(outerW), outerH: r2(outerH), artW: r2(artW), artH: r2(artH),
+    padX: r2(Math.max(0, (outerW - artW) / 2)), padY: r2(Math.max(0, (outerH - artH) / 2)),
+  };
+}
+// les mesures en pixels du visuel, son plus grand côté (baguettes comprises) à size px
+export function framePixels(plan, size) {
+  if (!plan) return { img: size, frame: 0, padX: 0, padY: 0 };
+  const s = size / Math.max(plan.outerW + 2 * plan.profile, plan.outerH + 2 * plan.profile);
+  return {
+    img: Math.max(8, Math.round(plan.artW * s)),
+    frame: plan.framed ? Math.max(2, Math.round(plan.profile * s)) : 0,
+    padX: Math.round(plan.padX * s), padY: Math.round(plan.padY * s),
+  };
+}
+
 // les lignes du panier du compte → les articles de la commande (les non valables sont écartés)
 export function orderItems(rows) {
   return (rows || []).map((row) => {

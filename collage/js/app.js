@@ -9201,6 +9201,65 @@ Réponds uniquement avec ce JSON :
     // connecté : le panier est relu depuis le compte (articles ajoutés ou retirés sur un autre appareil)
     if (cloudCartOn()) syncCloudCart().then(() => { if (!$('cart').hidden) renderCart(); });
   }
+  // Le visuel d'un article commandé, tel qu'il sera livré : l'œuvre dans son cadre (teinte et baguettes,
+  // passe-partout ou bordure blanche) ou sur sa feuille, aux proportions réelles. Même calcul que les
+  // e-mails (framePlan, framePixels de supabase/functions/_shared/commande.js ; un test les compare).
+  // null : pas un tirage (fichier HD, guide, kit), l'œuvre seule
+  function framePlanOf(it) {
+    if (!it || it.product !== 'print' || !own(SIZES, it.size)) return null;
+    const land = Number(it.W) >= Number(it.H);
+    const or = ([a, b]) => (land ? [Math.max(a, b), Math.min(a, b)] : [Math.min(a, b), Math.max(a, b)]);
+    const framed = it.finish === 'cadre', mat = framed && !!it.mat;
+    const f = PRINT_FRAMES.find((x) => x.key === it.size);
+    const [Pw, Ph] = or(mat ? f.mat : f.print);
+    const m = it.margin && !mat ? MARGIN_CM : 0;
+    const [outerW, outerH] = framed ? or(SIZES[it.size]) : [Pw, Ph];
+    const artW = Pw - 2 * m, artH = Ph - 2 * m;
+    const look = framed ? FRAME_KINDS[it.frame] || FRAME_KINDS['bois-clair'] : null;
+    const r2 = (x) => Math.round(x * 100) / 100;
+    return {
+      framed, mat, rgb: look ? look.rgb : null, profile: look ? look.profile : 0,
+      outerW: r2(outerW), outerH: r2(outerH), artW: r2(artW), artH: r2(artH),
+      padX: r2(Math.max(0, (outerW - artW) / 2)), padY: r2(Math.max(0, (outerH - artH) / 2)),
+    };
+  }
+  function framePixelsOf(plan, size) {
+    if (!plan) return { img: size, frame: 0, padX: 0, padY: 0 };
+    const s = size / Math.max(plan.outerW + 2 * plan.profile, plan.outerH + 2 * plan.profile);
+    return {
+      img: Math.max(8, Math.round(plan.artW * s)),
+      frame: plan.framed ? Math.max(2, Math.round(plan.profile * s)) : 0,
+      padX: Math.round(plan.padX * s), padY: Math.round(plan.padY * s),
+    };
+  }
+  // (la vignette garde ses proportions : seule sa largeur est donnée, jamais étirée)
+  function orderVisual(it, src, size) {
+    const plan = framePlanOf(it), px = framePixelsOf(plan, size);
+    const rgb = (c, k = 1) => `rgb(${c.map((v) => Math.max(0, Math.min(255, Math.round(v * k)))).join(', ')})`;
+    const box = document.createElement('span');
+    box.className = `order-vis${plan && plan.framed ? ' framed' : plan ? ' paper' : ''}`;
+    const img = new Image();
+    img.alt = '';
+    img.src = src;
+    img.style.width = `${px.img}px`;
+    if (plan && plan.mat) img.classList.add('mat');
+    if (!plan) { box.style.padding = `${Math.max(2, Math.round(size / 24))}px`; box.appendChild(img); return box; }
+    const white = document.createElement('span');
+    white.className = 'order-vis-white';
+    white.style.padding = `${px.padY}px ${px.padX}px`;
+    white.appendChild(img);
+    if (plan.framed) {
+      const light = plan.rgb[0] > 235;
+      box.style.padding = `${px.frame}px`;
+      box.style.background = rgb(plan.rgb);
+      box.style.borderColor = light ? '#d8d3c8' : rgb(plan.rgb, 0.78);
+      white.style.borderColor = light ? '#ece8df' : rgb(plan.rgb, 0.7);
+    } else white.classList.add('sheet');
+    box.appendChild(white);
+    return box;
+  }
+  const orderThumbs = new Map(); // (les vignettes déjà lues, le temps de la page)
+
   // « Mes commandes », dans Mon compte (connecté) : statut, articles, suivi du colis ; cachée tant qu'il
   // n'y en a aucune, sauf venu exprès (showEmpty : ?commandes, retour de paiement)
   const orderStatus = (s) => ({
@@ -9218,6 +9277,11 @@ Réponds uniquement avec ce JSON :
     try { rows = (await A.orders.list()).filter((o) => orderStatus(o.status)); } catch (e) { console.error(e); box.hidden = !ordersWanted; $('orders-empty').hidden = true; return []; }
     box.hidden = !rows.length && !ordersWanted;
     $('orders-empty').hidden = rows.length > 0;
+    // le visuel de chaque article : la vignette de l'œuvre commandée (gardée dans le compte)
+    const missing = rows.flatMap((o) => (o.items || []).map((it) => it.compId)).filter((id) => id && !orderThumbs.has(String(id)));
+    if (missing.length && A.orders.thumbs) {
+      try { const t = await A.orders.thumbs(missing); missing.forEach((id) => orderThumbs.set(String(id), safeData(t[id]) || '')); } catch (e) { console.error(e); }
+    }
     list.innerHTML = '';
     rows.forEach((o) => {
       const li = document.createElement('li');
@@ -9226,12 +9290,17 @@ Réponds uniquement avec ce JSON :
       const lines = (o.items || []).map((it) => {
         let label = it.label || '';
         try { label = productLabel(it) || label; } catch (e) { /* article d'un autre format : le libellé gardé */ }
-        return `<li>${esc(it.title || '')} — ${esc(label)}${it.qty > 1 ? ` × ${it.qty}` : ''}</li>`;
+        return `<li data-comp="${esc(String(it.compId || ''))}"><span class="order-item-text"><b>${esc(it.title || '')}</b><span>${esc(label)}${it.qty > 1 ? ` × ${it.qty}` : ''}</span></span></li>`;
       }).join('');
       const track = o.tracking ? `<p class="order-track">${esc(tr`Suivi du colis : ${[o.carrier, o.tracking].filter(Boolean).join(' ')}`)}</p>` : '';
       li.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>
         <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}${o.delivery === 'express' ? ` · ${esc(tr('express 24 h'))}` : ''}</p>
         <ul class="order-items">${lines}</ul>${track}`;
+      // (le visuel, devant chaque article : l'œuvre dans son cadre, ou sur sa feuille)
+      li.querySelectorAll('.order-items > li').forEach((el, i) => {
+        const it = (o.items || [])[i], src = it && orderThumbs.get(String(it.compId));
+        if (src) el.prepend(orderVisual(it, src, 76));
+      });
       // annuler, tant que la commande est payée (pas encore en préparation) : remboursée aussitôt
       if (o.status === 'payee') {
         const b = document.createElement('button');
@@ -9461,7 +9530,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom };
+  window.AtelierGribouille = { framePlanOf, act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

@@ -513,7 +513,7 @@ body.stage-full .stage-cta { display: none; }
 /* Mes commandes (paiement en ligne), dans Mon compte */
 .acc-orders { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .acc-orders[hidden] { display: none; }
-.panel > .acc-orders { margin: 12px 0 6px; padding-top: 0; border-top: 0; } /* sous le nom du compte */
+.panel > .acc-orders { margin: 12px 0 6px; padding-top: 0; border-top: 0; scroll-margin-top: 14px; } /* sous le nom du compte */
 .acc-orders h3 { margin: 0; font-size: 1rem; }
 .acc-orders .cart-status[hidden], .acc-orders .hint[hidden] { display: none; }
 .orders-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -522,7 +522,16 @@ body.stage-full .stage-cta { display: none; }
 .order-status { font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; }
 .order-status.s-payee, .order-status.s-en_preparation, .order-status.s-expediee, .order-status.s-livree { background: var(--accent-soft); }
 .order-meta, .order-track { margin: 4px 0 0; color: var(--muted); }
-.order-items { margin: 4px 0 0; padding-left: 18px; }
+.order-items { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.order-items > li { display: flex; align-items: center; gap: 12px; }
+.order-item-text { display: grid; gap: 1px; min-width: 0; }
+.order-item-text > span { color: var(--muted); }
+/* le visuel de l'article : l'œuvre dans son cadre (teinte en ligne), ou sur sa feuille ; 76 px au plus */
+.order-vis { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--line); box-shadow: 0 3px 8px rgba(43, 42, 38, 0.16); }
+.order-vis-white { display: block; background: #fff; border: 1px solid transparent; }
+.order-vis-white.sheet { border: 0; }
+.order-vis img { display: block; height: auto; max-width: none; }
+.order-vis img.mat { outline: 1px solid #e2dccd; }
 .order-cancel { margin-top: 6px; font-size: 0.8rem; }
 .order-cancel.confirm { color: var(--danger, #b3261e); font-weight: 600; }
 /* espace administrateur : les commandes */

@@ -1145,6 +1145,9 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#orders-list .order')).toHaveCount(1);
     await expect(page.locator('#orders-list .order')).toContainText('AG-261125-T1');
     await expect(page.locator('#orders-list .order-status')).toHaveText('Payée');
+    // le visuel de l'article : l'œuvre commandée, sur sa feuille (une affiche), à ses proportions
+    await expect(page.locator('#orders-list .order-vis.paper img')).toHaveCount(1);
+    expect(await page.locator('#orders-list .order-vis img').evaluate((img) => img.src.startsWith('data:image/') && img.complete && Math.abs(img.width / img.height - img.naturalWidth / img.naturalHeight) < 0.05)).toBe(true);
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 30000 }).toBe(0);
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier') || '[]').length), { timeout: 30000 }).toBe(0);
     // ?commandes (lien « Mes commandes » du menu du site) : ses commandes, sous le nom du compte

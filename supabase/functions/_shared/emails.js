@@ -11,6 +11,8 @@
  * Sujets courts : certaines messageries lisent mal un sujet long coupé sur deux lignes.
  */
 
+import { framePlan, framePixels } from './commande.js';
+
 export const SITE = 'https://ateliergribouille.art';
 const LOGO = `${SITE}/img/logo-mark-80.png`;
 const C = { bg: '#f4efe6', card: '#ffffff', ink: '#2b2a26', ink2: '#4a4740', muted: '#8a8577', line: '#e8e0d2', soft: '#f8f5ef', accent: '#3e5a4c', argile: '#b5654d' };
@@ -60,15 +62,35 @@ function stepsHtml(status) {
 
 // le visuel de l'œuvre commandée (la vignette de la composition, jointe au message : l'image n'est mise
 // en ligne nulle part) ; vis : { [compId]: content_id }
+const hex = (rgb, k = 1) => `#${rgb.map((v) => Math.max(0, Math.min(255, Math.round(v * k))).toString(16).padStart(2, '0')).join('')}`;
+// le visuel d'un article tel qu'il sera livré : l'œuvre dans son cadre (teinte, baguettes, passe-partout
+// ou bordure blanche) ou sur sa feuille, aux proportions réelles ; size : son plus grand côté, en px.
+// En tableaux (les messageries ignorent la plupart des styles) ; l'image n'est jamais étirée (largeur seule)
+export function framedHtml(it, src, size, alt = '') {
+  const plan = framePlan(it), px = framePixels(plan, size);
+  const img = `<img src="${esc(src)}" width="${px.img}" alt="${esc(alt)}" style="display:block;width:${px.img}px;max-width:100%;height:auto;${plan && plan.mat ? 'border:1px solid #e2dccd;' : ''}">`;
+  const table = (td, inner) => `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 auto;"><tr><td style="${td}">${inner}</td></tr></table>`;
+  const shadow = `box-shadow:0 ${Math.max(2, Math.round(size / 40))}px ${Math.max(6, Math.round(size / 12))}px rgba(43,42,38,0.18);`;
+  if (!plan) {
+    const b = Math.max(2, Math.round(size / 24));
+    return table(`padding:${b}px;background:#ffffff;border:1px solid ${C.line};${shadow}`, img);
+  }
+  const white = `padding:${px.padY}px ${px.padX}px;background:#ffffff;`;
+  if (!plan.framed) return table(`${white}border:1px solid ${C.line};${shadow}`, img);
+  const edge = plan.rgb[0] > 235 ? '#d8d3c8' : hex(plan.rgb, 0.78);
+  return table(`padding:${px.frame}px;background:${hex(plan.rgb)};border:1px solid ${edge};${shadow}`,
+    table(`${white}border:1px solid ${plan.rgb[0] > 235 ? '#ece8df' : hex(plan.rgb, 0.7)};`, img));
+}
+// le visuel en grand, sous la frise : la première œuvre de la commande, dans son cadre
 function heroHtml(order, vis) {
   const it = (order.items || []).find((x) => vis && vis[x.compId]);
   if (!it) return '';
-  return `<tr><td align="center" style="padding:6px 0 26px;"><img src="cid:${esc(vis[it.compId])}" width="240" alt="${esc(it.title)}" style="display:block;width:240px;max-width:100%;height:auto;border:10px solid #ffffff;border-radius:4px;box-shadow:0 6px 22px rgba(43,42,38,0.16);background:#ffffff;"></td></tr>`;
+  return `<tr><td align="center" style="padding:10px 0 28px;">${framedHtml(it, `cid:${vis[it.compId]}`, 260, it.title)}</td></tr>`;
 }
 // le récapitulatif : chaque œuvre (vignette, titre, article, prix), la livraison, le total
 function recapHtml(order, vis) {
   const many = (order.items || []).length > 1;
-  const thumb = (it) => (many && vis && vis[it.compId] ? `<td width="62" valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid ${C.line};"><img src="cid:${esc(vis[it.compId])}" width="50" alt="" style="display:block;width:50px;height:auto;border-radius:3px;"></td>` : '');
+  const thumb = (it) => (many && vis && vis[it.compId] ? `<td width="70" align="center" valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid ${C.line};">${framedHtml(it, `cid:${vis[it.compId]}`, 58)}</td>` : '');
   const rows = (order.items || []).map((it) => `<tr>${thumb(it)}
       <td style="padding:10px 0;border-bottom:1px solid ${C.line};font-family:${SANS};font-size:14px;line-height:1.45;color:${C.ink};"><b>${esc(it.title)}</b><br><span style="color:${C.muted};font-size:13px;">${esc(it.label)}${it.qty > 1 ? ` · quantité ${it.qty}` : ''}</span></td>
       <td align="right" valign="top" style="padding:10px 0 10px 12px;border-bottom:1px solid ${C.line};font-family:${SANS};font-size:14px;color:${C.ink};white-space:nowrap;">${it.unit != null ? eur(Math.round(it.unit * 100) * (it.qty || 1)) : ''}</td>
