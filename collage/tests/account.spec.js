@@ -973,6 +973,38 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(() => localStorage.getItem('atelier-gribouille:commandes'))).toBeNull();
   });
 
+  test('ajouter au panier une œuvre déjà dans le compte : ses images sont copiées sur le serveur, rien ne repart de l’appareil ; le bouton se libère aussitôt', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'copie@example.org', 'Rouge-Soleil-42', 'Copie');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 3);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    const workId = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), workId);
+    await page.evaluate(() => { window.__fake.calls.length = 0; });
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    await openStep(page, 'export-section');
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart-add')).toBeHidden();
+    await expect(page.locator('#cart-add-ok')).toBeEnabled();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    const calls = await page.evaluate((id) => {
+      const cart = window.__fake.db.rows.find((r) => r.meta && r.meta.cart);
+      const inCart = (c) => c[1].split('/')[1] === cart.id;
+      return { copies: window.__fake.calls.filter((c) => c[0] === 'copy' && inCart(c) && c[2].split('/')[1] === id).length, uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && inCart(c)).length };
+    }, workId);
+    expect(calls.copies).toBeGreaterThan(0);
+    expect(calls.uploads).toBe(0);
+    // l'article du panier se rouvre avec ses images (copiées)
+    const cart = await page.evaluate(() => window.__fake.db.rows.find((r) => r.meta && r.meta.cart));
+    const files = cart.meta.drawings.map((d) => d.file);
+    expect(await page.evaluate((files) => files.every((f) => !!window.__fake.db.files[f]), files)).toBe(true);
+  });
+
   test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {
     test.setTimeout(180000);
     const { page } = acc;

@@ -328,14 +328,21 @@
     const t = setTimeout(() => rej(new Error(tr('pas de réponse du serveur : vérifiez la connexion et réessayez'))), ms);
     p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); });
   });
+  // (un fichier déjà dans le compte, celui de l'œuvre d'où vient l'article : copié sur le serveur, rien
+  // ne repart du téléphone ; s'il manque, envoyé)
   async function uploadAll(jobs, onProgress) {
     const store = client.storage.from(BUCKET);
     let next = 0, done = 0;
     const worker = async () => {
       while (next < jobs.length) {
         const j = jobs[next++];
-        const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
-        err(up.error);
+        let copied = false;
+        if (j.src) { const c = await withTimeout(store.copy(j.src, j.path), UPLOAD_TIMEOUT).catch(() => null); copied = !!(c && !c.error); }
+        if (!copied) {
+          if (j.bytes == null) throw new Error(tr('fichier introuvable'));
+          const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
+          err(up.error);
+        }
         onProgress && onProgress(++done, jobs.length);
       }
     };
@@ -345,21 +352,31 @@
     if (!user) throw new Error(tr('Connectez-vous pour sauvegarder dans votre compte.'));
     const id = crypto.randomUUID();
     const base = `${user.id}/${id}`;
+    const store = client.storage.from(BUCKET);
     const drawings = [];
     const jobs = [];
-    const put = (path, bytes, type) => { jobs.push({ path, bytes, type }); return path; };
-    const packOf = (d) => (d.saved && d.saved.page && d.saved.page.data ? 1 + (d.saved.atlases || []).length : 0);
+    // rec.fromWork : l'œuvre du compte d'où vient la composition (article du panier) ; ses fichiers
+    // portent les clés des images (workPut), que la composition donne (workRef, workSavedRef)
+    let have = new Set(), wbase = '';
+    if (rec.fromWork) {
+      wbase = `${user.id}/${rec.fromWork}`;
+      have = workFiles.get(rec.fromWork) || await store.list(wbase, { limit: 1000 }).then(({ data }) => new Set((data || []).map((f) => f.name))).catch(() => new Set());
+    }
+    const from = (name) => (name && have.has(name) ? `${wbase}/${name}` : null);
+    const put = (path, bytes, type, src) => { jobs.push({ path, bytes, type, src }); return path; };
+    const packOf = (d) => (d.saved && d.saved.page && (d.saved.page.data || d.workSavedRef) ? 1 + (d.saved.atlases || []).length : 0);
     for (let i = 0; i < rec.drawings.length; i++) {
       const d = rec.drawings[i];
-      const path = put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg');
+      const wk = d.workRef ? safeName(d.workRef) : null, ws = d.workSavedRef ? safeName(d.workSavedRef) : null;
+      const path = put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg', from(wk && `${wk}.jpg`));
       // page de travail et planches des découpes (voir savedOf dans app.js) : des fichiers à côté de l'image
       let saved = d.saved || null;
       if (packOf(d)) {
-        const atlases = (saved.atlases || []).map((a, j) => Object.assign({}, a, { data: put(`${base}/d${i}-decoupe${j}.png`, a.data, 'image/png') }));
-        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg') }), atlases });
+        const atlases = (saved.atlases || []).map((a, j) => Object.assign({}, a, { data: put(`${base}/d${i}-decoupe${j}.png`, a.data, 'image/png', from(ws && `${ws}-a${j}.png`)) }));
+        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg', from(ws && `${ws}-page.jpg`)) }), atlases });
       }
       const edits = (d.pieceEdits || []).map((e, j) => (e && e.mask ? Object.assign({}, e, { mask: put(`${base}/d${i}-e${j}.png`, e.mask, 'image/png') }) : null));
-      drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved }));
+      drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved, workRef: undefined, workSavedRef: undefined }));
     }
     await uploadAll(jobs, onProgress);
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length };

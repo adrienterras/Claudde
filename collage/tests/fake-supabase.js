@@ -112,6 +112,7 @@
       if (owner !== uid && !(isAdm(db.session && db.session.user) && path.split('/')[1] !== 'exports' && window.__fake.adminLog.some((l) => l.admin === uid && l.owner === owner))) return { data: null, error: { message: 'Object not found' } };
       const f = db.files[path]; if (!f) return { data: null, error: { message: `fichier absent : ${path}` } }; return { data: new Blob([unb64(f)]), error: null }; },
     async list(prefix) { return { data: Object.keys(db.files).filter((p) => p.startsWith(prefix + '/')).map((p) => ({ name: p.slice(prefix.length + 1) })), error: null }; },
+    async copy(from, to) { const uid = db.session && db.session.user.id; if (!db.files[from] || from.split('/')[0] !== uid) return { data: null, error: { message: 'Object not found' } }; db.files[to] = db.files[from]; persist(); window.__fake.calls.push(['copy', to, from]); return { data: { path: to }, error: null }; },
     async remove(paths) { if (window.__FAKE_REMOVE_FAIL) return { data: null, error: { message: 'réseau coupé' } }; paths.forEach((p) => { delete db.files[p]; }); persist(); return { data: paths, error: null }; }, // (__FAKE_REMOVE_FAIL : l'effacement des fichiers échoue)
     async createSignedUrl(path) { return db.files[path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'fichier absent' } }; },
   }) };

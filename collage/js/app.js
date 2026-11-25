@@ -8683,11 +8683,11 @@ Réponds uniquement avec ce JSON :
     const pw = it.W >= it.H ? Math.max(a, b) : Math.min(a, b), ph = it.W >= it.H ? Math.min(a, b) : Math.max(a, b);
     return [pw - 2 * m, ph - 2 * m];
   }
-  // l'œuvre imprimée dans cette zone (réduite d'un même facteur), en clair
+  // l'œuvre imprimée dans cette zone, en clair (la composition est toujours mise aux proportions de cette zone,
+  // voir printedComp : elle la remplit)
   function printedSizeOf(it) {
     const [pw, ph] = printAreaOf(it);
-    const a = Math.min(pw / it.W, ph / it.H);
-    return `${fmt(it.W * a)} × ${fmt(it.H * a)} cm`;
+    return `${fmt(pw)} × ${fmt(ph)} cm`;
   }
   function productLabel(it) {
     if (it.product === 'print' && it.finish === 'cadre') {
@@ -9016,6 +9016,8 @@ Réponds uniquement avec ce JSON :
       rec.cart = true;
       await dbPut(rec);
       const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
+      // l'œuvre en cours, dont les images sont peut-être déjà dans le compte (voir cartRecForCloud)
+      if (state.workId && !state.copyOf) it.workId = state.workId;
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
       if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
       if (it.product === 'hd') it.finish = 'papier'; // (le fichier : une affiche à la taille choisie)
@@ -9027,6 +9029,9 @@ Réponds uniquement avec ce JSON :
       window.Atelier.track('Panier', { produit: it.product === 'print' ? `${it.finish} ${it.size}` : it.product });
       closeModal($('cart-add'));
       openCart(tr`« ${it.title} » est dans votre panier.`);
+      // (l'article est au panier : le bouton se libère tout de suite, l'envoi dans le compte continue
+      // derrière, son avancement dans le panier)
+      btn.disabled = false;
       if (cloudCartOn()) await syncCloudCart(); // connecté : l'article part dans le compte (même panier sur tous les appareils)
     } catch (e) {
       console.error(e);
@@ -9151,12 +9156,15 @@ Réponds uniquement avec ce JSON :
     const rec = await dbGet(it.recId);
     if (!rec) return null;
     for (const sd of rec.drawings) {
+      // (les clés des images : l'œuvre du compte d'où vient l'article a déjà ces fichiers, copiés sur le serveur)
+      sd.workRef = sd.ref || null; sd.workSavedRef = savedRef(sd);
       if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
       delete sd.ref;
       await loadSavedRef(sd);
     }
     rec.name = it.title;
     rec.cart = cartMeta(it);
+    if (it.workId) rec.fromWork = it.workId;
     return rec;
   }
   // un article local devient un article du compte (la copie locale est effacée) ; jamais deux envois du même
