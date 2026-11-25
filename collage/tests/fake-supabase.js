@@ -89,6 +89,8 @@
       // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
       q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'is' ? x == v : op === 'not-is' ? x != v : op === 'neq' ? x !== v : x === v; }); });
+      // (comme la clé primaire : une ligne de même identifiant, même dans un autre compte, est refusée)
+      if (q.op === 'insert' && q.row && q.row.id && db.rows.some((r) => r.id === q.row.id && (r.__table || 'compositions') === table)) return Promise.resolve({ data: null, error: { code: '23505', message: `duplicate key value violates unique constraint "${table}_pkey"` } });
       if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
       if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(rows.map((r) => ({ id: r.id }))); } // (comme .delete().select() : les lignes supprimées)
       if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }

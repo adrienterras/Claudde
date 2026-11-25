@@ -58,3 +58,13 @@ export function replier(req, origins) {
   };
   return { cors, reply: (status, data) => new Response(JSON.stringify(data), { status, headers: { ...cors, 'Content-Type': 'application/json' } }) };
 }
+
+// les vignettes des œuvres d'une commande (pour le visuel des e-mails) : { [compId]: data URL }
+export async function thumbsOf(order) {
+  const ids = [...new Set((order.items || []).map((it) => it.compId).filter((x) => /^[0-9a-f-]{36}$/.test(String(x))))];
+  if (!ids.length) return {};
+  try {
+    const rows = (await rest('GET', `compositions?id=in.(${ids.join(',')})&select=id,thumb`)) || [];
+    return Object.fromEntries(rows.filter((r) => r.thumb).map((r) => [r.id, r.thumb]));
+  } catch (e) { console.error(e); return {}; }
+}

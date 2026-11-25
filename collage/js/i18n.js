@@ -233,6 +233,7 @@
     'Envoi de « {0} » dans votre compte : {1} / {2} fichiers…': 'Sending “{0}” to your account: {1} / {2} files…',
     'pas de réponse du serveur : vérifiez la connexion et réessayez': 'no response from the server: check your connection and try again',
     'fichier introuvable': 'file not found',
+    'cette œuvre appartient à un autre compte': 'this artwork belongs to another account',
     'Préparation de « {0} » pour votre compte…': 'Preparing “{0}” for your account…',
     'Copie de « {0} » dans votre compte : {1} / {2} fichiers…': 'Copying “{0}” to your account: {1} / {2} files…',
     'le service de paiement ne répond pas : réessayez dans un instant': 'the payment service is not responding: please try again in a moment',

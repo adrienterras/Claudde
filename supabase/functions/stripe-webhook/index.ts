@@ -4,8 +4,8 @@
 // Chaque notification est vérifiée (signature, secret STRIPE_WEBHOOK_SECRET) ; une notification reçue
 // deux fois ne change rien de plus.
 import { verifySignature, orderTrace } from '../_shared/commande.js';
-import { customerEmail, customerAddress, shopEmail, shopAddress, send } from '../_shared/emails.js';
-import { rest } from '../_shared/supabase.js';
+import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
+import { rest, thumbsOf } from '../_shared/supabase.js';
 
 const SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
@@ -48,8 +48,9 @@ async function paid(session: any) {
   // les e-mails : la confirmation au client, la nouvelle commande à la boutique (sans clé Resend : rien)
   const [saved] = (await rest('GET', `orders?id=eq.${id}&select=*`)) || [];
   if (saved) {
-    await send(customerAddress(saved), customerEmail('payee', saved));
-    await send(shopAddress(), shopEmail('nouvelle', saved));
+    const vis = visualsOf(saved, await thumbsOf(saved));
+    await send(customerAddress(saved), customerEmail('payee', saved, vis));
+    await send(shopAddress(), shopEmail('nouvelle', saved, vis));
   }
 }
 

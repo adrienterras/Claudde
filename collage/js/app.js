@@ -6676,10 +6676,15 @@ Réponds uniquement avec ce JSON :
   const setSeen = (id, date) => { const k = seenKey(); if (!k) return; const m = seenAll(); if (date) m[id] = date; else delete m[id]; lsSet(k, JSON.stringify(m)); };
   // une œuvre déjà enregistrée dans un autre compte de cet appareil : elle reste à ce compte (appareil
   // partagé : chacun garde ses œuvres) ; une œuvre faite sans être connecté part dans celui qui se connecte
+  // (une œuvre que le serveur a déjà, dans un autre compte : retenue pour ce compte, voir syncCloud)
+  const foreignKey = () => { const k = seenKey(); return k ? `${k}:ailleurs` : null; };
+  const foreignOf = () => { const k = foreignKey(); if (!k) return {}; try { return JSON.parse(lsGet(k) || '{}') || {}; } catch (e) { return {}; } };
+  const markForeign = (id) => { const k = foreignKey(); if (!k || !id) return; const all = foreignOf(); all[id] = 1; lsSet(k, JSON.stringify(all)); };
   const ownedElsewhere = (id) => {
     const mine = seenKey();
     if (!id || !mine) return false;
-    try { return Object.keys(localStorage).some((k) => k.startsWith(`${SEEN_KEY}:`) && k !== mine && (JSON.parse(localStorage.getItem(k) || '{}') || {})[id] && !seenOf(id)); } catch (e) { return false; }
+    if (foreignOf()[id] && !seenOf(id)) return true;
+    try { return Object.keys(localStorage).some((k) => k.startsWith(`${SEEN_KEY}:`) && k !== mine && !k.endsWith(':ailleurs') && (JSON.parse(localStorage.getItem(k) || '{}') || {})[id] && !seenOf(id)); } catch (e) { return false; }
   };
   const accountOn = () => { const A = window.Account; return !!(A && A.enabled); };
   const signedIn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
@@ -7093,7 +7098,17 @@ Réponds uniquement avec ce JSON :
         if (!rec) break;
         // une œuvre de plus alors que le compte est plein : elle attend qu'on fasse de la place
         if (cloudWorks && !inCloud(rec) && cloudWorks.filter((c) => !c.legacyDraft && !c.ordered).length >= workMax()) { blocked.add(rec); cloudFull = true; continue; }
-        await window.Account.cloud.workPut(rec, getBytes);
+        try { await window.Account.cloud.workPut(rec, getBytes); } catch (e) {
+          // le serveur l'a déjà, dans un autre compte : elle y reste (pas de copie ici), et la ligne le dit
+          if (e && e.code === 'foreign') {
+            markForeign(rec.workId);
+            if (pendingCloud === rec) pendingCloud = null;
+            const k = cloudQueue.indexOf(rec);
+            if (k >= 0) cloudQueue.splice(k, 1);
+            continue;
+          }
+          throw e;
+        }
         if (pendingCloud === rec) pendingCloud = null;
         const i = cloudQueue.indexOf(rec);
         if (i >= 0) cloudQueue.splice(i, 1);
@@ -8295,7 +8310,8 @@ Réponds uniquement avec ce JSON :
     showAccount = (opts) => {
       const u = A.user();
       // (le tiroir s'ouvre en grand : « Mon compte » se voit en entier)
-      if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u) openPanel(true); }
+      // (Mes commandes : le panneau Mon compte s'ouvre aussi sur téléphone, sur les commandes)
+      if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u || (opts && opts.orders)) openPanel(true); }
       else openPanel(true);
       if (opts && opts.orders && u) renderOrders({ showEmpty: true }).then(() => { const b = $('orders-box'); if (b && !b.hidden && b.scrollIntoView) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
     };

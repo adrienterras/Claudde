@@ -5,8 +5,8 @@
 // Le statut passe d'abord à « annulée » (une seule fois, même si deux demandes se croisent), puis le
 // remboursement part ; s'il échoue, la commande revient à son statut. E-mails : client et boutique.
 import { ORIGINS } from '../_shared/commande.js';
-import { customerEmail, customerAddress, shopEmail, shopAddress, send } from '../_shared/emails.js';
-import { rest, userOf, adminOf, replier } from '../_shared/supabase.js';
+import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
+import { rest, userOf, adminOf, replier, thumbsOf } from '../_shared/supabase.js';
 
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
 
@@ -49,8 +49,9 @@ Deno.serve(async (req) => {
       await rest('PATCH', `orders?id=eq.${id}`, { cancelled_at: at });
     }
     const [saved] = (await rest('GET', `orders?id=eq.${id}&select=*`)) || [done[0]];
-    await send(customerAddress(saved), customerEmail('annulee', saved));
-    if (!admin) await send(shopAddress(), shopEmail('annulee', saved));
+    const vis = visualsOf(saved, await thumbsOf(saved));
+    await send(customerAddress(saved), customerEmail('annulee', saved, vis));
+    if (!admin) await send(shopAddress(), shopEmail('annulee', saved, vis));
     return reply(200, { order: saved });
   } catch (e) {
     console.error(e);

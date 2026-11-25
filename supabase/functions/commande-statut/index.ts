@@ -2,8 +2,8 @@
 // en préparation, expédiée (transporteur, numéro de suivi), livrée — et le client reçoit un e-mail à
 // chaque étape. Appelée depuis l'espace administrateur de l'atelier (Commandes).
 import { ORIGINS } from '../_shared/commande.js';
-import { customerEmail, customerAddress, send } from '../_shared/emails.js';
-import { rest, adminOf, replier } from '../_shared/supabase.js';
+import { customerEmail, customerAddress, send, visualsOf } from '../_shared/emails.js';
+import { rest, adminOf, replier, thumbsOf } from '../_shared/supabase.js';
 
 const STEPS = ['payee', 'en_preparation', 'expediee', 'livree'];
 
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     // le client est prévenu quand le statut change (et à l'expédition, si le suivi arrive ensuite)
     let mailed = false;
     const changed = status !== order.status || (status === 'expediee' && tracking && tracking !== order.tracking);
-    if (changed && body.notify !== false && status !== 'payee') mailed = await send(customerAddress(saved), customerEmail(status, saved));
+    if (changed && body.notify !== false && status !== 'payee') mailed = await send(customerAddress(saved), customerEmail(status, saved, visualsOf(saved, await thumbsOf(saved))));
     return reply(200, { order: saved, mailed });
   } catch (e) {
     console.error(e);

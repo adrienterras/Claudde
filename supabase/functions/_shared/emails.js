@@ -58,17 +58,27 @@ function stepsHtml(status) {
   return `<tr><td style="padding:4px 0 22px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td></tr>`;
 }
 
-// le récapitulatif : chaque œuvre (titre, article, prix), la livraison, le total
-function recapHtml(order) {
-  const rows = (order.items || []).map((it) => `<tr>
+// le visuel de l'œuvre commandée (la vignette de la composition, jointe au message : l'image n'est mise
+// en ligne nulle part) ; vis : { [compId]: content_id }
+function heroHtml(order, vis) {
+  const it = (order.items || []).find((x) => vis && vis[x.compId]);
+  if (!it) return '';
+  return `<tr><td align="center" style="padding:6px 0 26px;"><img src="cid:${esc(vis[it.compId])}" width="240" alt="${esc(it.title)}" style="display:block;width:240px;max-width:100%;height:auto;border:10px solid #ffffff;border-radius:4px;box-shadow:0 6px 22px rgba(43,42,38,0.16);background:#ffffff;"></td></tr>`;
+}
+// le récapitulatif : chaque œuvre (vignette, titre, article, prix), la livraison, le total
+function recapHtml(order, vis) {
+  const many = (order.items || []).length > 1;
+  const thumb = (it) => (many && vis && vis[it.compId] ? `<td width="62" valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid ${C.line};"><img src="cid:${esc(vis[it.compId])}" width="50" alt="" style="display:block;width:50px;height:auto;border-radius:3px;"></td>` : '');
+  const rows = (order.items || []).map((it) => `<tr>${thumb(it)}
       <td style="padding:10px 0;border-bottom:1px solid ${C.line};font-family:${SANS};font-size:14px;line-height:1.45;color:${C.ink};"><b>${esc(it.title)}</b><br><span style="color:${C.muted};font-size:13px;">${esc(it.label)}${it.qty > 1 ? ` · quantité ${it.qty}` : ''}</span></td>
       <td align="right" valign="top" style="padding:10px 0 10px 12px;border-bottom:1px solid ${C.line};font-family:${SANS};font-size:14px;color:${C.ink};white-space:nowrap;">${it.unit != null ? eur(Math.round(it.unit * 100) * (it.qty || 1)) : ''}</td>
     </tr>`).join('');
-  const line = (label, value, strong) => `<tr><td style="padding:${strong ? '12px' : '8px'} 0 0;font-family:${SANS};font-size:${strong ? '16px' : '14px'};color:${strong ? C.ink : C.ink2};font-weight:${strong ? '700' : '400'};">${label}</td><td align="right" style="padding:${strong ? '12px' : '8px'} 0 0 12px;font-family:${SANS};font-size:${strong ? '16px' : '14px'};color:${C.ink};font-weight:${strong ? '700' : '400'};white-space:nowrap;">${value}</td></tr>`;
+  const span = many && vis && Object.keys(vis).length ? ' colspan="2"' : '';
+  const line = (label, value, strong) => `<tr><td${span} style="padding:${strong ? '12px' : '8px'} 0 0;font-family:${SANS};font-size:${strong ? '16px' : '14px'};color:${strong ? C.ink : C.ink2};font-weight:${strong ? '700' : '400'};">${label}</td><td align="right" style="padding:${strong ? '12px' : '8px'} 0 0 12px;font-family:${SANS};font-size:${strong ? '16px' : '14px'};color:${C.ink};font-weight:${strong ? '700' : '400'};white-space:nowrap;">${value}</td></tr>`;
   const ship = order.shipping_cents ? line(`Livraison · ${esc(deliveryName(order))}`, eur(order.shipping_cents)) : '';
   return `<tr><td style="padding:8px 0 6px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${C.soft};border-radius:12px;padding:16px 18px;">
-      <tr><td colspan="2" style="font-family:${SANS};font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${C.muted};padding-bottom:4px;">Commande ${esc(order.ref)}</td></tr>
+      <tr><td colspan="3" style="font-family:${SANS};font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${C.muted};padding-bottom:4px;">Commande ${esc(order.ref)}</td></tr>
       ${rows}
       ${ship ? line('Œuvres', eur(subtotalOf(order))) : ''}${ship}
       ${line('Total TTC', eur(order.total_cents), true)}
@@ -112,7 +122,8 @@ function textOf({ title, paras, order, extra }) {
 }
 
 // l'e-mail au client pour une étape de la commande (status : payee, en_preparation, expediee, livree, annulee)
-export function customerEmail(status, order) {
+export function customerEmail(status, order, visuals) {
+  const vis = visuals && visuals.map;
   const first = String(nameOf(order) || '').split(' ')[0];
   const hello = first ? `Bonjour ${first},` : 'Bonjour,';
   const url = trackingUrl(order.carrier, order.tracking);
@@ -146,10 +157,11 @@ export function customerEmail(status, order) {
   if (!C1) return null;
   const body = [
     stepsHtml(status),
+    heroHtml(order, vis),
     para(esc(hello)),
     ...C1.paras.map((p) => para(esc(p))),
     `<tr><td style="padding:8px 0 24px;">${btn(C1.cta[0], C1.cta[1])}</td></tr>`,
-    recapHtml(order),
+    recapHtml(order, vis),
     status !== 'annulee' ? addressHtml(order, 'Adresse de livraison') : '',
   ].join('\n');
   const extra = [url ? `Suivre le colis : ${url}` : null].filter(Boolean);
@@ -157,11 +169,13 @@ export function customerEmail(status, order) {
     subject: C1.subject,
     html: page({ preheader: C1.paras[0], title: C1.title, body, footnote: 'Vous recevez cet e-mail au sujet de votre commande sur ateliergribouille.art.' }),
     text: textOf({ title: C1.title, paras: [hello, ...C1.paras], order, extra }),
+    attachments: (visuals && visuals.attachments) || [],
   };
 }
 
 // l'e-mail à la boutique : nouvelle commande (avec l'adresse) ou commande annulée par le client
-export function shopEmail(kind, order) {
+export function shopEmail(kind, order, visuals) {
+  const vis = visuals && visuals.map;
   const c = order.customer || {};
   const who = [c.name, c.email || order.email, c.phone].filter(Boolean).join(' · ');
   const addr = addressLines(order);
@@ -175,7 +189,8 @@ export function shopEmail(kind, order) {
     express && !cancelled ? para(`<span style="display:inline-block;background:#fbeee9;color:${C.argile};font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:999px;">Express · Chronopost 24 h</span>`) : '',
     para(`<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${C.muted};">Client</span><br>${esc(who || '—')}`),
     `<tr><td style="padding:4px 0 22px;">${btn(admin, cancelled ? 'Voir les commandes' : 'Préparer la commande')}</td></tr>`,
-    recapHtml(order),
+    heroHtml(order, vis),
+    recapHtml(order, vis),
     addressHtml(order, 'Adresse de livraison'),
   ].join('\n');
   const paras = [lead, `Client : ${who || '—'}`, addr.length ? `Livraison${express ? ' EXPRESS (Chronopost 24 h)' : ' Colissimo'} : ${addr.join(', ')}` : null, `À gérer dans l’atelier, espace administrateur, Commandes : ${admin}`].filter(Boolean);
@@ -183,7 +198,22 @@ export function shopEmail(kind, order) {
     subject: cancelled ? `Annulation ${order.ref}` : `Nouvelle commande ${order.ref}`,
     html: page({ preheader: `${lead} ${who}`, title, body }),
     text: textOf({ title, paras, order }),
+    attachments: (visuals && visuals.attachments) || [],
   };
+}
+
+// les visuels d'une commande, à joindre : thumbs = { [compId]: vignette en data URL JPEG } →
+// { map: { [compId]: content_id }, attachments: [{ filename, content (base64), content_id }] }
+export function visualsOf(order, thumbs) {
+  const map = {}, attachments = [];
+  (order.items || []).forEach((it, i) => {
+    const m = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]+)$/.exec((thumbs && thumbs[it.compId]) || '');
+    if (!m || map[it.compId]) return;
+    const id = `oeuvre-${i + 1}`;
+    map[it.compId] = id;
+    attachments.push({ filename: `${id}.${m[1] === 'png' ? 'png' : 'jpg'}`, content: m[2], content_id: id });
+  });
+  return { map, attachments };
 }
 
 // l'envoi (Resend) ; renvoie true si parti, false sinon (clé absente, refus) — jamais d'exception
@@ -194,7 +224,7 @@ export async function send(to, mail, env = (k) => (globalThis.Deno ? Deno.env.ge
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: env('ORDER_FROM') || 'Atelier Gribouille <commandes@ateliergribouille.art>', to: [to], reply_to: 'contact@ateliergribouille.art', subject: mail.subject, html: mail.html, text: mail.text }),
+      body: JSON.stringify(Object.assign({ from: env('ORDER_FROM') || 'Atelier Gribouille <commandes@ateliergribouille.art>', to: [to], reply_to: 'contact@ateliergribouille.art', subject: mail.subject, html: mail.html, text: mail.text }, mail.attachments && mail.attachments.length ? { attachments: mail.attachments } : {})),
     });
     if (!r.ok) console.error('Resend', r.status, await r.text());
     return r.ok;

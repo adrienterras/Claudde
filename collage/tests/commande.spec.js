@@ -143,6 +143,17 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(paid.html).toContain('Total TTC');
     expect(paid.html).toContain('Adresse de livraison');
     expect(paid.html).toContain('Merci pour votre commande\u00a0!');
+    // le visuel de l'œuvre : la vignette jointe au message (image intégrée, jamais mise en ligne)
+    const withVis = Object.assign({}, order, { items: [Object.assign({}, order.items[0], { compId: 'c1' })] });
+    const vis = e.visualsOf(withVis, { c1: 'data:image/jpeg;base64,QUJD', autre: 'data:image/jpeg;base64,REVG' });
+    expect(vis.attachments).toEqual([{ filename: 'oeuvre-1.jpg', content: 'QUJD', content_id: 'oeuvre-1' }]);
+    const mail = e.customerEmail('payee', withVis, vis);
+    expect(mail.html).toContain('src="cid:oeuvre-1"');
+    expect(mail.attachments).toHaveLength(1);
+    expect(e.shopEmail('nouvelle', withVis, vis).html).toContain('cid:oeuvre-1');
+    // sans vignette (ou une adresse au lieu d'une image) : pas de visuel, pas de pièce jointe
+    expect(e.visualsOf(withVis, { c1: 'https://exemple.org/x.jpg' }).attachments).toEqual([]);
+    expect(e.customerEmail('payee', withVis).html).not.toContain('cid:');
     expect(e.shopEmail('annulee', order).subject).toBe('Annulation AG-261125-AB12');
     // sans clé : rien ne part, sans erreur
     expect(await e.send('x@example.org', paid, () => undefined)).toBe(false);

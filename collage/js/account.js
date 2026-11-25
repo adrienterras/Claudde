@@ -513,6 +513,13 @@
     const { error } = old
       ? await client.from('compositions').update({ name: rec.name, thumb: rec.thumb, meta }).eq('id', id)
       : await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
+    // l'œuvre existe déjà, dans un autre compte (faite ici avec un autre compte) : elle y reste ; les
+    // fichiers envoyés pour rien sont retirés, et l'atelier le dit au lieu d'une erreur technique
+    if (error && !old && (error.code === '23505' || /duplicate key|compositions_pkey/i.test(error.message || ''))) {
+      await store.remove([...used]).catch(() => {});
+      workFiles.delete(id);
+      throw Object.assign(new Error(tr('cette œuvre appartient à un autre compte')), { code: 'foreign' });
+    }
     err(error);
     // les fichiers qui ne servent plus : ceux du dossier, et ceux de la version d'avant rangés ailleurs
     const stale = new Set([...names].map((x) => `${base}/${x}`).filter((p) => !used.has(p)));

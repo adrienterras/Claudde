@@ -1064,6 +1064,36 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-empty')).toBeVisible();
     await expect(page.locator('#orders-list .order')).toHaveCount(0);
+    // sur téléphone aussi, « Mes commandes » ouvre le panneau Mon compte, sur les commandes
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('index.html?commandes');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
+    await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#orders-empty')).toBeInViewport();
+  });
+
+  test('une œuvre que le serveur a déjà dans un autre compte (trace perdue sur l’appareil) : pas d’erreur technique, la ligne dit « dans un autre compte »', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'premier@example.org', 'Rouge-Soleil-42', 'Premier');
+    await page.setInputFiles('#file', ['page-cutout.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 1 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 1);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    const id = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), id);
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    // (la trace du premier compte sur l'appareil a disparu)
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('atelier.oeuvres-vues:')).forEach((k) => localStorage.removeItem(k)));
+    await signUpAndIn(page, 'second@example.org', 'Rouge-Soleil-42', 'Second');
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    await expect(page.locator('#cloud-sync-status')).toContainText('dans un autre compte', { timeout: 30000 });
+    await expect(page.locator('#cloud-sync-status')).not.toContainText('duplicate');
+    // la ligne du premier compte est intacte, et les fichiers envoyés pour rien sont retirés
+    const uid = await page.evaluate(() => window.Account.user().id);
+    expect(await page.evaluate(({ id, uid }) => Object.keys(window.__fake.db.files).filter((p) => p.startsWith(`${uid}/${id}/`)).length, { id, uid })).toBe(0);
+    expect(await page.evaluate((id) => window.__fake.db.rows.filter((r) => r.id === id).length, id)).toBe(1);
   });
 
   test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {
