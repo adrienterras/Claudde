@@ -332,18 +332,20 @@
   // ne repart du téléphone ; s'il manque, envoyé)
   async function uploadAll(jobs, onProgress) {
     const store = client.storage.from(BUCKET);
-    let next = 0, done = 0;
+    let next = 0, done = 0, copied = 0;
+    onProgress && onProgress(0, jobs.length, { copied: 0, copies: jobs.filter((j) => j.src).length });
     const worker = async () => {
       while (next < jobs.length) {
         const j = jobs[next++];
         let copied = false;
-        if (j.src) { const c = await withTimeout(store.copy(j.src, j.path), UPLOAD_TIMEOUT).catch(() => null); copied = !!(c && !c.error); }
-        if (!copied) {
+        let ok = false;
+        if (j.src) { const c = await withTimeout(store.copy(j.src, j.path), UPLOAD_TIMEOUT).catch(() => null); ok = !!(c && !c.error); if (ok) copied++; }
+        if (!ok) {
           if (j.bytes == null) throw new Error(tr('fichier introuvable'));
           const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
           err(up.error);
         }
-        onProgress && onProgress(++done, jobs.length);
+        onProgress && onProgress(++done, jobs.length, { copied });
       }
     };
     await Promise.all(Array.from({ length: Math.min(UPLOAD_PARALLEL, jobs.length) }, worker));
@@ -360,7 +362,7 @@
     let have = new Set(), wbase = '';
     if (rec.fromWork) {
       wbase = `${user.id}/${rec.fromWork}`;
-      have = workFiles.get(rec.fromWork) || await store.list(wbase, { limit: 1000 }).then(({ data }) => new Set((data || []).map((f) => f.name))).catch(() => new Set());
+      have = workFiles.get(rec.fromWork) || await withTimeout(store.list(wbase, { limit: 1000 }), 30000).then(({ data }) => new Set((data || []).map((f) => f.name))).catch(() => new Set());
     }
     const from = (name) => (name && have.has(name) ? `${wbase}/${name}` : null);
     const put = (path, bytes, type, src) => { jobs.push({ path, bytes, type, src }); return path; };
@@ -383,7 +385,7 @@
     if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes œuvres » tant qu'il n'est pas commandé
     if (rec.ordered) meta.ordered = true; // composition commandée : figée, rouverte en copie
     if (rec.order) meta.order = rec.order; // le détail de la commande (référence, produit, quantité, prix)
-    const { error } = await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
+    const { error } = await withTimeout(client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta }), 45000);
     err(error);
     return `cloud:${id}`;
   }
@@ -585,7 +587,7 @@
   // Un article du panier est une composition marquée meta.cart (produit, finition, taille, quantité…).
   async function cloudCart() {
     if (!user) return [];
-    const { data, error } = await client.from('compositions').select('id, name, created_at, thumb, meta').eq('user_id', user.id).not('meta->>cart', 'is', null).order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(client.from('compositions').select('id, name, created_at, thumb, meta').eq('user_id', user.id).not('meta->>cart', 'is', null).order('created_at', { ascending: false }), 45000);
     err(error);
     return (data || [])
       .map((row) => Object.assign({ id: row.id, recId: `cloud:${row.id}`, refs: [], title: row.name, thumb: row.thumb, date: row.created_at }, row.meta.cart))

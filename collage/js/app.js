@@ -9165,10 +9165,16 @@ Réponds uniquement avec ce JSON :
     if (cartUploading.has(it.id)) return;
     cartUploading.add(it.id);
     try {
+      // (chaque étape est dite dans le panier : préparation sur l'appareil, puis copie ou envoi des fichiers)
+      const say = (t) => { if (!$('cart').hidden) cartStatus(t); };
+      say(tr`Préparation de « ${it.title} » pour votre compte…`);
       const rec = await cartRecForCloud(it);
       if (!rec) return;
-      // (une grande œuvre, c'est des dizaines de fichiers : l'avancement est montré dans le panier)
-      const cid = await window.Account.cloud.put(rec, (n, total) => { if (!$('cart').hidden && total > 1) cartStatus(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`); });
+      let copies = 0; // (fichiers repris de l'œuvre du compte, copiés sur le serveur)
+      const cid = await window.Account.cloud.put(rec, (n, total, info) => {
+        if (info && info.copies != null) copies = info.copies;
+        say(copies === total ? tr`Copie de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…` : tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`);
+      });
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
       dbDel(it.recId).catch(() => {});
