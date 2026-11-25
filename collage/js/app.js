@@ -3325,7 +3325,7 @@
     $('toolbar').hidden = !state.comp;
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
     if ($('stage-generate')) $('stage-generate').hidden = !state.comp; // (le bouton rond « Nouvelles propositions »)
-    if ($('gen-hint')) $('gen-hint').hidden = !state.comp || genHintSeen; // (ordinateur : sa note écrite à la main, jusqu'au premier clic de cette visite)
+    if ($('gen-hint')) $('gen-hint').hidden = !state.comp || genHintSeen; // (sa note écrite à la main, jusqu'au premier clic de cette visite)
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;

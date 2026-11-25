@@ -258,6 +258,16 @@ test.describe('Interface', () => {
     const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
     expect(overlap(box, zoom)).toBe(false);
     if (dens) expect(overlap(box, dens)).toBe(false);
+    // la note écrite à la main, au premier plan, au-dessus du bouton, à sa gauche, sans couvrir le zoom
+    const ph = page.locator('#gen-hint');
+    await expect(ph).toBeVisible();
+    expect(await ph.evaluate((el) => Number(getComputedStyle(el).zIndex) > 0 && getComputedStyle(el).pointerEvents === 'none')).toBe(true);
+    const phb = await ph.boundingBox();
+    expect(phb.y + phb.height).toBeLessThanOrEqual(box.y + 2);
+    expect(phb.x + phb.width).toBeLessThanOrEqual(box.x + box.width);
+    expect(phb.x).toBeGreaterThanOrEqual(0);
+    expect(overlap(phb, zoom)).toBe(false);
+    if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/note-telephone.png' });
     // il tire de nouvelles propositions ; deux touches rapides comptent deux fois, et aucune ne laisse
     // au navigateur son geste (la deuxième est annulée : pas de zoom par double touche)
     const sig = () => page.evaluate(() => AtelierGribouille.state.proposals[0].comp.items.map((L) => [L.x.toFixed(1), L.y.toFixed(1), L.rot.toFixed(2)].join(',')).join(';'));
@@ -293,8 +303,9 @@ test.describe('Interface', () => {
       await expect(hint).toBeVisible();
       await expect(hint).toHaveText('Cliquez pour générer de nouvelles propositions');
       expect(await hint.evaluate((el) => { const cs = getComputedStyle(el); return [cs.fontFamily.includes('Caveat'), cs.pointerEvents]; })).toEqual([true, 'none']);
-      // dans le fond : l'œuvre (le canevas) passe devant
-      expect(await page2.evaluate(() => { const h = document.getElementById('gen-hint'), c = document.getElementById('canvas'); return !!(h.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(h).zIndex === 'auto'; })).toBe(true);
+      // au premier plan : devant l'œuvre (le canevas)
+      expect(await page2.evaluate(() => { const h = document.getElementById('gen-hint'), r = h.getBoundingClientRect(); const top = document.elementsFromPoint(r.left + r.width / 2, r.top + 10); return Number(getComputedStyle(h).zIndex) > 0 && top.indexOf(h) < top.indexOf(document.getElementById('canvas')); })).toBe(true);
+      if (process.env.CAP_OUT && width === 1440) await page2.screenshot({ path: process.env.CAP_OUT + '/note-ordinateur.png' });
       const hb = await hint.boundingBox();
       expect(hb.y + hb.height).toBeLessThanOrEqual(fab.y - 8); // la note (et sa flèche) au-dessus du bouton, sans le toucher
       const seed = await page2.evaluate(() => AtelierGribouille.state.seed);
