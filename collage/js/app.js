@@ -9167,7 +9167,8 @@ Réponds uniquement avec ce JSON :
     try {
       const rec = await cartRecForCloud(it);
       if (!rec) return;
-      const cid = await window.Account.cloud.put(rec);
+      // (une grande œuvre, c'est des dizaines de fichiers : l'avancement est montré dans le panier)
+      const cid = await window.Account.cloud.put(rec, (n, total) => { if (!$('cart').hidden && total > 1) cartStatus(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`); });
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
       dbDel(it.recId).catch(() => {});
@@ -9279,7 +9280,7 @@ Réponds uniquement avec ce JSON :
             saved = it.recId;
           } else {
             const rec = await cartRecForCloud(it);
-            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; rec.order = orderOf(it); saved = await A.cloud.put(rec); }
+            if (rec) { rec.name = name; delete rec.cart; rec.ordered = true; rec.order = orderOf(it); saved = await A.cloud.put(rec, (n, total) => cartStatus(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`)); }
           }
         }
         lines.push(`${i + 1}. ${it.title} (${it.styleName}, ${fmt(it.W)} × ${fmt(it.H)} cm) — ${productLabel(it)} × ${it.qty} = ${euros(it.unit * it.qty)}${saved ? ` [${saved}]` : ''}`);

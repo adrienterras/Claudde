@@ -320,43 +320,48 @@
     return (data || []).map((row) => { adminOpenable.add(row.id); return Object.assign(entryOf(row), { owner: row.user_id, email: row.email || '' }); });
   }
 
+  // Envoi des fichiers d'une composition : quatre à la fois (une œuvre de 25 dessins, c'est des dizaines
+  // de fichiers : un par un en 4G, plusieurs minutes), chacun abandonné après 2 minutes sans réponse
+  // (réseau mobile qui décroche : une erreur, qu'on peut relancer, plutôt qu'une attente sans fin)
+  const UPLOAD_PARALLEL = 4, UPLOAD_TIMEOUT = 120000;
+  const withTimeout = (p, ms) => new Promise((res, rej) => {
+    const t = setTimeout(() => rej(new Error(tr('pas de réponse du serveur : vérifiez la connexion et réessayez'))), ms);
+    p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); });
+  });
+  async function uploadAll(jobs, onProgress) {
+    const store = client.storage.from(BUCKET);
+    let next = 0, done = 0;
+    const worker = async () => {
+      while (next < jobs.length) {
+        const j = jobs[next++];
+        const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
+        err(up.error);
+        onProgress && onProgress(++done, jobs.length);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_PARALLEL, jobs.length) }, worker));
+  }
   async function cloudPut(rec, onProgress) {
     if (!user) throw new Error(tr('Connectez-vous pour sauvegarder dans votre compte.'));
     const id = crypto.randomUUID();
     const base = `${user.id}/${id}`;
-    const store = client.storage.from(BUCKET);
     const drawings = [];
-    let n = 0;
+    const jobs = [];
+    const put = (path, bytes, type) => { jobs.push({ path, bytes, type }); return path; };
     const packOf = (d) => (d.saved && d.saved.page && d.saved.page.data ? 1 + (d.saved.atlases || []).length : 0);
-    const total = rec.drawings.reduce((a, d) => a + 1 + (d.pieceEdits || []).filter(Boolean).length + packOf(d), 0);
-    const put = async (path, bytes, type) => {
-      const up = await store.upload(path, new Blob([bytes], { type }), { contentType: type, upsert: true });
-      err(up.error);
-      onProgress && onProgress(++n, total);
-      return path;
-    };
     for (let i = 0; i < rec.drawings.length; i++) {
       const d = rec.drawings[i];
-      const path = await put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg');
+      const path = put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg');
       // page de travail et planches des découpes (voir savedOf dans app.js) : des fichiers à côté de l'image
       let saved = d.saved || null;
       if (packOf(d)) {
-        const atlases = [];
-        for (let j = 0; j < (saved.atlases || []).length; j++) atlases.push(Object.assign({}, saved.atlases[j], { data: await put(`${base}/d${i}-decoupe${j}.png`, saved.atlases[j].data, 'image/png') }));
-        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: await put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg') }), atlases });
+        const atlases = (saved.atlases || []).map((a, j) => Object.assign({}, a, { data: put(`${base}/d${i}-decoupe${j}.png`, a.data, 'image/png') }));
+        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg') }), atlases });
       }
-      const edits = [];
-      for (let j = 0; j < (d.pieceEdits || []).length; j++) {
-        const e = d.pieceEdits[j];
-        if (!e || !e.mask) { edits.push(null); continue; }
-        const mp = `${base}/d${i}-e${j}.png`;
-        const u2 = await store.upload(mp, new Blob([e.mask], { type: 'image/png' }), { contentType: 'image/png', upsert: true });
-        err(u2.error);
-        onProgress && onProgress(++n, total);
-        edits.push(Object.assign({}, e, { mask: mp }));
-      }
+      const edits = (d.pieceEdits || []).map((e, j) => (e && e.mask ? Object.assign({}, e, { mask: put(`${base}/d${i}-e${j}.png`, e.mask, 'image/png') }) : null));
       drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved }));
     }
+    await uploadAll(jobs, onProgress);
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length };
     if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes œuvres » tant qu'il n'est pas commandé
     if (rec.ordered) meta.ordered = true; // composition commandée : figée, rouverte en copie

@@ -212,6 +212,8 @@
     'Suivi du colis : {0}': 'Parcel tracking: {0}',
     'dont {0} de livraison': 'including {0} delivery',
     'Préparation du paiement sécurisé…': 'Preparing secure payment…',
+    'Envoi de « {0} » dans votre compte : {1} / {2} fichiers…': 'Sending “{0}” to your account: {1} / {2} files…',
+    'pas de réponse du serveur : vérifiez la connexion et réessayez': 'no response from the server: check your connection and try again',
     'Ouverture de la page de paiement…': 'Opening the payment page…',
     'Merci ! Votre paiement est bien reçu (commande {0}). Vous suivez son avancement ici, dans « Mes commandes ».': 'Thank you! Your payment has been received (order {0}). Follow its progress here, in “My orders”.',
     'connexion requise': 'sign-in required',
