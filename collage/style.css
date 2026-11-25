@@ -793,10 +793,10 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   /* juste au-dessus du curseur « Nombre de dessins » */
   .stage-fab { bottom: 66px; }
 }
-/* (au premier plan, devant l'œuvre : un léger halo de la couleur du fond la garde lisible sur les dessins) */
-.gen-hint { z-index: 4; pointer-events: none; user-select: none; font-family: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive; font-weight: 500; line-height: 1.05; color: var(--muted); text-shadow: 0 0 1px var(--stage), 0 0 2px var(--stage), 0 0 4px var(--stage), 0 0 7px var(--stage), 0 0 12px var(--stage); }
+/* (au premier plan, devant l'œuvre ; sans ombre ni halo) */
+.gen-hint { z-index: 4; pointer-events: none; user-select: none; font-family: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive; font-weight: 500; line-height: 1.05; color: var(--muted); }
 .gen-hint span { display: block; }
-.gen-hint-arrow { display: block; filter: drop-shadow(0 0 1px var(--stage)) drop-shadow(0 0 2px var(--stage)) drop-shadow(0 0 4px var(--stage)); }
+.gen-hint-arrow { display: block; }
 @media (min-width: 861px) {
   .gen-hint:not([hidden]) {
     display: block; position: absolute; left: 78px; bottom: 132px; width: 190px;
@@ -804,14 +804,18 @@ input[type=number] { padding: 8px 10px; border-radius: var(--r-sm); border: 1px 
   }
   .gen-hint-arrow { width: 62px; height: 48px; margin: 2px 0 0 -44px; } /* la pointe au-dessus du centre du bouton, sans le toucher */
 }
-/* téléphone, tiroir baissé (le bouton rond est là) : la note au-dessus du bouton, à sa gauche, la flèche
-   retournée vers lui */
+.gen-hint-arrow.m { display: none; }
+/* téléphone, tiroir baissé (le bouton rond est là) : la note tout en bas, juste au-dessus du curseur
+   « Nombre de dessins » (bottom posé par placeGenHint), à gauche du bouton rond ; sa flèche vers lui.
+   L'œuvre garde sa taille */
 @media (max-width: 860px) {
   body.stage-full .gen-hint:not([hidden]) {
-    display: block; position: absolute; right: 30px; bottom: 64px; width: 150px; text-align: right;
-    font-size: 1.18rem; transform: rotate(3deg); transform-origin: right bottom;
+    display: flex; align-items: flex-start; position: absolute; right: 56px; bottom: 56px; text-align: right;
+    font-size: 1.05rem; transform: rotate(-2deg); transform-origin: right bottom;
   }
-  body.stage-full .gen-hint-arrow { width: 50px; height: 40px; margin: 2px -14px 0 auto; transform: scaleX(-1); }
+  body.stage-full .gen-hint span { width: 160px; }
+  body.stage-full .gen-hint-arrow.d { display: none; }
+  body.stage-full .gen-hint-arrow.m { display: block; flex: none; width: 34px; height: 26px; margin: 8px 0 0; }
 }
 .zoom {
   position: absolute; right: 14px; bottom: 14px; z-index: 3;

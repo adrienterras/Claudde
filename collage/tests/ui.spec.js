@@ -258,13 +258,17 @@ test.describe('Interface', () => {
     const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
     expect(overlap(box, zoom)).toBe(false);
     if (dens) expect(overlap(box, dens)).toBe(false);
-    // la note écrite à la main, au premier plan, au-dessus du bouton, à sa gauche, sans couvrir le zoom
+    // la note écrite à la main, au premier plan, tout en bas : juste au-dessus du curseur « Nombre de
+    // dessins », à gauche du bouton rond (sa flèche vers lui), sans couvrir le zoom
     const ph = page.locator('#gen-hint');
     await expect(ph).toBeVisible();
     expect(await ph.evaluate((el) => Number(getComputedStyle(el).zIndex) > 0 && getComputedStyle(el).pointerEvents === 'none')).toBe(true);
     const phb = await ph.boundingBox();
-    expect(phb.y + phb.height).toBeLessThanOrEqual(box.y + 2);
-    expect(phb.x + phb.width).toBeLessThanOrEqual(box.x + box.width);
+    expect(dens).toBeTruthy();
+    expect(phb.y + phb.height).toBeLessThanOrEqual(dens.y + 3);
+    expect(phb.y + phb.height).toBeGreaterThan(dens.y - 12);
+    expect(phb.x + phb.width).toBeLessThanOrEqual(box.x + 8);
+    expect(phb.x + phb.width).toBeGreaterThan(box.x - 14);
     expect(phb.x).toBeGreaterThanOrEqual(0);
     expect(overlap(phb, zoom)).toBe(false);
     if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/note-telephone.png' });

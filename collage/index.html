@@ -471,11 +471,13 @@
       <button data-act="del" title="Retirer (Suppr)" aria-label="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
     </div>
     <!-- une note écrite à la main, au premier plan (devant l'œuvre), avec une flèche vers le bouton rond
-         « Nouvelles propositions » (ordinateur : en bas à gauche ; téléphone, tiroir baissé : en bas à droite) ;
+         « Nouvelles propositions » (ordinateur : en bas à gauche ; téléphone, tiroir baissé : tout en bas, juste
+         au-dessus du curseur « Nombre de dessins », la flèche vers le bouton rond à sa droite) ;
          elle disparaît au premier clic sur ce bouton, le temps de la visite -->
     <div id="gen-hint" class="gen-hint" aria-hidden="true" hidden>
       <span>Cliquez pour générer de nouvelles propositions</span>
-      <svg class="gen-hint-arrow" viewBox="0 0 90 70" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M72 4 C 36 4, 18 28, 12 62"/><path d="M12 62 L 20 52"/><path d="M12 62 L 8 50"/></svg>
+      <svg class="gen-hint-arrow d" viewBox="0 0 90 70" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M72 4 C 36 4, 18 28, 12 62"/><path d="M12 62 L 20 52"/><path d="M12 62 L 8 50"/></svg>
+      <svg class="gen-hint-arrow m" viewBox="0 0 44 34" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 C 22 4, 36 12, 38 28"/><path d="M38 28 L 31 22"/><path d="M38 28 L 42 19"/></svg>
     </div>
     <canvas id="canvas"></canvas>
     <!-- « Nouvelles propositions » : téléphone, à portée de pouce dans l'angle bas droit de l'œuvre ; ordinateur, en bas à gauche -->

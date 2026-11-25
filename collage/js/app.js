@@ -3326,6 +3326,7 @@
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
     if ($('stage-generate')) $('stage-generate').hidden = !state.comp; // (le bouton rond « Nouvelles propositions »)
     if ($('gen-hint')) $('gen-hint').hidden = !state.comp || genHintSeen; // (sa note écrite à la main, jusqu'au premier clic de cette visite)
+    placeGenHint();
     const partial = $('partial-note');
     if (partial) partial.hidden = true;
     let usedCount = 0;
@@ -4152,7 +4153,27 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     $('zoom-full').title = on ? tr('Quitter le plein écran') : tr('Plein écran');
     state.bgCache = null;
     render();
+    requestAnimationFrame(placeGenHint);
   }
+  // téléphone : la note « Cliquez pour générer… » tout en bas, juste au-dessus du curseur « Nombre de
+  // dessins », à gauche du bouton rond (sa flèche vers lui) ; ordinateur : sa place fixe (style.css)
+  function placeGenHint() {
+    const h = $('gen-hint'), fab = $('stage-generate'), bar = $('density-bar');
+    if (!h) return;
+    const span = h.querySelector('span');
+    if (!mobileQuery.matches || h.hidden || !fab || !bar || !bar.offsetParent) { h.style.bottom = ''; h.style.right = ''; if (span) span.style.width = ''; return; }
+    const stage = h.parentElement;
+    // (petit écran : la note s'arrête avant « Commander », quitte à passer sur plus de lignes)
+    const cmd = document.querySelector('.order-cta-desk'), arrow = h.querySelector('.gen-hint-arrow.m');
+    if (span) {
+      const free = cmd && cmd.offsetParent ? fab.getBoundingClientRect().left + 4 - (arrow ? arrow.getBoundingClientRect().width || 34 : 34) - (cmd.getBoundingClientRect().right + 8) : 160;
+      span.style.width = `${Math.round(Math.max(90, Math.min(160, free)))}px`;
+    }
+    h.style.bottom = `${Math.round(stage.clientHeight - bar.offsetTop + 6)}px`; // (un peu d’air : la note est inclinée)
+    h.style.right = `${Math.round(stage.clientWidth - fab.offsetLeft - 4)}px`;
+  }
+  window.addEventListener('resize', () => placeGenHint());
+  if (window.ResizeObserver) new ResizeObserver(() => placeGenHint()).observe($('density-bar'));
   $('zoom-full').onclick = () => setStageFull(!document.body.classList.contains('stage-full'));
 
   // ---------- Retouche d'une découpe ----------
