@@ -1077,6 +1077,7 @@ body:not(.mode-toile) .scene-modal .scene-room [data-room="hall"] { grid-column:
 .scene-open:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .scene-open .ico { width: 17px; height: 17px; }
 body.stage-full .scene-open { display: none; }
+@media (min-width: 861px) { .stage-edit { display: none !important; } } /* (ordinateur : la barre d'outils a « Retoucher ») */
 .drop.small { padding: 16px 12px; }
 /* Importer : les trois choix d'ajout, l'un sous l'autre (la section accepte aussi un dépôt de fichiers) */
 .import-choices { display: grid; gap: 10px; border-radius: var(--r-lg); transition: box-shadow .2s, background .2s; }
@@ -1284,6 +1285,10 @@ body.stage-full .scene-open { display: none; }
   .scene-open .ico { width: 14px; height: 14px; }
   body.stage-full .scene-open:not([hidden]) { top: calc(62px + env(safe-area-inset-top, 0px)); }
   body.sheet-tall:not(.stage-full) .scene-open, body.sheet-detail:not(.stage-full) .scene-open { display: none !important; } /* tiroir agrandi (et pas baissé) : l'œuvre est cachée */
+  /* « Retoucher » : à droite de « Mettre en scène » (left posé par placeStageEdit), même taille, en clair ;
+     caché avec lui (plein écran sans œuvre, tiroir agrandi, choix de la taille) */
+  .stage-edit:not([hidden]), body.stage-full .stage-edit:not([hidden]) { background: var(--surface); color: var(--ink); border-color: var(--line); }
+  #scene-open[hidden] + .stage-edit, body.size-gate-on .stage-edit { display: none !important; }
   /* l'onglet dit déjà où l'on est : ni numéro ni titre de section */
   .panel.tabbed > .step.tab-on > h2 { display: none; }
   .account { margin-top: 0; }

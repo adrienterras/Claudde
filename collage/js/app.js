@@ -4134,8 +4134,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12 || now - d.t > 350) { lastTap = null; return; }
     if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; onDouble(e); return; }
     lastTap = { t: now, x: e.clientX, y: e.clientY };
-    // téléphone : un dessin touché (pas glissé) sur l'œuvre ouvre l'onglet Dessins sur sa fiche
-    if (state.selected && mobileQuery.matches) showDetail();
+    // (téléphone : un dessin touché reste sélectionné sur l'œuvre, le tiroir ne bouge pas ; « Retoucher »
+    // apparaît à côté de « Mettre en scène »)
   });
 
   $('zoom-in').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };
@@ -4676,9 +4676,24 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
       b.disabled = !L || (L.kind === 'bg' && b.dataset.act === 'edit');
     });
     // (agrandir / réduire n'ont plus de boutons : la poignée carrée sur l'œuvre, et les touches + et −)
+    placeStageEdit();
     fitToolbar();
     editHint();
   }
+  // Téléphone : « Retoucher », à droite de « Mettre en scène », tant qu'un dessin découpé est sélectionné
+  // sur l'œuvre (pas une page du fond : sa découpe ne se retouche pas)
+  function placeStageEdit() {
+    const b = $('stage-edit'), sc = $('scene-open');
+    if (!b || !sc) return;
+    const L = state.selected;
+    b.hidden = !(mobileQuery.matches && state.comp && L && L.kind === 'piece' && !sc.hidden);
+    if (b.hidden) return;
+    b.style.left = `${sc.offsetLeft + sc.offsetWidth + 8}px`;
+  }
+  $('stage-edit').addEventListener('click', () => { if (state.selected && state.selected.kind === 'piece') act('edit'); });
+  window.addEventListener('resize', () => placeStageEdit());
+  if (window.ResizeObserver) new ResizeObserver(() => placeStageEdit()).observe($('scene-open'));
+  mobileQuery.addEventListener('change', () => placeStageEdit());
   // La barre d'outils tient toujours en entier : quand ses libellés la feraient déborder (iPad, fenêtre
   // étroite), elle passe en icônes seules, comme
   // sur téléphone ; sinon Retirer, au bout, sortait de la barre sans qu'on le voie.

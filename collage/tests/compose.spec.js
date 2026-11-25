@@ -640,26 +640,37 @@ test.describe('Compositions', () => {
 
 test.describe('Téléphone : un dessin touché sur l’œuvre', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  test('ouvre l’onglet Dessins sur sa fiche (tiroir à mi-hauteur)', async ({ app }) => {
+  test('le tiroir ne bouge pas ; « Retoucher » apparaît à droite de « Mettre en scène » et ouvre la retouche', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-texture.png']);
     // l'onglet Propositions : le tiroir à sa hauteur normale, l'œuvre visible
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await page.waitForTimeout(400);
     await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
+    await expect(page.locator('#stage-edit')).toBeHidden(); // (aucun dessin sélectionné)
     const pt = await page.evaluate(() => {
       const A = AtelierGribouille, L = A.state.comp.items[0], v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
-      return { x: r.left + (v.ox + L.x * v.s) / v.dpr, y: r.top + (v.oy + L.y * v.s) / v.dpr, name: L.piece.drawing.name };
+      return { x: r.left + (v.ox + L.x * v.s) / v.dpr, y: r.top + (v.oy + L.y * v.s) / v.dpr };
     });
     await page.touchscreen.tap(pt.x, pt.y);
     await page.waitForTimeout(500);
-    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'drawings-section');
-    await expect(page.locator('body')).toHaveClass(/sheet-detail/);
-    await expect(page.locator('#detail')).toBeVisible();
-    expect(await page.evaluate(() => AtelierGribouille.state.current && AtelierGribouille.state.current.name)).toBe(pt.name);
-    // la fiche est en vue dans le tiroir
-    const [db, pb] = await Promise.all([page.locator('#detail').boundingBox(), page.locator('.panel').boundingBox()]);
-    expect(db.y).toBeGreaterThanOrEqual(pb.y - 1);
-    expect(db.y).toBeLessThan(pb.y + pb.height / 2);
+    // le tiroir reste sur Propositions, sans la fiche du dessin
+    await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
+    await expect(page.locator('body')).not.toHaveClass(/sheet-detail|sheet-tall/);
+    expect(await page.evaluate(() => AtelierGribouille.state.selected && AtelierGribouille.state.selected.kind)).toBe('piece');
+    // « Retoucher », à droite de « Mettre en scène », sur la même ligne
+    const edit = page.locator('#stage-edit');
+    await expect(edit).toBeVisible();
+    await expect(edit).toHaveText('Retoucher');
+    if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/retoucher-telephone.png' });
+    const [sc, ed] = await Promise.all([page.locator('#scene-open').boundingBox(), edit.boundingBox()]);
+    expect(ed.x).toBeGreaterThan(sc.x + sc.width);
+    expect(ed.x).toBeLessThan(sc.x + sc.width + 20);
+    expect(Math.abs(ed.y - sc.y)).toBeLessThan(2);
+    expect(ed.x + ed.width).toBeLessThan(390);
+    // il ouvre la retouche du dessin sélectionné
+    await edit.click();
+    await expect(page.locator('#editor')).toBeVisible();
+    if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/retoucher-editeur.png' });
   });
 });
