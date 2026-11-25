@@ -8311,9 +8311,12 @@ Réponds uniquement avec ce JSON :
       const u = A.user();
       // (le tiroir s'ouvre en grand : « Mon compte » se voit en entier)
       // (Mes commandes : le panneau Mon compte s'ouvre aussi sur téléphone, sur les commandes)
-      if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u || (opts && opts.orders)) openPanel(true); }
-      else openPanel(true);
-      if (opts && opts.orders && u) renderOrders({ showEmpty: true }).then(() => { const b = $('orders-box'); if (b && !b.hidden && b.scrollIntoView) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+      // (Mes commandes, connecté : sous le nom du compte, dans le panneau de l'atelier — onglet Compte sur
+      // téléphone —, la fenêtre Mon compte reste fermée)
+      const orders = !!(opts && opts.orders && u);
+      if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u) openPanel(true); }
+      else if (!orders) openPanel(true);
+      if (orders) renderOrders({ showEmpty: true }).then(() => { const b = $('orders-box'); if (b && !b.hidden && b.scrollIntoView) b.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
     };
     if (/[?&](connexion|compte|commandes)\b/.test(location.search)) {
       const orders = /[?&]commandes\b/.test(location.search);

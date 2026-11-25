@@ -1053,24 +1053,30 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate((files) => files.every((f) => !!window.__fake.db.files[f]), files)).toBe(true);
   });
 
-  test('Mes commandes, dans Mon compte : cachée sans commande ; ?commandes l’ouvre, « Aucune commande pour l’instant »', async ({ acc }) => {
+  test('Mes commandes, sous le nom du compte : cachée sans commande ; ?commandes l’ouvre, « Aucune commande pour l’instant »', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'sanscommande@example.org', 'Rouge-Soleil-42', 'Sans');
+    await expect(page.locator('#orders-box')).toBeHidden();
     await page.locator('#acc-menu').click();
     await expect(page.locator('#profile-box')).toBeVisible();
-    await expect(page.locator('#orders-box')).toBeHidden();
+    await expect(page.locator('#profile-box #orders-box')).toHaveCount(0); // (plus dans la fenêtre Mon compte)
     await page.goto('index.html?commandes');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
     await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-empty')).toBeVisible();
     await expect(page.locator('#orders-list .order')).toHaveCount(0);
-    // sur téléphone aussi, « Mes commandes » ouvre le panneau Mon compte, sur les commandes
+    await expect(page.locator('#account-section')).toBeHidden(); // (la fenêtre Mon compte reste fermée)
+    // sur téléphone : l'onglet Compte, Mes commandes juste sous le nom du compte, avant Exporter
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('index.html?commandes');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-empty')).toBeInViewport();
+    await expect(page.locator('#account-section')).toBeHidden();
+    await expect(page.locator('.sheet-tabs [data-tab="more"]')).toHaveClass(/\bon\b/);
+    const y = (sel) => page.locator(sel).evaluate((el) => el.getBoundingClientRect().top);
+    expect(await y('#acc-menu')).toBeLessThan(await y('#orders-box'));
+    if (await page.locator('#export-section').isVisible()) expect(await y('#orders-box')).toBeLessThan(await y('#export-section'));
   });
 
   test('une œuvre que le serveur a déjà dans un autre compte (trace perdue sur l’appareil) : pas d’erreur technique, la ligne dit « dans un autre compte »', async ({ acc }) => {
@@ -1133,8 +1139,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.locator('#cart-order').click();
     await page.waitForURL(/[?&]commande=AG-/, { timeout: 30000 }).catch(() => {});
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    // (Mon compte s'ouvre sur « Mes commandes », avec le merci)
-    await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
+    // (« Mes commandes », sous le nom du compte, avec le merci)
     await expect(page.locator('#orders-status')).toContainText('Merci', { timeout: 30000 });
     await expect(page.locator('#orders-box')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-list .order')).toHaveCount(1);
@@ -1142,10 +1147,9 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#orders-list .order-status')).toHaveText('Payée');
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 30000 }).toBe(0);
     await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('atelier-gribouille:panier') || '[]').length), { timeout: 30000 }).toBe(0);
-    // ?commandes (lien « Mes commandes » du menu du site) : Mon compte, sur ses commandes
+    // ?commandes (lien « Mes commandes » du menu du site) : ses commandes, sous le nom du compte
     await page.goto('index.html?commandes');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.user());
-    await expect(page.locator('#account-section')).toBeVisible({ timeout: 30000 });
     await expect(page.locator('#orders-list .order')).toHaveCount(1, { timeout: 30000 });
     expect(page.url()).not.toContain('commandes');
     // tant qu'elle est « payée », le client l'annule (deux touches) : remboursée, « Annulée »

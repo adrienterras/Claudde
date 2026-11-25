@@ -513,6 +513,7 @@ body.stage-full .stage-cta { display: none; }
 /* Mes commandes (paiement en ligne), dans Mon compte */
 .acc-orders { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .acc-orders[hidden] { display: none; }
+.panel > .acc-orders { margin: 12px 0 6px; padding-top: 0; border-top: 0; } /* sous le nom du compte */
 .acc-orders h3 { margin: 0; font-size: 1rem; }
 .acc-orders .cart-status[hidden], .acc-orders .hint[hidden] { display: none; }
 .orders-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -1281,6 +1282,9 @@ body.stage-full .scene-open { display: none; }
   /* onglet Compte : Exporter juste sous le nom du compte (le tiroir est une colonne flex : order), avec
      son titre, sans numéro ni repli ; puis l'enregistrement et Mes œuvres */
   .panel.tabbed[data-tab="more"] > .account { order: -3; }
+  /* Mes commandes : dans l'onglet Compte seulement, juste sous le nom du compte, avant Exporter */
+  .panel.tabbed > .acc-orders { display: none; }
+  .panel.tabbed[data-tab="more"] > .acc-orders:not([hidden]) { display: grid; order: -3; margin-top: 4px; }
   /* onglet Importer : Mes œuvres (et Toutes les œuvres de l'administrateur) toujours affichées, sous les
      choix d'import (« Reprendre une œuvre » y descend) ; plus de « Mes exports » sur téléphone */
   .panel.tabbed[data-tab="import-section"] > #saved-section { order: 1; }

@@ -120,6 +120,14 @@
       <button type="button" id="acc-open" class="acc-chip"><svg class="ico"><use href="#i-user"/></svg><span>Se connecter ou créer un compte</span></button>
       <button type="button" id="acc-menu" class="acc-chip on" hidden aria-expanded="false"><span class="acc-avatar" aria-hidden="true"></span><span class="acc-name"></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
+    <!-- Mes commandes (paiement en ligne) : statut, articles, suivi du colis, annulation ; sous le nom du
+         compte (onglet Compte sur téléphone), cachée tant qu'il n'y en a aucune ; ?commandes y mène -->
+    <div id="orders-box" class="acc-orders" hidden>
+      <h3>Mes commandes</h3>
+      <p id="orders-status" class="cart-status" role="status" hidden></p>
+      <p id="orders-empty" class="hint" hidden>Aucune commande pour l’instant.</p>
+      <ul id="orders-list" class="orders-list"></ul>
+    </div>
     <!-- l'œuvre affichée : où elle est enregistrée (d'elle-même, rien à sauvegarder) -->
     <div id="cloud-sync" class="cloud-sync" hidden>
       <p id="cloud-sync-status" class="hint"></p>
@@ -435,13 +443,6 @@
           </div>
           <p class="hint">Appareil partagé ? <button type="button" class="link" id="acc-signout-wipe">Se déconnecter et effacer cet appareil</button></p>
         </form>
-        <!-- les commandes du compte (paiement en ligne) : statut, articles, suivi du colis ; ?commandes y mène -->
-        <div id="orders-box" class="acc-orders" hidden>
-          <h3>Mes commandes</h3>
-          <p id="orders-status" class="cart-status" role="status" hidden></p>
-          <p id="orders-empty" class="hint" hidden>Aucune commande pour l’instant.</p>
-          <ul id="orders-list" class="orders-list"></ul>
-        </div>
         <div class="danger-zone">
           <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte, ainsi que ceux de cet appareil.</p>
           <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>
