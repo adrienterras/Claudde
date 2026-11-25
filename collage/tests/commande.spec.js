@@ -21,8 +21,10 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(m.KIT_CANVAS).toEqual(grab(/const KIT_CANVAS = (\[[^;]*\]);/));
     // la livraison affichée dans le panier est celle que le serveur fait payer
     expect(m.SHIPPING).toEqual(grab(/const SHIPPING = (\{[\s\S]*?\n {2}\});/));
-    expect(Object.keys(m.SHIPPING.papier)).toEqual(Object.keys(m.PRICES.print.papier));
-    expect(Object.keys(m.SHIPPING.cadre)).toEqual(Object.keys(m.PRICES.print.cadre));
+    for (const mode of ['domicile', 'relais']) {
+      expect(Object.keys(m.SHIPPING[mode].papier)).toEqual(Object.keys(m.PRICES.print.papier));
+      expect(Object.keys(m.SHIPPING[mode].cadre)).toEqual(Object.keys(m.PRICES.print.cadre));
+    }
   });
 
   test('chaque article est vérifié, son prix recalculé ; la livraison : le plus cher à expédier, plus 5 € par article imprimé de plus', async () => {
@@ -51,6 +53,16 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(t.subtotal).toBe((129 * 2 + 39 + 96 + 29) * 100);
     expect(t.total).toBe(t.subtotal + 3490);
     expect(m.shippingCents(m.orderItems([{ id: 'x', name: 'x', meta: { cart: { product: 'hd', W: 30, H: 40 } } }]))).toBe(0);
+    // en point relais : 16,90 € (50 × 70 encadré) + 2 × 5 € ; les deux modes proposés, domicile d'abord
+    expect(m.shippingCents(items, 'relais')).toBe(2690);
+    expect(m.deliveryOptions(items)).toEqual([{ mode: 'domicile', cents: 3490 }, { mode: 'relais', cents: 2690 }]);
+    // un 70 × 100 encadré ne va pas en point relais : domicile seulement
+    const big = m.orderItems([{ id: 'g', name: 'Grand', meta: { cart: cart({ size: '70x100' }) } }, { id: 'b', name: 'Zoé', meta: { cart: { product: 'print', finish: 'papier', size: '21x30', W: 21, H: 30 } } }]);
+    expect(m.shippingCents(big, 'relais')).toBeNull();
+    expect(m.deliveryOptions(big)).toEqual([{ mode: 'domicile', cents: 4490 }]);
+    // un kit seul : livraison comprise, à domicile ; rien à livrer : aucun mode
+    expect(m.deliveryOptions([items[2]])).toEqual([{ mode: 'domicile', cents: 0 }]);
+    expect(m.deliveryOptions([items[3]])).toEqual([]);
   });
 
   test('la session de paiement : montants en centimes, adresse en France, livraison, retour sur le site', async () => {
@@ -65,6 +77,11 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(p.get('line_items[1][price_data][unit_amount]')).toBe('2900');
     expect(p.get('shipping_address_collection[allowed_countries][0]')).toBe('FR');
     expect(p.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')).toBe('2990');
+    expect(p.get('shipping_options[0][shipping_rate_data][metadata][mode]')).toBe('domicile');
+    // point relais : 16,90 € + 5 €, le mode gardé avec le tarif (relu à la confirmation du paiement)
+    expect(p.get('shipping_options[1][shipping_rate_data][fixed_amount][amount]')).toBe('2190');
+    expect(p.get('shipping_options[1][shipping_rate_data][display_name]')).toBe('Point relais (le plus proche de votre adresse)');
+    expect(p.get('shipping_options[1][shipping_rate_data][metadata][mode]')).toBe('relais');
     // une origine inconnue revient sur le site
     expect(p.get('success_url')).toBe('https://ateliergribouille.art/atelier/?commande=AG-261125-AB12');
     expect(p.get('cancel_url')).toBe('https://ateliergribouille.art/atelier/?panier');

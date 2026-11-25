@@ -7,6 +7,18 @@ import { verifySignature, orderTrace } from '../_shared/commande.js';
 import { rest } from '../_shared/supabase.js';
 
 const SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
+const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
+
+// le mode de livraison choisi sur la page de paiement (domicile, relais) : relu chez Stripe, avec le tarif
+async function delivery(session: any) {
+  try {
+    const r = await fetch(`https://api.stripe.com/v1/checkout/sessions/${session.id}?expand[]=shipping_cost.shipping_rate`, { headers: { Authorization: `Bearer ${STRIPE_KEY}` } });
+    if (!r.ok) return null;
+    const s = await r.json();
+    const rate = s.shipping_cost && s.shipping_cost.shipping_rate;
+    return (rate && rate.metadata && rate.metadata.mode) || null;
+  } catch (e) { return null; }
+}
 
 async function paid(session: any) {
   const id = session.metadata && session.metadata.order_id;
@@ -19,6 +31,8 @@ async function paid(session: any) {
     status: 'payee', paid_at: at, payment_intent: session.payment_intent || null,
     total_cents: session.amount_total ?? order.total_cents,
     shipping, customer: session.customer_details || null,
+    shipping_cents: session.shipping_cost ? session.shipping_cost.amount_total : order.shipping_cents,
+    delivery: session.shipping_cost ? await delivery(session) : null,
   });
   // les œuvres commandées : hors du panier, figées, avec la trace de la commande
   for (const it of order.items || []) {

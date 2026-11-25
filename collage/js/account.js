@@ -517,7 +517,7 @@
   // les commandes du compte (« Mes commandes »), les plus récentes d'abord
   async function ordersList() {
     if (!user) return [];
-    const { data, error } = await client.from('orders').select('id, ref, status, created_at, paid_at, items, subtotal_cents, shipping_cents, total_cents, carrier, tracking')
+    const { data, error } = await client.from('orders').select('id, ref, status, created_at, paid_at, items, subtotal_cents, shipping_cents, total_cents, delivery, carrier, tracking')
       .eq('user_id', user.id).order('created_at', { ascending: false }).range(0, 49);
     err(error);
     return data || [];

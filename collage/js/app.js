@@ -8633,14 +8633,23 @@ Réponds uniquement avec ce JSON :
    * imprimé de plus ; le kit a sa livraison comprise ; fichier et guide : rien à livrer.
    */
   const SHIPPING = {
-    papier: { '21x30': 9.9, '30x40': 9.9, '40x50': 9.9, '50x70': 9.9, '70x100': 11.9 },
-    cadre: { '21x30': 14.9, '30x40': 19.9, '40x50': 19.9, '50x70': 24.9, '70x100': 39.9 },
+    domicile: {
+      papier: { '21x30': 9.9, '30x40': 9.9, '40x50': 9.9, '50x70': 9.9, '70x100': 11.9 },
+      cadre: { '21x30': 14.9, '30x40': 19.9, '40x50': 19.9, '50x70': 24.9, '70x100': 39.9 },
+    },
+    relais: {
+      papier: { '21x30': 5.9, '30x40': 5.9, '40x50': 5.9, '50x70': 5.9, '70x100': 6.9 },
+      cadre: { '21x30': 8.9, '30x40': 10.9, '40x50': 12.9, '50x70': 16.9, '70x100': null },
+    },
     extra: 5,
   };
-  const shippingOf = (items) => {
+  // la livraison du panier pour un mode (domicile, relais) ; null : pas de point relais (format trop grand)
+  const shippingOf = (items, mode = 'domicile') => {
     const each = [];
-    items.filter((it) => it.product === 'print').forEach((it) => { for (let i = 0; i < it.qty; i++) each.push(SHIPPING[it.finish][it.size]); });
-    return each.length ? Math.round((Math.max(...each) + SHIPPING.extra * (each.length - 1)) * 100) / 100 : 0;
+    items.filter((it) => it.product === 'print').forEach((it) => { for (let i = 0; i < it.qty; i++) each.push(SHIPPING[mode][it.finish][it.size]); });
+    if (!each.length) return 0;
+    if (each.some((v) => v == null)) return null;
+    return Math.round((Math.max(...each) + SHIPPING.extra * (each.length - 1)) * 100) / 100;
   };
   const PAY_TEST_KEY = 'atelier.paiement-test';
   try {
@@ -9064,17 +9073,22 @@ Réponds uniquement avec ce JSON :
       list.appendChild(li);
     });
     const online = payOnline();
-    const ship = online ? shippingOf(items) : 0;
-    const total = items.reduce((s, it) => s + it.unit * it.qty, 0) + ship;
+    // paiement en ligne : la livraison, au choix sur la page de paiement (point relais, ou à domicile),
+    // et le total des articles
+    const home = online ? shippingOf(items, 'domicile') : 0;
+    const relay = online && items.some((it) => it.product === 'print') ? shippingOf(items, 'relais') : null;
+    const total = items.reduce((s, it) => s + it.unit * it.qty, 0);
     box.querySelector('.cart-empty').hidden = items.length > 0;
     const shipRow = box.querySelector('.cart-ship');
-    shipRow.hidden = !(online && items.length && ship);
-    shipRow.querySelector('b').textContent = euros(ship);
+    shipRow.hidden = !(online && items.length && home);
+    shipRow.querySelector('span').textContent = relay != null ? tr('Livraison, au choix au paiement') : tr('Livraison à domicile (France métropolitaine)');
+    shipRow.querySelector('b').textContent = relay != null ? `${tr`${euros(relay)} en point relais`}\n${tr`${euros(home)} à domicile`}` : euros(home || 0);
     box.querySelector('.cart-total').hidden = !items.length;
+    box.querySelector('.cart-total span').textContent = online && home ? tr('Total TTC, hors livraison') : tr('Total TTC');
     box.querySelector('.cart-total b').textContent = euros(total);
     box.querySelector('.cart-note').hidden = !items.length;
     box.querySelector('.cart-note').textContent = online
-      ? tr('Prix TTC, livraison à domicile comprise (France métropolitaine). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.')
+      ? tr('Prix TTC. Livraison en France métropolitaine, en point relais (le plus proche de votre adresse) ou à domicile : vous choisissez à la page de paiement. Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.')
       : tr('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.');
     $('cart-consent-field').hidden = !items.length;
     $('cart-order').hidden = !items.length;
@@ -9112,7 +9126,7 @@ Réponds uniquement avec ce JSON :
       }).join('');
       const track = o.tracking ? `<p class="order-track">${esc(tr`Suivi du colis : ${[o.carrier, o.tracking].filter(Boolean).join(' ')}`)}</p>` : '';
       li.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>
-        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}</p>
+        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}${o.delivery ? ` · ${esc(o.delivery === 'relais' ? tr('en point relais') : tr('à domicile'))}` : ''}</p>
         <ul class="order-items">${lines}</ul>${track}`;
       list.appendChild(li);
     });
@@ -9240,7 +9254,7 @@ Réponds uniquement avec ce JSON :
         // et en recalcule les prix ; le panier ne se vide qu'une fois le paiement reçu
         cartStatus(tr('Préparation du paiement sécurisé…'));
         const res = await A.orders.checkout(consentOnline);
-        window.Atelier.track('Commande', { articles: items.length, total: Math.round(items.reduce((s, it) => s + it.unit * it.qty, 0) + shippingOf(items)), paiement: 'stripe' });
+        window.Atelier.track('Commande', { articles: items.length, total: Math.round(items.reduce((s, it) => s + it.unit * it.qty, 0) + (shippingOf(items) || 0)), paiement: 'stripe' });
         cartStatus(tr('Ouverture de la page de paiement…'));
         location.href = res.url;
         return;

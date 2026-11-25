@@ -510,6 +510,7 @@ body.stage-full .stage-cta { display: none; }
 .cart-note, .cart-empty { margin: 0; }
 .cart-ship { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px; font-size: 0.86rem; color: var(--muted); }
 .cart-ship[hidden] { display: none; }
+.cart-ship b { text-align: right; white-space: pre-line; font-weight: 600; color: var(--ink, inherit); }
 /* Mes commandes (paiement en ligne), sous le panier */
 .cart-orders { display: grid; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .cart-orders[hidden] { display: none; }

@@ -993,7 +993,9 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cart .cart-item')).toHaveCount(1);
     // la livraison à domicile est comptée dans le total ; le paiement passe par Stripe
     await expect(page.locator('#cart .cart-ship')).toBeVisible();
-    await expect(page.locator('#cart .cart-ship b')).toHaveText(/^(9,90|11,90)\s€$/);
+    // (une affiche : point relais ou domicile, au choix à la page de paiement)
+    await expect(page.locator('#cart .cart-ship b')).toHaveText(/^(5,90|6,90)\s€ en point relais\s+(9,90|11,90)\s€ à domicile$/);
+    await expect(page.locator('#cart .cart-total span')).toHaveText('Total TTC, hors livraison');
     await expect(page.locator('#cart .cart-note')).toContainText('Stripe');
     // le serveur refuse : la raison est dite, rien n'est perdu
     await page.evaluate(() => { window.__fake.fns = { commande: () => ({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context: { json: async () => ({ error: 'paiement non configuré' }) } } }) }; });
