@@ -75,6 +75,11 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(p.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')).toBe('2990');
     expect(p.get('shipping_options[0][shipping_rate_data][metadata][mode]')).toBe('domicile');
     expect(p.has('shipping_options[1][shipping_rate_data][type]')).toBe(false);
+    // le récapitulatif écrit au-dessus du bouton Payer (Stripe replie le détail sur téléphone)
+    expect(p.get('custom_text[submit][message]')).toBe('Votre commande : Lou — Tableau encadré 50 × 70 cm, cadre bois noir, avec passe-partout × 2 : 258,00 € · HD — Fichier HD : 29,00 € · Livraison à domicile : 29,90 € · Total : 316,90 €');
+    const many = m.orderItems(Array.from({ length: 40 }, (_, i) => ({ id: `x${i}`, name: `Œuvre numéro ${i} avec un titre assez long`, meta: { cart: cart() } })));
+    expect(m.summary(many).length).toBeLessThanOrEqual(1200);
+    expect(m.summary(many)).toMatch(/et \d+ autre\(s\) article\(s\) · Livraison à domicile : .* · Total : /);
     // une origine inconnue revient sur le site
     expect(p.get('success_url')).toBe('https://ateliergribouille.art/atelier/?commande=AG-261125-AB12');
     expect(p.get('cancel_url')).toBe('https://ateliergribouille.art/atelier/?panier');

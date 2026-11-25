@@ -145,6 +145,8 @@ export function checkoutParams({ order, items, email, origin }) {
     p.push([`${b}[quantity]`, String(it.qty)], [`${b}[price_data][currency]`, 'eur'], [`${b}[price_data][unit_amount]`, String(cents(it.unit))],
       [`${b}[price_data][product_data][name]`, `${it.title} — ${it.label}`.slice(0, 200)]);
   });
+  // le récapitulatif, au-dessus du bouton Payer : sur téléphone, Stripe replie le détail de la commande
+  p.push(['custom_text[submit][message]', summary(items)]);
   if (needsDelivery(items)) {
     COUNTRIES.forEach((c, i) => p.push([`shipping_address_collection[allowed_countries][${i}]`, c]));
     p.push(['phone_number_collection[enabled]', 'true']);
@@ -155,6 +157,19 @@ export function checkoutParams({ order, items, email, origin }) {
     });
   }
   return p;
+}
+const eur = (c) => `${(c / 100).toFixed(2).replace('.', ',')} €`;
+// « Votre commande : Lou — Affiche 21 × 30 cm : 39,00 € · Livraison à domicile : 9,90 € · Total : 48,90 € »
+// (Stripe limite ce texte à 1 200 caractères : les titres sont raccourcis, les articles au-delà comptés)
+export function summary(items) {
+  const lines = items.map((it) => `${it.title.slice(0, 40)} — ${it.label}${it.qty > 1 ? ` × ${it.qty}` : ''} : ${eur(cents(it.unit) * it.qty)}`);
+  const ship = shippingCents(items, 'domicile');
+  const t = totals(items);
+  const tail = [needsDelivery(items) ? `${DELIVERY.domicile} : ${ship ? eur(ship) : 'comprise'}` : null, `Total : ${eur(t.total)}`].filter(Boolean);
+  let shown = lines;
+  while (shown.length > 1 && `Votre commande : ${shown.join(' · ')} · ${tail.join(' · ')}`.length > 1100) shown = shown.slice(0, -1);
+  if (shown.length < lines.length) shown = shown.concat(`et ${lines.length - shown.length} autre(s) article(s)`);
+  return `Votre commande : ${shown.concat(tail).join(' · ')}`.slice(0, 1200);
 }
 export const formBody = (pairs) => pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 
