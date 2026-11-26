@@ -328,29 +328,37 @@
     const t = setTimeout(() => rej(new Error(tr('pas de réponse du serveur : vérifiez la connexion et réessayez'))), ms);
     p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); });
   });
-  // (un fichier déjà dans le compte, celui de l'œuvre d'où vient l'article : copié sur le serveur, rien
-  // ne repart du téléphone ; s'il manque, envoyé)
+  // (load : l'image lue sur l'appareil au moment de l'envoyer seulement, une à une — voir cartRecForCloud)
   async function uploadAll(jobs, onProgress) {
     const store = client.storage.from(BUCKET);
-    let next = 0, done = 0, copied = 0;
-    onProgress && onProgress(0, jobs.length, { copied: 0, copies: jobs.filter((j) => j.src).length });
+    let next = 0, done = 0;
+    onProgress && onProgress(0, jobs.length);
     const worker = async () => {
       while (next < jobs.length) {
         const j = jobs[next++];
-        let copied = false;
-        let ok = false;
-        if (j.src) { const c = await withTimeout(store.copy(j.src, j.path), UPLOAD_TIMEOUT).catch(() => null); ok = !!(c && !c.error); if (ok) copied++; }
-        if (!ok) {
-          // (pas copié : l'image est lue sur l'appareil maintenant, au besoin seulement — voir cartRecForCloud)
-          if (j.bytes == null && j.load) { const r = await j.load().catch(() => null); if (r) { j.bytes = r.bytes; if (r.type) j.type = r.type; } }
-          if (j.bytes == null) throw new Error(tr('fichier introuvable'));
-          const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
-          err(up.error);
-        }
-        onProgress && onProgress(++done, jobs.length, { copied });
+        if (j.bytes == null && j.load) { const r = await j.load().catch(() => null); if (r) { j.bytes = r.bytes; if (r.type) j.type = r.type; } }
+        if (j.bytes == null) throw new Error(tr('fichier introuvable'));
+        const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
+        err(up.error);
+        onProgress && onProgress(++done, jobs.length);
       }
     };
     await Promise.all(Array.from({ length: Math.min(UPLOAD_PARALLEL, jobs.length) }, worker));
+  }
+  // Fichiers partagés : un article du panier (ou une commande) fait d'une œuvre du compte reprend les
+  // fichiers de son dossier tels quels, sans copie (meta.fromWork). Un fichier du dossier d'une œuvre
+  // n'est donc effacé que si plus rien ne s'en sert : ni l'œuvre (sa version actuelle), ni les articles
+  // et commandes faits d'elle. sharedRefs : les fichiers dont se servent ces fiches, sauf except.
+  async function sharedRefs(workId, except) {
+    const cols = 'id, drawings:meta->drawings';
+    const [a, b] = await Promise.all([
+      client.from('compositions').select(cols).eq('user_id', user.id).eq('id', workId),
+      client.from('compositions').select(cols).eq('user_id', user.id).eq('meta->>fromWork', workId),
+    ]);
+    err(a.error); err(b.error);
+    const keep = new Set();
+    [...(a.data || []), ...(b.data || [])].forEach((r) => { if (r.id !== except) pathsOf(r.meta || { drawings: r.drawings }).forEach((x) => keep.add(x)); });
+    return keep;
   }
   async function cloudPut(rec, onProgress) {
     if (!user) throw new Error(tr('Connectez-vous pour sauvegarder dans votre compte.'));
@@ -367,8 +375,14 @@
       have = workFiles.get(rec.fromWork) || await withTimeout(store.list(wbase, { limit: 1000 }), 30000).then(({ data }) => new Set((data || []).map((f) => f.name))).catch(() => new Set());
     }
     const from = (name) => (name && have.has(name) ? `${wbase}/${name}` : null);
-    // load : lire l'image sur l'appareil seulement si la copie sur le serveur échoue (article du panier)
-    const put = (path, bytes, type, src, load) => { jobs.push({ path, bytes, type, src, load }); return path; };
+    // src : le fichier de l'œuvre, déjà dans le compte, repris tel quel (rien n'est copié ni envoyé) ;
+    // sinon, envoyé (load : l'image lue sur l'appareil à ce moment-là seulement)
+    const shared = new Map(); // fichier de l'œuvre repris → de quoi l'envoyer s'il venait à manquer
+    const put = (path, bytes, type, src, load) => {
+      if (src) { shared.set(src, { path, bytes, type, load }); return src; }
+      jobs.push({ path, bytes, type, load });
+      return path;
+    };
     const packOf = (d) => (d.saved && d.saved.page && (d.saved.page.data || d.workSavedRef) ? 1 + (d.saved.atlases || []).length : 0);
     for (let i = 0; i < rec.drawings.length; i++) {
       const d = rec.drawings[i];
@@ -389,8 +403,27 @@
     if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes œuvres » tant qu'il n'est pas commandé
     if (rec.ordered) meta.ordered = true; // composition commandée : figée, rouverte en copie
     if (rec.order) meta.order = rec.order; // le détail de la commande (référence, produit, quantité, prix)
+    if (rec.fromWork) meta.fromWork = rec.fromWork; // (ses fichiers repris : gardés tant qu'elle s'en sert)
     const { error } = await withTimeout(client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta }), 45000);
     err(error);
+    // un fichier repris a pu disparaître entre-temps (l'œuvre retouchée au même moment, sur un autre
+    // appareil) : envoyé dans le dossier de l'article, qui le prend à sa place
+    if (shared.size) {
+      const now = await withTimeout(store.list(wbase, { limit: 1000 }), 30000).then(({ data }) => new Set((data || []).map((f) => f.name))).catch(() => null);
+      const gone = now ? [...shared.keys()].filter((p) => !now.has(p.slice(wbase.length + 1))) : [];
+      if (gone.length) {
+        const swap = new Map(gone.map((p) => [p, shared.get(p).path]));
+        await uploadAll(gone.map((p) => shared.get(p)));
+        const fix = (p) => swap.get(p) || p;
+        meta.drawings = meta.drawings.map((d) => {
+          const out = Object.assign({}, d, { file: fix(d.file) });
+          if (d.saved && d.saved.page && typeof d.saved.page.data === 'string') out.saved = Object.assign({}, d.saved, { page: Object.assign({}, d.saved.page, { data: fix(d.saved.page.data) }), atlases: (d.saved.atlases || []).map((a) => Object.assign({}, a, { data: fix(a.data) })) });
+          return out;
+        });
+        const { error: e2 } = await withTimeout(client.from('compositions').update({ meta }).eq('id', id), 45000);
+        err(e2);
+      }
+    }
     return `cloud:${id}`;
   }
 
@@ -528,6 +561,8 @@
     // les fichiers qui ne servent plus : ceux du dossier, et ceux de la version d'avant rangés ailleurs
     const stale = new Set([...names].map((x) => `${base}/${x}`).filter((p) => !used.has(p)));
     if (old) pathsOf(old.meta).forEach((p) => { if (!used.has(p)) stale.add(p); });
+    // (sauf ceux que gardent les articles du panier et les commandes faits de l'œuvre)
+    if (stale.size) { const keep = await sharedRefs(id, id).catch(() => null); if (!keep) stale.clear(); else keep.forEach((p) => stale.delete(p)); }
     if (stale.size) {
       const { error: e3 } = await store.remove([...stale]);
       if (!e3) stale.forEach((p) => { if (p.startsWith(`${base}/`)) names.delete(p.slice(base.length + 1)); });
@@ -625,10 +660,12 @@
   // Un article du panier est une composition marquée meta.cart (produit, finition, taille, quantité…).
   async function cloudCart() {
     if (!user) return [];
-    const { data, error } = await withTimeout(client.from('compositions').select('id, name, created_at, thumb, meta').eq('user_id', user.id).not('meta->>cart', 'is', null).order('created_at', { ascending: false }), 45000);
+    // (la fiche de l'article seulement, pas la composition : une œuvre d'une centaine de dessins, c'est
+    // des Mo à lire, et sur iPhone le panier se figeait, voilé, le temps de les lire)
+    const { data, error } = await withTimeout(client.from('compositions').select('id, name, created_at, thumb, cart:meta->cart').eq('user_id', user.id).not('meta->>cart', 'is', null).order('created_at', { ascending: false }), 45000);
     err(error);
     return (data || [])
-      .map((row) => Object.assign({ id: row.id, recId: `cloud:${row.id}`, refs: [], title: row.name, thumb: row.thumb, date: row.created_at }, row.meta.cart))
+      .map((row) => Object.assign({ id: row.id, recId: `cloud:${row.id}`, refs: [], title: row.name, thumb: row.thumb, date: row.created_at }, row.cart || (row.meta && row.meta.cart)))
       .reverse();
   }
   // quantité ou produit changés (cart), ou article commandé (cart : null, avec le nom de la commande) :
@@ -675,7 +712,11 @@
     err(e0);
     err(e1);
     const paths = new Set((files || []).map((f) => `${base}/${f.name}`));
-    pathsOf(((rows || [])[0] || {}).meta).forEach((p) => paths.add(p)); // (ancien brouillon : un autre dossier)
+    pathsOf(((rows || [])[0] || {}).meta).forEach((p) => paths.add(p)); // (ancien brouillon, fichiers d'une œuvre repris : un autre dossier)
+    // (sauf les fichiers dont se servent encore d'autres fiches : l'œuvre d'où vient un article du panier,
+    // les articles et commandes faits de cette œuvre — voir sharedRefs)
+    const folders = new Set([id, ...[...paths].map((p) => p.split('/')[1])]);
+    for (const f of folders) (await sharedRefs(f, id)).forEach((p) => paths.delete(p));
     if (paths.size) { const { error: e2 } = await store.remove([...paths]); err(e2); }
     workFiles.delete(id);
     await delRow('compositions', id);

@@ -9147,8 +9147,25 @@ Réponds uniquement avec ce JSON :
       const rec = await snapshotComposition(pending.title, { refs: true, comp });
       rec.id = `panier-${id}`;
       rec.cart = true;
+      // la même œuvre (rien retouché depuis), avec les mêmes options, est déjà au panier : sa quantité
+      // augmente, sans deuxième article (ni deuxième envoi dans le compte)
+      const sig = cartSig(rec), want = cartOpts(Object.assign({}, choice, { product: choice.product, finish: choice.product === 'hd' ? 'papier' : choice.finish }));
+      {
+        const all = loadCart(), x = all.find((y) => y.sig === sig && JSON.stringify(cartOpts(y)) === JSON.stringify(want));
+        if (x) {
+          const before = x.qty;
+          x.qty = clamp(x.qty + choice.qty, 1, maxQty(x));
+          saveCart(all);
+          // (dans le compte d'abord : le panier rouvert est relu depuis le compte)
+          if (x.qty !== before && isCloudItem(x) && cloudCartOn()) await window.Account.cloud.cartSet(x.recId, cartMeta(x)).catch((e) => console.error(e));
+          window.Atelier.track('Panier', { produit: x.product === 'print' ? `${x.finish} ${x.size}` : x.product });
+          closeModal($('cart-add'));
+          openCart(x.qty !== before ? tr`« ${x.title} » est déjà dans votre panier : quantité ${x.qty}.` : tr`« ${x.title} » est déjà dans votre panier.`);
+          return;
+        }
+      }
       await dbPut(rec);
-      const it = { id, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
+      const it = { id, sig, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       // l'œuvre en cours, dont les images sont peut-être déjà dans le compte (voir cartRecForCloud)
       if (state.workId && !state.copyOf) it.workId = state.workId;
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
@@ -9271,7 +9288,17 @@ Réponds uniquement avec ce JSON :
    */
   const cloudCartOn = () => { const A = window.Account; return !!(A && A.enabled && A.user()); };
   const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
-  const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: (it.product === 'print' && !(it.finish === 'cadre' && it.mat)) || it.product === 'hd' ? !!it.margin : undefined });
+  // l'empreinte d'une composition ajoutée au panier : la même tant que rien n'y est retouché (mise en
+  // page, dessins, découpes : leurs clés changent à chaque retouche)
+  function cartSig(rec) {
+    const txt = JSON.stringify({ comp: rec.comp, settings: rec.settings, drawings: rec.drawings });
+    let a = 0x811c9dc5, b = 0x01000193 ^ txt.length;
+    for (let i = 0; i < txt.length; i++) { const c = txt.charCodeAt(i); a = Math.imul(a ^ c, 0x01000193); b = Math.imul(b ^ c, 0x5bd1e995); }
+    return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+  }
+  // les options d'un article (sans la quantité) : deux articles pareils ont les mêmes
+  const cartOpts = (it) => { const m = cartMeta(Object.assign({}, it, { qty: 0 })); delete m.qty; delete m.styleName; delete m.W; delete m.H; delete m.sig; return m; };
+  const cartMeta = (it) => ({ sig: it.sig || undefined, product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: (it.product === 'print' && !(it.finish === 'cadre' && it.mat)) || it.product === 'hd' ? !!it.margin : undefined });
   // la composition locale d'un article, images comprises, prête à partir dans le compte
   // (laisse l'écran se dessiner : les animations d'ouverture vont à leur terme avant un travail long)
   const settled = (ms = 320) => new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => r())), ms));
@@ -9279,14 +9306,14 @@ Réponds uniquement avec ce JSON :
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);
     if (!rec) return null;
-    // l'œuvre vient du compte (it.workId) : ses fichiers y sont déjà, copiés sur le serveur ; les images ne
-    // sont lues sur l'appareil qu'au besoin, une à une, si une copie échoue (voir uploadAll). Les charger
-    // toutes d'avance (une centaine de fichiers) occupait l'iPhone et sa mémoire : le panier paraissait
-    // alors pâle et flou
+    // l'œuvre vient du compte (it.workId) : ses fichiers y sont déjà, repris tels quels (voir cloudPut) ; les
+    // images ne sont lues sur l'appareil qu'au besoin, une à une, s'il en manque une. Les charger toutes
+    // d'avance (une centaine de fichiers) occupait l'iPhone et sa mémoire : le panier paraissait alors
+    // pâle et flou
     const lazy = !!it.workId;
     for (const sd of rec.drawings) {
       await breathe(); // (un dessin à la fois : l'écran reste vivant pendant la préparation)
-      // (les clés des images : l'œuvre du compte d'où vient l'article a déjà ces fichiers, copiés sur le serveur)
+      // (les clés des images : l'œuvre du compte d'où vient l'article a déjà ces fichiers, repris tels quels)
       sd.workRef = sd.ref || null; sd.workSavedRef = savedRef(sd);
       if (lazy) {
         const ref = sd.ref;
@@ -9321,13 +9348,12 @@ Réponds uniquement avec ce JSON :
       say(tr`Préparation de « ${it.title} » pour votre compte…`, 'busy');
       const rec = await cartRecForCloud(it);
       if (!rec) return;
-      let copies = 0; // (fichiers repris de l'œuvre du compte, copiés sur le serveur)
-      const cid = await window.Account.cloud.put(rec, (n, total, info) => {
-        if (info && info.copies != null) copies = info.copies;
-        say(copies === total ? tr`Copie de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…` : tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, total ? n / total : 'busy');
-      });
+      // (les fichiers de l'œuvre du compte sont repris tels quels : seuls les autres partent)
+      const cid = await window.Account.cloud.put(rec, (n, total) => { if (total) say(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, n / total); });
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
+      // (la quantité a changé pendant l'envoi : le compte la prend aussi)
+      if (x.qty !== rec.cart.qty) await window.Account.cloud.cartSet(cid, cartMeta(x)).catch((e) => console.error(e));
       dbDel(it.recId).catch(() => {});
       sent = true;
     } catch (e) { console.error(e); cartStatus(tr`Panier non envoyé dans votre compte : ${(e && e.message) || ''}`); } finally {
@@ -9396,6 +9422,7 @@ Réponds uniquement avec ce JSON :
         const key = () => loadCart().map((it) => `${it.id}:${it.qty}`).join(',');
         const before = key();
         cartStatus(tr('Panier mis à jour depuis votre compte…'), 'busy');
+        await settled(0); // (le message et la barre affichés d'abord, avant le travail)
         await syncCloudCart();
         if (key() !== before) renderCart(); // (redessiné seulement s'il a changé)
       }

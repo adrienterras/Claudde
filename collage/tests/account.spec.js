@@ -1021,19 +1021,26 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(() => localStorage.getItem('atelier-gribouille:commandes'))).toBeNull();
   });
 
-  test('ajouter au panier une œuvre déjà dans le compte : ses images sont copiées sur le serveur, rien ne repart de l’appareil ; le bouton se libère aussitôt', async ({ acc }) => {
-    test.setTimeout(180000);
-    const { page } = acc;
-    await signUpAndIn(page, 'copie@example.org', 'Rouge-Soleil-42', 'Copie');
+  // (une œuvre de deux dessins, dans le compte ; prête à aller au panier)
+  async function workInAccount(page, email, name) {
+    await signUpAndIn(page, email, 'Rouge-Soleil-42', name);
     await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await waitDraft(page, 3);
     await page.evaluate(() => AtelierGribouille.syncCloud());
     const workId = await page.evaluate(() => AtelierGribouille.state.workId);
     await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), workId);
-    await page.evaluate(() => { window.__fake.calls.length = 0; });
     await page.evaluate(() => AtelierGribouille.setMode('impression'));
     await openStep(page, 'export-section');
+    return workId;
+  }
+  const cartFiles = (meta) => meta.drawings.flatMap((d) => [d.file, d.saved && d.saved.page && d.saved.page.data, ...((d.saved && d.saved.atlases) || []).map((a) => a.data)]).filter(Boolean);
+
+  test('ajouter au panier une œuvre déjà dans le compte : ses fichiers sont repris tels quels, sans copie ni envoi ; le bouton se libère aussitôt', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    const workId = await workInAccount(page, 'copie@example.org', 'Copie');
+    await page.evaluate(() => { window.__fake.calls.length = 0; });
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="papier"]').click();
     // (la barre de progression du panier, au-dessus de « Commander » : ses états pendant l'envoi)
@@ -1046,55 +1053,82 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cart-add')).toBeHidden();
     await expect(page.locator('#cart-add-ok')).toBeEnabled();
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
-    // la barre s'est animée (préparation), puis a avancé avec les fichiers copiés, jusqu'au bout
-    const bar = await page.evaluate(() => window.__bar);
-    expect(bar).toContain('busy');
-    expect(bar).toContain('100');
-    // l'envoi fini : le message et la barre disparaissent
+    // la barre s'est animée (préparation) ; l'envoi fini, le message et la barre disparaissent
+    expect(await page.evaluate(() => window.__bar)).toContain('busy');
     await expect(page.locator('#cart .cart-progress')).toBeHidden();
     await expect(page.locator('#cart .cart-status')).toBeHidden();
     // elle est juste au-dessus de « Commander », sous le message
     expect(await page.evaluate(() => document.querySelector('#cart .cart-status').nextElementSibling.classList.contains('cart-progress') && document.querySelector('#cart .cart-progress').nextElementSibling.id === 'cart-order')).toBe(true);
-    const calls = await page.evaluate((id) => {
+    // ni copie ni envoi : l'article se sert des fichiers de l'œuvre, qui sont là
+    const res = await page.evaluate((id) => {
       const cart = window.__fake.db.rows.find((r) => r.meta && r.meta.cart);
-      const inCart = (c) => c[1].split('/')[1] === cart.id;
-      return { copies: window.__fake.calls.filter((c) => c[0] === 'copy' && inCart(c) && c[2].split('/')[1] === id).length, uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && inCart(c)).length };
+      return { copies: window.__fake.calls.filter((c) => c[0] === 'copy').length, uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] === cart.id).length, meta: cart.meta, from: cart.meta.fromWork === id };
     }, workId);
-    expect(calls.copies).toBeGreaterThan(0);
-    expect(calls.uploads).toBe(0);
-    // l'article du panier se rouvre avec ses images (copiées)
-    const cart = await page.evaluate(() => window.__fake.db.rows.find((r) => r.meta && r.meta.cart));
-    const files = cart.meta.drawings.map((d) => d.file);
+    expect(res.copies).toBe(0);
+    expect(res.uploads).toBe(0);
+    expect(res.from).toBe(true);
+    const files = cartFiles(res.meta);
+    expect(files.length).toBeGreaterThan(1);
+    expect(files.every((f) => f.split('/')[1] === workId)).toBe(true);
     expect(await page.evaluate((files) => files.every((f) => !!window.__fake.db.files[f]), files)).toBe(true);
   });
 
-  test('ajouter au panier une œuvre du compte, la copie sur le serveur échoue : les images sont lues sur l’appareil et envoyées, une à une ; l’article est complet', async ({ acc }) => {
+  test('fichiers partagés entre une œuvre et son article du panier : gardés tant que l’un s’en sert ; un fichier manquant est envoyé pour l’article', async ({ acc }) => {
     test.setTimeout(180000);
     const { page } = acc;
-    await signUpAndIn(page, 'secours@example.org', 'Rouge-Soleil-42', 'Secours');
-    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await waitDraft(page, 3);
-    await page.evaluate(() => AtelierGribouille.syncCloud());
-    const workId = await page.evaluate(() => AtelierGribouille.state.workId);
-    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), workId);
-    await page.evaluate(() => { window.__fake.calls.length = 0; window.__FAKE_COPY_FAIL = true; });
-    await page.evaluate(() => AtelierGribouille.setMode('impression'));
-    await openStep(page, 'export-section');
+    const workId = await workInAccount(page, 'partage@example.org', 'Partage');
+    // un fichier de l'œuvre a disparu du compte (retouchée ailleurs au même moment) : l'article l'envoie
+    // dans son dossier, lu sur l'appareil à ce moment-là, et s'en sert
+    const lost = await page.evaluate((id) => { const p = Object.keys(window.__fake.db.files).find((x) => x.split('/')[1] === id && x.endsWith('.jpg') && !x.endsWith('-page.jpg')); delete window.__fake.db.files[p]; window.__fake.calls.length = 0; return p; }, workId);
     await page.locator('#add-cart').click();
     await page.locator('#cart-add [data-finish="papier"]').click();
     await page.locator('#cart-add-ok').click();
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
-    const res = await page.evaluate(() => {
+    await expect(page.locator('#cart .cart-status')).toBeHidden({ timeout: 60000 });
+    const r1 = await page.evaluate((lost) => {
       const cart = window.__fake.db.rows.find((r) => r.meta && r.meta.cart);
       const files = cart.meta.drawings.flatMap((d) => [d.file, d.saved && d.saved.page && d.saved.page.data, ...((d.saved && d.saved.atlases) || []).map((a) => a.data)]).filter(Boolean);
-      return { uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] === cart.id).length, files: files.length, present: files.every((f) => !!window.__fake.db.files[f]), loaders: JSON.stringify(cart.meta).includes('load') };
-    });
-    expect(res.uploads).toBeGreaterThan(0);
-    expect(res.uploads).toBe(res.files);
-    expect(res.present).toBe(true);
-    expect(res.loaders).toBe(false); // (rien de la lecture différée dans la composition enregistrée)
-    await expect(page.locator('#cart .cart-status')).toBeHidden();
+      return { id: cart.id, files, present: files.every((f) => !!window.__fake.db.files[f]), usesLost: files.includes(lost), own: files.filter((f) => f.split('/')[1] === cart.id).length, uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] === cart.id).length, loaders: JSON.stringify(cart.meta).includes('load') };
+    }, lost);
+    expect(r1.present).toBe(true);
+    expect(r1.usesLost).toBe(false);
+    expect(r1.own).toBe(1);
+    expect(r1.uploads).toBe(1);
+    expect(r1.loaders).toBe(false); // (rien de la lecture différée dans la composition enregistrée)
+    // l'œuvre supprimée : ses fichiers dont l'article se sert restent ; les autres partent
+    await page.evaluate((id) => window.Account.cloud.del(`cloud:${id}`), workId);
+    const r2 = await page.evaluate(({ files, workId }) => ({ present: files.every((f) => !!window.__fake.db.files[f]), work: !!window.__fake.db.rows.find((r) => r.id === workId) }), { files: r1.files, workId });
+    expect(r2).toEqual({ present: true, work: false });
+    // l'article retiré à son tour : plus rien ne s'en sert, tout part
+    await page.evaluate((id) => window.Account.cloud.del(`cloud:${id}`), r1.id);
+    expect(await page.evaluate(({ files, workId }) => files.filter((f) => !!window.__fake.db.files[f]).length + Object.keys(window.__fake.db.files).filter((p) => p.split('/')[1] === workId).length, { files: r1.files, workId })).toBe(0);
+  });
+
+  test('la même œuvre ajoutée deux fois au panier avec les mêmes options : un seul article, quantité 2, un seul envoi ; autre taille : un autre article', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await workInAccount(page, 'deuxfois@example.org', 'Deux');
+    const add = async () => {
+      await page.locator('#add-cart').click();
+      await page.locator('#cart-add [data-finish="papier"]').click();
+      await page.locator('#cart-add-ok').click();
+      await expect(page.locator('#cart-add')).toBeHidden();
+    };
+    await add();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    await page.locator('#cart [data-close]').first().click();
+    await add();
+    await expect(page.locator('#cart .cart-status')).toContainText('déjà dans votre panier : quantité 2');
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    await expect(page.locator('#cart .cart-qty output')).toHaveText('2');
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).map((r) => r.meta.cart.qty)), { timeout: 30000 }).toEqual([2]);
+    // une autre taille : un autre article
+    await page.locator('#cart [data-close]').first().click();
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.locator('#cart-add .cart-sizes button:not([hidden]):not(.on)').first().click();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(2);
   });
 
   test('Mes commandes : une page du site, hors de l’atelier ; ?commandes y mène ; sans commande, « Aucune commande pour l’instant »', async ({ acc }) => {
