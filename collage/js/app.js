@@ -9303,9 +9303,11 @@ Réponds uniquement avec ce JSON :
   // (laisse l'écran se dessiner : les animations d'ouverture vont à leur terme avant un travail long)
   const settled = (ms = 320) => new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => r())), ms));
   const breathe = () => new Promise((r) => setTimeout(r, 0));
-  async function cartRecForCloud(it) {
+  // onStep(k, n) : l'avancement de la préparation, dessin par dessin (la barre du panier avance)
+  async function cartRecForCloud(it, onStep) {
     const rec = await dbGet(it.recId);
     if (!rec) return null;
+    let k = 0;
     // l'œuvre vient du compte (it.workId) : ses fichiers y sont déjà, repris tels quels (voir cloudPut) ; les
     // images ne sont lues sur l'appareil qu'au besoin, une à une, s'il en manque une. Les charger toutes
     // d'avance (une centaine de fichiers) occupait l'iPhone et sa mémoire : le panier paraissait alors
@@ -9313,6 +9315,7 @@ Réponds uniquement avec ce JSON :
     const lazy = !!it.workId;
     for (const sd of rec.drawings) {
       await breathe(); // (un dessin à la fois : l'écran reste vivant pendant la préparation)
+      if (onStep) onStep(k++, rec.drawings.length);
       // (les clés des images : l'œuvre du compte d'où vient l'article a déjà ces fichiers, repris tels quels)
       sd.workRef = sd.ref || null; sd.workSavedRef = savedRef(sd);
       if (lazy) {
@@ -9331,6 +9334,7 @@ Réponds uniquement avec ce JSON :
       delete sd.ref;
       await loadSavedRef(sd);
     }
+    if (onStep) onStep(k, rec.drawings.length);
     rec.name = it.title;
     rec.cart = cartMeta(it);
     if (it.workId) rec.fromWork = it.workId;
@@ -9345,8 +9349,9 @@ Réponds uniquement avec ce JSON :
     try {
       // (chaque étape est dite dans le panier : préparation sur l'appareil, puis copie ou envoi des fichiers)
       const say = (t, p) => { if (!$('cart').hidden) cartStatus(t, p); };
-      say(tr`Préparation de « ${it.title} » pour votre compte…`, 'busy');
-      const rec = await cartRecForCloud(it);
+      const prep = tr`Préparation de « ${it.title} » pour votre compte…`;
+      say(prep, 0);
+      const rec = await cartRecForCloud(it, (k, n) => say(prep, n ? k / n : 0));
       if (!rec) return;
       // (les fichiers de l'œuvre du compte sont repris tels quels : seuls les autres partent)
       const cid = await window.Account.cloud.put(rec, (n, total) => { if (total) say(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, n / total); });

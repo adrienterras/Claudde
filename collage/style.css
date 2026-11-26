@@ -553,7 +553,10 @@ body.stage-full .stage-cta { display: none; }
    panier, la barre décalée, le temps de redessiner) */
 .cart-progress.waiting .cart-progress-bar i { width: 100%; transition: none; background: linear-gradient(var(--accent), var(--accent)) no-repeat; background-size: 35% 100%; animation: cart-busy 1.2s ease-in-out infinite; }
 @keyframes cart-busy { from { background-position: -54% 0; } to { background-position: 154% 0; } }
-@media (prefers-reduced-motion: reduce) { .cart-progress.waiting .cart-progress-bar i { animation: none; background: var(--accent); opacity: .45; } .cart-progress-bar i { transition: none; } }
+/* (animations réduites, réglage de l'appareil : le trait ne glisse pas ; la barre pulse doucement, pour
+   qu'on voie que ça travaille) */
+@media (prefers-reduced-motion: reduce) { .cart-progress.waiting .cart-progress-bar i { background: var(--accent); animation: cart-pulse 1.6s ease-in-out infinite; } .cart-progress-bar i { transition: none; } }
+@keyframes cart-pulse { from, to { opacity: .55; } 50% { opacity: .15; } }
 
 /* Réglages */
 

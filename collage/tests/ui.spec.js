@@ -2708,6 +2708,9 @@ test.describe('Panier sur téléphone', () => {
       return { pos: cs.position, filter: cs.backdropFilter || cs.webkitBackdropFilter || 'none', bg: cs.backgroundColor, h: Math.round(r.height), below: r.top >= st.bottom - 1, busyClass: w.classList.contains('busy') };
     });
     expect(look).toEqual({ pos: 'static', filter: 'none', bg: 'rgba(0, 0, 0, 0)', h: 6, below: true, busyClass: false });
+    // animations réduites (réglage de l'iPhone) : le trait ne glisse pas, la barre pulse (pas figée)
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('#cart .cart-progress i')).animationName)).toBe('cart-pulse');
     await ctx.close();
   });
 });

@@ -1054,7 +1054,11 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#cart-add-ok')).toBeEnabled();
     await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
     // la barre s'est animée (préparation) ; l'envoi fini, le message et la barre disparaissent
-    expect(await page.evaluate(() => window.__bar)).toContain('busy');
+    // la préparation avance dessin par dessin, de 0 à 100 % (une barre qui avance, pas une attente sans fin)
+    const bar = (await page.evaluate(() => window.__bar)).filter((x) => x !== 'busy').map(Number);
+    expect(bar[0]).toBe(0);
+    expect(bar).toContain(100);
+    expect(bar.some((x) => x > 0 && x < 100)).toBe(true);
     await expect(page.locator('#cart .cart-progress')).toBeHidden();
     await expect(page.locator('#cart .cart-status')).toBeHidden();
     // elle est juste au-dessus de « Commander », sous le message
