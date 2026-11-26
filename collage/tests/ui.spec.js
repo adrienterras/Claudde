@@ -2679,7 +2679,7 @@ test.describe('Réception des photos (téléphone)', () => {
 });
 
 test.describe('Panier sur téléphone', () => {
-  test('ni flou d’arrière-plan ni animation d’ouverture (Safari redessinait le flou par-dessus le panier pendant l’envoi)', async ({ browser }) => {
+  test('ni flou d’arrière-plan ni animation d’ouverture ; la barre d’attente glisse sans redessiner le panier (Safari le faisait pâlir pendant l’envoi)', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
@@ -2687,6 +2687,17 @@ test.describe('Panier sur téléphone', () => {
     await expect(page.locator('#cart')).toBeVisible({ timeout: 30000 });
     const st = await page.evaluate(() => ['cart', 'cart-add'].map((id) => { const el = document.getElementById(id), cs = getComputedStyle(el), card = getComputedStyle(el.querySelector('.acc-card')); return [cs.backdropFilter || cs.webkitBackdropFilter || 'none', cs.animationName, card.animationName]; }));
     expect(st).toEqual([['none', 'none', 'none'], ['none', 'none', 'none']]);
+    // la barre de progression, quand l'étape n'a pas de compte : elle glisse par transform seulement (sa
+    // position ne change pas : rien d'autre n'est redessiné ; animer « left » faisait pâlir le panier)
+    const moves = await page.evaluate(async () => {
+      const w = document.querySelector('#cart .cart-progress'), i = w.querySelector('i');
+      w.hidden = false; w.classList.add('busy');
+      const a = [getComputedStyle(i).left, getComputedStyle(i).transform];
+      await new Promise((r) => setTimeout(r, 400));
+      return { left: [a[0], getComputedStyle(i).left], transform: [a[1], getComputedStyle(i).transform] };
+    });
+    expect(moves.left[0]).toBe(moves.left[1]);
+    expect(moves.transform[0]).not.toBe(moves.transform[1]);
     await ctx.close();
   });
 });
