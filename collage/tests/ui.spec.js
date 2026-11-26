@@ -2692,7 +2692,7 @@ test.describe('Panier sur téléphone', () => {
     // calque à part : sur iPhone, un voile pâle par-dessus le panier, la barre décalée)
     const moves = await page.evaluate(async () => {
       const w = document.querySelector('#cart .cart-progress'), i = w.querySelector('i');
-      w.hidden = false; w.classList.add('busy');
+      w.hidden = false; w.classList.add('waiting');
       const cs = getComputedStyle(i), a = [cs.left, cs.backgroundPositionX];
       await new Promise((r) => setTimeout(r, 400));
       return { left: [a[0], cs.left], pos: [a[1], cs.backgroundPositionX], transform: cs.transform, willChange: cs.willChange, iso: getComputedStyle(w.querySelector('.cart-progress-bar')).isolation };
@@ -2700,6 +2700,14 @@ test.describe('Panier sur téléphone', () => {
     expect(moves.left[0]).toBe(moves.left[1]);
     expect(moves.pos[0]).not.toBe(moves.pos[1]);
     expect([moves.transform, moves.willChange, moves.iso]).toEqual(['none', 'auto', 'auto']);
+    // comme l'atelier la met pendant l'attente : la barre reste à sa place, mince, sous le message — sans
+    // le voile « travail en cours » de l'atelier (classe busy : fond pâle et flou par-dessus le panier)
+    const look = await page.evaluate(async () => {
+      AtelierGribouille.cartStatus('Panier mis à jour depuis votre compte…', 'busy');
+      const w = document.querySelector('#cart .cart-progress'), cs = getComputedStyle(w), r = w.getBoundingClientRect(), st = document.querySelector('#cart .cart-status').getBoundingClientRect();
+      return { pos: cs.position, filter: cs.backdropFilter || cs.webkitBackdropFilter || 'none', bg: cs.backgroundColor, h: Math.round(r.height), below: r.top >= st.bottom - 1, busyClass: w.classList.contains('busy') };
+    });
+    expect(look).toEqual({ pos: 'static', filter: 'none', bg: 'rgba(0, 0, 0, 0)', h: 6, below: true, busyClass: false });
     await ctx.close();
   });
 });

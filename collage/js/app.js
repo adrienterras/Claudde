@@ -9203,7 +9203,7 @@ Réponds uniquement avec ce JSON :
     wrap.hidden = !on;
     if (!on) return;
     const busy = progress === 'busy';
-    wrap.classList.toggle('busy', busy);
+    wrap.classList.toggle('waiting', busy); // (pas « busy » : voir style.css)
     if (busy) { bar.removeAttribute('aria-valuenow'); fill.style.width = ''; return; }
     const pct = Math.round(Math.max(0, Math.min(1, Number(progress) || 0)) * 100);
     bar.setAttribute('aria-valuenow', String(pct));
@@ -9509,7 +9509,7 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom };
+  window.AtelierGribouille = { act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom, cartStatus };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

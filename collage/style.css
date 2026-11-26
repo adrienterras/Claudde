@@ -545,13 +545,15 @@ body.stage-full .stage-cta { display: none; }
 .cart-progress[hidden] { display: none; }
 .cart-progress-bar { position: relative; width: 100%; height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; contain: paint; }
 .cart-progress-bar i { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--accent); transition: width .25s ease; }
-/* (étape sans compte : un trait qui glisse, dessiné dans la barre seule — sa position de fond change, sans
+/* (classe « waiting », pas « busy » : .busy est le voile « travail en cours » de l'atelier — fond pâle,
+   flou, posé par-dessus tout — que le panier prenait alors pour lui : voilé, la barre au milieu)
+   (étape sans compte : un trait qui glisse, dessiné dans la barre seule — sa position de fond change, sans
    transform ni will-change. Animer « left » redessinait tout le panier ; un transform créait sur iPhone un
    calque à part dans le panier qui défile : Safari affichait alors un voile pâle et flou par-dessus le
    panier, la barre décalée, le temps de redessiner) */
-.cart-progress.busy .cart-progress-bar i { width: 100%; transition: none; background: linear-gradient(var(--accent), var(--accent)) no-repeat; background-size: 35% 100%; animation: cart-busy 1.2s ease-in-out infinite; }
+.cart-progress.waiting .cart-progress-bar i { width: 100%; transition: none; background: linear-gradient(var(--accent), var(--accent)) no-repeat; background-size: 35% 100%; animation: cart-busy 1.2s ease-in-out infinite; }
 @keyframes cart-busy { from { background-position: -54% 0; } to { background-position: 154% 0; } }
-@media (prefers-reduced-motion: reduce) { .cart-progress.busy .cart-progress-bar i { animation: none; background: var(--accent); opacity: .45; } .cart-progress-bar i { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .cart-progress.waiting .cart-progress-bar i { animation: none; background: var(--accent); opacity: .45; } .cart-progress-bar i { transition: none; } }
 
 /* Réglages */
 

@@ -1047,7 +1047,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.evaluate(() => {
       window.__bar = [];
       const wrap = document.querySelector('#cart .cart-progress');
-      new MutationObserver(() => { if (!wrap.hidden) window.__bar.push(wrap.classList.contains('busy') ? 'busy' : wrap.querySelector('.cart-progress-bar').getAttribute('aria-valuenow')); }).observe(wrap, { attributes: true, subtree: true });
+      new MutationObserver(() => { if (!wrap.hidden) window.__bar.push(wrap.classList.contains('waiting') ? 'busy' : wrap.querySelector('.cart-progress-bar').getAttribute('aria-valuenow')); }).observe(wrap, { attributes: true, subtree: true });
     });
     await page.locator('#cart-add-ok').click();
     await expect(page.locator('#cart-add')).toBeHidden();
