@@ -1161,6 +1161,13 @@ test.describe('Comptes utilisateurs', () => {
     await expect(items.nth(0).locator('.o-pill')).toHaveText('Payée');
     await expect(items.nth(0)).toContainText('48,90');
     await expect(items.nth(1).locator('.o-pill')).toHaveText('Expédiée');
+    // sur la commande expédiée, le suivi : le transporteur, le numéro et le lien pour suivre le colis
+    const track = page.locator('#o-list .o-card').nth(1).locator('.o-track');
+    await expect(track).toContainText('Colissimo 6A12345678901');
+    await expect(track.locator('a')).toHaveText('Suivre le colis ›');
+    await expect(track.locator('a')).toHaveAttribute('href', /laposte\.fr.*6A12345678901/);
+    await expect(track.locator('a')).toHaveAttribute('target', '_blank');
+    await expect(page.locator('#o-list .o-card').nth(0).locator('.o-track')).toHaveCount(0); // (payée : pas encore de suivi)
     await expect(page.locator('#o-list .o-vis')).toHaveCount(2);
     if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-liste.png` });
     // téléphone : la fenêtre monte du bas, sur toute la largeur ; rien ne déborde
@@ -1173,6 +1180,8 @@ test.describe('Comptes utilisateurs', () => {
     await expect(detail.locator('.od-cancel')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-detail-telephone.png` });
+    await detail.locator('#od-close').click();
+    if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-liste-telephone.png`, fullPage: true });
   });
 
   test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {

@@ -13,10 +13,15 @@
 .o-help a { color: var(--ink-2); }
 
 /* une commande dans la liste : ses visuels, sa référence, sa date, son statut, son total */
-.o-item { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; width: 100%; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); font: inherit; color: inherit; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.o-item:hover { border-color: var(--accent); box-shadow: 0 10px 24px -18px rgba(43, 42, 34, .5); }
+.o-card { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); transition: border-color .15s, box-shadow .15s; }
+.o-card:hover { border-color: var(--accent); box-shadow: 0 10px 24px -18px rgba(43, 42, 34, .5); }
+.o-card.o-new { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.o-item { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; width: 100%; padding: 16px; border: 0; border-radius: 16px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .o-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.o-item.o-new { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* le suivi du colis, sous la commande (hors du bouton : le lien s'ouvre seul) */
+.o-track { margin: 0; padding: 11px 16px 13px; border-top: 1px dashed var(--line); display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 14px; font-size: .86rem; color: var(--ink-2); }
+.o-track b { font-weight: 600; color: var(--ink); letter-spacing: .02em; overflow-wrap: anywhere; }
+.o-track a { color: var(--accent); font-weight: 600; white-space: nowrap; }
 .o-vis-row { display: flex; align-items: center; gap: 6px; min-width: 64px; }
 .o-more { font-size: .78rem; color: var(--muted); }
 .o-main { display: grid; gap: 3px; min-width: 0; }
@@ -30,6 +35,7 @@
 .o-pill.s-annulee { background: #f6e3dc; color: #8a3a26; }
 @media (max-width: 560px) {
   .o-item { grid-template-columns: auto 1fr; gap: 12px; padding: 14px; }
+  .o-track { padding: 10px 14px 12px; }
   .o-side { grid-column: 1 / -1; grid-auto-flow: column; justify-content: space-between; align-items: center; justify-items: start; }
 }
 

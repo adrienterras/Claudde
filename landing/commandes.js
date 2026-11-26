@@ -102,9 +102,10 @@ function renderList() {
   show('list');
   orders.forEach((o) => {
     const li = document.createElement('li');
+    li.className = `o-card${returnRef && o.ref === returnRef ? ' o-new' : ''}`;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = `o-item${returnRef && o.ref === returnRef ? ' o-new' : ''}`;
+    b.className = 'o-item';
     b.dataset.ref = o.ref;
     const row = document.createElement('span');
     row.className = 'o-vis-row';
@@ -121,6 +122,14 @@ function renderList() {
     b.append(row, main, side);
     b.addEventListener('click', () => openDetail(o.ref));
     li.appendChild(b);
+    // le suivi du colis, dès qu'il y a un numéro : le transporteur, le numéro, le lien pour suivre
+    if (o.tracking) {
+      const url = trackingUrl(o.carrier, o.tracking);
+      const p = document.createElement('p');
+      p.className = 'o-track';
+      p.innerHTML = `<span>${esc(t('Suivi du colis'))} : <b>${esc([o.carrier, o.tracking].filter(Boolean).join(' '))}</b></span>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(t('Suivre le colis'))} ›</a>` : ''}`;
+      li.appendChild(p);
+    }
     list.appendChild(li);
   });
 }

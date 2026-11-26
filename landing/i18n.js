@@ -3,6 +3,7 @@
   'use strict';
   var EN = {
     // Mes commandes (commandes.html, commandes.js)
+    "Suivre le colis": "Track the parcel",
     "Mes commandes | Atelier Gribouille": "My orders | Atelier Gribouille",
     "Vos commandes Atelier Gribouille : suivi, détail, livraison.": "Your Atelier Gribouille orders: tracking, details, delivery.",
     "› Mes commandes": "› My orders",
