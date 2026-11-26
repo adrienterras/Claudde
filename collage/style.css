@@ -1388,9 +1388,9 @@ body.stage-full .scene-open { display: none; }
 /* le bouton qui ouvre l'œuvre couvre la fiche ; celui qui la supprime passe au-dessus */
 .saved-open { all: unset; position: absolute; inset: 0; border-radius: inherit; cursor: pointer; }
 .saved-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.saved .saved-del, .saved .saved-ren, .saved .saved-actions, .saved .saved-rename { position: relative; z-index: 1; }
-.saved .saved-ren { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 999px; }
-.saved .saved-ren:hover { color: var(--ink); background: var(--accent-soft); }
+.saved .saved-del, .saved .saved-ren, .saved .saved-share, .saved .saved-actions, .saved .saved-rename { position: relative; z-index: 1; }
+.saved .saved-ren, .saved .saved-share { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 999px; }
+.saved .saved-ren:hover, .saved .saved-share:hover { color: var(--ink); background: var(--accent-soft); }
 .saved .saved-rename { width: 100%; max-width: 100%; font: inherit; font-weight: 600; font-size: 0.86rem; padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .saved:hover { border-color: var(--accent); }
 .saved img { width: 72px; height: 54px; object-fit: cover; border-radius: 6px; background: var(--wall); }
@@ -1558,3 +1558,14 @@ body.stage-full .scene-open { display: none; }
 kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); font: 600 0.78rem var(--f-body); text-align: center; }
 .foot-links .link { font: inherit; color: inherit; }
 @media (max-width: 860px) { .kbd-only { display: none !important; } }
+
+/* Partager une œuvre (le lien) et recevoir une œuvre partagée */
+.share-card { gap: 12px; }
+.share-status { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); }
+.share-status.err { background: #f6e3dc; color: #8a3a26; }
+.share-status[hidden], .share-link[hidden] { display: none; }
+.share-link { display: grid; gap: 10px; }
+.share-link input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 11px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 16px; }
+.share-expires { margin: 0; }
+.share-revoke { justify-self: center; font-size: 0.84rem; }
+.share-revoke.confirm { color: #8a3a26; font-weight: 600; }

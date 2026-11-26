@@ -547,6 +547,9 @@
     const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);
     err(e0);
     const old = (rows || [])[0];
+    // (gardés d'une version à l'autre : son lien de partage, et le lien d'où elle a été reçue)
+    if (old && old.meta && old.meta.share) meta.share = old.meta.share;
+    if (old && old.meta && old.meta.sharedFrom) meta.sharedFrom = old.meta.sharedFrom;
     const { error } = old
       ? await client.from('compositions').update({ name: rec.name, thumb: rec.thumb, meta }).eq('id', id)
       : await client.from('compositions').insert({ id, name: rec.name, thumb: rec.thumb, meta });
@@ -569,6 +572,61 @@
     }
     return `cloud:${id}`;
   }
+
+  // ---------- Partager une œuvre (un lien : la personne reçoit sa propre copie) ----------
+  // Le lien est gardé dans la fiche de l'œuvre (meta.share) ; la fonction « partage » (serveur) le lit
+  // pour l'accueil du lien et fait la copie dans le compte de la personne (voir supabase/functions).
+  const SHARE_DAYS = 30;
+  const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(18)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const shareOk = (sh) => !!(sh && sh.token && !sh.revoked && new Date(sh.expires).getTime() > Date.now() + 86400e3);
+  async function shareMeta(workId) {
+    const { data, error } = await client.from('compositions').select('id, meta').eq('user_id', user.id).eq('id', workId);
+    err(error);
+    const row = (data || [])[0];
+    if (!row) throw new Error(tr('œuvre introuvable dans votre compte'));
+    return row;
+  }
+  // le lien de l'œuvre (celui déjà en cours, s'il est encore valable plus d'un jour ; sinon un nouveau)
+  async function shareCreate(workId) {
+    if (!user) throw new Error(tr('connexion requise'));
+    const row = await shareMeta(workId);
+    const meta = Object.assign({}, row.meta);
+    if (!shareOk(meta.share)) {
+      meta.share = { token: newToken(), at: new Date().toISOString(), expires: new Date(Date.now() + SHARE_DAYS * 86400e3).toISOString() };
+      const { error } = await client.from('compositions').update({ meta }).eq('id', workId);
+      err(error);
+    }
+    return { token: meta.share.token, expires: meta.share.expires };
+  }
+  // le lien en cours de l'œuvre, s'il y en a un (sans en créer)
+  async function shareGet(workId) {
+    if (!user) return null;
+    const { data, error } = await client.from('compositions').select('id, share:meta->share').eq('user_id', user.id).eq('id', workId);
+    err(error);
+    const row = (data || [])[0], sh = row && (row.share || (row.meta && row.meta.share));
+    return shareOk(sh) ? { token: sh.token, expires: sh.expires } : null;
+  }
+  // désactiver le lien : il ne mène plus à rien (les copies déjà reçues restent à leurs destinataires)
+  async function shareRevoke(workId) {
+    const row = await shareMeta(workId);
+    const meta = Object.assign({}, row.meta);
+    if (!meta.share) return;
+    delete meta.share;
+    const { error } = await client.from('compositions').update({ meta }).eq('id', workId);
+    err(error);
+  }
+  // l'accueil du lien (sans compte) : nom, vignette, prénom de celui qui partage
+  async function shareSee(token) {
+    const { data, error } = await client.functions.invoke('partage', { body: { action: 'voir', token } });
+    if (error) {
+      let msg = error.message || String(error);
+      try { const j = error.context && error.context.json && (await error.context.json()); if (j && j.error) msg = j.error; } catch (e) { /* réponse sans détail */ }
+      throw new Error(msg);
+    }
+    return data;
+  }
+  // recevoir l'œuvre : sa copie dans ce compte → son identifiant (celui de l'œuvre)
+  const shareReceive = (token) => fnCall('partage', { action: 'recevoir', token });
 
   // ---------- Commandes payées en ligne (Stripe) ----------
   // le panier du compte devient une commande : la fonction « commande » (serveur) relit le panier,
@@ -738,6 +796,7 @@
     user: () => user, displayName, providerOf, isRecovering: () => recovering,
     signInWith, signInEmail, signUpEmail, magicLink, resetPassword, updatePassword, updateProfile, updateEmail, signOut, deleteAccount,
     checkPassword, PASSWORD_MIN,
+    share: { create: shareCreate, get: shareGet, revoke: shareRevoke, see: shareSee, receive: shareReceive },
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet, prune: cloudPrune },
     isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },

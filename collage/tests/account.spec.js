@@ -1160,6 +1160,71 @@ test.describe('Comptes utilisateurs', () => {
     await expect(box.locator('#cart-add-title')).toHaveText('Ajouter au panier');
   });
 
+  test('partager une œuvre : un lien ; la personne qui l’ouvre crée son compte et reçoit sa propre copie, à modifier ; l’original ne change pas ; le lien se désactive', async ({ acc }) => {
+    test.setTimeout(240000);
+    const { page } = acc;
+    const workId = await workInAccount(page, 'auteur@example.org', 'Camille');
+    const share = async () => {
+      await page.evaluate(() => AtelierGribouille.renderSaved());
+      await page.waitForFunction(() => document.querySelector('.saved.current .saved-share'));
+      await page.evaluate(() => document.querySelector('.saved.current .saved-share').click());
+      await expect(page.locator('#share-modal .share-link')).toBeVisible({ timeout: 60000 });
+      return page.locator('#share-url').inputValue();
+    };
+    const url1 = await share();
+    expect(url1).toMatch(/\?partage=[A-Za-z0-9_-]{16,64}$/);
+    await expect(page.locator('#share-modal .share-expires')).toContainText('pour autant de personnes que vous voulez');
+    const tokenOf = (u) => new URL(u).searchParams.get('partage');
+    expect(await page.evaluate((id) => window.__fake.db.rows.find((r) => r.id === id).meta.share.token, workId)).toBe(tokenOf(url1));
+    // partager de nouveau : le même lien ; désactivé (en deux temps), il disparaît ; un nouveau ensuite
+    await page.locator('#share-modal [data-close]').click();
+    expect(await share()).toBe(url1);
+    await page.locator('#share-revoke').click();
+    await page.locator('#share-revoke').click();
+    await expect(page.locator('#share-modal .share-status')).toContainText('Lien désactivé');
+    expect(await page.evaluate((id) => !!window.__fake.db.rows.find((r) => r.id === id).meta.share, workId)).toBe(false);
+    await page.locator('#share-modal [data-close]').click();
+    const url = await share();
+    expect(url).not.toBe(url1);
+    await page.locator('#share-modal [data-close]').click();
+    const before = await page.evaluate((id) => JSON.stringify(window.__fake.db.rows.find((r) => r.id === id).meta.drawings), workId);
+    await page.locator('#acc-menu').click();
+    await page.locator('#acc-signout').click();
+    // l'ancien lien ne mène plus à rien
+    await page.goto(url1);
+    await expect(page.locator('#share-receive .share-status')).toContainText('n’est plus valable', { timeout: 60000 });
+    await expect(page.locator('#share-receive-ok')).toBeHidden();
+    // le lien : l'œuvre, qui la partage ; « Recevoir » demande un compte
+    await page.goto(url);
+    const rec = page.locator('#share-receive');
+    await expect(rec).toBeVisible({ timeout: 60000 });
+    await expect(rec.locator('.share-receive-text')).toHaveText('Camille vous partage cette œuvre.');
+    expect(page.url()).not.toContain('partage=');
+    await rec.locator('#share-receive-ok').click();
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-name', 'Lou');
+    await page.fill('#auth-email', 'lou@example.org');
+    await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await page.locator('#auth-submit').click();
+    // reçue : une copie à Lou, ses fichiers dans son dossier, ouverte dans l'atelier comme son œuvre
+    const token = tokenOf(url);
+    await expect.poll(() => page.evaluate((t) => window.__fake.db.rows.filter((r) => r.meta && r.meta.sharedFrom === t).length, token), { timeout: 60000 }).toBe(1);
+    const copy = await page.evaluate((t) => { const r = window.__fake.db.rows.find((x) => x.meta && x.meta.sharedFrom === t); const files = r.meta.drawings.map((d) => d.file); return { id: r.id, uid: r.user_id, me: window.Account.user().id, files, present: files.every((f) => !!window.__fake.db.files[f]), mine: files.every((f) => f.startsWith(`${r.user_id}/${r.id}/`)), share: !!r.meta.share }; }, token);
+    expect(copy.uid).toBe(copy.me);
+    expect(copy.present).toBe(true);
+    expect(copy.mine).toBe(true);
+    expect(copy.share).toBe(false);
+    await page.waitForFunction((id) => AtelierGribouille.state.workId === id && AtelierGribouille.state.drawings.length >= 2 && !AtelierGribouille.state.copyOf, copy.id, { timeout: 120000 });
+    // l'original n'a pas changé
+    expect(await page.evaluate((id) => JSON.stringify(window.__fake.db.rows.find((r) => r.id === id).meta.drawings), workId)).toBe(before);
+    // le lien rouvert : la même copie, pas une deuxième
+    await page.goto(url);
+    await expect(rec.locator('#share-receive-ok')).toBeEnabled({ timeout: 60000 });
+    await rec.locator('#share-receive-ok').click();
+    await page.waitForFunction((id) => AtelierGribouille.state.workId === id, copy.id, { timeout: 120000 });
+    expect(await page.evaluate((t) => window.__fake.db.rows.filter((r) => r.meta && r.meta.sharedFrom === t).length, token)).toBe(1);
+  });
+
   test('la même œuvre ajoutée deux fois au panier avec les mêmes options : un seul article, quantité 2, un seul envoi ; autre taille : un autre article', async ({ acc }) => {
     test.setTimeout(180000);
     const { page } = acc;

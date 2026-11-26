@@ -159,6 +159,35 @@
       window.__fake.calls.push(['invoke', name, body]);
       const h = window.__fake.fns && window.__fake.fns[name];
       if (h) return Promise.resolve(h(body));
+      // le partage d'une œuvre, comme la fonction « partage » (supabase/functions/partage) : « voir » sans
+      // compte, « recevoir » : la copie dans le compte (fichiers copiés sous le même nom dans son dossier)
+      if (name === 'partage') {
+        const row = db.rows.find((r) => (r.__table || 'compositions') === 'compositions' && r.meta && r.meta.share && r.meta.share.token === body.token);
+        const sh = row && row.meta.share;
+        if (!row || sh.revoked || new Date(sh.expires).getTime() <= Date.now()) return fnError('ce lien de partage n’est plus valable : demandez-en un nouveau');
+        if (body.action === 'voir') {
+          const owner = Object.values(db.users).find((x) => x.id === row.user_id);
+          return ok({ name: row.name, thumb: row.thumb, n: row.meta.n || null, from: String((owner && owner.user_metadata && owner.user_metadata.name) || '').split(/\s+/)[0], expires: sh.expires });
+        }
+        const u = db.session && db.session.user;
+        if (!u) return fnError('connexion requise');
+        if (row.user_id === u.id) return ok({ id: row.id, own: true });
+        const had = db.rows.find((r) => r.user_id === u.id && r.meta && r.meta.sharedFrom === body.token);
+        if (had) return ok({ id: had.id, again: true });
+        const id = crypto.randomUUID(), map = new Map();
+        const fix = (p) => { if (typeof p !== 'string') return p; if (!map.has(p)) { const to = `${u.id}/${id}/${p.split('/').pop()}`; db.files[to] = db.files[p]; map.set(p, to); } return map.get(p); };
+        const meta = JSON.parse(JSON.stringify(row.meta));
+        meta.drawings.forEach((d) => {
+          d.file = fix(d.file);
+          (d.pieceEdits || []).forEach((e) => { if (e && e.mask) e.mask = fix(e.mask); });
+          if (d.saved && d.saved.page && typeof d.saved.page.data === 'string') { d.saved.page.data = fix(d.saved.page.data); (d.saved.atlases || []).forEach((a) => { a.data = fix(a.data); }); }
+        });
+        ['share', 'cart', 'ordered', 'order', 'fromWork', 'frozen', 'draft', 'device'].forEach((k) => { delete meta[k]; });
+        Object.assign(meta, { work: true, sharedFrom: body.token, date: new Date().toISOString(), workName: row.name });
+        db.rows.push({ id, user_id: u.id, name: row.name, thumb: row.thumb, created_at: new Date().toISOString(), meta });
+        persist();
+        return ok({ id });
+      }
       // l'annulation (le client tant que « payée », l'administrateur jusqu'à l'expédition) et le statut (administrateur)
       if (name === 'commande-annuler' || name === 'commande-statut') {
         const u = db.session && db.session.user;

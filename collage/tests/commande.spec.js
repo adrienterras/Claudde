@@ -195,3 +195,35 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(e.trackingUrl).toBe(m.trackingUrl);
   });
 });
+
+// Partager une œuvre (supabase/functions/_shared/partage.js) : la copie reçue
+test.describe('Partage : la copie reçue, côté serveur', () => {
+  const MOD_P = pathToFileURL(path.join(__dirname, '..', '..', 'supabase', 'functions', '_shared', 'partage.js')).href;
+  test('les fichiers vont dans le dossier de la personne, sous le même nom ; la fiche ne garde rien de l’original (lien, commande, panier)', async () => {
+    const p = await import(MOD_P);
+    const meta = {
+      v: 3, n: 2, work: true, frozen: true, share: { token: 'x'.repeat(24), expires: '2099-01-01' }, order: { ref: 'AG' }, fromWork: 'w0',
+      drawings: [
+        { name: 'a', file: 'own/w1/k1.jpg', pieceEdits: [null, { mask: 'own/w1/m.png' }], saved: { page: { data: 'own/w1/s1-page.jpg' }, atlases: [{ data: 'own/w1/s1-a0.png' }] } },
+        { name: 'b', file: 'own/w1/k1.jpg' }, // (deux sujets d'une même feuille : un seul fichier)
+        { name: 'c', file: 'own/old/k1.jpg' }, // (même nom dans un autre dossier : renommé)
+      ],
+    };
+    const { copies, meta: out } = p.receivedCopy(meta, 'own', 'me', 'NEW', 'tok', new Date('2026-11-26T10:00:00Z'));
+    expect(copies).toEqual([
+      ['own/w1/k1.jpg', 'me/NEW/k1.jpg'], ['own/w1/m.png', 'me/NEW/m.png'], ['own/w1/s1-page.jpg', 'me/NEW/s1-page.jpg'],
+      ['own/w1/s1-a0.png', 'me/NEW/s1-a0.png'], ['own/old/k1.jpg', 'me/NEW/2-k1.jpg'],
+    ]);
+    expect(out.drawings.map((d) => d.file)).toEqual(['me/NEW/k1.jpg', 'me/NEW/k1.jpg', 'me/NEW/2-k1.jpg']);
+    expect(out.drawings[0].pieceEdits[1].mask).toBe('me/NEW/m.png');
+    expect(out.drawings[0].saved.atlases[0].data).toBe('me/NEW/s1-a0.png');
+    expect(out).toMatchObject({ work: true, sharedFrom: 'tok', date: '2026-11-26T10:00:00.000Z', v: 3 });
+    ['share', 'order', 'fromWork', 'frozen'].forEach((k) => expect(out[k]).toBeUndefined());
+    expect(meta.drawings[0].file).toBe('own/w1/k1.jpg'); // (l'original n'est pas touché)
+    // le lien : valable 30 jours au plus, désactivable
+    expect(p.shareValid({ token: 'a'.repeat(22), expires: new Date(Date.now() + 1e6).toISOString() })).toBe(true);
+    expect(p.shareValid({ token: 'a'.repeat(22), expires: new Date(Date.now() - 1).toISOString() })).toBe(false);
+    expect(p.shareValid({ token: 'a'.repeat(22), expires: '2099-01-01', revoked: true })).toBe(false);
+    expect(p.shareValid({ token: 'a/b', expires: '2099-01-01' })).toBe(false);
+  });
+});

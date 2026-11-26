@@ -14,3 +14,7 @@ verify_jwt = false
 
 [functions.commande-annuler]
 verify_jwt = false
+
+# « partage » : « voir » sans compte (l'accueil du lien), « recevoir » vérifie lui-même le jeton du compte
+[functions.partage]
+verify_jwt = false

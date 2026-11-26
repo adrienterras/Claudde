@@ -25,10 +25,13 @@
   // arrivée pour le compte (Mon compte, Mes commandes, connexion, panier, retour de paiement) : l'œuvre en
   // cours est rouverte sans la question « Reprendre ? », qui passerait devant (l'adresse est lue ici,
   // avant que ces paramètres ne s'effacent)
-  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|gestion-commandes|connexion|panier|commande=|recommander=)/.test(location.search);
+  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|gestion-commandes|connexion|panier|commande=|recommander=|partage=)/.test(location.search);
   // recommander une œuvre (depuis Mes commandes) : l'œuvre commandée se rouvre ; ni l'œuvre en cours ni la
   // dernière du compte ne se rouvrent ou ne se proposent à sa place (elles restent dans Mes œuvres)
   const REORDER = /[?&]recommander=/.test(location.search);
+  // une œuvre partagée par un lien (?partage=…) : son accueil passe avant tout (voir shareArrival)
+  const SHARE_TOKEN = (/[?&]partage=([A-Za-z0-9_-]{16,64})/.exec(location.search) || [])[1] || '';
+  const ARRIVAL_TASK = REORDER || !!SHARE_TOKEN;
   let genHintSeen = false; // la note « Cliquez pour générer… » a servi pendant cette visite
   const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
@@ -6895,7 +6898,7 @@ Réponds uniquement avec ce JSON :
   async function resumeDraft(manual) {
     const box = $('draft-offer');
     if (!box) return;
-    if (REORDER && !manual) return; // (voir REORDER : l'œuvre en cours reste rangée, sans question)
+    if (ARRIVAL_TASK && !manual) return; // (voir REORDER, SHARE_TOKEN : l'œuvre en cours reste rangée, sans question)
     const rec = await migrateDraft();
     if (!rec || !rec.drawings || !rec.drawings.length) return;
     if (state.drawings.length) {
@@ -7295,7 +7298,7 @@ Réponds uniquement avec ce JSON :
       const draft = await dbGet(DRAFT_ID).catch(() => null);
       if (!signedIn()) return; // (déconnecté entre-temps : plus rien à rapprocher du compte)
       const here = !!(draft && draft.drawings && draft.drawings.length) || (state.drawings.length > 0 && !onlySamples());
-      const fresh = /[?&](nouveau|exemple)\b/.test(location.search) || REORDER;
+      const fresh = /[?&](nouveau|exemple)\b/.test(location.search) || ARRIVAL_TASK;
       if (!here && !fresh && lsGet(NEW_KEY) !== '1' && !state.drawings.length) {
         const latest = works.filter((c) => !c.ordered && !c.frozen).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         if (latest) {
@@ -7744,7 +7747,7 @@ Réponds uniquement avec ce JSON :
     const mode = MODES.includes(sv.mode) ? sv.mode : sv.format && String(sv.format).startsWith('cadre:') ? 'impression' : 'toile';
     const kind = `<b class="saved-mode">${mode === 'impression' ? tr('Création imprimée') : tr('Collage des originaux')}</b>`;
     const meta = [kind, st ? st.name : esc(comp.style || ''), e.nDrawings ? tr`${e.nDrawings} dessins` : '', comp.W ? `${fmt(comp.W)} × ${fmt(comp.H)} cm` : '', clockText(rec.date)].filter(Boolean).join(' · ');
-    el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions"><button class="saved-ren" title="${tr('Renommer')}" aria-label="${tr('Renommer')}"><svg class="ico"><use href="#i-pen"/></svg></button><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
+    el.innerHTML = `<img src="${safeData(rec.thumb)}" alt=""><div><p class="saved-name"><span>${esc(rec.name)}</span>${tags}</p><p class="saved-meta">${meta}</p></div><span class="saved-actions">${signed && (e.cloud || e.current) ? `<button class="saved-share" title="${tr('Partager')}" aria-label="${tr('Partager')}"><svg class="ico"><use href="#i-share"/></svg></button>` : ''}<button class="saved-ren" title="${tr('Renommer')}" aria-label="${tr('Renommer')}"><svg class="ico"><use href="#i-pen"/></svg></button><button class="saved-del" title="${tr('Supprimer')}" aria-label="${tr('Supprimer')}"><svg class="ico"><use href="#i-trash"/></svg></button></span>`;
     // renommer : le nom devient un champ, Entrée ou un clic ailleurs valide, Échap annule
     el.querySelector('.saved-ren').onclick = (ev) => {
       ev.stopPropagation();
@@ -7761,6 +7764,8 @@ Réponds uniquement avec ce JSON :
       span.replaceWith(inp);
       inp.focus(); inp.select();
     };
+    const share = el.querySelector('.saved-share');
+    if (share) share.onclick = (ev) => { ev.stopPropagation(); openShare(e); };
     // suppression en deux temps, sans boîte de dialogue : un premier clic demande confirmation
     const del = el.querySelector('.saved-del');
     del.onclick = async (ev) => {
@@ -8945,7 +8950,7 @@ Réponds uniquement avec ce JSON :
   })();
   const openModal = (el) => { el.hidden = false; const f = el.querySelector('button:not([hidden]), input'); if (f) f.focus({ preventScroll: true }); };
   const closeModal = (el) => { el.hidden = true; };
-  ['cart-add', 'cart', 'shortcuts', 'camera-advice', 'del-drawing'].forEach((id) => { // (le conseil photo se ferme aussi sans ouvrir l'appareil)
+  ['cart-add', 'cart', 'shortcuts', 'camera-advice', 'del-drawing', 'share-modal', 'share-receive'].forEach((id) => { // (le conseil photo se ferme aussi sans ouvrir l'appareil)
     const el = $(id);
     el.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeModal(el)));
     el.addEventListener('click', (e) => { if (e.target === el) closeModal(el); });
@@ -9427,6 +9432,97 @@ Réponds uniquement avec ce JSON :
     };
     const A = window.Account;
     if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); } else setTimeout(go, 0);
+  }
+
+  // ---------- Partager une œuvre ----------
+  // Un lien (valable 30 jours, désactivable) : la personne qui l'ouvre crée son compte ou se connecte et
+  // reçoit sa propre copie de l'œuvre, à modifier ; l'œuvre partagée ne change pas (voir la fonction
+  // « partage » du serveur). Le lien mène à cet atelier : ?partage=…
+  const SHARE_PENDING_KEY = 'atelier.partage-en-attente'; // (un lien ouvert sans compte : reçu à la connexion)
+  const shareUrl = (token) => new URL(`./?partage=${encodeURIComponent(token)}`, location.href).href;
+  function shareSay(box, text, err) { const el = box.querySelector('.share-status'); el.textContent = text || ''; el.hidden = !text; el.classList.toggle('err', !!err); }
+  function shareThumb(box, src) { const p = box.querySelector('.share-thumb'), ok = safeData(src); p.hidden = !ok; if (ok) p.querySelector('img').src = ok; }
+  async function openShare(e) {
+    const box = $('share-modal'), A = window.Account;
+    $('share-title').textContent = tr`Partager « ${e.info.name} »`;
+    shareThumb(box, e.info.thumb);
+    box.querySelector('.share-link').hidden = true;
+    openModal(box);
+    shareSay(box, tr('Préparation du lien…'));
+    try {
+      // (l'œuvre affichée part d'abord dans le compte, telle qu'elle est maintenant)
+      if (e.current || !e.cloud) await syncCloud();
+      const t = await A.share.create(e.workId);
+      showShareLink(box, e, t);
+    } catch (err) { console.error(err); shareSay(box, tr`Le lien n’a pas pu être créé : ${(err && err.message) || err}`, true); }
+  }
+  function showShareLink(box, e, t) {
+    const url = shareUrl(t.token);
+    shareSay(box, '');
+    box.querySelector('.share-link').hidden = false;
+    $('share-url').value = url;
+    box.querySelector('.share-expires').textContent = tr`Le lien fonctionne jusqu’au ${new Date(t.expires).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'long', year: 'numeric' })}, pour autant de personnes que vous voulez.`;
+    const send = $('share-send');
+    send.hidden = !navigator.share;
+    send.onclick = () => navigator.share({ title: e.info.name, text: tr`« ${e.info.name} », une œuvre faite avec Atelier Gribouille : recevez-la et modifiez-la à votre tour.`, url }).catch(() => {});
+    $('share-copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(url); } catch (err) { $('share-url').select(); try { document.execCommand('copy'); } catch (x) { /* ignoré */ } }
+      shareSay(box, tr('Lien copié : collez-le dans un message.'));
+    };
+    const rev = $('share-revoke');
+    rev.classList.remove('confirm'); rev.textContent = tr('Désactiver le lien');
+    rev.onclick = async () => {
+      if (!rev.classList.contains('confirm')) { rev.classList.add('confirm'); rev.textContent = tr('Désactiver le lien ? Il ne mènera plus à rien'); return; }
+      try {
+        await window.Account.share.revoke(e.workId);
+        box.querySelector('.share-link').hidden = true;
+        shareSay(box, tr('Lien désactivé. Les copies déjà reçues restent à leurs destinataires.'));
+      } catch (err) { shareSay(box, tr`Le lien n’a pas pu être désactivé : ${(err && err.message) || err}`, true); }
+    };
+  }
+  // l'arrivée par un lien de partage : l'œuvre (nom, vignette, qui la partage), puis « Recevoir l'œuvre »
+  async function shareArrival(token) {
+    forgetParam('partage');
+    const box = $('share-receive'), A = window.Account;
+    const ok = $('share-receive-ok');
+    box.querySelector('.share-receive-text').textContent = '';
+    shareThumb(box, '');
+    ok.disabled = true;
+    openModal(box);
+    shareSay(box, tr('Lecture de l’œuvre partagée…'));
+    let info;
+    try { info = await A.share.see(token); } catch (err) { shareSay(box, (err && err.message) || String(err), true); ok.hidden = true; return; }
+    shareSay(box, '');
+    ok.hidden = false; ok.disabled = false;
+    $('share-receive-title').textContent = tr`« ${info.name} »`;
+    shareThumb(box, info.thumb);
+    box.querySelector('.share-receive-text').textContent = info.from ? tr`${info.from} vous partage cette œuvre.` : tr('Quelqu’un vous partage cette œuvre.');
+    const go = requireAccount(tr('recevoir cette œuvre'), () => receiveShared(token));
+    ok.onclick = () => {
+      if (A && A.enabled && !A.user()) { lsSet(SHARE_PENDING_KEY, token); closeModal(box); }
+      go();
+    };
+  }
+  async function receiveShared(token) {
+    const box = $('share-receive'), A = window.Account;
+    lsSet(SHARE_PENDING_KEY, null);
+    openModal(box);
+    $('share-receive-ok').disabled = true;
+    shareSay(box, tr('Copie de l’œuvre dans votre compte…'));
+    let res;
+    try { res = await A.share.receive(token); } catch (err) { $('share-receive-ok').disabled = false; shareSay(box, tr`L’œuvre n’a pas pu être reçue : ${(err && err.message) || err}`, true); return; }
+    closeModal(box);
+    window.Atelier.track('Œuvre reçue');
+    await renderSaved({ refresh: true });
+    await openWork({ workId: res.id, cloud: { id: `cloud:${res.id}`, workId: res.id, date: new Date().toISOString() } });
+    saveStatus(res.own ? tr('C’est votre propre œuvre : la voici.') : tr('L’œuvre est dans Mes œuvres : modifiez-la comme vous voulez.'));
+  }
+  if (SHARE_TOKEN) {
+    const A = window.Account;
+    if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(() => shareArrival(SHARE_TOKEN), 0); }); }
+  } else if (lsGet(SHARE_PENDING_KEY) && window.Account && window.Account.enabled) {
+    // un lien ouvert sans compte, puis le compte créé (retour du lien de confirmation) : l'œuvre arrive
+    window.Account.onChange((u) => { const t = lsGet(SHARE_PENDING_KEY); if (u && t && /^[A-Za-z0-9_-]{16,64}$/.test(t)) receiveShared(t); });
   }
 
   // Recommander (?recommander=<composition commandée>&taille=…&finition=…&cadre=…&pp=…&bord=…, depuis la page

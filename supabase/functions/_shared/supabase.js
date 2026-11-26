@@ -68,3 +68,27 @@ export async function thumbsOf(order) {
     return Object.fromEntries(rows.filter((r) => r.thumb).map((r) => [r.id, r.thumb]));
   } catch (e) { console.error(e); return {}; }
 }
+
+// un compte (nom, e-mail) par l'API d'administration de l'authentification, ou null
+export async function authUser(id) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`, { headers: serverHeaders() });
+  if (!r.ok) return null;
+  return r.json();
+}
+
+// copier un fichier du stockage, sur le serveur (rien ne transite) ; déjà là : rien à faire
+export async function storageCopy(bucket, from, to) {
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/copy`, {
+    method: 'POST', headers: serverHeaders(), body: JSON.stringify({ bucketId: bucket, sourceKey: from, destinationKey: to }),
+  });
+  if (r.ok) return;
+  const text = await r.text();
+  if (/already exists|Duplicate/i.test(text)) return;
+  throw new Error(`stockage (${r.status}) : ${text.slice(0, 200)}`);
+}
+
+// effacer des fichiers du stockage (une copie abandonnée)
+export async function storageRemove(bucket, paths) {
+  if (!paths.length) return;
+  await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, { method: 'DELETE', headers: serverHeaders(), body: JSON.stringify({ prefixes: paths }) }).catch(() => {});
+}

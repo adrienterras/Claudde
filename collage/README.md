@@ -522,7 +522,17 @@ cd collage && python3 -m http.server 8000
      échoue (`deleteWork`) ; le crayon de la liste **renomme**
      l'œuvre (`renameWork` : un champ à la place du nom, Entrée ou un clic ailleurs valide, Échap
      annule) dans ce navigateur, dans le compte (`cloud.rename`) et, pour l'œuvre affichée, son
-     titre. Chaque œuvre garde les dessins
+     titre. **Partager** (l'icône de partage de la liste, connecté, `openShare`) : un lien
+     (`atelier/?partage=…`, valable 30 jours, pour autant de personnes qu'on veut, désactivable en deux
+     temps) gardé dans la fiche de l'œuvre (`meta.share`, conservé par `workPut`) ; « Envoyer le lien… »
+     ouvre la feuille de partage du téléphone (`navigator.share`), « Copier le lien » le copie. La
+     personne qui l'ouvre voit l'œuvre (nom, vignette, prénom de celui qui partage : fonction
+     `partage`, « voir », sans compte), crée son compte ou se connecte (un lien ouvert sans compte est
+     retenu, `SHARE_PENDING_KEY`, et reçu à la connexion) et reçoit **sa propre copie** : la fonction
+     `partage` (« recevoir », clé serveur) copie les fichiers sur le serveur dans son dossier, sous le même
+     nom (rien n'est renvoyé de l'appareil) et crée sa fiche (`meta.sharedFrom` : un deuxième clic rouvre
+     la même copie ; sans le lien, la commande ni le panier de l'original), dans la limite de ses 15
+     œuvres ; l'atelier l'ouvre comme son œuvre, à modifier. L'œuvre partagée ne change pas. Chaque œuvre garde les dessins
      (images d'origine), leurs réglages (rôle, taille, orientation, luminosité, contraste et
      saturation, photo sur un sol, sujets gardés), la **découpe telle quelle** de chaque dessin (sa page
      de travail en JPEG et le masque de chaque pièce, retouches comprises, rangés dans une planche PNG :

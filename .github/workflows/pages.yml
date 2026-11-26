@@ -72,7 +72,7 @@ jobs:
           done
           exit 1
       # Fonctions Supabase du paiement en ligne (supabase/functions : « commande », « stripe-webhook »,
-      # « commande-statut », « commande-annuler »),
+      # « commande-statut », « commande-annuler ») et du partage des œuvres (« partage »),
       # déployées après le site. Clé dans les secrets du dépôt : SUPABASE_ACCESS_TOKEN (Supabase → Account
       # preferences → Access Tokens). Sans elle, l'étape est sautée (le site est publié quand même).
       # Les clés Stripe sont dans Supabase (Edge Functions → Secrets), jamais ici. Les deux fonctions
@@ -87,7 +87,7 @@ jobs:
           fi
           REF="$(sed -n "s#.*supabaseUrl: 'https://\([a-z0-9]*\)\.supabase\.co'.*#\1#p" collage/config.js)"
           if [ -z "$REF" ]; then echo "::error::Projet Supabase introuvable dans collage/config.js"; exit 1; fi
-          for f in commande stripe-webhook commande-statut commande-annuler; do
+          for f in commande stripe-webhook commande-statut commande-annuler partage; do
             ok=0
             for i in 1 2 3; do
               npx --yes supabase@2 functions deploy "$f" --project-ref "$REF" --no-verify-jwt && { ok=1; break; }
