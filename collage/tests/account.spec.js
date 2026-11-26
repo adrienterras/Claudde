@@ -1050,6 +1050,9 @@ test.describe('Comptes utilisateurs', () => {
     const bar = await page.evaluate(() => window.__bar);
     expect(bar).toContain('busy');
     expect(bar).toContain('100');
+    // l'envoi fini : le message et la barre disparaissent
+    await expect(page.locator('#cart .cart-progress')).toBeHidden();
+    await expect(page.locator('#cart .cart-status')).toBeHidden();
     // elle est juste au-dessus de « Commander », sous le message
     expect(await page.evaluate(() => document.querySelector('#cart .cart-status').nextElementSibling.classList.contains('cart-progress') && document.querySelector('#cart .cart-progress').nextElementSibling.id === 'cart-order')).toBe(true);
     const calls = await page.evaluate((id) => {

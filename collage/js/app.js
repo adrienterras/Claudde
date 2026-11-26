@@ -9165,7 +9165,10 @@ Réponds uniquement avec ce JSON :
       // (l'article est au panier : le bouton se libère tout de suite, l'envoi dans le compte continue
       // derrière, son avancement dans le panier)
       btn.disabled = false;
-      if (cloudCartOn()) await syncCloudCart(); // connecté : l'article part dans le compte (même panier sur tous les appareils)
+      // connecté : l'article part dans le compte (même panier sur tous les appareils) — une fois le panier
+      // ouvert et affiché : la préparation occupe l'appareil, et sur iPhone l'ouverture restait figée à
+      // mi-chemin (panier flou et grisé) jusqu'à la fin de la préparation
+      if (cloudCartOn()) { await settled(); await syncCloudCart(); }
     } catch (e) {
       console.error(e);
       notice(tr`Impossible d’ajouter au panier : ${(e && e.message) || tr('espace de stockage insuffisant ?')}`);
@@ -9270,10 +9273,14 @@ Réponds uniquement avec ce JSON :
   const isCloudItem = (it) => String(it.recId).startsWith('cloud:');
   const cartMeta = (it) => ({ product: it.product, finish: it.finish, size: it.size, qty: it.qty, styleName: it.styleName, W: it.W, H: it.H, kit: it.product === 'kit' ? kitOpts(it) : undefined, frame: it.product === 'print' && it.finish === 'cadre' ? it.frame : undefined, mat: it.product === 'print' && it.finish === 'cadre' ? !!it.mat : undefined, margin: (it.product === 'print' && !(it.finish === 'cadre' && it.mat)) || it.product === 'hd' ? !!it.margin : undefined });
   // la composition locale d'un article, images comprises, prête à partir dans le compte
+  // (laisse l'écran se dessiner : les animations d'ouverture vont à leur terme avant un travail long)
+  const settled = (ms = 320) => new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => r())), ms));
+  const breathe = () => new Promise((r) => setTimeout(r, 0));
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);
     if (!rec) return null;
     for (const sd of rec.drawings) {
+      await breathe(); // (un dessin à la fois : l'écran reste vivant pendant la préparation)
       // (les clés des images : l'œuvre du compte d'où vient l'article a déjà ces fichiers, copiés sur le serveur)
       sd.workRef = sd.ref || null; sd.workSavedRef = savedRef(sd);
       if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
@@ -9290,6 +9297,7 @@ Réponds uniquement avec ce JSON :
   async function cartItemToCloud(it) {
     if (cartUploading.has(it.id)) return;
     cartUploading.add(it.id);
+    let sent = false;
     try {
       // (chaque étape est dite dans le panier : préparation sur l'appareil, puis copie ou envoi des fichiers)
       const say = (t, p) => { if (!$('cart').hidden) cartStatus(t, p); };
@@ -9304,7 +9312,12 @@ Réponds uniquement avec ce JSON :
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
       dbDel(it.recId).catch(() => {});
-    } catch (e) { console.error(e); cartStatus(tr`Panier non envoyé dans votre compte : ${(e && e.message) || ''}`); } finally { cartUploading.delete(it.id); }
+      sent = true;
+    } catch (e) { console.error(e); cartStatus(tr`Panier non envoyé dans votre compte : ${(e && e.message) || ''}`); } finally {
+      cartUploading.delete(it.id);
+      // envoi fini (et plus aucun en cours) : le message et la barre de progression disparaissent
+      if (sent && !cartUploading.size && !$('cart').hidden) cartStatus('');
+    }
   }
   let cartSyncing = null;
   function syncCloudCart() {
