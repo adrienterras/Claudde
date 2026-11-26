@@ -9392,7 +9392,13 @@ Réponds uniquement avec ce JSON :
       const A = window.Account;
       const cloud = cloudCartOn();
       // connecté : le panier du compte fait foi (articles ajoutés ailleurs, ou ici hors connexion)
-      if (cloud) { cartStatus(tr('Panier mis à jour depuis votre compte…'), 'busy'); await syncCloudCart(); }
+      if (cloud) {
+        const key = () => loadCart().map((it) => `${it.id}:${it.qty}`).join(',');
+        const before = key();
+        cartStatus(tr('Panier mis à jour depuis votre compte…'), 'busy');
+        await syncCloudCart();
+        if (key() !== before) renderCart(); // (redessiné seulement s'il a changé)
+      }
       const items = loadCart();
       if (!items.length) { renderCart(); return; }
       const consentOnline = !!$('cart-consent').checked;
@@ -9457,7 +9463,9 @@ Réponds uniquement avec ce JSON :
       cartStatus(tr`La commande n’a pas pu être préparée : ${(e && e.message) || e}`);
     } finally { btn.disabled = false; }
   }
-  const orderFlow = requireAccount(tr('commander'), () => { openCart(); placeOrder(); });
+  // (le panier déjà ouvert n'est pas redessiné : tout reconstruire au moment de commander occupait l'iPhone,
+  // qui affichait alors un voile pâle sur le panier ; après la connexion, il se rouvre)
+  const orderFlow = requireAccount(tr('commander'), () => { if ($('cart').hidden) openCart(); placeOrder(); });
   $('cart-order').onclick = () => {
     // la fenêtre de connexion passe devant : le panier se rouvre ensuite de lui-même
     const A = window.Account;
