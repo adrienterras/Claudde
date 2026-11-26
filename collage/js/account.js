@@ -433,9 +433,10 @@
     // lui ouvre ses fichiers pour une heure)
     const { data, error } = adminOpenable.has(id)
       ? await client.rpc('admin_open', { p_id: id }).then((r) => ({ data: r.data && r.data[0], error: r.error || (r.data && r.data.length ? null : { message: tr('œuvre introuvable') }) }))
-      : await client.from('compositions').select('id, name, created_at, thumb, meta').eq('id', id).single();
+      : await client.from('compositions').select('id, name, created_at, thumb, meta').eq('id', id).maybeSingle();
     err(error);
-    if (!data) return null;
+    // (aucune ligne : l'œuvre a été supprimée, ou n'est pas dans ce compte — et non l'erreur technique de la base)
+    if (!data) throw new Error(tr('cette œuvre n’est plus dans votre compte (supprimée, ou enregistrée avec un autre compte)'));
     const store = client.storage.from(BUCKET);
     const meta = data.meta || {};
     const drawings = [];

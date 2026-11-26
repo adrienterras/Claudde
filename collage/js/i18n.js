@@ -149,6 +149,7 @@
     'C’est votre propre œuvre : la voici.': 'This is your own artwork: here it is.',
     'L’œuvre est dans Mes œuvres : modifiez-la comme vous voulez.': 'The artwork is in My artworks: change it as you like.',
     'œuvre introuvable dans votre compte': 'artwork not found in your account',
+    'cette œuvre n’est plus dans votre compte (supprimée, ou enregistrée avec un autre compte)': 'this artwork is no longer in your account (deleted, or saved with another account)',
     'Envoyez ce lien à qui vous voulez. En l’ouvrant, la personne crée son compte (ou se connecte) et reçoit sa propre copie de l’œuvre, qu’elle peut modifier. Votre œuvre ne change pas.': 'Send this link to anyone you like. When they open it, they create an account (or sign in) and receive their own copy of the artwork, which they can change. Your artwork stays as it is.',
     'Envoyer le lien…': 'Send the link…',
     'Copier le lien': 'Copy the link',

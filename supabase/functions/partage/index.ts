@@ -46,7 +46,8 @@ Deno.serve(async (req) => {
     if (had) return reply(200, { id: had.id, again: true });
     // la place dans Mes œuvres
     const mine = (await rest('GET', `compositions?user_id=eq.${user.id}&meta->>cart=is.null&meta->>ordered=is.null&meta->>draft=is.null&select=name`)) || [];
-    if (mine.filter((r) => !ORDER_NAME.test(r.name || '')).length >= WORK_MAX) {
+    const admin = !!(user.app_metadata && user.app_metadata.atelier_role === 'admin'); // (sans limite, comme dans l'atelier)
+    if (!admin && mine.filter((r) => !ORDER_NAME.test(r.name || '')).length >= WORK_MAX) {
       return reply(409, { error: `votre compte a déjà ${WORK_MAX} œuvres : supprimez-en une dans Mes œuvres pour recevoir celle-ci` });
     }
     // la copie : les fichiers d'abord (sur le serveur), puis la fiche ; en cas d'échec, rien ne reste
