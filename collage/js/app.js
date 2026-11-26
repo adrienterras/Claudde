@@ -9497,7 +9497,7 @@ Réponds uniquement avec ce JSON :
     $('share-receive-title').textContent = tr`« ${info.name} »`;
     shareThumb(box, info.thumb);
     box.querySelector('.share-receive-text').textContent = info.from ? tr`${info.from} vous partage cette œuvre.` : tr('Quelqu’un vous partage cette œuvre.');
-    const go = requireAccount(tr('recevoir cette œuvre'), () => receiveShared(token));
+    const go = requireAccount(tr('ouvrir cette œuvre'), () => receiveShared(token));
     ok.onclick = () => {
       if (A && A.enabled && !A.user()) { lsSet(SHARE_PENDING_KEY, token); closeModal(box); }
       go();
