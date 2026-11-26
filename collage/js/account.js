@@ -341,6 +341,8 @@
         let ok = false;
         if (j.src) { const c = await withTimeout(store.copy(j.src, j.path), UPLOAD_TIMEOUT).catch(() => null); ok = !!(c && !c.error); if (ok) copied++; }
         if (!ok) {
+          // (pas copié : l'image est lue sur l'appareil maintenant, au besoin seulement — voir cartRecForCloud)
+          if (j.bytes == null && j.load) { const r = await j.load().catch(() => null); if (r) { j.bytes = r.bytes; if (r.type) j.type = r.type; } }
           if (j.bytes == null) throw new Error(tr('fichier introuvable'));
           const up = await withTimeout(store.upload(j.path, new Blob([j.bytes], { type: j.type }), { contentType: j.type, upsert: true }), UPLOAD_TIMEOUT);
           err(up.error);
@@ -365,20 +367,22 @@
       have = workFiles.get(rec.fromWork) || await withTimeout(store.list(wbase, { limit: 1000 }), 30000).then(({ data }) => new Set((data || []).map((f) => f.name))).catch(() => new Set());
     }
     const from = (name) => (name && have.has(name) ? `${wbase}/${name}` : null);
-    const put = (path, bytes, type, src) => { jobs.push({ path, bytes, type, src }); return path; };
+    // load : lire l'image sur l'appareil seulement si la copie sur le serveur échoue (article du panier)
+    const put = (path, bytes, type, src, load) => { jobs.push({ path, bytes, type, src, load }); return path; };
     const packOf = (d) => (d.saved && d.saved.page && (d.saved.page.data || d.workSavedRef) ? 1 + (d.saved.atlases || []).length : 0);
     for (let i = 0; i < rec.drawings.length; i++) {
       const d = rec.drawings[i];
       const wk = d.workRef ? safeName(d.workRef) : null, ws = d.workSavedRef ? safeName(d.workSavedRef) : null;
-      const path = put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg', from(wk && `${wk}.jpg`));
+      const path = put(`${base}/d${i}.${extOf(d.type)}`, d.data, d.type || 'image/jpeg', from(wk && `${wk}.jpg`), d.loadImage);
+      const pack = d.loadPack ? (pick) => () => d.loadPack().then((p) => (p ? pick(p) : null)) : () => undefined;
       // page de travail et planches des découpes (voir savedOf dans app.js) : des fichiers à côté de l'image
       let saved = d.saved || null;
       if (packOf(d)) {
-        const atlases = (saved.atlases || []).map((a, j) => Object.assign({}, a, { data: put(`${base}/d${i}-decoupe${j}.png`, a.data, 'image/png', from(ws && `${ws}-a${j}.png`)) }));
-        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg', from(ws && `${ws}-page.jpg`)) }), atlases });
+        const atlases = (saved.atlases || []).map((a, j) => Object.assign({}, a, { data: put(`${base}/d${i}-decoupe${j}.png`, a.data, 'image/png', from(ws && `${ws}-a${j}.png`), pack((p) => (p.atlases && p.atlases[j] ? { bytes: p.atlases[j], type: 'image/png' } : null))) }));
+        saved = Object.assign({}, saved, { page: Object.assign({}, saved.page, { data: put(`${base}/d${i}-page.jpg`, saved.page.data, 'image/jpeg', from(ws && `${ws}-page.jpg`), pack((p) => (p.page ? { bytes: p.page, type: 'image/jpeg' } : null))) }), atlases });
       }
       const edits = (d.pieceEdits || []).map((e, j) => (e && e.mask ? Object.assign({}, e, { mask: put(`${base}/d${i}-e${j}.png`, e.mask, 'image/png') }) : null));
-      drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved, workRef: undefined, workSavedRef: undefined }));
+      drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved, workRef: undefined, workSavedRef: undefined, loadImage: undefined, loadPack: undefined }));
     }
     await uploadAll(jobs, onProgress);
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length };

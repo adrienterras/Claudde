@@ -9279,10 +9279,27 @@ Réponds uniquement avec ce JSON :
   async function cartRecForCloud(it) {
     const rec = await dbGet(it.recId);
     if (!rec) return null;
+    // l'œuvre vient du compte (it.workId) : ses fichiers y sont déjà, copiés sur le serveur ; les images ne
+    // sont lues sur l'appareil qu'au besoin, une à une, si une copie échoue (voir uploadAll). Les charger
+    // toutes d'avance (une centaine de fichiers) occupait l'iPhone et sa mémoire : le panier paraissait
+    // alors pâle et flou
+    const lazy = !!it.workId;
     for (const sd of rec.drawings) {
       await breathe(); // (un dessin à la fois : l'écran reste vivant pendant la préparation)
       // (les clés des images : l'œuvre du compte d'où vient l'article a déjà ces fichiers, copiés sur le serveur)
       sd.workRef = sd.ref || null; sd.workSavedRef = savedRef(sd);
+      if (lazy) {
+        const ref = sd.ref;
+        if (ref && !sd.data) sd.loadImage = () => filesGet(ref).then((f) => (f ? { bytes: f.data, type: f.type } : null));
+        if (sd.saved && sd.saved.ref && !(sd.saved.page && sd.saved.page.data)) {
+          const pref = sd.saved.ref;
+          let pk = null;
+          sd.loadPack = () => pk || (pk = filesGet(pref).catch(() => null));
+          delete sd.saved.ref;
+        }
+        delete sd.ref;
+        continue;
+      }
       if (sd.ref && !sd.data) { const f = await filesGet(sd.ref).catch(() => null); if (f) { sd.data = f.data; sd.type = f.type; } }
       delete sd.ref;
       await loadSavedRef(sd);

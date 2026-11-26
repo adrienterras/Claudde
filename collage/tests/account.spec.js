@@ -1068,6 +1068,35 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate((files) => files.every((f) => !!window.__fake.db.files[f]), files)).toBe(true);
   });
 
+  test('ajouter au panier une œuvre du compte, la copie sur le serveur échoue : les images sont lues sur l’appareil et envoyées, une à une ; l’article est complet', async ({ acc }) => {
+    test.setTimeout(180000);
+    const { page } = acc;
+    await signUpAndIn(page, 'secours@example.org', 'Rouge-Soleil-42', 'Secours');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await waitDraft(page, 3);
+    await page.evaluate(() => AtelierGribouille.syncCloud());
+    const workId = await page.evaluate(() => AtelierGribouille.state.workId);
+    await page.waitForFunction((id) => window.__fake.db.rows.some((r) => r.id === id), workId);
+    await page.evaluate(() => { window.__fake.calls.length = 0; window.__FAKE_COPY_FAIL = true; });
+    await page.evaluate(() => AtelierGribouille.setMode('impression'));
+    await openStep(page, 'export-section');
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    const res = await page.evaluate(() => {
+      const cart = window.__fake.db.rows.find((r) => r.meta && r.meta.cart);
+      const files = cart.meta.drawings.flatMap((d) => [d.file, d.saved && d.saved.page && d.saved.page.data, ...((d.saved && d.saved.atlases) || []).map((a) => a.data)]).filter(Boolean);
+      return { uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] === cart.id).length, files: files.length, present: files.every((f) => !!window.__fake.db.files[f]), loaders: JSON.stringify(cart.meta).includes('load') };
+    });
+    expect(res.uploads).toBeGreaterThan(0);
+    expect(res.uploads).toBe(res.files);
+    expect(res.present).toBe(true);
+    expect(res.loaders).toBe(false); // (rien de la lecture différée dans la composition enregistrée)
+    await expect(page.locator('#cart .cart-status')).toBeHidden();
+  });
+
   test('Mes commandes : une page du site, hors de l’atelier ; ?commandes y mène ; sans commande, « Aucune commande pour l’instant »', async ({ acc }) => {
     const { page } = acc;
     await signUpAndIn(page, 'sanscommande@example.org', 'Rouge-Soleil-42', 'Sans');
