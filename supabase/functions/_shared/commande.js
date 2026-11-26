@@ -46,6 +46,7 @@ export const DELIVERY = {
   express: { name: 'Chronopost express, à domicile en 24 h', short: 'Chronopost express', min: 1, max: 1 },
 };
 export const COUNTRIES = ['FR'];
+export const SHIP_ZONE = 'Livraison en France métropolitaine uniquement (Corse comprise).';
 
 const FRAMES = { 'bois-clair': 'bois clair', 'bois-noir': 'bois noir', 'bois-blanc': 'bois blanc', metal: 'aluminium', 'bois-fonce': 'bois foncé' };
 const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
@@ -227,6 +228,9 @@ export function checkoutParams({ order, items, email, origin, now = Date.now() }
   p.push(['custom_text[submit][message]', summary(items)]);
   if (needsDelivery(items)) {
     COUNTRIES.forEach((c, i) => p.push([`shipping_address_collection[allowed_countries][${i}]`, c]));
+    // (au-dessus de l'adresse : la France métropolitaine seulement — les DOM ont leurs propres codes pays,
+    // hors de la liste, mais une adresse « France » pourrait en être une)
+    p.push(['custom_text[shipping_address][message]', SHIP_ZONE]);
     p.push(['phone_number_collection[enabled]', 'true']);
     deliveryOptions(items).forEach((o, i) => {
       const s = `shipping_options[${i}][shipping_rate_data]`, d = DELIVERY[o.mode];

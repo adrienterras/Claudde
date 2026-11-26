@@ -1108,6 +1108,58 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(({ files, workId }) => files.filter((f) => !!window.__fake.db.files[f]).length + Object.keys(window.__fake.db.files).filter((p) => p.split('/')[1] === workId).length, { files: r1.files, workId })).toBe(0);
   });
 
+  test('recommander depuis Mes commandes : l’œuvre commandée se rouvre, l’article déjà choisi ; seuls taille, encadrement, bordure et passe-partout se changent ; rien ne repart de l’appareil', async ({ acc }) => {
+    test.setTimeout(240000);
+    const { page } = acc;
+    const workId = await workInAccount(page, 'encore@example.org', 'Encore');
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    await expect(page.locator('#cart .cart-status')).toBeHidden({ timeout: 60000 });
+    // l'article est commandé (comme le fait le serveur après le paiement)
+    const ordered = await page.evaluate(async () => {
+      const r = window.__fake.db.rows.find((x) => x.meta && x.meta.cart), id = r.id, title = r.name;
+      await window.Account.cloud.cartSet(`cloud:${id}`, null, `AG-261126-ABCD · ${title}`, { ref: 'AG-261126-ABCD' });
+      return { id, title };
+    });
+    await page.evaluate(() => { localStorage.removeItem('atelier-gribouille:panier'); window.__fake.calls.length = 0; });
+    await page.goto(`index.html?recommander=${ordered.id}&taille=50x70&finition=cadre&cadre=bois-noir&pp=1&bord=0`);
+    const box = page.locator('#cart-add');
+    await expect(box).toBeVisible({ timeout: 120000 });
+    await expect(box).toHaveClass(/reorder/);
+    await expect(box.locator('#cart-add-title')).toHaveText('Recommander l’œuvre');
+    await expect(box.locator('.cart-what-name')).toHaveText(ordered.title);
+    expect(page.url()).not.toContain('recommander');
+    // l'article commandé : encadré, bois noir, passe-partout, 50 × 70 ; ni fichier HD ni couleur à choisir
+    await expect(box.locator('[data-finish="cadre"]')).toHaveClass(/on/);
+    await expect(box.locator('.cart-print-sizes [data-size="50x70"]')).toHaveClass(/on/);
+    await expect(box.locator('.cart-mat-field [data-mat="1"]')).toHaveClass(/on/);
+    await expect(box.locator('input[value="hd"]')).toBeHidden();
+    await expect(box.locator('.cart-frame-colors')).toBeHidden();
+    await expect(box.locator('.cart-frame-name')).toHaveText('Bois noir');
+    // la taille change : 70 × 100
+    await box.locator('.cart-print-sizes [data-size="70x100"]').click();
+    await box.locator('#cart-add-ok').click();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    await expect(page.locator('#cart .cart-status')).toBeHidden({ timeout: 60000 });
+    const res = await page.evaluate((workId) => {
+      const r = window.__fake.db.rows.find((x) => x.meta && x.meta.cart);
+      const files = r.meta.drawings.flatMap((d) => [d.file, d.saved && d.saved.page && d.saved.page.data, ...((d.saved && d.saved.atlases) || []).map((a) => a.data)]).filter(Boolean);
+      return { cart: r.meta.cart, fromWork: r.meta.fromWork === workId, uploads: window.__fake.calls.filter((c) => c[0] === 'upload' && c[1].split('/')[1] === r.id).length, present: files.every((f) => !!window.__fake.db.files[f]) };
+    }, workId);
+    expect(res.cart).toMatchObject({ product: 'print', finish: 'cadre', size: '70x100', frame: 'bois-noir', mat: true, qty: 1 });
+    expect(res.fromWork).toBe(true);
+    expect(res.uploads).toBe(0);
+    expect(res.present).toBe(true);
+    // la fenêtre d'ajout redevient ordinaire ensuite
+    await page.locator('#cart [data-close]').first().click();
+    await openStep(page, 'export-section');
+    await page.locator('#add-cart').click();
+    await expect(box).not.toHaveClass(/reorder/);
+    await expect(box.locator('#cart-add-title')).toHaveText('Ajouter au panier');
+  });
+
   test('la même œuvre ajoutée deux fois au panier avec les mêmes options : un seul article, quantité 2, un seul envoi ; autre taille : un autre article', async ({ acc }) => {
     test.setTimeout(180000);
     const { page } = acc;
@@ -1217,6 +1269,10 @@ test.describe('Comptes utilisateurs', () => {
     await expect(detail).toContainText('3 rue des Lilas');
     await expect(detail.locator('.od-track a')).toHaveAttribute('href', /laposte\.fr.*6A12345678901/);
     await expect(detail.locator('.od-cancel')).toHaveCount(0); // (expédiée : plus annulable en ligne)
+    // recommander le tableau : un lien vers l'atelier, l'article commandé déjà choisi
+    const again = detail.locator('.od-items .od-again');
+    await expect(again).toHaveText('Recommander');
+    expect(await again.getAttribute('href')).toBe('atelier/?recommander=aaaaaaaa-1111-4111-8111-111111111111&taille=50x70&finition=cadre&cadre=bois-noir&pp=1&bord=0');
     if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-detail.png` });
     await detail.locator('#od-close').click();
     await expect(detail).toBeHidden();

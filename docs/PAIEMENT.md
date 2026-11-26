@@ -33,6 +33,16 @@ l'adresse, le suivi du colis, l'annulation tant qu'elle est payée. L'ancien lie
 (`atelier/?commandes`) y mène. La gestion des commandes (administrateur) reste dans l'atelier :
 `atelier/?gestion-commandes`, lien de l'e-mail « Nouvelle commande ».
 
+**Recommander** : dans le détail d'une commande, chaque tableau imprimé a un bouton « Recommander ». Il
+ouvre l'atelier (`atelier/?recommander=<œuvre commandée>&taille=…&finition=…&cadre=…&pp=…&bord=…`) :
+l'œuvre commandée s'y rouvre (en copie) et la fenêtre « Recommander l'œuvre » s'ouvre avec l'article
+commandé déjà choisi. Seuls la taille, l'encadrement, la bordure blanche et le passe-partout s'y changent
+(ni fichier HD, ni couleur du cadre). L'article reprend les fichiers de l'œuvre dans le compte : rien
+n'est renvoyé depuis l'appareil.
+
+Livraison : **France métropolitaine uniquement** (Corse comprise). Stripe n'accepte que les adresses
+en France (`COUNTRIES`) et le rappelle au-dessus de l'adresse (`SHIP_ZONE`).
+
 ## Mise en place (une fois)
 
 1. **Table `orders`** : Supabase → SQL Editor → coller la section « Commandes payées en ligne » de

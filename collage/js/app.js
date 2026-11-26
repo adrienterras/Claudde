@@ -25,7 +25,10 @@
   // arrivée pour le compte (Mon compte, Mes commandes, connexion, panier, retour de paiement) : l'œuvre en
   // cours est rouverte sans la question « Reprendre ? », qui passerait devant (l'adresse est lue ici,
   // avant que ces paramètres ne s'effacent)
-  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|gestion-commandes|connexion|panier|commande=)/.test(location.search);
+  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|gestion-commandes|connexion|panier|commande=|recommander=)/.test(location.search);
+  // recommander une œuvre (depuis Mes commandes) : l'œuvre commandée se rouvre ; ni l'œuvre en cours ni la
+  // dernière du compte ne se rouvrent ou ne se proposent à sa place (elles restent dans Mes œuvres)
+  const REORDER = /[?&]recommander=/.test(location.search);
   let genHintSeen = false; // la note « Cliquez pour générer… » a servi pendant cette visite
   const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
@@ -6892,6 +6895,7 @@ Réponds uniquement avec ce JSON :
   async function resumeDraft(manual) {
     const box = $('draft-offer');
     if (!box) return;
+    if (REORDER && !manual) return; // (voir REORDER : l'œuvre en cours reste rangée, sans question)
     const rec = await migrateDraft();
     if (!rec || !rec.drawings || !rec.drawings.length) return;
     if (state.drawings.length) {
@@ -7291,7 +7295,7 @@ Réponds uniquement avec ce JSON :
       const draft = await dbGet(DRAFT_ID).catch(() => null);
       if (!signedIn()) return; // (déconnecté entre-temps : plus rien à rapprocher du compte)
       const here = !!(draft && draft.drawings && draft.drawings.length) || (state.drawings.length > 0 && !onlySamples());
-      const fresh = /[?&](nouveau|exemple)\b/.test(location.search);
+      const fresh = /[?&](nouveau|exemple)\b/.test(location.search) || REORDER;
       if (!here && !fresh && lsGet(NEW_KEY) !== '1' && !state.drawings.length) {
         const latest = works.filter((c) => !c.ordered && !c.frozen).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         if (latest) {
@@ -9037,6 +9041,8 @@ Réponds uniquement avec ce JSON :
     box.querySelector('.cart-qty output').textContent = String(choice.qty);
     const it = Object.assign({ W: comp.W, H: comp.H }, choice);
     box.querySelector('.cart-add-total').textContent = euros(unitPrice(it) * choice.qty);
+    // recommander : le tableau imprimé seulement (ni fichier HD ; la couleur du cadre reste celle commandée)
+    if (box.classList.contains('reorder')) { box.querySelector('input[value="hd"]').closest('label').hidden = true; box.querySelector('.cart-hd').hidden = true; }
     requestAnimationFrame(drawCartScene);
   }
   /*
@@ -9098,7 +9104,12 @@ Réponds uniquement avec ce JSON :
     $('cart-add-view').hidden = !n;
     $('cart-add-view').textContent = tr`Voir mon panier (${n})`;
     if (!comp) return;
-    pending = { comp, title, styleName, thumb: thumbOfComp(comp) };
+    const again = (opts && opts.reorder) || null;
+    // (recommander une œuvre, depuis Mes commandes : l'œuvre telle quelle ; seuls la taille, l'encadrement,
+    // la bordure blanche et le passe-partout se choisissent — voir reorderFromUrl)
+    pending = { comp, title, styleName, thumb: thumbOfComp(comp), fromWork: again ? again.fromWork || null : null };
+    $('cart-add').classList.toggle('reorder', !!again);
+    $('cart-add-title').textContent = again ? tr('Recommander l’œuvre') : tr('Ajouter au panier');
     choice.size = frameForComp(comp);
     choice.qty = 1;
     // par défaut : le passe-partout de la composition, et le cadre de la mise en scène (« auto » :
@@ -9111,6 +9122,16 @@ Réponds uniquement avec ce JSON :
     choice.margin = marginPref() && choice.size !== NO_MARGIN_SIZE;
     const kind = sceneFrameChoice();
     try { choice.frame = kind !== 'auto' ? kind : pickFrameKind(artTone(comp), choice.mat); } catch (e) { choice.frame = 'bois-clair'; }
+    if (again) {
+      // l'article commandé, repris tel quel (ce qui change se choisit ensuite)
+      choice.product = 'print';
+      choice.qty = 1;
+      if (again.finish === 'papier' || again.finish === 'cadre') { choice.finish = again.finish; setSceneFinish(again.finish); }
+      if (PRINT_FRAMES.some((f) => f.key === again.size)) choice.size = again.size;
+      if (CART_FRAMES.includes(again.frame) || again.frame === 'bois-fonce') choice.frame = again.frame;
+      choice.mat = choice.finish === 'cadre' && !!again.mat;
+      choice.margin = !!again.margin && !(choice.finish === 'cadre' && choice.mat) && choice.size !== NO_MARGIN_SIZE;
+    }
     renderCartAdd();
     openModal($('cart-add'));
   }
@@ -9168,6 +9189,7 @@ Réponds uniquement avec ce JSON :
       const it = { id, sig, recId: rec.id, refs: rec.drawings.flatMap((x) => [x.ref, savedRef(x)].filter(Boolean)), title: pending.title, styleName: pending.styleName, thumb: comp === pending.comp ? pending.thumb : thumbOfComp(comp), W: comp.W, H: comp.H, product: choice.product, finish: choice.finish, size: choice.size, qty: clamp(choice.qty, 1, maxQty(choice)) };
       // l'œuvre en cours, dont les images sont peut-être déjà dans le compte (voir cartRecForCloud)
       if (state.workId && !state.copyOf) it.workId = state.workId;
+      else if (pending.fromWork) it.workId = pending.fromWork; // (recommandée : les fichiers de l'œuvre d'origine)
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
       if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
       if (it.product === 'hd') it.finish = 'papier'; // (le fichier : une affiche à la taille choisie)
@@ -9259,8 +9281,8 @@ Réponds uniquement avec ce JSON :
     box.querySelector('.cart-note').hidden = !items.length;
     const express = online && items.some((it) => it.product === 'print') ? shippingOf(items, 'express') : null;
     box.querySelector('.cart-note').textContent = online
-      ? tr('Prix TTC, livraison à domicile comprise (France métropolitaine). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.') + (express ? ` ${tr`Livraison express en 24 h (Chronopost) possible à la page de paiement : ${euros(express)} au lieu de ${euros(home)}.`}` : '')
-      : tr('Prix TTC, hors frais de livraison. Le fichier HD est inclus avec chaque tableau imprimé.');
+      ? tr('Prix TTC, livraison à domicile comprise (France métropolitaine uniquement). Le fichier HD est inclus avec chaque tableau imprimé. Paiement sécurisé par Stripe.') + (express ? ` ${tr`Livraison express en 24 h (Chronopost) possible à la page de paiement : ${euros(express)} au lieu de ${euros(home)}.`}` : '')
+      : tr('Prix TTC, hors frais de livraison (France métropolitaine uniquement). Le fichier HD est inclus avec chaque tableau imprimé.');
     $('cart-consent-field').hidden = !items.length;
     $('cart-order').hidden = !items.length;
   }
@@ -9405,6 +9427,34 @@ Réponds uniquement avec ce JSON :
     };
     const A = window.Account;
     if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); } else setTimeout(go, 0);
+  }
+
+  // Recommander (?recommander=<composition commandée>&taille=…&finition=…&cadre=…&pp=…&bord=…, depuis la page
+  // Mes commandes) : l'œuvre commandée se rouvre (en copie, comme toute œuvre commandée) et la fenêtre
+  // d'ajout au panier s'ouvre, l'article commandé déjà choisi ; seuls la taille, l'encadrement, la bordure
+  // blanche et le passe-partout s'y changent. Les fichiers de l'œuvre restent ceux du compte : rien ne
+  // repart de l'appareil
+  async function reorderFromUrl(id, q) {
+    try { const url = new URL(location.href); ['recommander', 'taille', 'finition', 'cadre', 'pp', 'bord'].forEach((k) => url.searchParams.delete(k)); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
+    await shelveCurrent();
+    clearStage();
+    state.resuming = true;
+    let rec = null;
+    try { rec = await restoreComposition(`cloud:${id}`); } finally { state.resuming = false; }
+    if (!rec || !state.comp) { renderSaved(); notice(tr('Cette œuvre n’a pas pu être rouverte pour la recommander.')); return; }
+    beginCopy(rec);
+    if (!printMode()) { notice(tr('Seuls les tableaux imprimés se recommandent depuis Mes commandes.')); return; }
+    const st = STYLES.find((x) => x.id === state.comp.style);
+    const title = (rec.name || '').replace(/^AG-\d{6}-[A-Z0-9]{4} · /, '') || (st ? st.name : tr('Composition'));
+    openCartAdd(state.comp, title, st ? st.name : '', { reorder: { fromWork: rec.fromWork || null, finish: q.get('finition'), size: q.get('taille'), frame: q.get('cadre'), mat: q.get('pp') === '1', margin: q.get('bord') === '1' } });
+  }
+  {
+    const q = new URLSearchParams(location.search), id = q.get('recommander');
+    if (id && /^[0-9a-f-]{8,40}$/.test(id)) {
+      const go = requireAccount(tr('recommander une œuvre'), () => reorderFromUrl(id, q));
+      const A = window.Account;
+      if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); }
+    }
   }
 
   // Retour de la page de paiement (?commande=REF) d'une commande partie avant la page « Mes commandes » du

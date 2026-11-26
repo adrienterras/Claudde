@@ -4,6 +4,7 @@
   var EN = {
     // Mes commandes (commandes.html, commandes.js)
     "Suivre le colis": "Track the parcel",
+    "Recommander": "Order again",
     "Mes commandes | Atelier Gribouille": "My orders | Atelier Gribouille",
     "Vos commandes Atelier Gribouille : suivi, détail, livraison.": "Your Atelier Gribouille orders: tracking, details, delivery.",
     "› Mes commandes": "› My orders",
@@ -261,7 +262,7 @@
     "Les dessins originaux sont-ils abîmés ?": "Are the original drawings damaged?",
     "Pour les tableaux imprimés, jamais : seuls les scans sont utilisés. Avec le kit DIY, c’est vous qui découpez et collez les originaux : ne coupez que ceux que vous voulez voir sur la toile.": "For prints, never: only the scans are used. With the DIY kit, you cut out and glue the originals yourself: only cut the ones you want on the canvas.",
     "Livrez-vous hors de France ?": "Do you deliver outside France?",
-    "Les tarifs affichés ne comprennent pas la livraison, en supplément pour la France métropolitaine. Pour l’Europe, écrivez-nous : nous établissons un devis de transport.": "The prices shown do not include delivery, charged separately for mainland France. For Europe, write to us: we will quote the shipping.",
+    "Non : nous livrons uniquement en France métropolitaine (Corse comprise). Les tarifs affichés ne comprennent pas la livraison, en supplément.": "No: we only deliver in mainland France (Corsica included). The prices shown do not include delivery, charged separately.",
     "Et pour un cadeau ?": "What about a gift?",
     "Le tableau encadré 50 × 70 est pensé pour ça : prêt à accrocher, livré protégé. Indiquez-nous une adresse de livraison différente lors de la commande.": "The 50 × 70 framed print is made for that: ready to hang, delivered protected. Give us a different delivery address when ordering.",
     "Commencez par composer, c’est gratuit": "Start by composing, it’s free",

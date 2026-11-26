@@ -73,6 +73,8 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(p.get('line_items[0][quantity]')).toBe('2');
     expect(p.get('line_items[1][price_data][unit_amount]')).toBe('2900');
     expect(p.get('shipping_address_collection[allowed_countries][0]')).toBe('FR');
+    expect(p.has('shipping_address_collection[allowed_countries][1]')).toBe(false); // (la France seulement)
+    expect(p.get('custom_text[shipping_address][message]')).toBe('Livraison en France métropolitaine uniquement (Corse comprise).');
     expect(p.get('shipping_options[0][shipping_rate_data][fixed_amount][amount]')).toBe('2990');
     expect(p.get('shipping_options[0][shipping_rate_data][metadata][mode]')).toBe('domicile');
     expect(p.get('shipping_options[0][shipping_rate_data][display_name]')).toBe('Colissimo, à domicile');

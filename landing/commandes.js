@@ -197,6 +197,16 @@ function fillDetail(o) {
     const price = document.createElement('span');
     price.className = 'od-price';
     price.textContent = it.unit != null ? euros(Math.round(Number(it.unit) * 100) * (Number(it.qty) || 1)) : '';
+    // recommander un tableau imprimé : l'œuvre telle quelle, rouverte dans l'atelier avec l'article déjà
+    // choisi ; seuls la taille, l'encadrement, la bordure blanche et le passe-partout s'y changent
+    if (it.product === 'print' && it.compId && !pending) {
+      const q = new URLSearchParams({ recommander: String(it.compId), taille: it.size || '', finition: it.finish || '', cadre: it.frame || '', pp: it.mat ? '1' : '0', bord: it.margin ? '1' : '0' });
+      const a = document.createElement('a');
+      a.className = 'od-again';
+      a.href = `atelier/?${q}`;
+      a.textContent = t('Recommander');
+      txt.appendChild(a);
+    }
     li.append(v, txt, price);
     ul.appendChild(li);
   });

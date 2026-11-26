@@ -83,6 +83,8 @@
 .od-items b { display: block; font-size: .95rem; }
 .od-items small { display: block; color: var(--muted); font-size: .84rem; line-height: 1.45; }
 .od-items .od-price { font-weight: 600; font-size: .92rem; white-space: nowrap; }
+.od-items .od-again { display: inline-block; margin-top: 6px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: .8rem; font-weight: 600; text-decoration: none; }
+.od-items .od-again:hover { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 480px) { .od-items li { grid-template-columns: 92px 1fr; gap: 12px; } .od-items .od-price { grid-column: 2; margin-top: -6px; } }
 .od-sum { margin-top: 16px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); display: grid; gap: 6px; font-size: .9rem; }
 .od-sum div { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }

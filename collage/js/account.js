@@ -467,7 +467,7 @@
       drawings.push(Object.assign({}, d, { data: bytes, pieceEdits: edits, saved }));
       onProgress && onProgress(i + 1, total);
     }
-    return { id: cloudId, v: meta.v || undefined, name: data.name, date: meta.date || data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true, workName: meta.workName || null, print: meta.print || null };
+    return { id: cloudId, v: meta.v || undefined, name: data.name, date: meta.date || data.created_at, thumb: data.thumb, settings: meta.settings, comp: meta.comp, drawings, cloud: true, workName: meta.workName || null, print: meta.print || null, fromWork: typeof meta.fromWork === 'string' ? meta.fromWork : null };
   }
 
   // ---------- Mes œuvres dans le compte ----------
