@@ -2690,3 +2690,26 @@ test.describe('Panier sur téléphone', () => {
     await ctx.close();
   });
 });
+
+test.describe('Champs de saisie sur téléphone', () => {
+  test('aucun champ sous 16 px (sinon l’iPhone zoome en le touchant), gestion des commandes comprise', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille);
+    const small = await page.evaluate(() => {
+      // (le formulaire d'une commande, tel que l'espace administrateur le construit)
+      const box = document.createElement('div');
+      box.className = 'admin-order';
+      box.innerHTML = '<form class="admin-order-form"><select name="status"><option>Expédiée</option></select><input name="carrier" list="admin-carriers"><input name="tracking" placeholder="N° de suivi"></form>';
+      document.getElementById('admin-orders-list').appendChild(box);
+      return [...document.querySelectorAll('input, select, textarea')]
+        .filter((el) => !['range', 'checkbox', 'radio', 'file', 'color', 'hidden'].includes(el.type))
+        .map((el) => [el.id || el.name || el.className || el.outerHTML.slice(0, 60), parseFloat(getComputedStyle(el).fontSize)])
+        .filter(([, px]) => px < 16);
+    });
+    expect(small).toEqual([]);
+    await ctx.close();
+  });
+});
