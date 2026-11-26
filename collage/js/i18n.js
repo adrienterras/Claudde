@@ -133,7 +133,7 @@
     'Préparation du lien…': 'Preparing the link…',
     'Le lien n’a pas pu être créé : {0}': 'The link could not be created: {0}',
     'Le lien fonctionne jusqu’au {0}, pour autant de personnes que vous voulez.': 'The link works until {0}, for as many people as you like.',
-    '« {0} », une œuvre faite avec Atelier Gribouille : recevez-la et modifiez-la à votre tour.': '“{0}”, an artwork made with Atelier Gribouille: receive it and make it your own.',
+    '« {0} », une œuvre faite avec Atelier Gribouille : ouvrez-la et modifiez-la à votre tour.': '“{0}”, an artwork made with Atelier Gribouille: open it and make it your own.',
     'Lien copié : collez-le dans un message.': 'Link copied: paste it into a message.',
     'Désactiver le lien': 'Turn off the link',
     'Désactiver le lien ? Il ne mènera plus à rien': 'Turn off the link? It will no longer lead anywhere',

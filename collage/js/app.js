@@ -9464,7 +9464,7 @@ Réponds uniquement avec ce JSON :
     box.querySelector('.share-expires').textContent = tr`Le lien fonctionne jusqu’au ${new Date(t.expires).toLocaleDateString(I18n.locale, { day: 'numeric', month: 'long', year: 'numeric' })}, pour autant de personnes que vous voulez.`;
     const send = $('share-send');
     send.hidden = !navigator.share;
-    send.onclick = () => navigator.share({ title: e.info.name, text: tr`« ${e.info.name} », une œuvre faite avec Atelier Gribouille : recevez-la et modifiez-la à votre tour.`, url }).catch(() => {});
+    send.onclick = () => navigator.share({ title: e.info.name, text: tr`« ${e.info.name} », une œuvre faite avec Atelier Gribouille : ouvrez-la et modifiez-la à votre tour.`, url }).catch(() => {});
     $('share-copy').onclick = async () => {
       try { await navigator.clipboard.writeText(url); } catch (err) { $('share-url').select(); try { document.execCommand('copy'); } catch (x) { /* ignoré */ } }
       shareSay(box, tr('Lien copié : collez-le dans un message.'));
