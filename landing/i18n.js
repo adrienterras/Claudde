@@ -249,7 +249,7 @@
     "69 €": "€69",
     "59 €": "€59",
     "199 €": "€199",
-    "179 €": "€179",
+    "189 €": "€189",
     "169 €": "€169",
     "Questions fréquentes": "Frequently asked questions",
     "Dois-je payer pour essayer ?": "Do I have to pay to try?",

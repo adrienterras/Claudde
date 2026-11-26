@@ -8743,7 +8743,7 @@ Réponds uniquement avec ce JSON :
     hd: 29, guide: 29,
     print: {
       papier: { '21x30': 39, '30x40': 49, '40x50': 69, '50x70': 99, '70x100': 129 },
-      cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129, '70x100': 179 },
+      cadre: { '21x30': 59, '30x40': 79, '40x50': 99, '50x70': 129, '70x100': 189 },
       // (pas d'impression sur toile pour l'instant : un ancien article « toile » du panier n'est plus valable)
     },
   };
