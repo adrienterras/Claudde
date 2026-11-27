@@ -122,7 +122,7 @@ function renderList() {
     const late = o.status === 'payee' && Date.now() - new Date(o.paid_at || o.created_at) > 3 * 864e5;
     const main = document.createElement('span');
     main.className = 'o-main';
-    main.innerHTML = `<b>${esc(o.ref)}</b><span class="gc-who">${esc([nameOf(o), cityOf(o)].filter(Boolean).join(' · '))}</span><span class="o-meta">${late ? '<span class="gc-late">payée il y a plus de 3 jours</span>' : esc(`payée le ${day(o.paid_at || o.created_at)}`)} · ${esc(n > 1 ? `${n} articles` : '1 article')}</span>${isExpress(o) ? '<span class="gc-express">Express 24 h</span>' : ''}`;
+    main.innerHTML = `<b>${esc(o.ref)}</b><span class="gc-who">${esc([nameOf(o), cityOf(o)].filter(Boolean).join(' · '))}</span><span class="o-meta">${late ? '<span class="gc-late">payée il y a plus de 3 jours</span>' : esc(`payée le ${day(o.paid_at || o.created_at)}`)} · ${esc(n > 1 ? `${n} articles` : '1 article')}</span>${isExpress(o) ? '<span class="gc-express">Express 24 h</span>' : ''}${o.consent ? '<span class="gc-consent">Partage accepté</span>' : ''}`;
     const side = document.createElement('span');
     side.className = 'o-side';
     side.innerHTML = `<span class="o-pill s-${esc(o.status)}">${esc(STATUS[o.status] || o.status)}</span><span class="o-total">${esc(euros(o.total_cents))}</span><span class="o-see">Ouvrir ›</span>`;
@@ -166,6 +166,11 @@ function openDetail(ref) {
       ${(c.email || o.email) ? `<p><a href="mailto:${esc(c.email || o.email)}">${esc(c.email || o.email)}</a></p>` : ''}
       ${c.phone ? `<p><a href="tel:${esc(String(c.phone).replace(/[^+0-9]/g, ''))}">${esc(c.phone)}</a></p>` : ''}
     </div></section>
+    <section class="od-sec"><h3>Partage de l’œuvre</h3>
+      <p class="gd-consent ${o.consent ? 'ok' : 'no'}">${o.consent
+        ? 'Accepté : le client accepte que l’œuvre soit montrée sur nos réseaux et dans notre communication, publicité comprise, sans son nom ni prénom ou visage d’enfant.'
+        : 'Refusé : l’œuvre ne doit pas être montrée (réseaux, communication, publicité).'}</p>
+    </section>
     <section class="od-sec"><h3>Livraison</h3>
       <span class="gd-mode${isExpress(o) ? ' express' : ''}">${esc(deliveryName(o))}</span>
       <p>${addressLines(o).map(esc).join('<br>')}</p>

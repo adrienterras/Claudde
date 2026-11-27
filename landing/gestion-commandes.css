@@ -65,3 +65,8 @@
 .gd-log li { display: grid; gap: 1px; font-size: .86rem; color: var(--ink); padding-left: 12px; border-left: 2px solid var(--line); }
 .gd-log-at { font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .gd-log-empty { font-size: .84rem; color: var(--muted); margin: 0; }
+/* l'accord du client pour montrer l'œuvre (case cochée au panier) */
+.gc-consent { justify-self: start; margin-top: 2px; padding: 1px 9px; border-radius: 999px; background: #e3efe6; color: #2f6a43; font-size: .74rem; font-weight: 600; }
+.gd-consent { margin: 0; font-size: .9rem; }
+.gd-consent.ok { color: #2f6a43; }
+.gd-consent.no { color: #8a3a26; }

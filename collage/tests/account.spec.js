@@ -546,7 +546,7 @@ test.describe('Comptes utilisateurs', () => {
       window.__fake.db.rows.push({ id: PRIVATE, user_id: 'u-client', name: 'privée', thumb, created_at: now, meta: {} });
       const items = [{ compId: ORDERED, title: 'Courtepointe', label: 'Affiche 21 × 30 cm', product: 'print', finish: 'papier', size: '21x30', W: 21, H: 30, qty: 1, unit: 39 }];
       const base = { __table: 'orders', user_id: 'u-client', email: 'client@example.org', consent: false, items, subtotal_cents: 3900, created_at: now, paid_at: now, carrier: null, tracking: null, delivery: 'domicile', customer: { name: 'Camille Martin', email: 'client@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } };
-      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000011', ref: 'AG-261127-EQP1', status: 'payee', shipping_cents: 990, total_cents: 4890, paid_at: old }));
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000011', ref: 'AG-261127-EQP1', status: 'payee', shipping_cents: 990, total_cents: 4890, paid_at: old, consent: true }));
       window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000012', ref: 'AG-261127-EQP2', status: 'payee', shipping_cents: 1990, total_cents: 5890, delivery: 'express', customer: { name: 'Sam', email: 'sam@example.org' }, shipping: { name: 'Sam <b>B</b>', address: { line1: '1 place Bellecour', postal_code: '69002', city: 'Lyon', country: 'FR' } } }));
       window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000013', ref: 'AG-261127-EQP3', status: 'en_preparation', shipping_cents: 990, total_cents: 4890 }));
       window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000014', ref: 'AG-261127-GONE', status: 'abandonnee', shipping_cents: 0, total_cents: 3900 }));
@@ -569,6 +569,8 @@ test.describe('Comptes utilisateurs', () => {
     await expect(list.first()).toContainText('payée il y a plus de 3 jours');
     await expect(list.first().locator('.o-vis img')).toHaveCount(1); // (la vignette de l'œuvre commandée)
     await expect(list.nth(1)).toContainText('Express 24 h');
+    await expect(list.first().locator('.gc-consent')).toHaveText('Partage accepté');
+    await expect(list.nth(1).locator('.gc-consent')).toHaveCount(0);
     // l'abandonnée n'apparaît nulle part ; la recherche
     await page.locator('#gc-filters [data-f="all"]').click();
     await expect(list).toHaveCount(3);
@@ -584,6 +586,9 @@ test.describe('Comptes utilisateurs', () => {
     await expect(d.locator('#gd-title')).toHaveText('AG-261127-EQP1');
     await expect(d).toContainText('3 rue des Lilas');
     await expect(d).toContainText('+33600000000');
+    // l'accord du client pour montrer l'œuvre (case cochée au panier) : dans la liste et le détail
+    await expect(d.locator('.gd-consent')).toHaveClass(/ok/);
+    await expect(d.locator('.gd-consent')).toContainText('Accepté');
     await expect(d.locator('a.gd-open')).toHaveCount(0); // (plus d'« Ouvrir dans l'atelier » : le fichier HD se fait sur place)
     await expect(d.locator('.gd-make')).toHaveText('Préparer le fichier HD'); // (fait sur place : voir le test du fichier HD)
     // l'étape suivante : en préparation, le client prévenu

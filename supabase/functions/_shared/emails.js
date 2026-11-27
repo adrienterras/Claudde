@@ -141,7 +141,9 @@ function textOf({ title, paras, order, extra }) {
 }
 
 // l'e-mail au client pour une étape de la commande (status : payee, en_preparation, expediee, livree, annulee)
-export function customerEmail(status, order, visuals) {
+// opts.invoice : le lien de la facture Stripe (confirmation de commande)
+export function customerEmail(status, order, visuals, opts) {
+  const invoice = status === 'payee' && opts && typeof opts.invoice === 'string' && /^https:\/\/([a-z0-9-]+\.)*stripe\.com\//i.test(opts.invoice) ? opts.invoice : null;
   const vis = visuals && visuals.map;
   const first = String(nameOf(order) || '').split(' ')[0];
   const hello = first ? `Bonjour ${first},` : 'Bonjour,';
@@ -180,10 +182,13 @@ export function customerEmail(status, order, visuals) {
     para(esc(hello)),
     ...C1.paras.map((p) => para(esc(p))),
     `<tr><td style="padding:8px 0 24px;">${btn(C1.cta[0], C1.cta[1])}</td></tr>`,
+    status === 'payee' ? para(invoice
+      ? `Votre facture : <a href="${esc(invoice)}" style="color:${C.ink};font-weight:700;">la télécharger</a> (elle reste aussi disponible dans Mes commandes).`
+      : `Votre facture est disponible dans <a href="${esc(ordersLink(order))}" style="color:${C.ink};font-weight:700;">Mes commandes</a>.`) : '',
     recapHtml(order, vis),
     status !== 'annulee' ? addressHtml(order, 'Adresse de livraison') : '',
   ].join('\n');
-  const extra = [url ? `Suivre le colis : ${url}` : null].filter(Boolean);
+  const extra = [url ? `Suivre le colis : ${url}` : null, status === 'payee' ? (invoice ? `Votre facture : ${invoice}` : `Votre facture est disponible dans Mes commandes : ${ordersLink(order)}`) : null].filter(Boolean);
   return {
     subject: C1.subject,
     html: page({ preheader: C1.paras[0], title: C1.title, body, footnote: 'Vous recevez cet e-mail au sujet de votre commande sur ateliergribouille.art.' }),
@@ -193,6 +198,10 @@ export function customerEmail(status, order, visuals) {
 }
 
 // l'e-mail à la boutique : nouvelle commande (avec l'adresse) ou commande annulée par le client
+// l'accord du client (case cochée au panier) pour montrer son œuvre
+export const consentLine = (order) => (order.consent
+  ? 'accepté (réseaux, communication, publicité ; sans nom ni prénom ou visage d’enfant)'
+  : 'refusé : ne pas montrer l’œuvre');
 export function shopEmail(kind, order, visuals) {
   const vis = visuals && visuals.map;
   const c = order.customer || {};
@@ -208,12 +217,13 @@ export function shopEmail(kind, order, visuals) {
     para(`<b style="color:${C.ink};white-space:normal;">${esc(lead)}</b>`),
     express && !cancelled ? para(`<span style="display:inline-block;background:#fbeee9;color:${C.argile};font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:999px;">Express · Chronopost 24 h</span>`) : '',
     para(`<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${C.muted};">Client</span><br>${esc(who || '—')}`),
+    cancelled ? '' : para(`<span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${C.muted};">Partage de l’œuvre</span><br>${esc(consentLine(order))}`),
     `<tr><td style="padding:4px 0 22px;">${btn(admin, cancelled ? 'Voir les commandes' : 'Préparer la commande')}</td></tr>`,
     heroHtml(order, vis),
     recapHtml(order, vis),
     addressHtml(order, 'Adresse de livraison'),
   ].join('\n');
-  const paras = [lead, `Client : ${who || '—'}`, addr.length ? `Livraison${express ? ' EXPRESS (Chronopost 24 h)' : ' Colissimo'} : ${addr.join(', ')}` : null, `À gérer dans l’atelier, espace administrateur, Commandes : ${admin}`].filter(Boolean);
+  const paras = [lead, `Client : ${who || '—'}`, cancelled ? null : `Partage de l’œuvre : ${consentLine(order)}`, addr.length ? `Livraison${express ? ' EXPRESS (Chronopost 24 h)' : ' Colissimo'} : ${addr.join(', ')}` : null, `À gérer sur la page Gestion des commandes : ${admin}`].filter(Boolean);
   return {
     subject: cancelled ? `Annulation ${order.ref}` : `Nouvelle commande ${order.ref}`,
     html: page({ preheader: `${lead} ${who}`, title, body }),

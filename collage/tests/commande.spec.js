@@ -142,6 +142,16 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(paid.html).toContain('https://ateliergribouille.art/commandes.html#AG-261125-AB12'); // (la page Mes commandes, sur cette commande)
     expect(paid.text).toContain('https://ateliergribouille.art/commandes.html#AG-261125-AB12');
     expect(e.shopEmail('nouvelle', order).html).toContain(`https://ateliergribouille.art/gestion-commandes.html#${order.ref}`); // (la page Gestion des commandes, sur cette commande)
+    // l'accord du client pour montrer l'œuvre, dans l'e-mail de la boutique
+    expect(e.shopEmail('nouvelle', Object.assign({}, order, { consent: true })).text).toContain('Partage de l’œuvre : accepté');
+    expect(e.shopEmail('nouvelle', Object.assign({}, order, { consent: false })).text).toContain('Partage de l’œuvre : refusé');
+    // la facture dans la confirmation : le lien Stripe, sinon Mes commandes ; un lien d'ailleurs jamais
+    const inv = 'https://invoice.stripe.com/i/acct_1/test_x?s=ap';
+    expect(e.customerEmail('payee', order, null, { invoice: inv }).html).toContain(inv);
+    expect(e.customerEmail('payee', order, null, { invoice: inv }).text).toContain(`Votre facture : ${inv}`);
+    expect(e.customerEmail('payee', order, null, { invoice: 'https://evil.example/f.pdf' }).html).not.toContain('evil.example');
+    expect(e.customerEmail('payee', order, null).text).toContain('Votre facture est disponible dans Mes commandes');
+    expect(e.customerEmail('expediee', order, null, { invoice: inv }).html).not.toContain(inv);
     // expédiée : le lien de suivi du transporteur
     const sent = e.customerEmail('expediee', Object.assign({}, order, { carrier: 'Colissimo', tracking: '6A12345678901' }));
     expect(sent.html).toContain('https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901');

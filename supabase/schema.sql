@@ -386,6 +386,11 @@ revoke all on public.site_events from anon, authenticated;
 -- comptes, œuvres, partages, stockage, journal. Appelée seulement par la fonction « tableau-de-bord »
 -- (clé serveur), qui vérifie d'abord l'administrateur et sa double authentification ; jours comptés à
 -- l'heure de Paris. Ventes : commandes payées, sans les annulées (remboursées) ni les abandonnées.
+-- (le tableau de bord compte les œuvres par date sans relire leurs réglages : index partiel sur la date
+-- des œuvres enregistrées ; les œuvres récentes par date)
+create index if not exists compositions_works_idx on public.compositions (created_at)
+  where meta ->> 'cart' is null and meta ->> 'draft' is null;
+create index if not exists compositions_created_idx on public.compositions (created_at);
 create or replace function public.admin_dashboard()
 returns jsonb
 language plpgsql
@@ -406,8 +411,10 @@ begin
     from public.orders o
     where o.paid_at is not null and o.status not in ('annulee', 'abandonnee', 'attente_paiement')
   ),
+  -- (les œuvres : la date seulement ; l'index partiel compositions_works_idx évite de relire les
+  -- réglages de chaque œuvre, volumineux, à chaque ouverture du tableau de bord)
   works as (
-    select c.created_at, c.meta from public.compositions c
+    select c.created_at from public.compositions c
     where c.meta ->> 'cart' is null and c.meta ->> 'draft' is null
   )
   select jsonb_build_object(
@@ -435,7 +442,7 @@ begin
       'partages', jsonb_build_object(
         'actifs', (select count(*) from public.compositions c where c.meta -> 'share' ->> 'token' is not null
           and (c.meta -> 'share' ->> 'expires') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' and (c.meta -> 'share' ->> 'expires') > now_iso),
-        'recus7', (select count(*) from public.compositions c where c.meta ? 'sharedFrom' and c.created_at > now() - interval '7 days')),
+        'recus7', (select count(*) from public.compositions c where c.created_at > now() - interval '7 days' and c.meta ? 'sharedFrom')),
       'stockage', (select jsonb_build_object('bytes', coalesce(sum(case when (o.metadata ->> 'size') ~ '^[0-9]{1,15}$' then (o.metadata ->> 'size')::bigint else 0 end), 0), 'files', count(*))
                    from storage.objects o where o.bucket_id = 'drawings'),
       'byDay', (select jsonb_agg(jsonb_build_object('d', days.d, 'comptes', coalesce(u.n, 0), 'oeuvres', coalesce(w.n, 0)) order by days.d)

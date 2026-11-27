@@ -3,7 +3,7 @@
 // commandées (figées, gardées hors de la purge) ; page de paiement abandonnée : la commande aussi.
 // Chaque notification est vérifiée (signature, secret STRIPE_WEBHOOK_SECRET) ; une notification reçue
 // deux fois ne change rien de plus.
-import { verifySignature, orderTrace } from '../_shared/commande.js';
+import { verifySignature, orderTrace, invoiceLink } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, thumbsOf } from '../_shared/supabase.js';
 import { orderLog } from '../_shared/historique.js';
@@ -25,6 +25,16 @@ async function delivery(session: any) {
   } catch (e) { return null; }
 }
 
+// le lien de la facture Stripe de la session (faite après le paiement : invoice_creation), ou null ; jamais
+// bloquant pour la confirmation de commande
+async function invoiceOf(session: any): Promise<string | null> {
+  try {
+    const id = typeof session.invoice === 'string' ? session.invoice : session.invoice && session.invoice.id;
+    if (!id || !STRIPE_KEY) return null;
+    const r = await fetch(`https://api.stripe.com/v1/invoices/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${STRIPE_KEY}` }, signal: AbortSignal.timeout(10000) });
+    return r.ok ? invoiceLink(await r.json()) : null;
+  } catch (e) { console.error('facture', e); return null; }
+}
 async function paid(session: any) {
   const id = session.metadata && session.metadata.order_id;
   if (!id) return;
@@ -56,7 +66,7 @@ async function paid(session: any) {
   const [saved] = (await rest('GET', `orders?id=eq.${id}&select=*`)) || [];
   if (saved) {
     const vis = visualsOf(saved, await thumbsOf(saved));
-    await send(customerAddress(saved), customerEmail('payee', saved, vis));
+    await send(customerAddress(saved), customerEmail('payee', saved, vis, { invoice: await invoiceOf(session) }));
     await send(shopAddress(), shopEmail('nouvelle', saved, vis));
   }
 }

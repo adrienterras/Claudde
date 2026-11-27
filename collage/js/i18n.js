@@ -276,6 +276,7 @@
     'dont {0} de livraison': 'including {0} delivery',
     'Préparation du paiement sécurisé…': 'Preparing secure payment…',
     'Envoi de « {0} » dans votre compte : {1} / {2} fichiers…': 'Sending “{0}” to your account: {1} / {2} files…',
+    'Envoi de « {0} » dans votre compte…': 'Sending “{0}” to your account…',
     'pas de réponse du serveur : vérifiez la connexion et réessayez': 'no response from the server: check your connection and try again',
     'fichier introuvable': 'file not found',
     'cette œuvre appartient à un autre compte': 'this artwork belongs to another account',

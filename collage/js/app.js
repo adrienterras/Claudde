@@ -9403,12 +9403,16 @@ Réponds uniquement avec ce JSON :
     try {
       // (chaque étape est dite dans le panier : préparation sur l'appareil, puis copie ou envoi des fichiers)
       const say = (t, p) => { if (!$('cart').hidden) cartStatus(t, p); };
+      // (la barre : la préparation sur l'appareil jusqu'à 30 %, puis l'envoi des fichiers jusqu'au bout ;
+      // elle n'est jamais pleine tant que l'envoi n'est pas fini)
       const prep = tr`Préparation de « ${it.title} » pour votre compte…`;
       say(prep, 0);
-      const rec = await cartRecForCloud(it, (k, n) => say(prep, n ? k / n : 0));
+      const rec = await cartRecForCloud(it, (k, n) => say(prep, n ? 0.3 * (k / n) : 0));
       if (!rec) return;
+      say(tr`Envoi de « ${it.title} » dans votre compte…`, 0.3);
       // (les fichiers de l'œuvre du compte sont repris tels quels : seuls les autres partent)
-      const cid = await window.Account.cloud.put(rec, (n, total) => { if (total) say(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, n / total); });
+      const cid = await window.Account.cloud.put(rec, (n, total) => { if (total) say(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, 0.3 + 0.65 * (n / total)); });
+      say(tr`Envoi de « ${it.title} » dans votre compte…`, 1); // (fini : la barre pleine, puis elle s'efface)
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
       // (la quantité a changé pendant l'envoi : le compte la prend aussi)
@@ -9418,7 +9422,8 @@ Réponds uniquement avec ce JSON :
     } catch (e) { console.error(e); cartStatus(tr`Panier non envoyé dans votre compte : ${(e && e.message) || ''}`); } finally {
       cartUploading.delete(it.id);
       // envoi fini (et plus aucun en cours) : le message et la barre de progression disparaissent
-      if (sent && !cartUploading.size && !$('cart').hidden) cartStatus('');
+      // (la barre pleine se voit un instant avant de s'effacer)
+      if (sent) setTimeout(() => { if (!cartUploading.size && !$('cart').hidden) cartStatus(''); }, 500);
     }
   }
   let cartSyncing = null;
