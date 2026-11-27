@@ -363,7 +363,6 @@ test.describe('Compositions', () => {
   });
   test('un dessin retiré de l’œuvre passe dans « Non utilisé », n’y revient pas en recomposant ; Défaire le remet', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
     const i = await page.evaluate(() => { const st = AtelierGribouille.state; return st.drawings.indexOf(st.comp.items[0].piece.drawing); });
     const group = (k) => page.evaluate((k) => { const el = document.querySelector(`#drawings .thumb[data-i="${k}"]`); return el && el.closest('.drawings-group').classList[1]; }, i);
@@ -392,7 +391,6 @@ test.describe('Compositions', () => {
   });
   test('un dessin de « Non utilisé » remis en Découpe ou en Fond revient sur l’œuvre, le reste ne bouge pas', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
     const st = () => page.evaluate(() => { const S = AtelierGribouille.state; return { items: S.comp.items.map((L) => [S.drawings.indexOf(L.piece.drawing), +L.x.toFixed(3), +L.y.toFixed(3)]), pages: S.comp.bg.filter((L) => !L.paper).map((L) => S.drawings.indexOf(L.drawing || null)), style: S.comp.style }; });
     const group = (k) => page.evaluate((k) => { const el = document.querySelector(`#drawings .thumb[data-i="${k}"]`); return el && el.closest('.drawings-group').classList[1]; }, k);
@@ -435,7 +433,6 @@ test.describe('Compositions', () => {
   });
   test('« + » sur un dessin de « Non utilisé » le remet sur l’œuvre, dans son rôle d’avant ; une vignette ne se glisse pas', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
     const st = () => page.evaluate(() => { const S = AtelierGribouille.state; return { items: S.comp.items.map((L) => [S.drawings.indexOf(L.piece.drawing), +L.x.toFixed(3), +L.y.toFixed(3)]), pages: S.comp.bg.filter((L) => !L.paper).map((L) => S.drawings.indexOf(L.drawing || null)) }; });
     const group = (k) => page.evaluate((k) => { const el = document.querySelector(`#drawings .thumb[data-i="${k}"]`); return el && el.closest('.drawings-group').classList[1]; }, k);
@@ -476,7 +473,6 @@ test.describe('Compositions', () => {
   });
   test('la corbeille d’un dessin de « Non utilisé » le supprime de l’atelier, après confirmation ; l’œuvre affichée ne bouge pas', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
     // pas de corbeille hors de « Non utilisé »
     await expect(page.locator('#drawings .thumb-del')).toHaveCount(0);
@@ -511,7 +507,6 @@ test.describe('Compositions', () => {
   });
   test('la poubelle, au coin haut gauche du dessin sélectionné, le retire de l’œuvre ; Défaire le remet', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     const pick = async (kind) => {
       // le dessin sélectionné, et la place de sa poubelle à l'écran
       return page.evaluate((kind) => {
@@ -539,7 +534,6 @@ test.describe('Compositions', () => {
   });
   test('photo détourée ou gardée entière (fiche du dessin) : le dessin change sur place, le reste de l’œuvre ne bouge pas ; Défaire', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png', 'photo-wood.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
     const k = await page.evaluate(() => AtelierGribouille.state.drawings.findIndex((d) => /photo-wood/.test(d.name)));
     const st = () => page.evaluate((k) => {
@@ -573,7 +567,6 @@ test.describe('Compositions', () => {
   });
   test('Découpe ↔ Fond (fiche du dessin) : le dessin change sur place, le reste de l’œuvre ne bouge pas ; Défaire', async ({ app }) => {
     const { page } = app;
-    await app.import(['page-cutout.png', 'page-two.png', 'page-texture.png']);
     await page.evaluate(() => { const s = document.getElementById('drawings-section'); if (s.classList.contains('collapsed')) s.querySelector(':scope > h2').click(); });
     const k = await page.evaluate(() => { const S = AtelierGribouille.state; return S.drawings.indexOf(S.comp.items[0].piece.drawing); });
     const st = () => page.evaluate((k) => {
