@@ -144,7 +144,8 @@
         <div id="exports-list" class="saved-list"></div>
         <p id="exports-status" class="save-status" role="status" hidden></p>
       </div>
-      <!-- administration : les œuvres de tous les comptes, en lecture seule (compte administrateur seulement) -->
+      <!-- administration : les commandes (administrateur et équipe) et les œuvres de tous les comptes, en
+           lecture seule (administrateur seulement) -->
       <div id="admin-box" hidden>
         <!-- les commandes payées de tous les comptes : adresse, œuvres à imprimer, statut et suivi (le client
              reçoit un e-mail à chaque étape) ; annuler rembourse le client -->
@@ -156,8 +157,9 @@
           <datalist id="admin-carriers"><option value="Colissimo"><option value="Chronopost"><option value="Mondial Relay"></datalist>
           <p id="admin-orders-status" class="save-status" role="status" hidden></p>
         </div>
-        <h3>Toutes les œuvres <small id="admin-count"></small></h3>
-        <p class="hint">Administration : les œuvres de tous les comptes, en lecture seule. Ouvrir une œuvre en fait une copie dans votre compte ; l’original n’est pas touché.</p>
+        <!-- (« Toutes les œuvres » : l'administrateur seulement ; l'équipe ne voit que les commandes) -->
+        <h3 class="admin-works">Toutes les œuvres <small id="admin-count"></small></h3>
+        <p class="hint admin-works">Administration : les œuvres de tous les comptes, en lecture seule. Ouvrir une œuvre en fait une copie dans votre compte ; l’original n’est pas touché.</p>
         <!-- double authentification exigée par le serveur avant toute lecture (voir supabase/schema.sql) -->
         <div id="admin-mfa" class="admin-mfa" hidden>
           <p class="hint" id="admin-mfa-text"></p>
@@ -173,7 +175,7 @@
             <button type="submit" class="btn btn-primary">Valider</button>
           </form>
         </div>
-        <div id="admin-list" class="saved-list"></div>
+        <div id="admin-list" class="saved-list admin-works"></div>
         <button type="button" class="link" id="admin-more" hidden>Afficher les œuvres suivantes</button>
         <p id="admin-status" class="save-status" role="status" hidden></p>
       </div>

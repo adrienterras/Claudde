@@ -48,9 +48,10 @@ async function withRole(req, roles) {
 }
 // l'administrateur (tous les pouvoirs)
 export const adminOf = (req) => withRole(req, ['admin']);
-// qui peut lire le tableau de bord : l'administrateur, ou un compte au rôle « tableau » (lecture du
-// tableau de bord seulement : ni les œuvres des clients, ni les commandes, ni les remboursements)
-export const dashboardOf = (req) => withRole(req, ['admin', 'tableau']);
+// l'équipe : l'administrateur, ou un compte au rôle « tableau » — le tableau de bord et la gestion des
+// commandes (statuts, suivi, annulation et remboursement), jamais les autres œuvres des clients
+export const staffOf = (req) => withRole(req, ['admin', 'tableau']);
+export const dashboardOf = staffOf;
 
 // la réponse JSON d'une fonction appelée par l'atelier, avec les en-têtes CORS du site
 export function replier(req, origins) {

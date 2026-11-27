@@ -85,7 +85,7 @@
       if (!uid) return ko('JWT expired');
       // (comme les règles RLS : ses propres lignes seulement ; l'administrateur passe par admin_works et admin_open)
       // (les commandes de tous les comptes : l'administrateur, avec la double authentification, les lit)
-      let rows = db.rows.filter((r) => (r.user_id === uid || (table === 'orders' && isAdm(db.session && db.session.user))) && (r.__table || 'compositions') === table);
+      let rows = db.rows.filter((r) => (r.user_id === uid || (table === 'orders' && isStaff(db.session && db.session.user))) && (r.__table || 'compositions') === table);
       // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
       q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'in' ? v.includes(x) : op === 'is' ? x == v : op === 'not-is' ? x != v : op === 'neq' ? x !== v : x === v; }); });
@@ -112,7 +112,9 @@
     async download(path) {
       // (comme les règles du stockage : son dossier ; l'administrateur, le dossier d'un compte dont il a ouvert une œuvre)
       const uid = db.session && db.session.user.id, owner = path.split('/')[0];
-      if (owner !== uid && !(isAdm(db.session && db.session.user) && path.split('/')[1] !== 'exports' && window.__fake.adminLog.some((l) => l.admin === uid && l.owner === owner))) return { data: null, error: { message: 'Object not found' } };
+      const me = db.session && db.session.user, work = path.split('/')[1];
+      const opened = (l) => l.admin === uid && l.owner === owner && (isAdm(me) || l.id === work || ((db.rows.find((r) => r.id === l.id) || {}).meta || {}).fromWork === work);
+      if (owner !== uid && !(isStaff(me) && work !== 'exports' && window.__fake.adminLog.some(opened))) return { data: null, error: { message: 'Object not found' } };
       const f = db.files[path]; if (!f) return { data: null, error: { message: `fichier absent : ${path}` } }; return { data: new Blob([unb64(f)]), error: null }; },
     async list(prefix) { return { data: Object.keys(db.files).filter((p) => p.startsWith(prefix + '/')).map((p) => ({ name: p.slice(prefix.length + 1) })), error: null }; },
     async copy(from, to) { const uid = db.session && db.session.user.id; if (window.__FAKE_COPY_FAIL || !db.files[from] || from.split('/')[0] !== uid) return { data: null, error: { message: 'Object not found' } }; db.files[to] = db.files[from]; persist(); window.__fake.calls.push(['copy', to, from]); return { data: { path: to }, error: null }; },
@@ -121,11 +123,16 @@
   }) };
   // (comme is_admin() : le rôle écrit côté serveur dans app_metadata, jamais l'e-mail, et la double authentification)
   const isAdm = (u) => !!(u && u.app_metadata && u.app_metadata.atelier_role === 'admin' && db.session && db.session.aal === 'aal2');
+  // (comme is_staff() : l'administrateur ou l'équipe, rôle « tableau », avec la double authentification)
+  const isStaff = (u) => !!(u && u.app_metadata && ['admin', 'tableau'].includes(u.app_metadata.atelier_role) && db.session && db.session.aal === 'aal2');
+  // (une œuvre d'une commande payée : l'équipe peut l'ouvrir pour l'imprimer)
+  const orderedWork = (id) => db.rows.some((o) => o.__table === 'orders' && !['attente_paiement', 'abandonnee'].includes(o.status) && (o.items || []).some((it) => it.compId === id));
   const rpc = (name, args) => {
     if (name === 'is_admin') return ok(isAdm(db.session && db.session.user));
     if (name === 'admin_works' || name === 'admin_open') {
       const u = db.session && db.session.user;
-      if (!isAdm(u)) return ko('réservé à l\'administrateur, connecté avec la double authentification');
+      // (admin_works : l'administrateur ; admin_open : l'équipe aussi, pour une œuvre commandée seulement)
+      if (!(name === 'admin_open' ? isStaff(u) && (isAdm(u) || orderedWork(args.p_id)) : isAdm(u))) return ko(isStaff(u) ? 'œuvre introuvable' : 'réservé à l\'administrateur, connecté avec la double authentification');
       const email = (id) => (Object.values(db.users).find((x) => x.id === id) || {}).email || null;
       if (name === 'admin_open') {
         const r = db.rows.find((x) => x.id === args.p_id && (x.__table || 'compositions') === 'compositions' && !(x.meta && x.meta.cart));
@@ -207,7 +214,7 @@
         const u = db.session && db.session.user;
         if (!u) return fnError('connexion requise');
         const o = db.rows.find((r) => r.__table === 'orders' && r.id === body.id);
-        const admin = isAdm(u);
+        const admin = isStaff(u); // (l'administrateur ou l'équipe)
         if (!o || (!admin && o.user_id !== u.id)) return fnError('commande inconnue');
         if (name === 'commande-statut') {
           if (!admin) return fnError('réservé à l’administrateur, connecté avec la double authentification');

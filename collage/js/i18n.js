@@ -813,7 +813,7 @@
     'Aucune application d’authentification n’est activée sur ce compte.': 'No authenticator app is set up on this account.',
     'les règles d’administration ne sont pas à jour sur le serveur : exécutez supabase/schema.sql dans l’éditeur SQL de Supabase': 'the admin rules on the server are out of date: run supabase/schema.sql in the Supabase SQL editor',
     'œuvre introuvable': 'artwork not found',
-    'Pour voir les œuvres de tous les comptes, la double authentification est obligatoire : installez une application d’authentification (Google Authenticator, Microsoft Authenticator, 1Password…), puis activez-la ici.': 'To see the artworks of all accounts, two-factor authentication is required: install an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…), then turn it on here.',
+    'Pour l’administration du site (commandes, œuvres des comptes), la double authentification est obligatoire : installez une application d’authentification (Google Authenticator, Microsoft Authenticator, 1Password…), puis activez-la ici.': 'Site administration (orders, accounts’ artworks) requires two-factor authentication: install an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…), then turn it on here.',
     'Scannez ce code avec l’application, puis saisissez le code à 6 chiffres qu’elle affiche.': 'Scan this code with the app, then enter the 6-digit code it shows.',
     'Double authentification : saisissez le code à 6 chiffres affiché par votre application d’authentification.': 'Two-factor authentication: enter the 6-digit code shown by your authenticator app.',
     'Activation impossible : {0}': 'Could not turn it on: {0}',

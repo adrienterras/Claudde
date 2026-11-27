@@ -102,13 +102,26 @@ as $$
 $$;
 revoke all on function public.is_admin() from public;
 grant execute on function public.is_admin() to authenticated;
+-- l'équipe (27 novembre 2026) : l'administrateur, ou un compte au rôle « tableau », avec la double
+-- authentification. Elle lit et gère les commandes et ouvre les œuvres commandées (pour les imprimer),
+-- sans voir les autres œuvres des clients ; « Toutes les œuvres » et les quotas restent à l'administrateur.
+create or replace function public.is_staff()
+returns boolean
+language sql
+stable
+as $$
+  select coalesce((select auth.jwt() -> 'app_metadata' ->> 'atelier_role'), '') in ('admin', 'tableau')
+     and coalesce((select auth.jwt() ->> 'aal'), '') = 'aal2';
+$$;
+revoke all on function public.is_staff() from public;
+grant execute on function public.is_staff() to authenticated;
 -- Le rôle se donne une fois, à la main, dans l'éditeur SQL (il prend effet à la prochaine connexion) :
 --   update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"atelier_role": "admin"}'::jsonb
 --     where id = '<identifiant du compte, Authentication → Users>';
 -- Pour le retirer : « - 'atelier_role' » au lieu de « || … ». (Plus d'adresse e-mail dans ce fichier.)
--- Le rôle « tableau » (27 novembre 2026) n'ouvre que le tableau de bord du site (fonction
--- « tableau-de-bord ») : ni les œuvres des clients, ni les commandes, ni les quotas ; il se donne de même,
--- avec '{"atelier_role": "tableau"}'.
+-- Le rôle « tableau » (l'équipe, 27 novembre 2026) ouvre le tableau de bord du site et la gestion des
+-- commandes (voir is_staff ci-dessous) ; ni « Toutes les œuvres », ni les autres œuvres des clients, ni
+-- les quotas. Il se donne de même, avec '{"atelier_role": "tableau"}'.
 
 -- Les anciennes règles de lecture directe sont retirées
 drop policy if exists "compositions: admin reads all" on public.compositions;
@@ -170,8 +183,14 @@ as $$
 declare
   owner uuid;
 begin
-  if not public.is_admin() then
+  if not public.is_staff() then
     raise exception 'réservé à l''administrateur, connecté avec la double authentification';
+  end if;
+  -- (l'équipe : seulement une œuvre d'une commande, pour l'imprimer)
+  if not public.is_admin() and not exists (
+    select 1 from public.orders o, jsonb_array_elements(o.items) it
+    where it ->> 'compId' = p_id::text and o.status not in ('attente_paiement', 'abandonnee')) then
+    raise exception 'œuvre introuvable';
   end if;
   select c.user_id into owner from public.compositions c where c.id = p_id and c.meta ->> 'cart' is null;
   if owner is null then
@@ -201,12 +220,32 @@ revoke all on function public.admin_opened(text) from public;
 revoke execute on function public.admin_opened(text) from anon;
 grant execute on function public.admin_opened(text) to authenticated;
 
+-- (l'équipe : les fichiers de l'œuvre commandée ouverte dans l'heure, et ceux de l'œuvre d'où elle vient,
+-- jamais tout le dossier du client)
+create or replace function public.staff_opened(owner text, work text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select public.is_staff() and exists (
+    select 1 from public.admin_log l
+    left join public.compositions c on c.id = l.composition_id
+    where l.admin_id = auth.uid() and l.action = 'open' and l.owner_id::text = owner and l.at > now() - interval '1 hour'
+      and (l.composition_id::text = work or coalesce(c.meta ->> 'fromWork', '') = work));
+$$;
+revoke all on function public.staff_opened(text, text) from public;
+revoke execute on function public.staff_opened(text, text) from anon;
+grant execute on function public.staff_opened(text, text) to authenticated;
+
 drop policy if exists "drawings: admin reads opened works" on storage.objects;
 create policy "drawings: admin reads opened works" on storage.objects
   for select to authenticated
   using (bucket_id = 'drawings'
     and coalesce((storage.foldername(name))[2], '') <> 'exports'
-    and public.admin_opened((storage.foldername(name))[1]));
+    and (public.admin_opened((storage.foldername(name))[1])
+      or public.staff_opened((storage.foldername(name))[1], coalesce((storage.foldername(name))[2], ''))));
 
 -- Limites côté serveur (16 novembre 2026) : la limite de 15 œuvres et la purge à 60 jours sont tenues
 -- par l'atelier ; le serveur pose en plus des plafonds larges, qu'un script ne peut pas contourner.
@@ -322,7 +361,7 @@ create policy "orders: own rows" on public.orders
 drop policy if exists "orders: admin reads" on public.orders;
 create policy "orders: admin reads" on public.orders
   for select to authenticated
-  using (public.is_admin());
+  using (public.is_staff());
 -- (le statut, le transporteur et le numéro de suivi ne changent que par la fonction « commande-statut »,
 -- qui vérifie l'administrateur et l'ordre des étapes : aucune modification directe depuis le navigateur)
 drop policy if exists "orders: admin updates" on public.orders;

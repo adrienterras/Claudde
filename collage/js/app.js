@@ -7920,8 +7920,13 @@ Réponds uniquement avec ce JSON :
   async function renderAdmin() {
     const box = $('admin-box'), list = $('admin-list');
     const A = window.Account;
-    if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; syncResumeSaved(); return; }
+    // l'administrateur : les commandes et toutes les œuvres ; l'équipe (rôle « tableau ») : les commandes seulement
+    const full = !!(A && A.isAdmin && A.isAdmin());
+    const staff = full || !!(A && A.canDashboard && A.canDashboard());
+    if (!box || !(A && A.enabled && A.user() && staff)) { if (box) box.hidden = true; syncResumeSaved(); return; }
     box.hidden = false;
+    box.querySelectorAll('.admin-works').forEach((el) => { el.hidden = !full; });
+    if (!full) $('admin-more').hidden = true;
     syncResumeSaved();
     const run = ++adminRun;
     const mfa = $('admin-mfa');
@@ -7948,6 +7953,7 @@ Réponds uniquement avec ce JSON :
     }
     mfa.hidden = true;
     renderAdminOrders();
+    if (!full) { adminStatus(''); return; }
     adminStatus(tr('Lecture des œuvres de tous les comptes…'));
     let rows = [];
     try { rows = await timed(A.adminList(0)); } catch (e) { failed(e); return; }
@@ -8073,7 +8079,7 @@ Réponds uniquement avec ce JSON :
     qr.hidden = true;
     code.value = '';
     if (st === 'enroll') {
-      $('admin-mfa-text').textContent = tr('Pour voir les œuvres de tous les comptes, la double authentification est obligatoire : installez une application d’authentification (Google Authenticator, Microsoft Authenticator, 1Password…), puis activez-la ici.');
+      $('admin-mfa-text').textContent = tr('Pour l’administration du site (commandes, œuvres des comptes), la double authentification est obligatoire : installez une application d’authentification (Google Authenticator, Microsoft Authenticator, 1Password…), puis activez-la ici.');
       start.hidden = false; form.hidden = true;
       start.onclick = async () => {
         start.disabled = true;

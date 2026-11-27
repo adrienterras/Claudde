@@ -26,8 +26,12 @@ l'application d'authentification, et l'active elle-même la première fois (code
 fonction serveur `tableau-de-bord` qui vérifie le rôle et la double authentification ; la page ne fait
 qu'afficher ce que le serveur renvoie.
 
-Le rôle `tableau` n'ouvre que cette page : ni les œuvres des clients, ni la gestion des commandes, ni
-les remboursements, ni les quotas (tout cela reste réservé au rôle `admin`).
+Le rôle `tableau` (l'équipe) ouvre ce tableau de bord et la **gestion des commandes** dans l'atelier
+(onglet du compte → Commandes) : adresse de livraison, statuts, suivi, annulation et remboursement, et
+l'ouverture des **œuvres commandées** pour les imprimer (fichiers de cette œuvre seulement, pendant une
+heure, inscrit au journal `admin_log`). Il n'ouvre ni « Toutes les œuvres », ni les autres œuvres des
+clients, ni leurs exports, et ne lève pas les quotas : cela reste au rôle `admin`. Le serveur le vérifie
+(`is_staff()`, `staff_opened()`, fonctions `commande-statut` et `commande-annuler`).
 
 **Donner le rôle `tableau`** à un compte (qui doit déjà exister : la personne crée son compte sur le
 site et confirme son e-mail) : Supabase → SQL Editor → New query →

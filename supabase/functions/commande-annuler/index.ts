@@ -6,7 +6,7 @@
 // remboursement part ; s'il échoue, la commande revient à son statut. E-mails : client et boutique.
 import { ORIGINS } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
-import { rest, userOf, adminOf, replier, thumbsOf } from '../_shared/supabase.js';
+import { rest, userOf, staffOf, replier, thumbsOf } from '../_shared/supabase.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
 
 journalFrom('commande-annuler');
@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   try {
     const user = await userOf(req);
     if (!user) return reply(401, { error: 'connexion requise' });
-    const admin = await adminOf(req);
+    const admin = await staffOf(req); // (l'administrateur ou l'équipe, rôle « tableau » : jusqu'à l'expédition)
     const body = await req.json().catch(() => ({}));
     const id = String(body.id || '');
     if (!/^[0-9a-f-]{36}$/.test(id)) return reply(400, { error: 'commande inconnue' });

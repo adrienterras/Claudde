@@ -3,7 +3,7 @@
 // chaque étape. Appelée depuis l'espace administrateur de l'atelier (Commandes).
 import { ORIGINS } from '../_shared/commande.js';
 import { customerEmail, customerAddress, send, visualsOf } from '../_shared/emails.js';
-import { rest, adminOf, replier, thumbsOf } from '../_shared/supabase.js';
+import { rest, staffOf, replier, thumbsOf } from '../_shared/supabase.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
 
 journalFrom('commande-statut');
@@ -15,8 +15,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return reply(405, { error: 'méthode non permise' });
   try {
-    const admin = await adminOf(req);
-    if (!admin) return reply(403, { error: 'réservé à l’administrateur, connecté avec la double authentification' });
+    // (l'administrateur ou l'équipe, rôle « tableau », avec la double authentification)
+    const admin = await staffOf(req);
+    if (!admin) return reply(403, { error: 'réservé à l’équipe du site, connectée avec la double authentification' });
     const body = await req.json().catch(() => ({}));
     const id = String(body.id || '');
     if (!/^[0-9a-f-]{36}$/.test(id)) return reply(400, { error: 'commande inconnue' });

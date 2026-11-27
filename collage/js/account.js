@@ -660,7 +660,7 @@
   // toutes les commandes (administrateur, double authentification), les plus récentes d'abord, sans
   // les paiements commencés et abandonnés ; leurs œuvres s'ouvrent comme celles de Toutes les œuvres
   async function ordersAdmin() {
-    if (!isAdmin()) return [];
+    if (!canDashboard()) return []; // (l'administrateur ou l'équipe : rôle « tableau »)
     const { data, error } = await withTimeout(client.from('orders').select('*').order('created_at', { ascending: false }).range(0, 149), 45000);
     err(error);
     const rows = (data || []).filter((o) => o.status !== 'attente_paiement' && o.status !== 'abandonnee');
