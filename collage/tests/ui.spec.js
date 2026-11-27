@@ -188,15 +188,15 @@ test.describe('Interface', () => {
     errors.splice(0, errors.length);
   });
 
-  test('téléphone : la colonne de zoom est verticale à droite et la page ne déborde pas', async ({ browser }) => {
+  test('téléphone : le zoom est dans la barre du haut (plus de colonne à droite) et la page ne déborde pas', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    const zoom = await page.locator('.zoom').evaluate((el) => getComputedStyle(el).flexDirection);
-    expect(zoom).toBe('column');
+    const zoom = await page.locator('.zoom').evaluate((el) => [el.parentElement.id, getComputedStyle(el).flexDirection]);
+    expect(zoom).toEqual(['toolbar', 'row']);
     // pas de zoom par double touche : la page, le tiroir et ses boutons déclarent touch-action: manipulation
     expect(await page.evaluate(() => getComputedStyle(document.body).touchAction)).toBe('manipulation');
     expect(await page.evaluate(() => getComputedStyle(document.querySelector('.panel')).touchAction)).toBe('manipulation');
@@ -1810,8 +1810,7 @@ test.describe('Panier sur téléphone', () => {
     // pas d'icône panier sur les cartes de propositions
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await expect(page.locator('.proposal-cart')).toHaveCount(0);
-    const zoom = await page.locator('.zoom').boundingBox();
-    expect(b.x + b.width).toBeLessThan(zoom.x); // il ne croise pas la colonne d'outils
+    expect(b.x + b.width).toBeLessThan(195); // (à gauche, loin du bouton rond)
     await expect(cta.locator('.ico')).toBeVisible(); // l'icône du sac, sur téléphone
     await cta.click();
     await expect(page.locator('#cart-add')).toBeVisible();
@@ -2621,7 +2620,7 @@ test.describe('Onglet Dessins (téléphone)', () => {
 });
 
 test.describe('Barre d’outils du haut (téléphone)', () => {
-  test('œuvre en grand : la barre se range à gauche, sans toucher l’icône du compte, tous ses boutons visibles (390 et 320 px)', async ({ browser }) => {
+  test('œuvre en grand : la barre prend la largeur, l’icône du compte passe dessous, tous ses boutons visibles (390 et 320 px)', async ({ browser }) => {
     const { fixture } = require('./helpers');
     for (const width of [390, 320]) {
       const ctx = await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true });
@@ -2632,12 +2631,17 @@ test.describe('Barre d’outils du haut (téléphone)', () => {
       await page.setInputFiles('#file', [fixture('page-cutout.png')]);
       await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
       await expect(page.locator('body')).toHaveClass(/stage-full/);
-      const r = await page.evaluate(() => { const a = document.getElementById('acc-head').getBoundingClientRect(), t = document.getElementById('toolbar'), b = t.getBoundingClientRect(); return { left: b.left, right: b.right, acc: a.left, scroll: t.scrollWidth - t.clientWidth }; });
-      expect(r.left).toBeLessThan(20);
-      expect(r.right).toBeLessThanOrEqual(r.acc - 8);
-      expect(r.scroll).toBe(0);
-      // pas de ciseaux dans la barre (« Retoucher » est à côté de « Mettre en scène »)
-      await expect(page.locator('#toolbar [data-act="edit"]')).toBeHidden();
+      const r = await page.evaluate(() => { const a = document.getElementById('acc-head').getBoundingClientRect(), t = document.getElementById('toolbar'), b = t.getBoundingClientRect(); return { left: b.left, right: b.right, bottom: b.bottom, accTop: a.top, scroll: t.scrollWidth - t.clientWidth, w: innerWidth }; });
+      expect(r.left).toBeGreaterThanOrEqual(0);
+      expect(r.right).toBeLessThanOrEqual(r.w);
+      expect(r.bottom).toBeLessThanOrEqual(r.accTop); // (l'icône du compte, sous la barre)
+      expect(r.scroll).toBeLessThanOrEqual(1);
+      for (const q of ['#tb-save', '#ground-open', '#zoom-in', '#zoom-fit', '#zoom-full', '#zoom-rotate', '#bg-mode']) {
+        const ok = await page.locator(q).evaluate((el) => { const b = el.getBoundingClientRect(), t = document.getElementById('toolbar').getBoundingClientRect(); return b.width > 0 && b.left >= t.left - 1 && b.right <= t.right + 1; });
+        expect(ok, `${q} à ${width} px`).toBe(true);
+      }
+      // les outils du dessin ne sont plus dans la barre (ils apparaissent quand on touche un dessin)
+      for (const a of ['edit', 'front', 'del']) await expect(page.locator(`#toolbar [data-act="${a}"]`)).toBeHidden();
       await ctx.close();
     }
   });

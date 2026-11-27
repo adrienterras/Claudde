@@ -1569,3 +1569,45 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
 .share-expires { margin: 0; }
 .share-revoke { justify-self: center; font-size: 0.84rem; }
 .share-revoke.confirm { color: #8a3a26; font-weight: 600; }
+
+/* Téléphone : plus de colonne à droite : ses boutons (couleur du fond, zoom, voir toute l'œuvre, plein écran,
+   pivoter, fond seul) passent dans la barre du haut, à la suite d'Enregistrer, Défaire et Refaire (placeZoomBar) ;
+   les outils d'un dessin, dans une barre qui n'apparaît que quand on le touche (#piece-bar) */
+.piece-bar, .toolbar .tb-sep-zoom { display: none; }
+@media (max-width: 860px) {
+  .stage canvas { inset: 92px 0 calc(var(--sheet) + 44px) 0; width: 100%; }
+  .toolbar { max-width: calc(100% - 16px); overflow-x: auto; scrollbar-width: none; }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .toolbar [data-act="front"], .toolbar [data-act="back"], .toolbar [data-act="dup"], .toolbar [data-act="edit"], .toolbar [data-act="del"], .toolbar .tb-sep-piece { display: none; }
+  .toolbar .tb-sep-zoom { display: block; }
+  .toolbar > button { padding: 8px 7px; }
+  .toolbar .zoom { position: static; inset: auto; transform: none; display: flex; flex-direction: row; align-items: center; gap: 0; padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; overflow: visible; }
+  .toolbar .zoom[hidden] { display: none; }
+  .toolbar .zoom button { width: 30px; height: 34px; padding: 0; flex: none; }
+  .toolbar .zoom .zoom-val { min-width: 38px; padding: 0; font-size: 0.66rem; }
+  .toolbar .zoom-orient { flex-direction: row; margin: 0; padding: 0; border: 0; }
+  .toolbar .zoom button.mode { width: 30px; min-width: 30px; max-width: 30px; height: 34px; }
+  .toolbar .ground-open .ground-dot { display: block; width: 16px; height: 16px; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--muted); } /* (visible même de la couleur de la barre) */
+  /* tiroir baissé : la barre prend toute la largeur ; « Mon compte » descend à droite de « Mettre en scène » */
+  body.stage-full .toolbar { left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); }
+  body.stage-full .acc-head { top: calc(62px + env(safe-area-inset-top, 0px)); }
+
+  .ground-pop { left: 10px; right: 10px; top: 64px; width: auto; }
+  body.stage-full .ground-pop { top: 116px; } /* (sous « Mon compte », descendu à droite de « Mettre en scène ») */
+  .edit-hint { right: 10px; }
+  .work-newer { right: 10px; }
+  .piece-bar:not([hidden]) { display: grid; grid-template-columns: repeat(6, auto); justify-content: space-between; align-items: center; gap: 2px; position: absolute; left: 8px; right: 8px; z-index: 7; padding: 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 12px 28px -14px rgba(0, 0, 0, .55); }
+  .piece-bar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 44px; height: 52px; padding: 0 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); font: inherit; font-size: 0.66rem; font-weight: 600; cursor: pointer; }
+  .piece-bar button[hidden] { display: none; }
+  .piece-bar button .ico { width: 18px; height: 18px; }
+  .piece-bar .pb-main { background: var(--ink); color: var(--on-ink); padding: 0 10px; }
+  .piece-bar .pb-del { color: var(--danger); }
+  .piece-bar .pb-close { font-size: 1.4rem; font-weight: 400; color: var(--muted); }
+}
+/* petit téléphone : la barre du haut se resserre pour que tous ses boutons tiennent */
+@media (max-width: 370px) {
+  .toolbar > button { padding: 8px 5px; }
+  .toolbar .tb-sep { margin: 6px 0; }
+  .toolbar .zoom button, .toolbar .zoom button.mode { width: 24px; min-width: 24px; max-width: 24px; }
+  .toolbar .zoom .zoom-val { min-width: 32px; font-size: 0.6rem; }
+}

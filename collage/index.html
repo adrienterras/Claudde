@@ -458,12 +458,24 @@
       <span class="tb-sep" aria-hidden="true"></span>
       <button data-act="undo" class="history" title="Défaire (Ctrl+Z)" aria-label="Défaire"><svg class="ico"><use href="#i-undo"/></svg><span>Défaire</span></button>
       <button data-act="redo" class="history" title="Refaire (Ctrl+Maj+Z)" aria-label="Refaire"><svg class="ico"><use href="#i-redo"/></svg><span>Refaire</span></button>
-      <span class="tb-sep" aria-hidden="true"></span>
+      <!-- téléphone : la colonne de droite (fond, zoom, plein écran, pivoter, fond seul) vient ici, à la suite (placeZoomBar) -->
+      <span class="tb-sep tb-sep-zoom" aria-hidden="true"></span>
+      <span class="tb-sep tb-sep-piece" aria-hidden="true"></span>
       <button data-act="front" title="Mettre devant" aria-label="Mettre devant"><svg class="ico"><use href="#i-front"/></svg><span>Devant</span></button>
       <button data-act="back" title="Mettre derrière" aria-label="Mettre derrière"><svg class="ico"><use href="#i-back"/></svg><span>Derrière</span></button>
       <button data-act="dup" title="Dupliquer" aria-label="Dupliquer"><svg class="ico"><use href="#i-copy"/></svg><span>Dupliquer</span></button>
       <button data-act="edit" title="Retoucher la découpe (double-clic)" aria-label="Retoucher la découpe"><svg class="ico"><use href="#i-scissors"/></svg><span>Retoucher</span></button>
       <button data-act="del" title="Retirer (Suppr)" aria-label="Retirer (Suppr)"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
+    </div>
+    <!-- téléphone : les outils du dessin touché, dans une barre juste au-dessus de lui ; elle n'apparaît que
+         tant qu'un dessin est sélectionné (× ou un toucher sur le fond la referment) -->
+    <div id="piece-bar" class="piece-bar" role="toolbar" aria-label="Outils du dessin" hidden>
+      <button type="button" data-pact="edit" class="pb-main"><svg class="ico"><use href="#i-scissors"/></svg><span>Retoucher</span></button>
+      <button type="button" data-pact="front"><svg class="ico"><use href="#i-front"/></svg><span>Devant</span></button>
+      <button type="button" data-pact="back"><svg class="ico"><use href="#i-back"/></svg><span>Derrière</span></button>
+      <button type="button" data-pact="dup"><svg class="ico"><use href="#i-copy"/></svg><span>Dupliquer</span></button>
+      <button type="button" data-pact="del" class="pb-del"><svg class="ico"><use href="#i-trash"/></svg><span>Retirer</span></button>
+      <button type="button" data-pact="close" class="pb-close" aria-label="Fermer les outils du dessin">×</button>
     </div>
     <!-- une note écrite à la main, au premier plan (devant l'œuvre), avec une flèche vers le bouton rond
          « Nouvelles propositions » (ordinateur : en bas à gauche ; téléphone, tiroir baissé : tout en bas, juste

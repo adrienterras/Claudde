@@ -640,37 +640,70 @@ test.describe('Compositions', () => {
 
 test.describe('Téléphone : un dessin touché sur l’œuvre', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-  test('le tiroir ne bouge pas ; « Retoucher » apparaît à droite de « Mettre en scène » et ouvre la retouche', async ({ app }) => {
+  test('la barre du haut porte tout l’ancien côté droit (fond, zoom, plein écran, pivoter, fond seul) ; un dessin touché fait apparaître sa barre d’outils juste au-dessus de lui', async ({ app }) => {
     const { page } = app;
     await app.import(['page-cutout.png', 'page-texture.png']);
     // l'onglet Propositions : le tiroir à sa hauteur normale, l'œuvre visible
     await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
     await page.waitForTimeout(400);
     await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
-    await expect(page.locator('#stage-edit')).toBeHidden(); // (aucun dessin sélectionné)
-    const pt = await page.evaluate(() => {
-      const A = AtelierGribouille, L = A.state.comp.items[0], v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+    // plus de colonne à droite : ses boutons sont dans la barre du haut, qui tient en entier ; les outils
+    // d'un dessin n'y sont plus
+    expect(await page.evaluate(() => document.getElementById('zoom-bar').parentElement.id)).toBe('toolbar');
+    for (const q of ['#ground-open', '#zoom-out', '#zoom-val', '#zoom-in', '#zoom-fit', '#zoom-full', '#zoom-rotate', '#bg-mode', '#tb-save', '#toolbar [data-act="undo"]']) await expect(page.locator(q)).toBeVisible();
+    for (const a of ['front', 'back', 'dup', 'edit', 'del']) await expect(page.locator(`#toolbar [data-act="${a}"]`)).toBeHidden();
+    expect(await page.evaluate(() => { const t = document.getElementById('toolbar'); return t.scrollWidth <= t.clientWidth + 1 && t.getBoundingClientRect().right <= innerWidth; })).toBe(true);
+    await expect(page.locator('#zoom-in')).toBeEnabled(); // (rien de sélectionné : le zoom reste actif)
+    await expect(page.locator('#piece-bar')).toBeHidden(); // (aucun dessin sélectionné)
+    await expect(page.locator('#stage-edit')).toBeHidden();
+    const at = (i) => page.evaluate((i) => {
+      const A = AtelierGribouille, L = A.state.comp.items[i], v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
       return { x: r.left + (v.ox + L.x * v.s) / v.dpr, y: r.top + (v.oy + L.y * v.s) / v.dpr };
-    });
+    }, i);
+    const pt = await at(0);
     await page.touchscreen.tap(pt.x, pt.y);
     await page.waitForTimeout(500);
     // le tiroir reste sur Propositions, sans la fiche du dessin
     await expect(page.locator('.panel')).toHaveAttribute('data-tab', 'compose-section');
     await expect(page.locator('body')).not.toHaveClass(/sheet-detail|sheet-tall/);
     expect(await page.evaluate(() => AtelierGribouille.state.selected && AtelierGribouille.state.selected.kind)).toBe('piece');
-    // « Retoucher », à droite de « Mettre en scène », sur la même ligne
-    const edit = page.locator('#stage-edit');
-    await expect(edit).toBeVisible();
-    await expect(edit).toHaveText('Retoucher');
-    if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/retoucher-telephone.png' });
-    const [sc, ed] = await Promise.all([page.locator('#scene-open').boundingBox(), edit.boundingBox()]);
-    expect(ed.x).toBeGreaterThan(sc.x + sc.width);
-    expect(ed.x).toBeLessThan(sc.x + sc.width + 20);
-    expect(Math.abs(ed.y - sc.y)).toBeLessThan(2);
-    expect(ed.x + ed.width).toBeLessThan(390);
-    // il ouvre la retouche du dessin sélectionné
-    await edit.click();
+    // sa barre d'outils, au-dessus du dessin (ou dessous, faute de place), dans l'œuvre
+    const bar = page.locator('#piece-bar');
+    await expect(bar).toBeVisible();
+    await expect(bar.locator('button:visible')).toHaveText(['Retoucher', 'Devant', 'Derrière', 'Dupliquer', 'Retirer', '×']);
+    if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/barre-du-dessin.png' });
+    const [b, c] = await Promise.all([bar.boundingBox(), page.locator('#canvas').boundingBox()]);
+    const sel = await at(0);
+    expect(b.y + b.height <= sel.y || b.y >= sel.y).toBe(true);
+    expect(b.y).toBeGreaterThanOrEqual(c.y);
+    expect(b.x + b.width).toBeLessThanOrEqual(390);
+    // Devant : le dessin passe au premier plan ; × referme la barre et désélectionne
+    const n = await page.evaluate(() => AtelierGribouille.state.comp.items.length);
+    await bar.locator('[data-pact="front"]').click();
+    expect(await page.evaluate(() => AtelierGribouille.state.comp.items.indexOf(AtelierGribouille.state.selected))).toBe(n - 1);
+    await expect(bar).toBeVisible(); // (la barre reste, le dessin toujours sélectionné)
+    await bar.locator('[data-pact="close"]').click();
+    await expect(bar).toBeHidden();
+    expect(await page.evaluate(() => AtelierGribouille.state.selected)).toBeNull();
+    // Retoucher ouvre la retouche du dessin touché
+    const pt2 = await at(n - 1);
+    await page.touchscreen.tap(pt2.x, pt2.y);
+    await expect(bar).toBeVisible();
+    await bar.locator('[data-pact="edit"]').click();
     await expect(page.locator('#editor')).toBeVisible();
+    await expect(bar).toBeHidden(); // (la retouche passe devant : la barre s'efface)
     if (process.env.CAP_OUT) await page.screenshot({ path: process.env.CAP_OUT + '/retoucher-editeur.png' });
+  });
+});
+
+test.describe('Ordinateur : la barre d’outils et le zoom ne changent pas', () => {
+  test('le zoom reste à sa place ; les outils du dessin restent dans la barre du haut, sans barre flottante', async ({ app }) => {
+    const { page } = app;
+    await app.import(['page-cutout.png']);
+    expect(await page.evaluate(() => document.getElementById('zoom-bar').parentElement.classList.contains('stage'))).toBe(true);
+    await expect(page.locator('#toolbar [data-act="front"]')).toBeVisible();
+    await page.evaluate(() => { const S = AtelierGribouille.state; S.selected = S.comp.items[0]; AtelierGribouille.render(); });
+    await page.waitForTimeout(200);
+    await expect(page.locator('#piece-bar')).toBeHidden();
   });
 });

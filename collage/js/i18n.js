@@ -128,6 +128,8 @@
     'Sensibilité': 'Tolerance',
     'Ajouter au panier': 'Add to cart',
     'Partager': 'Share',
+    'Outils du dessin': 'Drawing tools',
+    'Fermer les outils du dessin': 'Close the drawing tools',
     'Partager « {0} »': 'Share “{0}”',
     'Partager l’œuvre': 'Share the artwork',
     'Préparation du lien…': 'Preparing the link…',

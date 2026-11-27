@@ -3688,6 +3688,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     }
     try { drawScene(); } finally { if (clip) ctx.restore(); }
     lastView = view;
+    placePieceBar();
     // la vue a changé entre-temps (taille, zoom) : le rectangle ne suffit pas, on refait tout
     if (clip && before && (view.s !== before.s || view.ox !== before.ox || view.oy !== before.oy)) render();
   }
@@ -4697,7 +4698,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     updateHistoryButtons();
     const L = state.selected;
     document.querySelectorAll('#toolbar button').forEach((b) => {
-      if (b.classList.contains('history') || b.id === 'tb-save') return;
+      if (b.classList.contains('history') || b.id === 'tb-save' || b.closest('.zoom')) return;
       // sur une page de fond, ni duplication (chaque page ne sert qu'une fois) ni retouche de découpe
       // (plus de Miroir dans la barre : les miroirs des œuvres déjà faites se gardent et se rouvrent)
       b.disabled = !L || (L.kind === 'bg' && b.dataset.act === 'edit');
@@ -4710,12 +4711,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Téléphone : « Retoucher », à droite de « Mettre en scène », tant qu'un dessin découpé est sélectionné
   // sur l'œuvre (pas une page du fond : sa découpe ne se retouche pas)
   function placeStageEdit() {
-    const b = $('stage-edit'), sc = $('scene-open');
-    if (!b || !sc) return;
-    const L = state.selected;
-    b.hidden = !(mobileQuery.matches && state.comp && L && L.kind === 'piece' && !sc.hidden);
-    if (b.hidden) return;
-    b.style.left = `${sc.offsetLeft + sc.offsetWidth + 8}px`;
+    const b = $('stage-edit');
+    // (téléphone : « Retoucher » est maintenant dans la barre du dessin touché, #piece-bar)
+    if (b) b.hidden = true;
   }
   $('stage-edit').addEventListener('click', () => { if (state.selected && state.selected.kind === 'piece') act('edit'); });
   window.addEventListener('resize', () => placeStageEdit());
@@ -4752,6 +4750,41 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   document.querySelectorAll('#toolbar button[data-act]').forEach((b) => (b.onclick = () => act(b.dataset.act)));
+  // Téléphone : la colonne de droite (couleur du fond, zoom, voir toute l'œuvre, plein écran, pivoter, fond seul)
+  // passe dans la barre du haut, telle quelle ; sur ordinateur, elle reste à sa place
+  function placeZoomBar() {
+    const z = $('zoom-bar'), tb = $('toolbar'), sep = tb && tb.querySelector('.tb-sep-zoom');
+    if (!z || !tb || !sep) return;
+    if (mobileQuery.matches) { if (z.parentNode !== tb) sep.after(z); }
+    else if (z.parentNode === tb) $('ground-pop').before(z);
+    fitToolbar();
+  }
+  placeZoomBar();
+  mobileQuery.addEventListener('change', placeZoomBar);
+  // Téléphone : la barre d'outils du dessin touché, juste au-dessus de lui (en dessous s'il n'y a pas la
+  // place) ; une page du fond n'a ni Retoucher ni Dupliquer. Elle suit le dessin qu'on déplace.
+  function placePieceBar() {
+    const bar = $('piece-bar');
+    if (!bar) return;
+    const L = state.selected;
+    const on = mobileQuery.matches && !!state.comp && !!L && !state.sizeGated && !(window.Editor && Editor.isOpen());
+    bar.hidden = !on;
+    if (!on) return;
+    bar.querySelector('[data-pact="edit"]').hidden = L.kind !== 'piece';
+    bar.querySelector('[data-pact="dup"]').hidden = L.kind !== 'piece';
+    const dpr = window.devicePixelRatio || 1, r = layerRect(L);
+    const top0 = canvas.offsetTop, h = bar.offsetHeight || 64, gap = 6;
+    const above = top0 + r[1] / dpr - h - gap, below = top0 + r[3] / dpr + gap;
+    const minTop = top0 + 4, maxTop = top0 + canvas.clientHeight - h - 4;
+    bar.style.top = `${Math.round(above >= minTop ? above : Math.min(below, maxTop))}px`;
+  }
+  document.querySelectorAll('#piece-bar [data-pact]').forEach((b) => (b.onclick = () => {
+    const a = b.dataset.pact;
+    if (a === 'close') { state.selected = null; updateToolbar(); render(); return; }
+    act(a);
+    if (a === 'edit') $('piece-bar').hidden = true; // (la retouche passe devant ; la barre revient à sa fermeture)
+  }));
+  mobileQuery.addEventListener('change', () => placePieceBar());
 
   window.addEventListener('keydown', (e) => {
     if ((window.Editor && Editor.isOpen()) || (window.Crop && Crop.isOpen())) return;

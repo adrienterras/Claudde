@@ -93,7 +93,15 @@ cd collage && python3 -m http.server 8000
      Défaire, Refaire, Devant, Derrière, Dupliquer, Retoucher et Retirer —
      plus de Miroir, les miroirs des œuvres déjà faites se gardent ; une petite poubelle au coin haut gauche du
      dessin sélectionné le retire de l'œuvre, comme Retirer ou Suppr — `trashHandlePos`),
-     comme en Galerie ; `L.scale` est gardé avec la mise en place.
+     comme en Galerie ; `L.scale` est gardé avec la mise en place. **Sur téléphone**, plus de colonne à
+     droite : ses boutons (couleur du fond, zoom −/100 %/+, voir toute l'œuvre, plein écran, Pivoter,
+     Fond seul) passent dans la barre du haut, à la suite d'Enregistrer, Défaire et Refaire (`placeZoomBar`
+     y déplace `#zoom-bar` tel quel ; sur ordinateur il reste à sa place), et l'œuvre prend toute la
+     largeur ; tiroir baissé, « Mon compte » descend à droite de « Mettre en scène ». Les outils d'un dessin
+     n'y sont plus : toucher un dessin fait apparaître sa barre, juste au-dessus de lui (dessous faute de
+     place), qui le suit quand on le déplace (`#piece-bar`, `placePieceBar`) : Retoucher, Devant,
+     Derrière, Dupliquer, Retirer et × (une page du fond : ni Retoucher ni Dupliquer) ; × ou un toucher
+     sur le fond la referment.
    - **Collage avec les dessins originaux** (atelier « toile » dans le code : `mode=toile`) : les dessins à leur **taille réelle** (échelle 1) sur un **châssis entoilé vendu chez
      Cultura** (`CULTURA` : trois toiles seulement, celles du kit — 80 × 80 et 100 × 100 en Monali 3D,
      130 × 97 en Monali classique 60F ; seule liste proposée, 100 × 100 par défaut), pour réaliser l'œuvre soi-même avec les originaux : guide DIY ou
@@ -921,7 +929,7 @@ cd collage && python3 -m http.server 8000
    - **orientation de la toile au choix**, paysage ou portrait, pour la taille automatique comme pour
      les toiles du commerce (un 30P devient 65 × 92 cm en portrait) ; toute nouvelle création part en
      portrait, une œuvre rouverte garde la sienne ; dans la zone d'édition, à côté du zoom (sur
-     téléphone, dans la colonne de zoom), le bouton **Pivoter** tourne toute l'œuvre d'un quart de
+     téléphone, dans la barre du haut), le bouton **Pivoter** tourne toute l'œuvre d'un quart de
      tour vers la gauche à chaque appui (quatre appuis la ramènent telle quelle), l'orientation de la
      toile suivant dans Tailles et la mise en scène (pas de boutons Portrait / Paysage dans cette
      barre) ; en atelier Toile, l'œuvre est recomposée si la toile tournée n'a pas exactement la
