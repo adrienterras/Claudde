@@ -341,6 +341,15 @@
   // retour d'une connexion Google ou d'un lien reçu par e-mail : la session s'établit ici, sur la page
   // (après les autres scripts de la page : la configuration, atelier/config.js, est chargée ensuite)
   if (/[?&](code|error_description)=/.test(location.search) || /access_token=/.test(location.hash)) window.addEventListener('DOMContentLoaded', () => { account().catch(() => {}); });
+  // connecté d'après l'appareil : la session est vérifiée auprès du serveur juste après le chargement
+  // de la page (le module des comptes, comme l'atelier) ; une session qui n'est plus valable
+  // (déconnexion ailleurs, jeton expiré) n'affiche plus la pastille : le site et l'atelier disent la même
+  // chose. Sans jeton sur l'appareil, rien n'est chargé.
+  else if (storedUser()) {
+    const check = () => { account().catch(() => {}); };
+    if (document.readyState === 'complete') setTimeout(check, 300);
+    else window.addEventListener('load', () => setTimeout(check, 300));
+  }
   // (account : le module des comptes de l'atelier, chargé au besoin — la page Mes commandes s'en sert)
   window.SiteAccount = { open: openModal, account, render: () => { user = storedUser(); render(); } };
 })();

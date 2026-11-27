@@ -87,8 +87,9 @@
   </svg>
 
   <header class="mobile-brand">
-    <span class="brand-mark" aria-hidden="true"></span>
-    <span class="mobile-brand-name" role="heading" aria-level="1"><small>Atelier</small> Gribouille</span>
+    <!-- le logo ramène à l'accueil du site -->
+    <a class="brand-home mobile-brand-home" href="../" title="Accueil du site"><span class="brand-mark" aria-hidden="true"></span>
+    <span class="mobile-brand-name" role="heading" aria-level="1"><small>Atelier</small> Gribouille</span></a>
     <!-- téléphone : « Mon compte » dans l'en-tête (le panier est le dernier onglet du tiroir) -->
     <button type="button" id="acc-head" class="acc-head" aria-label="Mon compte" title="Mon compte"><svg class="ico"><use href="#i-user"/></svg><span class="acc-avatar" hidden></span></button>
     <div class="lang-switch mobile-lang" role="group" aria-label="Langue / Language">
@@ -108,9 +109,9 @@
       <button type="button" class="cart-btn cart-btn-tab" aria-label="Panier"><svg class="ico"><use href="#i-cart"/></svg><span>Panier</span><b class="cart-count" hidden>0</b></button>
     </nav>
     <header class="brand">
-      <span class="brand-mark" role="img" aria-label="Monogramme Atelier Gribouille"></span>
+      <a class="brand-home" href="../" title="Accueil du site"><span class="brand-mark" role="img" aria-label="Monogramme Atelier Gribouille"></span>
       <p class="brand-kicker">Atelier</p>
-      <h1 class="brand-name">Gribouille</h1>
+      <h1 class="brand-name">Gribouille</h1></a>
       <p class="brand-tag">Les dessins d’enfants<br>deviennent des œuvres d’art</p>
       <div class="lang-switch" role="group" aria-label="Langue / Language">
         <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
@@ -195,8 +196,8 @@
       <button type="button" id="new-work" class="btn new-work" hidden><svg class="ico"><use href="#i-plus"/></svg><span>Commencer une nouvelle œuvre</span></button>
       <div id="progress" class="progress" hidden><div></div><span></span></div>
       <p id="notice" class="notice" role="status" hidden></p>
-      <p id="sample-note" class="hint" hidden>Exemple chargé : des dessins de démonstration.
-        Ajoutez vos scans, ou <button id="clear" class="link">repartez de zéro</button>.</p>
+      <p id="sample-note" class="hint" hidden>Exemple chargé : des dessins de démonstration pour découvrir l’atelier, qui ne se commande pas. Pour créer votre œuvre avec vos dessins :
+        <button id="clear" class="link">commencer une nouvelle œuvre</button>.</p>
     </section>
 
     <section id="sizes-section" class="step" hidden>

@@ -1253,7 +1253,7 @@ test.describe('Comptes utilisateurs', () => {
     // la barre s'est animée (préparation) ; l'envoi fini, le message et la barre disparaissent
     // la préparation avance dessin par dessin, de 0 à 100 % (une barre qui avance, pas une attente sans fin)
     const bar = (await page.evaluate(() => window.__bar)).filter((x) => x !== 'busy').map(Number);
-    expect(bar[0]).toBe(0);
+    expect([0, 90]).toContain(bar[0]); // (l'œuvre déjà dans le compte : la barre part de 90 %, il ne reste presque rien)
     expect(bar).toContain(100);
     expect(bar.some((x) => x > 0 && x < 100)).toBe(true);
     await expect(page.locator('#cart .cart-progress')).toBeHidden();

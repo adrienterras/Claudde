@@ -1024,17 +1024,46 @@ test.describe('Dessins d’exemple', () => {
     expect(ds.every((d) => d.photo === null)).toBe(true);
   });
 
-  test('importer ses propres dessins retire les dessins d’exemple', async ({ app }) => {
+  test('le logo de l’atelier ramène à l’accueil du site (ordinateur et téléphone)', async ({ app }) => {
+    const { page } = app;
+    await expect(page.locator('.brand .brand-home')).toHaveAttribute('href', '../');
+    await expect(page.locator('.mobile-brand .brand-home')).toHaveAttribute('href', '../');
+    await expect(page.locator('.brand .brand-home .brand-name')).toHaveText('Gribouille');
+  });
+
+  test('l’exemple : toujours une création imprimée (même après le mode Originaux), et il ne se commande pas', async ({ app }) => {
+    const { page } = app;
+    await page.evaluate(() => { localStorage.setItem('atelier.mode', 'toile'); AtelierGribouille.setMode('toile'); });
+    await page.locator('#empty-sample').click();
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
+    expect(await page.evaluate(() => AtelierGribouille.state.mode)).toBe('impression');
+    await expect(page.locator('body')).not.toHaveClass(/size-gate-on/);
+    // ni « Commander », ni ajout au panier
+    for (const b of await page.locator('.order-cta').all()) await expect(b).toBeHidden();
+    await page.evaluate(() => document.getElementById('add-cart').click());
+    await expect(page.locator('#cart-add')).toBeHidden();
+    await expect(page.locator('#notice')).toContainText('L’exemple ne peut pas être commandé');
+  });
+
+  test('l’exemple ouvert : pas d’import par-dessus, seulement « Commencer une nouvelle œuvre », puis ses propres dessins', async ({ app }) => {
     const { page } = app;
     const { fixture } = require('./helpers');
     await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 180000 });
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(19);
+    // ni les boutons d'import, ni un import qui passerait quand même (glisser-déposer)
+    await expect(page.locator('#import-photos')).toBeHidden();
+    await expect(page.locator('#new-work')).toBeVisible();
+    await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
+    await expect(page.locator('#notice')).toContainText('commencez une nouvelle œuvre');
+    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(19);
+    // « Commencer une nouvelle œuvre » : l'import revient, avec ses propres dessins
+    await page.locator('#new-work').click();
+    await expect(page.locator('#import-photos')).toBeVisible();
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));
     expect(names).toEqual(['page-cutout.png', 'page-two — 1', 'page-two — 2']);
-    await expect(page.locator('#notice')).toContainText('exemple ont été retirés');
     // le nombre de dessins revient au réglage d'avant (tous les dessins, par défaut)
     expect(await page.locator('#density').inputValue()).toBe('1.8');
     await expect(page.locator('#sample-note')).toBeHidden();

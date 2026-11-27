@@ -504,7 +504,9 @@
   }
   // rec : instantané d'une œuvre (images par clés, voir snapshotComposition avec refs) ;
   // getBytes(ref) rend { data, type } pour une image, { page, atlases } pour une découpe
-  async function workPut(rec, getBytes) {
+  // (onProgress(n, total) : les dessins envoyés ; plusieurs dessins à la fois, comme uploadAll, mais pas
+  // tous : la mémoire du téléphone ne garde que quelques images à la fois)
+  async function workPut(rec, getBytes, onProgress) {
     if (!user) throw new Error(tr('Connectez-vous pour garder votre œuvre dans votre compte.'));
     const id = rec.workId, base = `${user.id}/${id}`;
     const store = client.storage.from(BUCKET);
@@ -515,26 +517,36 @@
       workFiles.set(id, names);
     }
     const used = new Set();
+    // (plusieurs dessins à la fois : un fichier commun à deux dessins — les sujets d'une même feuille —
+    // n'est envoyé qu'une fois, l'autre attend le même envoi)
+    const sending = new Map();
     const put = async (name, bytes, type) => {
       const path = `${base}/${name}`;
       used.add(path);
       if (names.has(name)) return path;
-      const up = await store.upload(path, new Blob([bytes], { type }), { contentType: type, upsert: true });
-      err(up.error);
-      names.add(name);
+      if (sending.has(name)) { await sending.get(name); return path; }
+      const job = (async () => {
+        const up = await store.upload(path, new Blob([bytes], { type }), { contentType: type, upsert: true });
+        err(up.error);
+        names.add(name);
+      })();
+      sending.set(name, job);
+      try { await job; } finally { sending.delete(name); }
       return path;
     };
-    const have = (name) => { if (!names.has(name)) return false; used.add(`${base}/${name}`); return true; };
-    const drawings = [];
-    for (const d of rec.drawings) {
-      if (!d.ref) continue;
+    const have = (name) => { if (!names.has(name) && !sending.has(name)) return false; used.add(`${base}/${name}`); return true; };
+    const list = rec.drawings.filter((d) => d.ref);
+    const out = new Array(list.length);
+    const one = async (d) => {
       const key = safeName(d.ref);
       let file = `${base}/${key}.jpg`;
-      if (!have(`${key}.jpg`)) { const b = await getBytes(d.ref); if (!b || !b.data) continue; file = await put(`${key}.jpg`, b.data, b.type || 'image/jpeg'); }
+      if (sending.has(`${key}.jpg`)) { used.add(file); await sending.get(`${key}.jpg`).catch(() => {}); }
+      if (!have(`${key}.jpg`)) { const b = await getBytes(d.ref); if (!b || !b.data) return null; file = await put(`${key}.jpg`, b.data, b.type || 'image/jpeg'); }
       let saved = null;
       if (d.saved && d.saved.ref) {
         const k2 = safeName(d.saved.ref);
         const files = [`${k2}-page.jpg`, ...(d.saved.atlases || []).map((a, j) => `${k2}-a${j}.png`)];
+        await Promise.all(files.map((x) => sending.get(x)).filter(Boolean)).catch(() => {});
         const all = files.every((x) => names.has(x));
         const pk = all ? null : await getBytes(d.saved.ref);
         if (pk || all) {
@@ -544,8 +556,15 @@
           saved = Object.assign({}, d.saved, { ref: undefined, page: Object.assign({}, d.saved.page, { data: page }), atlases });
         }
       }
-      drawings.push(Object.assign({}, d, { data: undefined, ref: undefined, file, saved }));
-    }
+      return Object.assign({}, d, { data: undefined, ref: undefined, file, saved });
+    };
+    let next = 0, done = 0;
+    if (onProgress) onProgress(0, list.length);
+    const worker = async () => {
+      while (next < list.length) { const i = next++; out[i] = await one(list[i]); if (onProgress) onProgress(++done, list.length); }
+    };
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_PARALLEL, list.length) }, worker));
+    const drawings = out.filter(Boolean); // (l'ordre des dessins est gardé)
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length, work: true, print: rec.print || null, workName: rec.workName || null, device: rec.device || null };
     if (rec.frozen) meta.frozen = true; // œuvre figée (voir freezeWork dans app.js) : rouverte en copie
     const { data: rows, error: e0 } = await client.from('compositions').select('id, meta').eq('id', id);

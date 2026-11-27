@@ -132,6 +132,10 @@ button, select, input { font: inherit; color: inherit; }
 }
 
 .brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0; padding-bottom: 4px; }
+/* le logo et le nom : un lien vers l'accueil du site (même présentation qu'avant) */
+.brand-home { display: flex; flex-direction: column; align-items: center; color: inherit; text-decoration: none; border-radius: 12px; }
+.brand-home:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.mobile-brand-home { flex-direction: row; gap: 12px; }
 .brand-mark {
   width: 56px; aspect-ratio: 1; margin-bottom: 8px;
   background: var(--ink);
@@ -1223,9 +1227,11 @@ body.stage-full .scene-open { display: none; }
     order: 0; display: flex; align-items: center; justify-content: flex-start; gap: 10px; position: relative; min-height: var(--topbar); box-sizing: border-box;
     padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--line);
   }
-  .mobile-brand .brand-mark { width: 30px; margin: 0; }
-  .mobile-brand-name { font-family: var(--f-display); font-size: 1.25rem; line-height: 1; }
-  .mobile-brand-name small { font-family: var(--f-body); font-size: 0.56rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink); margin-right: 4px; vertical-align: middle; }
+  /* comme l'en-tête des pages du site : le logo, puis « ATELIER » en petit au-dessus de « Gribouille » */
+  .mobile-brand { gap: 12px; }
+  .mobile-brand .brand-mark { width: 36px; margin: 0; }
+  .mobile-brand-name { font-family: var(--f-display); font-size: 1.3rem; line-height: 1.05; }
+  .mobile-brand-name small { display: block; font-family: var(--f-body); font-size: .62rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink); line-height: 1; margin: 0 0 1px; }
   .mobile-lang { margin: 0 0 0 auto; }
   /* l'en-tête porte « Mon compte » : l'icône seule, ronde (le panier est le dernier onglet du tiroir) */
   #acc-head { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; padding: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
@@ -1615,3 +1621,11 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
   .toolbar .zoom button, .toolbar .zoom button.mode { width: 24px; min-width: 24px; max-width: 24px; }
   .toolbar .zoom .zoom-val { min-width: 32px; font-size: 0.6rem; }
 }
+/* petits téléphones : comme le site, le logo plus petit et « Gribouille » seul */
+@media (max-width: 380px) {
+  .mobile-brand .brand-mark { width: 30px; }
+  .mobile-brand-name small { display: none; }
+  .mobile-brand-name { font-size: 1.15rem; }
+}
+/* l'exemple ouvert : pas d'import ni de reprise par-dessus, seulement « Commencer une nouvelle œuvre » */
+body.sample-on #drop, body.sample-on #import-account, body.sample-on #resume-saved, body.sample-on #draft-offer { display: none !important; }

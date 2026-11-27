@@ -442,6 +442,8 @@
    * retrouver exactement la même page (et donc replacer les retouches de découpe au bon endroit).
    */
   async function importFiles(files, sizes, opts) {
+    // (l'exemple ouvert : on n'y ajoute pas ses dessins ; « Commencer une nouvelle œuvre » d'abord)
+    if (onlySamples() && !state.restoring && !(opts && opts.sample)) { notice(tr('Pour importer vos dessins, commencez une nouvelle œuvre : l’exemple sert seulement à découvrir l’atelier.')); return; }
     busyOn(state.restoring ? '' : tr('Analyse des dessins…'));
     try { return await importFilesInner(files, sizes, opts); } finally { busyOff(); }
   }
@@ -3325,7 +3327,10 @@
     $('density-bar').hidden = !state.comp;
     $('scene-open').hidden = !state.comp;
     $('scene-open-side').hidden = !state.comp;
-    document.querySelectorAll('.order-cta').forEach((b) => { b.hidden = !state.comp; });
+    // (l'exemple ne se commande pas : « Commander » n'apparaît qu'avec ses propres dessins ; on n'y ajoute pas
+    // non plus ses dessins : seulement « Commencer une nouvelle œuvre »)
+    document.querySelectorAll('.order-cta').forEach((b) => { b.hidden = !state.comp || onlySamples(); });
+    document.body.classList.toggle('sample-on', onlySamples());
     layoutLabel();
     $('toolbar').hidden = !state.comp;
     $('zoom-bar').hidden = !state.comp; // sans œuvre : ni barre d'outils ni zoom, l'accueil vide est centré
@@ -6724,12 +6729,15 @@ Réponds uniquement avec ce JSON :
       }));
       const sizes = {};
       m.pages.forEach((p) => { if (p.sizeCm) sizes[p.name] = p.sizeCm; });
+      // (l'exemple montre une création imprimée : jamais le mode Originaux, ni sa vérification des tailles)
+      if (state.mode !== 'impression') setMode('impression');
       const before = new Set(state.drawings);
       // l'exemple s'ouvre avec tous ses dessins ; le réglage d'avant revient avec les dessins de l'utilisateur
       if (state.densityBeforeSample == null) state.densityBeforeSample = $('density').value;
       $('density').value = $('density').max;
       await importFiles(files, sizes, { sample: true });
       state.drawings.forEach((d) => { if (!before.has(d)) d.sample = true; });
+      updateLabel(); // (« Commander » disparaît : l'exemple ne se commande pas)
       $('sample-note').hidden = false;
       // ordinateur : l'étape Importer (repliée à l'arrivée) montre la note de l'exemple, qui invite à importer ses dessins
       if (!mobileQuery.matches && $('import-section')._expand) $('import-section')._expand();
@@ -6879,7 +6887,7 @@ Réponds uniquement avec ce JSON :
     clearTimeout(draftTimer);
     draftTimer = setTimeout(saveDraft, 2500);
   }
-  const onlySamples = () => state.drawings.length > 0 && state.drawings.every((d) => d.sample);
+  function onlySamples() { return state.drawings.length > 0 && state.drawings.every((d) => d.sample); }
   async function saveDraft() {
     // (pendant une réouverture, l'œuvre n'a pas encore son identité : rien ne s'enregistre ; pendant
     // le nettoyage de l'appareil, plus rien ne s'écrit)
@@ -7251,7 +7259,7 @@ Réponds uniquement avec ce JSON :
         if (!rec) break;
         // une œuvre de plus alors que le compte est plein : elle attend qu'on fasse de la place
         if (cloudWorks && !inCloud(rec) && cloudWorks.filter((c) => !c.legacyDraft && !c.ordered).length >= workMax()) { blocked.add(rec); cloudFull = true; continue; }
-        try { await window.Account.cloud.workPut(rec, getBytes); } catch (e) {
+        try { await window.Account.cloud.workPut(rec, getBytes, (n, total) => { if (cloudProgress) cloudProgress(rec, n, total); }); } catch (e) {
           // le serveur l'a déjà, dans un autre compte : elle y reste (pas de copie ici), et la ligne le dit
           if (e && e.code === 'foreign') {
             markForeign(rec.workId);
@@ -7293,6 +7301,7 @@ Réponds uniquement avec ce JSON :
   }
   // envoie tout de suite ce qui attend (après l'envoi déjà en cours, s'il y en a un) ; rend la main
   // une fois l'œuvre donnée partie, refusée ou en échec
+  let cloudProgress = null; // (rec, n, total) : où en est l'envoi d'une œuvre (le panier l'affiche)
   async function sendNow(rec) {
     for (let i = 0; i < 600 && cloudBusy; i++) await new Promise((r) => setTimeout(r, 100));
     if (seenOf(rec.workId)) return;
@@ -9132,6 +9141,7 @@ Réponds uniquement avec ce JSON :
     paintRoom(cv, null, room, spec);
   }
   function openCartAdd(comp, title, styleName, opts) {
+    if (comp && !(opts && opts.reorder) && onlySamples()) { notice(tr('L’exemple ne peut pas être commandé : importez vos propres dessins pour créer votre œuvre.')); return; }
     const n = loadCart().reduce((t, it) => t + it.qty, 0);
     $('cart-add-view').hidden = !n;
     $('cart-add-view').textContent = tr`Voir mon panier (${n})`;
@@ -9399,19 +9409,34 @@ Réponds uniquement avec ce JSON :
   async function cartItemToCloud(it) {
     if (cartUploading.has(it.id)) return;
     cartUploading.add(it.id);
-    let sent = false;
+    let sent = false, said = ''; // (said : le dernier message de cet envoi, dans le panier)
     try {
       // (chaque étape est dite dans le panier : préparation sur l'appareil, puis copie ou envoi des fichiers)
-      const say = (t, p) => { if (!$('cart').hidden) cartStatus(t, p); };
+      const say = (t, p) => { said = t; if (!$('cart').hidden) cartStatus(t, p); };
       // (la barre : la préparation sur l'appareil jusqu'à 30 %, puis l'envoi des fichiers jusqu'au bout ;
       // elle n'est jamais pleine tant que l'envoi n'est pas fini)
+      // l'œuvre d'où vient l'article n'est pas encore (toute) dans le compte : elle y part d'abord, tout de
+      // suite ; l'article reprend ensuite ses fichiers tels quels, sans les envoyer une seconde fois
+      if (it.workId && signedIn() && !seenOf(it.workId)) {
+        const work = (pendingCloud && pendingCloud.workId === it.workId) ? pendingCloud : cloudQueue.find((r) => r.workId === it.workId);
+        if (work) {
+          const keep = tr`Enregistrement de « ${it.title} » dans votre compte…`;
+          say(keep, 'busy');
+          cloudProgress = (r, n, total) => { if (r === work && total) say(tr`Enregistrement de « ${it.title} » dans votre compte : ${n} / ${total} dessins…`, 0.9 * (n / total)); };
+          try { await sendNow(work); } finally { cloudProgress = null; }
+        }
+      }
+      // (la barre : l'œuvre déjà dans le compte, il ne reste presque rien ; sinon la préparation jusqu'à
+      // 30 %, puis l'envoi des fichiers)
+      const synced = !!(it.workId && seenOf(it.workId));
+      const [p0, p1, p2] = synced ? [0.9, 0.95, 0.99] : [0, 0.3, 0.95];
       const prep = tr`Préparation de « ${it.title} » pour votre compte…`;
-      say(prep, 0);
-      const rec = await cartRecForCloud(it, (k, n) => say(prep, n ? 0.3 * (k / n) : 0));
+      say(prep, p0);
+      const rec = await cartRecForCloud(it, (k, n) => say(prep, n ? p0 + (p1 - p0) * (k / n) : p0));
       if (!rec) return;
-      say(tr`Envoi de « ${it.title} » dans votre compte…`, 0.3);
+      say(tr`Envoi de « ${it.title} » dans votre compte…`, p1);
       // (les fichiers de l'œuvre du compte sont repris tels quels : seuls les autres partent)
-      const cid = await window.Account.cloud.put(rec, (n, total) => { if (total) say(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, 0.3 + 0.65 * (n / total)); });
+      const cid = await window.Account.cloud.put(rec, (n, total) => { if (total) say(tr`Envoi de « ${it.title} » dans votre compte : ${n} / ${total} fichiers…`, p1 + (p2 - p1) * (n / total)); });
       say(tr`Envoi de « ${it.title} » dans votre compte…`, 1); // (fini : la barre pleine, puis elle s'efface)
       const all = loadCart(), x = all.find((y) => y.id === it.id);
       if (x) { x.recId = cid; x.refs = []; saveCart(all); } else { window.Account.cloud.del(cid).catch(() => {}); return; } // retiré entre-temps
@@ -9423,7 +9448,8 @@ Réponds uniquement avec ce JSON :
       cartUploading.delete(it.id);
       // envoi fini (et plus aucun en cours) : le message et la barre de progression disparaissent
       // (la barre pleine se voit un instant avant de s'effacer)
-      if (sent) setTimeout(() => { if (!cartUploading.size && !$('cart').hidden) cartStatus(''); }, 500);
+      // (seulement si le message est encore le sien : la commande a pu en afficher un autre entre-temps)
+      if (sent) setTimeout(() => { const st = $('cart').querySelector('.cart-status'); if (!cartUploading.size && !$('cart').hidden && st && st.textContent === said) cartStatus(''); }, 500);
     }
   }
   let cartSyncing = null;
