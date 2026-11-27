@@ -526,10 +526,12 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1').status)).toBe('en_preparation');
     // puis expédiée : le numéro de suivi est demandé
     await expect(d.locator('#gd-next button[type="submit"]')).toHaveText('Marquer comme expédiée');
-    await expect(d.locator('#gd-next input[name="carrier"]')).toHaveValue('Colissimo');
+    // (le transporteur : deux choix, celui de la livraison payée déjà coché)
+    await expect(d.locator('#gd-next input[name="carrier"]')).toHaveCount(2);
+    await expect(d.locator('#gd-next input[name="carrier"]:checked')).toHaveValue('Colissimo');
     await d.locator('#gd-next button[type="submit"]').click();
     expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1').status)).toBe('en_preparation'); // (sans numéro : refusé par le formulaire)
-    await d.locator('#gd-next input[name="tracking"]').fill('6A12345678901');
+    await d.locator('#gd-next input[name="tracking"]').fill('6a 1234 5678 901'); // (espaces et minuscules : remis au propre)
     await d.locator('#gd-next button[type="submit"]').click();
     await expect(page.locator('#gc-done')).toContainText('expédiée');
     const o1 = await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1'));

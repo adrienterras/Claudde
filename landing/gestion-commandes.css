@@ -28,12 +28,19 @@
 /* l'étape suivante : un seul gros bouton ; l'expédition demande le transporteur et le numéro de suivi */
 .gd-next { margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: grid; gap: 10px; }
 .gd-next p { margin: 0; font-size: .86rem; color: var(--ink-2); }
-.gd-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+.gd-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+/* le transporteur : deux choix, celui de la livraison payée déjà coché */
+.gd-carrier { margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+.gd-carrier legend { padding: 0; margin-bottom: 4px; font-size: .78rem; color: var(--muted); }
+.gd-carrier label { position: relative; display: block; cursor: pointer; }
+.gd-carrier input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.gd-carrier span { display: block; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; text-align: center; font-size: .95rem; font-weight: 600; color: var(--ink-2); }
+.gd-carrier input:checked + span { border-color: var(--ink); background: var(--ink); color: var(--craie); }
+.gd-carrier input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 .gd-fields label { display: grid; gap: 4px; font-size: .78rem; color: var(--muted); min-width: 0; }
 .gd-fields input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; font-size: 1rem; color: var(--ink); }
 .gd-fields input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .gd-next .btn { justify-content: center; width: 100%; }
-@media (max-width: 420px) { .gd-fields { grid-template-columns: 1fr; } }
 /* le fichier d'impression HD d'un article */
 .gd-hd-row { display: block; margin-top: 8px; }
 .gd-hd { display: block; font-size: .78rem; color: #8a5a12; font-weight: 600; }

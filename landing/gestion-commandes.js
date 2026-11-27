@@ -30,6 +30,10 @@ const NEXT = {
   expediee: ['livree', 'Marquer comme livrée', 'Le client reçoit un e-mail : sa commande est livrée.'],
 };
 const isExpress = (o) => o.delivery === 'express';
+// les deux transporteurs du site : Colissimo (livraison standard), Chronopost (express) ; celui de la
+// livraison payée est choisi d'avance
+const CARRIERS = ['Colissimo', 'Chronopost'];
+const carrierOf = (o) => (CARRIERS.includes(o.carrier) ? o.carrier : isExpress(o) ? 'Chronopost' : 'Colissimo');
 const deliveryName = (o) => (isExpress(o) ? 'Chronopost express, à domicile en 24 h' : 'Colissimo, à domicile');
 const count = (o) => (o.items || []).reduce((n, it) => n + (Number(it.qty) || 1), 0);
 const addressLines = (o) => {
@@ -172,7 +176,7 @@ function openDetail(ref) {
       <div class="od-sum"><div><span>Œuvres</span><span>${esc(euros(o.subtotal_cents))}</span></div><div><span>Livraison</span><span>${esc(euros(o.shipping_cents))}</span></div><div class="total"><span>Total payé</span><span>${esc(euros(o.total_cents))}</span></div></div>
     </section>
     ${next ? `<form class="gd-next" id="gd-next">
-      ${next[0] === 'expediee' ? `<div class="gd-fields"><label>Transporteur<input name="carrier" list="gd-carriers" value="${esc(o.carrier || (isExpress(o) ? 'Chronopost' : 'Colissimo'))}" required></label><label>Numéro de suivi<input name="tracking" value="${esc(o.tracking || '')}" autocomplete="off" required></label></div><datalist id="gd-carriers"><option value="Colissimo"><option value="Chronopost"><option value="Mondial Relay"></datalist>` : ''}
+      ${next[0] === 'expediee' ? `<fieldset class="gd-carrier"><legend>Transporteur</legend>${CARRIERS.map((c) => `<label><input type="radio" name="carrier" value="${c}"${c === carrierOf(o) ? ' checked' : ''} required><span>${c}</span></label>`).join('')}</fieldset><div class="gd-fields"><label>Numéro de suivi<input name="tracking" value="${esc(o.tracking || '')}" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label></div>` : ''}
       <button type="submit" class="btn btn-primary">${esc(next[1])}</button>
       <p>${esc(next[2])}</p>
     </form>` : ''}
@@ -205,7 +209,7 @@ function openDetail(ref) {
     btn.disabled = true;
     try {
       const patch = { status: next[0] };
-      if (form.carrier) { patch.carrier = form.carrier.value.trim(); patch.tracking = form.tracking.value.trim(); }
+      if (form.tracking) { patch.carrier = form.carrier.value; patch.tracking = form.tracking.value.replace(/\s+/g, '').toUpperCase(); }
       const r = await actions.set(o.id, patch);
       done(`${o.ref} : ${STATUS[next[0]].toLowerCase()}${r && r.mailed ? ', le client est prévenu par e-mail' : ''}.`);
     } catch (err) { console.error(err); done(`${o.ref} non enregistrée : ${(err && err.message) || ''}`, true); } finally { btn.disabled = false; }

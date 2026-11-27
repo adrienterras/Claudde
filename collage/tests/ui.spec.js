@@ -2742,7 +2742,7 @@ test.describe('Champs de saisie sur téléphone', () => {
     await page.waitForFunction(() => window.GestionCommandes);
     small.push(...await page.evaluate(`(() => {
       const box = document.createElement('div');
-      box.innerHTML = '<form class="gd-next"><div class="gd-fields"><label>Transporteur<input name="carrier"></label><label>N° de suivi<input name="tracking"></label></div></form>';
+      box.innerHTML = '<form class="gd-next"><fieldset class="gd-carrier"><label><input type="radio" name="carrier" value="Colissimo"><span>Colissimo</span></label></fieldset><div class="gd-fields"><label>N° de suivi<input name="tracking"></label></div></form>';
       document.getElementById('gd-body').appendChild(box);
       return (${tooSmall})();
     })()`));
