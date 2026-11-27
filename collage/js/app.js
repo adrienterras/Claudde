@@ -6411,11 +6411,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const A = window.Account, cfg = window.ATELIER_CONFIG || {};
     const team = !(A && A.enabled) || cfg.exportForAll === true || !!(A.canDashboard && A.canDashboard());
     document.body.classList.toggle('no-export', !team);
-    // (sur téléphone, l'équipe a un onglet « Exporter » ; le compte s'ouvre par la pastille de l'en-tête)
+    // (l'équipe exporte aussi depuis le panneau du compte : « Outils de l'équipe », seul chemin sur téléphone)
     const staff = !!(A && A.enabled && A.canDashboard && A.canDashboard());
-    document.body.classList.toggle('staff', staff);
-    const more = document.querySelector('.sheet-tabs .tab-more');
-    if (more) more.hidden = !staff;
     if ($('acc-team')) $('acc-team').hidden = !staff;
   }
   // les outils de l'équipe dans le panneau du compte : les boutons de l'étape Exporter (même format, mêmes

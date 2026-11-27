@@ -1244,7 +1244,7 @@ body.stage-full .scene-open { display: none; }
   .sheet-tabs .cart-btn-tab { position: relative; box-shadow: none; }
   .sheet-tabs .cart-btn-tab .cart-count { position: absolute; top: 4px; left: calc(50% + 4px); min-width: 16px; height: 16px; padding: 0 4px; font-size: 0.62rem; }
   .sheet-tabs .cart-btn-tab .cart-count[hidden] { display: none; }
-  body:not(.staff) .sheet-tabs .tab-more { display: none; }
+  .sheet-tabs .tab-more { display: none; }
   .cart-btn-desk { display: none; }
   /* téléphone : « Commander » (petit, avec l'icône du sac) flotte en bas à gauche de l'œuvre, au-dessus
      du curseur, à l'opposé des outils (barre en haut, colonne de zoom à droite) */

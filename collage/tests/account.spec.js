@@ -84,7 +84,7 @@ test.describe('Comptes utilisateurs', () => {
     expect(parseFloat(await page.locator('#auth-name').evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
   });
 
-  test('Exporter : réservé à l’équipe ; téléphone : la photo ou l’initiale dans l’en-tête ouvre le profil', async ({ browser }) => {
+  test('Exporter : réservé à l’équipe (téléphone : dans le panneau du compte) ; la photo ou l’initiale dans l’en-tête ouvre le profil', async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
     await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
@@ -128,11 +128,9 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#acc-head .acc-avatar')).toHaveText('S');
     await expect(page.locator('body')).not.toHaveClass(/no-export/);
     if (!(await page.locator('#account-section').isHidden())) await page.locator('#acc-close').click();
-    await expect(page.locator('#sheet-tabs .tab-more')).toBeVisible();
-    await expect(page.locator('#sheet-tabs .tab-more')).toContainText('Exporter');
-    await page.locator('#sheet-tabs .tab-more').click();
-    await expect(page.locator('#export')).toBeVisible();
-    // et, dans le panneau du compte, « Exporter l'œuvre » et « Générer le guide de découpe »
+    // sur téléphone, pas d'onglet Exporter : « Exporter l'œuvre » et « Générer le guide de découpe » sont
+    // dans le panneau qui s'ouvre par la pastille du compte
+    await expect(page.locator('#sheet-tabs .tab-more')).toBeHidden();
     await page.locator('#acc-head').click();
     await expect(page.locator('#acc-team')).toBeVisible();
     await page.locator('#acc-guide').click();
