@@ -436,7 +436,7 @@ body.stage-full .cart-btn-desk { display: none; }
 .order-cta .ico { width: 18px; height: 18px; }
 .order-cta[hidden] { display: none; }
 .cart-add-view { align-self: flex-start; margin-top: -8px; font-size: 0.85rem; }
-.acc-head { display: none; } /* « Mon compte » dans l'en-tête : téléphone seulement */
+#acc-head { display: none; } /* « Mon compte » dans l'en-tête : téléphone seulement */
 body.stage-full .stage-cta { display: none; }
 .cart-card { width: min(520px, 100%); gap: 12px; }
 .cart-card .acc-title { text-align: left; padding-right: 36px; }
@@ -1228,19 +1228,19 @@ body.stage-full .scene-open { display: none; }
   .mobile-brand-name small { font-family: var(--f-body); font-size: 0.56rem; letter-spacing: .4em; text-transform: uppercase; color: var(--ink); margin-right: 4px; vertical-align: middle; }
   .mobile-lang { margin: 0 0 0 auto; }
   /* l'en-tête porte « Mon compte » : l'icône seule, ronde (le panier est le dernier onglet du tiroir) */
-  .acc-head { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; padding: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
-  .acc-head .ico { width: 20px; height: 20px; }
+  #acc-head { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; padding: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
+  #acc-head .ico { width: 20px; height: 20px; }
   /* connecté : la photo du compte, ou l'initiale du prénom, à la place de l'icône */
-  .acc-head.signed { padding: 3px; }
-  .acc-head.signed .ico { display: none; }
-  .acc-head .acc-avatar { width: 28px; height: 28px; font-size: .82rem; }
-  .acc-head.on { background: var(--accent-soft); }
+  #acc-head.signed { padding: 3px; }
+  #acc-head.signed .ico { display: none; }
+  #acc-head .acc-avatar { width: 28px; height: 28px; font-size: .82rem; }
+  #acc-head.on { background: var(--accent-soft); }
   /* tiroir baissé (et accueil) : l'œuvre couvre l'en-tête ; « Mon compte » reste à portée, dans l'angle haut droit */
-  body.stage-full .acc-head { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 43; box-shadow: 0 6px 16px -10px rgba(0, 0, 0, .45); }
+  body.stage-full #acc-head { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 43; box-shadow: 0 6px 16px -10px rgba(0, 0, 0, .45); }
   /* la barre d'outils du haut se range à gauche, pour ne pas coller à l'icône du compte dans l'angle */
   body.stage-full .toolbar { left: 12px; transform: none; max-width: calc(100% - 78px); }
   @media (max-width: 370px) { body.stage-full .toolbar button { padding: 8px 4px; } body.stage-full .toolbar .tb-sep { margin: 6px 0; } } /* (petits écrans : tous les boutons tiennent) */
-  .acc-head + .mobile-lang { margin-left: 0; }
+  #acc-head + .mobile-lang { margin-left: 0; }
   /* le panier, dernier onglet du tiroir, avec le compteur en pastille sur l'icône */
   .sheet-tabs .cart-btn-tab { position: relative; box-shadow: none; }
   .sheet-tabs .cart-btn-tab .cart-count { position: absolute; top: 4px; left: calc(50% + 4px); min-width: 16px; height: 16px; padding: 0 4px; font-size: 0.62rem; }
@@ -1594,7 +1594,7 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
   .toolbar .ground-open .ground-dot { display: block; width: 16px; height: 16px; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--muted); } /* (visible même de la couleur de la barre) */
   /* tiroir baissé : la barre prend toute la largeur ; « Mon compte » descend à droite de « Mettre en scène » */
   body.stage-full .toolbar { left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); }
-  body.stage-full .acc-head { top: calc(62px + env(safe-area-inset-top, 0px)); }
+  body.stage-full #acc-head { top: calc(62px + env(safe-area-inset-top, 0px)); }
 
   .ground-pop { left: 10px; right: 10px; top: 64px; width: auto; }
   body.stage-full .ground-pop { top: 116px; } /* (sous « Mon compte », descendu à droite de « Mettre en scène ») */
