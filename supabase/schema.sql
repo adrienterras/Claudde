@@ -320,14 +320,10 @@ drop policy if exists "orders: admin reads" on public.orders;
 create policy "orders: admin reads" on public.orders
   for select to authenticated
   using (public.is_admin());
+-- (le statut, le transporteur et le numéro de suivi ne changent que par la fonction « commande-statut »,
+-- qui vérifie l'administrateur et l'ordre des étapes : aucune modification directe depuis le navigateur)
 drop policy if exists "orders: admin updates" on public.orders;
-create policy "orders: admin updates" on public.orders
-  for update to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
--- (l'administrateur ne change que le statut, le transporteur et le numéro de suivi)
 revoke update on public.orders from authenticated;
-grant update (status, carrier, tracking, updated_at) on public.orders to authenticated;
 
 -- Journal du site (27 novembre 2026) : les erreurs des fonctions serveur et les e-mails qui ne sont pas
 -- partis. Écrit seulement par les fonctions (clé serveur), lu seulement par le tableau de bord de
@@ -415,3 +411,52 @@ $$;
 revoke all on function public.admin_dashboard() from public;
 revoke execute on function public.admin_dashboard() from anon, authenticated;
 grant execute on function public.admin_dashboard() to service_role;
+
+-- Partage d'une œuvre (renforcé le 27 novembre 2026) : le lien est créé par la fonction « partage »
+-- (share_set : le jeton tiré par le serveur, écrit dans la fiche sans toucher au reste) ; recevoir une
+-- œuvre n'est possible que si la copie tient dans la place du compte (share_room : 3 Go et 5 000 fichiers,
+-- comme drawings_room). Deux fonctions appelables seulement avec la clé serveur.
+create or replace function public.share_set(p_id uuid, p_uid uuid, p_share jsonb)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  with u as (
+    update public.compositions set meta = jsonb_set(coalesce(meta, '{}'::jsonb), '{share}', p_share)
+    where id = p_id and user_id = p_uid
+    returning 1
+  )
+  select exists (select 1 from u);
+$$;
+revoke all on function public.share_set(uuid, uuid, jsonb) from public;
+revoke execute on function public.share_set(uuid, uuid, jsonb) from anon, authenticated;
+grant execute on function public.share_set(uuid, uuid, jsonb) to service_role;
+
+create or replace function public.share_room(p_uid uuid, p_paths text[], p_admin boolean default false)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select p_admin or (
+    with mine as (
+      select count(*) as files, coalesce(sum(case when (o.metadata ->> 'size') ~ '^[0-9]{1,15}$' then (o.metadata ->> 'size')::bigint else 0 end), 0) as bytes
+      from storage.objects o where o.bucket_id = 'drawings' and o.name like p_uid::text || '/%'
+    ), src as (
+      select count(*) as files, coalesce(sum(case when (o.metadata ->> 'size') ~ '^[0-9]{1,15}$' then (o.metadata ->> 'size')::bigint else 0 end), 0) as bytes
+      from storage.objects o where o.bucket_id = 'drawings' and o.name = any (p_paths)
+    )
+    select mine.files + src.files <= 5000 and mine.bytes + src.bytes <= 3221225472 from mine, src
+  );
+$$;
+revoke all on function public.share_room(uuid, text[], boolean) from public;
+revoke execute on function public.share_room(uuid, text[], boolean) from anon, authenticated;
+grant execute on function public.share_room(uuid, text[], boolean) to service_role;
+
+-- un jeton de partage ne mène qu'à une seule œuvre (un compte ne peut pas recopier celui d'un autre sur
+-- la sienne), et l'ouverture d'un lien est une simple lecture d'index
+create unique index if not exists compositions_share_token_key
+  on public.compositions ((meta -> 'share' ->> 'token'))
+  where meta -> 'share' ->> 'token' is not null;

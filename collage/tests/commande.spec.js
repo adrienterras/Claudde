@@ -225,6 +225,17 @@ test.describe('Partage : la copie reçue, côté serveur', () => {
     expect(p.shareValid({ token: 'a'.repeat(22), expires: new Date(Date.now() - 1).toISOString() })).toBe(false);
     expect(p.shareValid({ token: 'a'.repeat(22), expires: '2099-01-01', revoked: true })).toBe(false);
     expect(p.shareValid({ token: 'a/b', expires: '2099-01-01' })).toBe(false);
+    // jamais plus de 30 jours devant lui : une date lointaine écrite à la main ne fait pas un lien sans fin
+    expect(p.shareValid({ token: 'a'.repeat(22), expires: '2099-01-01' })).toBe(false);
+    expect(p.shareValid({ token: 'a'.repeat(22), expires: new Date(Date.now() + 29.5 * 864e5).toISOString() })).toBe(true);
+    // le jeton d'un nouveau lien : tiré par le serveur, 24 caractères sûrs dans une adresse, jamais deux fois le même
+    const s1 = p.newShare(), s2 = p.newShare();
+    expect(s1.token).toMatch(/^[A-Za-z0-9_-]{24}$/);
+    expect(s1.token).not.toBe(s2.token);
+    expect(p.shareValid(s1)).toBe(true);
+    expect(Math.round((new Date(s1.expires) - new Date(s1.at)) / 864e5)).toBe(30);
+    expect(p.shareReusable(s1)).toBe(true);
+    expect(p.shareReusable({ token: s1.token, expires: new Date(Date.now() + 3600e3).toISOString() })).toBe(false); // (moins d'un jour : un nouveau lien)
   });
 });
 

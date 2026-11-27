@@ -161,6 +161,20 @@
       if (h) return Promise.resolve(h(body));
       // le partage d'une œuvre, comme la fonction « partage » (supabase/functions/partage) : « voir » sans
       // compte, « recevoir » : la copie dans le compte (fichiers copiés sous le même nom dans son dossier)
+      if (name === 'partage' && body.action === 'creer') {
+        // le lien créé par le serveur : jeton tiré au hasard, 30 jours ; celui en cours resservi
+        const u = db.session && db.session.user;
+        if (!u) return fnError('connexion requise');
+        const w = db.rows.find((r) => r.id === body.id && r.user_id === u.id && (r.__table || 'compositions') === 'compositions');
+        if (!w || (w.meta && w.meta.cart)) return fnError('œuvre introuvable dans votre compte');
+        const cur = w.meta && w.meta.share;
+        if (cur && new Date(cur.expires).getTime() > Date.now() + 864e5) return ok({ token: cur.token, expires: cur.expires });
+        const b = crypto.getRandomValues(new Uint8Array(18));
+        const share = { token: btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), at: new Date().toISOString(), expires: new Date(Date.now() + 30 * 864e5).toISOString() };
+        w.meta = Object.assign({}, w.meta, { share });
+        persist();
+        return ok({ token: share.token, expires: share.expires });
+      }
       if (name === 'partage') {
         const row = db.rows.find((r) => (r.__table || 'compositions') === 'compositions' && r.meta && r.meta.share && r.meta.share.token === body.token);
         const sh = row && row.meta.share;

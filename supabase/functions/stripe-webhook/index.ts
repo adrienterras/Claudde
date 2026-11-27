@@ -31,13 +31,15 @@ async function paid(session: any) {
   if (!order || order.status !== 'attente_paiement') return; // (déjà traitée, ou inconnue)
   const at = new Date().toISOString();
   const shipping = (session.collected_information && session.collected_information.shipping_details) || session.shipping_details || null;
-  await rest('PATCH', `orders?id=eq.${id}&status=eq.attente_paiement`, {
+  const won = await rest('PATCH', `orders?id=eq.${id}&status=eq.attente_paiement`, {
     status: 'payee', paid_at: at, payment_intent: session.payment_intent || null,
     total_cents: session.amount_total ?? order.total_cents,
     shipping, customer: session.customer_details || null,
     shipping_cents: session.shipping_cost ? session.shipping_cost.amount_total : order.shipping_cents,
     delivery: session.shipping_cost ? await delivery(session) : null,
-  });
+  }, 'return=representation');
+  // (une notification reçue deux fois, en même temps : seule la première passe, la seconde s'arrête là)
+  if (!won || !won.length) return;
   // les œuvres commandées : hors du panier, figées, avec la trace de la commande
   for (const it of order.items || []) {
     const [row] = (await rest('GET', `compositions?id=eq.${it.compId}&user_id=eq.${order.user_id}&select=id,name,meta`)) || [];

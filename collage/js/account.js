@@ -577,8 +577,6 @@
   // ---------- Partager une œuvre (un lien : la personne reçoit sa propre copie) ----------
   // Le lien est gardé dans la fiche de l'œuvre (meta.share) ; la fonction « partage » (serveur) le lit
   // pour l'accueil du lien et fait la copie dans le compte de la personne (voir supabase/functions).
-  const SHARE_DAYS = 30;
-  const newToken = () => { const b = crypto.getRandomValues(new Uint8Array(18)); return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
   const shareOk = (sh) => !!(sh && sh.token && !sh.revoked && new Date(sh.expires).getTime() > Date.now() + 86400e3);
   async function shareMeta(workId) {
     const { data, error } = await client.from('compositions').select('id, meta').eq('user_id', user.id).eq('id', workId);
@@ -587,17 +585,13 @@
     if (!row) throw new Error(tr('œuvre introuvable dans votre compte'));
     return row;
   }
-  // le lien de l'œuvre (celui déjà en cours, s'il est encore valable plus d'un jour ; sinon un nouveau)
+  // le lien de l'œuvre (celui déjà en cours, s'il est encore valable plus d'un jour ; sinon un nouveau) :
+  // créé par le serveur (fonction « partage », action « creer ») — jeton tiré au hasard, unique, 30 jours
   async function shareCreate(workId) {
     if (!user) throw new Error(tr('connexion requise'));
-    const row = await shareMeta(workId);
-    const meta = Object.assign({}, row.meta);
-    if (!shareOk(meta.share)) {
-      meta.share = { token: newToken(), at: new Date().toISOString(), expires: new Date(Date.now() + SHARE_DAYS * 86400e3).toISOString() };
-      const { error } = await client.from('compositions').update({ meta }).eq('id', workId);
-      err(error);
-    }
-    return { token: meta.share.token, expires: meta.share.expires };
+    const data = await fnCall('partage', { action: 'creer', id: workId }, tr('le serveur ne répond pas : réessayez dans un instant'));
+    if (!data || !data.token) throw new Error(tr('réponse inattendue du serveur'));
+    return { token: data.token, expires: data.expires };
   }
   // le lien en cours de l'œuvre, s'il y en a un (sans en créer)
   async function shareGet(workId) {
@@ -648,6 +642,10 @@
   async function ordersCheckout(consent) {
     const data = await fnCall('commande', { consent: !!consent });
     if (!data || !data.url) throw new Error(tr('réponse inattendue du serveur'));
+    // la page de paiement : seulement celle de Stripe (ou une page de ce site), jamais une autre adresse
+    let to = null;
+    try { to = new URL(data.url, location.href); } catch (e) { /* adresse illisible */ }
+    if (!to || !(to.origin === 'https://checkout.stripe.com' || to.origin === location.origin)) throw new Error(tr('réponse inattendue du serveur'));
     return data;
   }
   // annuler (et rembourser) une commande : le client tant qu'elle est payée, l'administrateur jusqu'à l'expédition

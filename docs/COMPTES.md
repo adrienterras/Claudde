@@ -96,8 +96,10 @@ Pour bloquer les inscriptions en masse et l'épuisement du quota d'e-mails :
 1. Cloudflare → Turnstile → Add widget : domaine `ateliergribouille.art`, mode « Managed ». Noter la
    clé du site (publique) et la clé secrète.
 2. Donner la **clé du site** (publique) : elle va dans `collage/config.js`, `captchaSiteKey`, et la
-   politique de sécurité de `collage/index.html` doit autoriser `https://challenges.cloudflare.com`
-   (`script-src` et `frame-src`). Publier.
+   politique de sécurité de **chaque page où l'on se connecte** (`collage/index.html` et les pages de
+   `landing/` qui chargent `compte.js`) doit autoriser `https://challenges.cloudflare.com`
+   (`script-src` et `frame-src`). Les tests (`tests/csp.spec.js`) refusent la publication tant
+   qu'une de ces pages ne l'autorise pas. Publier.
 3. Ensuite seulement : Supabase → Authentication → Attack Protection → Enable Captcha protection →
    Cloudflare Turnstile, coller la **clé secrète**.
 

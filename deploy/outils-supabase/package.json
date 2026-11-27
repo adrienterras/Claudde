@@ -1,0 +1,8 @@
+{
+  "name": "atelier-gribouille-outils-supabase",
+  "private": true,
+  "description": "Outil de déploiement des fonctions Supabase (CLI), à une version exacte, dépendances verrouillées par package-lock.json : la publication l'installe avec npm ci.",
+  "dependencies": {
+    "supabase": "2.122.1"
+  }
+}

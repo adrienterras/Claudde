@@ -6,7 +6,10 @@ const crypto = require('crypto');
 const { test, expect, fixture, openStep } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html', 'landing/a-propos.html'];
+const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html', 'landing/a-propos.html', 'landing/commandes.html', 'landing/tableau-de-bord.html'];
+// la vérification anti-robot (Cloudflare Turnstile) : son script n'est permis que si sa clé est réglée
+const TURNSTILE = 'https://challenges.cloudflare.com';
+const captchaOn = /captchaSiteKey:\s*'[^']+'/.test(fs.readFileSync(path.join(ROOT, 'collage', 'config.js'), 'utf8'));
 const cspOf = (html) => { const m = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/); return m && m[1]; };
 const directive = (csp, name) => (csp.split(';').map((d) => d.trim().split(/\s+/)).find((d) => d[0] === name) || []).slice(1);
 
@@ -27,7 +30,7 @@ test.describe('Politique de sécurité du contenu', () => {
       const scripts = directive(csp, 'script-src');
       // aucun script tiers (audit du 16 novembre 2026) : la mesure d'audience envoie elle-même ses
       // données à gateway.umami.is (docs Umami, « Sending stats ») ; seuls 'self' et des empreintes
-      expect(scripts.filter((s) => s !== "'self'" && !/^'sha256-/.test(s)), p).toEqual([]);
+      expect(scripts.filter((s) => s !== "'self'" && !/^'sha256-/.test(s) && !(captchaOn && s === TURNSTILE)), p).toEqual([]);
       expect(directive(csp, 'connect-src'), p).toContain('https://gateway.umami.is');
       expect(directive(csp, 'connect-src'), p).not.toContain('https://cloud.umami.is');
       expect(scripts.filter((s) => /unsafe/.test(s)), p).toEqual([]);
@@ -39,6 +42,12 @@ test.describe('Politique de sécurité du contenu', () => {
       }
       // aucun gestionnaire d'événement écrit dans le HTML (onclick="…") : il serait bloqué
       expect(html.match(/<[a-z][^>]*\son[a-z]+=/gi), p).toBeNull();
+      // la clé anti-robot réglée sans que la politique l'autorise : l'inscription serait bloquée
+      // (docs/COMPTES.md, « Vérification anti-robot ») ; les pages où l'on se connecte doivent alors le permettre
+      if (captchaOn && /compte\.js|js\/account\.js/.test(html)) {
+        expect(scripts, `${p} : script anti-robot`).toContain(TURNSTILE);
+        expect(directive(csp, 'frame-src'), `${p} : cadre anti-robot`).toContain(TURNSTILE);
+      }
     }
   });
 

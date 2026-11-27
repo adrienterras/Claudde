@@ -36,17 +36,26 @@ Deno.serve(async (req) => {
     if (!done || !done.length) return reply(409, { error: 'la commande vient de changer : rechargez la page' });
     // le remboursement, entier
     if (order.payment_intent) {
-      const r = await fetch('https://api.stripe.com/v1/refunds', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${STRIPE_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': `refund-${id}` },
-        body: `payment_intent=${encodeURIComponent(order.payment_intent)}&metadata[order_id]=${encodeURIComponent(id)}&metadata[ref]=${encodeURIComponent(order.ref)}`,
-      });
-      const refund = await r.json();
-      if (!r.ok) {
-        await rest('PATCH', `orders?id=eq.${id}`, { status: order.status, updated_at: new Date().toISOString() });
-        console.error('Stripe', refund);
-        await journal('erreur', `Stripe refuse le remboursement : ${(refund.error && refund.error.message) || r.status}`, order.ref);
-        return reply(502, { error: `remboursement refusé par Stripe : ${(refund.error && refund.error.message) || r.status}` });
+      // (Stripe injoignable, ou réponse illisible : la commande revient à son statut, rien n'est perdu ;
+      // un nouvel essai réutilise la même clé d'idempotence, jamais deux remboursements)
+      let r: Response | null = null, refund: any = null, failure = '';
+      try {
+        r = await fetch('https://api.stripe.com/v1/refunds', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${STRIPE_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': `refund-${id}` },
+          body: `payment_intent=${encodeURIComponent(order.payment_intent)}&metadata[order_id]=${encodeURIComponent(id)}&metadata[ref]=${encodeURIComponent(order.ref)}`,
+          signal: AbortSignal.timeout(20000),
+        });
+        refund = await r.json();
+        if (!r.ok) failure = `Stripe refuse le remboursement : ${(refund && refund.error && refund.error.message) || r.status}`;
+      } catch (e) {
+        failure = `Stripe ne répond pas : ${errText(e)}`;
+      }
+      if (failure) {
+        await rest('PATCH', `orders?id=eq.${id}&status=eq.annulee`, { status: order.status, updated_at: new Date().toISOString() }).catch((e: unknown) => console.error(e));
+        console.error('Stripe', failure);
+        await journal('erreur', failure, order.ref);
+        return reply(502, { error: 'le remboursement n’a pas pu être fait : la commande n’est pas annulée, réessayez dans un instant' });
       }
       await rest('PATCH', `orders?id=eq.${id}`, { refund: refund.id, cancelled_at: at });
     } else {
@@ -60,6 +69,6 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error(e);
     await journal('erreur', errText(e));
-    return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
+    return reply(500, { error: 'l’annulation n’a pas abouti : réessayez dans un instant' });
   }
 });

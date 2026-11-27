@@ -1,0 +1,8 @@
+{
+  "name": "atelier-gribouille-outils-cloudflare",
+  "private": true,
+  "description": "Outil de publication du site sur Cloudflare Pages (wrangler), à une version exacte, dépendances verrouillées par package-lock.json : la publication l'installe avec npm ci.",
+  "dependencies": {
+    "wrangler": "4.152.0"
+  }
+}

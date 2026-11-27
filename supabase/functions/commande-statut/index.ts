@@ -24,6 +24,9 @@ Deno.serve(async (req) => {
     if (!order) return reply(404, { error: 'commande inconnue' });
     if (!STEPS.includes(order.status)) return reply(409, { error: 'commande annulée ou non payée : son statut ne change plus' });
     const status = STEPS.includes(body.status) ? body.status : order.status;
+    // (une commande en préparation ou plus loin ne revient pas à « Payée » : cela rouvrirait au client
+    // l'annulation et le remboursement en ligne)
+    if (status === 'payee' && order.status !== 'payee') return reply(409, { error: 'une commande en préparation ne revient pas à « Payée »' });
     const carrier = body.carrier == null ? order.carrier : String(body.carrier).slice(0, 60) || null;
     const tracking = body.tracking == null ? order.tracking : String(body.tracking).trim().slice(0, 80) || null;
     const [saved] = await rest('PATCH', `orders?id=eq.${id}`, { status, carrier, tracking, updated_at: new Date().toISOString() }, 'return=representation');
@@ -35,6 +38,6 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error(e);
     await journal('erreur', errText(e));
-    return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
+    return reply(500, { error: 'le statut n’a pas pu être changé : réessayez dans un instant' });
   }
 });

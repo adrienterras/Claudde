@@ -1,14 +1,19 @@
-# Audit de sécurité — octobre 2026
+# Sécurité d'Atelier Gribouille
 
-Périmètre : site statique (GitHub Pages, `ateliergribouille.art`), application dans le navigateur,
-comptes et stockage Supabase, mesure d'audience Umami, workflows GitHub.
+Périmètre (mis à jour le 27 novembre 2026) : site statique publié sur Cloudflare Pages
+(`ateliergribouille.art`, domaine chez Spaceship, DNS chez Cloudflare), application dans le
+navigateur, comptes, base et stockage Supabase, fonctions serveur Supabase (paiement Stripe, e-mails
+Resend, partage, tableau de bord), mesure d'audience Umami, publication par GitHub Actions. Schéma de
+l'ensemble : voir la page « Architecture » et `docs/HEBERGEMENT.md`.
 
 ## Verdict
 
-Pas de faille bloquante. L'architecture limite naturellement les risques : aucun serveur à nous,
-pas de secret dans le code ni dans l'historique Git, règles d'accès par ligne et par dossier côté
-Supabase, dessins traités dans le navigateur. Les points corrigés lors de l'audit sont listés plus
-bas ; il reste quelques réglages à faire dans les tableaux de bord Supabase et GitHub.
+Pas de faille bloquante (dernier audit complet : 27 novembre 2026, plus bas). Les dessins sont
+traités dans le navigateur ; le serveur se limite à six fonctions qui vérifient chacune l'appelant
+(compte connecté, administrateur avec double authentification, ou signature Stripe) ; aucun secret
+dans le code ni dans l'historique Git ; règles d'accès par ligne et par dossier côté Supabase ; les
+prix sont recalculés par le serveur. Il reste quelques réglages à faire dans les tableaux de bord
+Supabase et GitHub (liste plus bas).
 
 ## Ce qui est en place
 
@@ -28,9 +33,12 @@ bas ; il reste quelques réglages à faire dans les tableaux de bord Supabase et
 - **Paramètres d'URL** : `?lang` est validé contre une liste fermée, `?exemple` est un simple
   drapeau ; pas de redirection construite à partir de l'URL.
 - **Mesure d'audience** : sans cookie ni identifiant, aucune donnée de contenu transmise.
-- **Workflows GitHub** : permissions minimales (`contents: read` ; `pages: write` et
-  `id-token: write` uniquement pour la publication), garde sur la pointe de branche pour empêcher
-  un ancien run de redéployer une vieille version.
+- **Workflows GitHub** : permissions minimales (`contents: read` partout), publication seulement
+  après les tests et seulement depuis la branche de production, garde sur la pointe de branche
+  (`deploy/verifier-pointe.sh`) pour empêcher un ancien run de redéployer une vieille version. Deux
+  clés de publication, chacune dans son propre job : `CLOUDFLARE_API_TOKEN` (site) et
+  `SUPABASE_ACCESS_TOKEN` (fonctions). Leurs outils (wrangler, CLI Supabase) sont installés à une
+  version exacte avec leurs dépendances verrouillées (`deploy/outils-*/package-lock.json`, `npm ci`).
 
 ## Corrigé lors de l'audit
 
@@ -63,17 +71,16 @@ bas ; il reste quelques réglages à faire dans les tableaux de bord Supabase et
 
 ## Limites connues, acceptées
 
-- (Jusqu'au 22 novembre 2026, sur GitHub Pages : pas d'en-têtes HTTP personnalisés. Depuis le
-  passage à Cloudflare Pages, `_headers` applique HSTS, `frame-ancestors 'none'`, `nosniff`, etc.)
-  La CSP complète reste en balise `<meta>`. Une CSP par balise `<meta>` est
-  possible mais demande une liste précise des origines (Supabase, Umami, Google Fonts, blob:,
-  data:, workers) et des tests : à envisager quand le site sera stable.
+- Depuis le passage à Cloudflare Pages (22 novembre 2026), `_headers` applique HSTS,
+  `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, etc. La CSP complète est en balise
+  `<meta>` sur chaque page (testée par `tests/csp.spec.js`) ; `style-src` garde `'unsafe-inline'`.
 - Le jeton de session Supabase est gardé dans `localStorage` (comportement par défaut de la
   librairie) : une injection de script le lirait. C'est pourquoi l'échappement HTML ci-dessus
   compte, et pourquoi aucune extension tierce n'est chargée en dehors d'Umami.
-- jsPDF 2.5 (création du guide) tourne uniquement dans le navigateur de l'utilisateur sur ses
-  propres données ; les vulnérabilités connues (déni de service par expression régulière) n'ont
-  pas d'impact ici.
+- jsPDF 4.2.1 et pdf.js 3.11 (`isEvalSupported: false`) tournent uniquement dans le navigateur de
+  l'utilisateur, sur ses propres fichiers.
+- L'ouverture d'un lien de partage (« voir », sans compte) n'est pas limitée en fréquence : elle ne
+  coûte qu'une lecture d'index (jeton unique) et ne renvoie que le nom, la vignette et un prénom.
 
 ## Audit d'octobre 2026 (panier, réouverture automatique)
 
@@ -211,7 +218,7 @@ complet. Aucun secret, aucune fuite entre comptes. Corrigé :
 
 À faire par l'éditeur (hors du code) :
 - protéger la branche publiée (ni force-push ni suppression) et limiter l'environnement
-  `github-pages` à cette branche ;
+  `production` (anciennement `github-pages`) à cette branche ;
 - faire tourner la clé `service_role` dans Supabase (elle a été présente une semaine dans un workflow
   en octobre), puis supprimer le secret `SUPABASE_SERVICE_ROLE_KEY` du dépôt ;
 - les réglages Supabase, GitHub, Spaceship et Umami déjà listés plus haut.
@@ -256,9 +263,51 @@ Le schéma a été rejoué deux fois sur une base PostgreSQL qui imite Supabase 
 `storage.objects`) : lecture refusée sans `aal2`, journal écrit, fichiers ouverts après l'ouverture
 seulement, exports jamais, plafonds atteints refusés.
 
+## Audit du 27 novembre 2026 (paiement, commandes, partage, publication)
+
+Trois relectures en parallèle (serveur et base, navigateur, publication et dépendances), chaque point
+vérifié dans le code. Rien de critique : prix recalculés par le serveur, commandes inaccessibles d'un
+compte à l'autre, double remboursement impossible, signature Stripe vérifiée, aucune injection de code
+trouvée (y compris par une œuvre partagée ou la vue administrateur), aucun secret dans l'historique.
+Corrigé :
+
+- **Publication** : la CLI Supabase était prise à la dernière version « 2.x » à chaque déploiement,
+  avec une clé qui ouvre tout le compte Supabase ; wrangler, figé, gardait des dépendances libres.
+  Désormais versions exactes, dépendances verrouillées, et un job par clé.
+- **Partage** : le jeton était tiré par le navigateur, sans unicité : un compte pouvait recopier le
+  jeton d'un autre sur sa propre œuvre et la faire apparaître à sa place. Le jeton est maintenant
+  tiré par la fonction `partage` (action « creer », fonction SQL `share_set`), unique (index
+  `compositions_share_token_key`, qui rend aussi la recherche d'un lien instantanée) et jamais
+  valable plus de 30 jours, même si une date plus lointaine est écrite dans la fiche.
+- **Recevoir une œuvre** contournait la limite de 3 Go et 5 000 fichiers par compte (copie faite avec
+  la clé serveur) : la fonction vérifie la place avant (`share_room`) et limite à 10 réceptions par
+  heure.
+- **Annulation** : Stripe injoignable au moment du remboursement laissait la commande « annulée »
+  sans remboursement. Le statut est maintenant rétabli ; un nouvel essai garde la même clé
+  d'idempotence.
+- **Notification Stripe en double** : traitée une seule fois (e-mails non doublés).
+- **Page de paiement** : l'atelier ne suit plus que l'adresse de Stripe (ou une page du site).
+- **Messages d'erreur** : les fonctions ne renvoient plus le détail technique au navigateur ; il va au
+  journal `site_events`, lu par le tableau de bord de l'administrateur.
+- **Commandes** : plus de modification directe depuis le navigateur (le droit `update` est retiré) ;
+  une commande en préparation ne revient plus à « Payée » (cela rouvrait l'annulation au client).
+- **Vérification anti-robot** : régler `captchaSiteKey` sans autoriser Cloudflare dans la politique
+  de sécurité de chaque page de connexion bloquait l'inscription ; les tests le refusent maintenant.
+- Cette page était restée sur l'architecture d'octobre (GitHub Pages, « aucun serveur ») : mise à jour.
+
+Restent à décider : demander confirmation avant de recevoir une œuvre dont le lien a été ouvert sans
+compte sur l'appareil ; données laissées sur l'appareil après « Se déconnecter » simple.
+
+À faire dans les réglages : mettre `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` et
+`SUPABASE_ACCESS_TOKEN` dans les secrets de l'environnement GitHub « production », limité à la branche
+de production, puis supprimer leurs copies au niveau du dépôt ; une clé Supabase limitée à ce projet si
+possible ; supprimer l'ancien workflow Firebase de la branche `main` et le secret
+`FIREBASE_SERVICE_ACCOUNT` s'ils ne servent plus.
+
 ## Rejouer l'audit
 
-- `git log --all -p -S"service_role"` et `-S"sb_secret"` : aucun secret dans l'historique.
+- `git log --all -p -S"service_role"` et `-S"sb_secret"`, puis les motifs `sk_live`, `rk_live`,
+  `whsec_`, `re_`, `sbp_`, `ghp_`, `github_pat_` : aucun secret dans l'historique.
 - `grep -n "innerHTML" collage/js/app.js` : chaque interpolation de donnée passe par `esc()`.
 - `npm test` dans `collage/` : 98 tests, dont l'absence d'erreur de page et `tests/csp.spec.js`.
 

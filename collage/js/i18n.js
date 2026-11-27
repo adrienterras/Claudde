@@ -277,6 +277,7 @@
     'Merci ! Votre paiement est bien reçu (commande {0}). Vous suivez son avancement ici, dans « Mes commandes ».': 'Thank you! Your payment has been received (order {0}). Follow its progress here, in “My orders”.',
     'connexion requise': 'sign-in required',
     'réponse inattendue du serveur': 'unexpected server response',
+    'le serveur ne répond pas : réessayez dans un instant': 'the server is not responding: try again in a moment',
     'Produit': 'Product',
     'Finition': 'Finish',
     'Taille': 'Size',

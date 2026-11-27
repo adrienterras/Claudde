@@ -8,9 +8,25 @@
  */
 export const SHARE_DAYS = 30;
 export const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const DAY = 86400e3;
 
-// le lien est-il encore valable ?
-export const shareValid = (share, now = Date.now()) => !!(share && TOKEN_RE.test(String(share.token || '')) && !share.revoked && new Date(share.expires).getTime() > now);
+// le jeton d'un nouveau lien : 144 bits tirés au hasard par le serveur (jamais par le navigateur)
+export function newToken() {
+  const b = crypto.getRandomValues(new Uint8Array(18));
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+// un nouveau lien, valable SHARE_DAYS jours
+export const newShare = (now = Date.now()) => ({ token: newToken(), at: new Date(now).toISOString(), expires: new Date(now + SHARE_DAYS * DAY).toISOString() });
+
+// le lien est-il encore valable ? (et jamais plus de SHARE_DAYS jours devant lui : une date plus lointaine,
+// écrite à la main dans la fiche, ne fait pas un lien sans fin)
+export const shareValid = (share, now = Date.now()) => {
+  if (!share || !TOKEN_RE.test(String(share.token || '')) || share.revoked) return false;
+  const end = new Date(share.expires).getTime();
+  return end > now && end <= now + (SHARE_DAYS + 1) * DAY;
+};
+// le lien en cours peut-il resservir (encore plus d'un jour) ?
+export const shareReusable = (share, now = Date.now()) => shareValid(share, now) && new Date(share.expires).getTime() > now + DAY;
 
 // les fichiers d'une fiche (image, retouches, page de travail et planches des découpes)
 export function pathsOf(meta) {

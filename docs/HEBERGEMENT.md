@@ -26,9 +26,13 @@ projet d'essai `claudde`, relié au dépôt, est à supprimer).
    une seule fois).
 2. **Identifiant du compte** : Cloudflare → **Workers & Pages** (ou la page du domaine) → **Account
    ID**, à droite.
-3. **GitHub** → dépôt → **Settings → Secrets and variables → Actions → New repository secret** :
-   `CLOUDFLARE_API_TOKEN` (la clé) et `CLOUDFLARE_ACCOUNT_ID` (l'identifiant).
-4. Relancer la dernière publication (**Actions → Publier sur GitHub Pages → Run workflow**) : le
+3. **GitHub** → dépôt → **Settings → Environments → production** : **Deployment branches and tags**
+   → « Selected branches » → `claude/children-drawings-art-app-kr5f77` seulement ; puis **Environment
+   secrets → Add environment secret** : `CLOUDFLARE_API_TOKEN` (la clé) et `CLOUDFLARE_ACCOUNT_ID`
+   (l'identifiant), et de même `SUPABASE_ACCESS_TOKEN` (fonctions). Ainsi, seule la branche de
+   production peut utiliser ces clés. Supprimer ensuite leurs copies dans **Secrets and variables →
+   Actions → Repository secrets**.
+4. Relancer la dernière publication (**Actions → Publier le site → Run workflow**) : le
    projet `ateliergribouille` est créé au premier envoi ; le site est sur
    `https://ateliergribouille.pages.dev`. Le vérifier (accueil, `/atelier/`, connexion, import).
 

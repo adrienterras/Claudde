@@ -7994,7 +7994,7 @@ Réponds uniquement avec ce JSON :
       const items = (o.items || []).map((it, k) => {
         let label = it.label || '';
         try { label = productLabel(it) || label; } catch (e) { /* le libellé gardé */ }
-        return `<li>${esc(it.title || '')} — ${esc(label)}${it.qty > 1 ? ` × ${it.qty}` : ''}${it.compId ? ` <button type="button" class="link" data-open="${k}">${tr('Ouvrir l’œuvre')}</button>` : ''}</li>`;
+        return `<li>${esc(it.title || '')} — ${esc(label)}${Number(it.qty) > 1 ? ` × ${Math.round(Number(it.qty))}` : ''}${it.compId ? ` <button type="button" class="link" data-open="${k}">${tr('Ouvrir l’œuvre')}</button>` : ''}</li>`;
       }).join('');
       const done = !ADMIN_STEPS.includes(o.status);
       el.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>

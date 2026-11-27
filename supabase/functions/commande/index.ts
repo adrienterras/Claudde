@@ -54,13 +54,13 @@ Deno.serve(async (req) => {
       await rest('PATCH', `orders?id=eq.${order.id}`, { status: 'annulee' });
       console.error('Stripe', session);
       await journal('erreur', `Stripe refuse la page de paiement : ${(session.error && session.error.message) || r.status}`, order.ref);
-      return reply(502, { error: `Stripe : ${(session.error && session.error.message) || r.status}` });
+      return reply(502, { error: 'la page de paiement n’a pas pu être préparée : réessayez dans un instant' });
     }
     await rest('PATCH', `orders?id=eq.${order.id}`, { stripe_session: session.id });
     return reply(200, { url: session.url, ref: order.ref });
   } catch (e) {
     console.error(e);
     await journal('erreur', errText(e));
-    return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
+    return reply(500, { error: 'la commande n’a pas pu être préparée : réessayez dans un instant' });
   }
 });
