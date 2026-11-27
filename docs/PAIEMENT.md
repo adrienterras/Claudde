@@ -94,17 +94,26 @@ essai de livraison en point relais, le 25 novembre 2026, a été retiré.)
 Une page de paiement abandonnée expire au bout de 31 minutes : la commande passe alors « abandonnée »
 et sort de « Mes commandes ».
 
-## Suivre les commandes (administrateur)
+## Suivre les commandes (équipe)
 
-Dans l'atelier, avec le compte administrateur, sous Mes œuvres, après la double authentification :
-section **Commandes**, en haut, au-dessus de « Toutes les œuvres ». Chaque commande payée y affiche :
+Page **Gestion des commandes** (`gestion-commandes.html`, menu du compte), pour l'administrateur et le
+rôle « tableau », avec la double authentification : client, adresse, œuvres (« Ouvrir dans l'atelier »,
+fichier HD d'impression), statut et suivi, **Annuler et rembourser** jusqu'à l'expédition. Détail dans
+`docs/TABLEAU-DE-BORD.md`. Fonctions `commande-statut` et `commande-annuler` : réservées à l'équipe.
 
-- le client (nom, e-mail, téléphone), l'adresse et le mode de livraison ;
-- les œuvres, avec **Ouvrir l'œuvre** : elle se rouvre en copie, pour l'exporter et l'imprimer ;
-- le statut, le transporteur et le numéro de suivi, puis **Enregistrer et prévenir le client** ;
-- **Annuler et rembourser**, jusqu'à l'expédition.
+## Factures
 
-Fonction `commande-statut` : réservée à l'administrateur avec la double authentification.
+Faites par **Stripe** après chaque paiement (`invoice_creation` dans la session de paiement,
+`_shared/commande.js`) : numérotées à la suite, au nom et à l'adresse de facturation saisis par le client,
+articles et livraison détaillés, référence de la commande (champ « Commande »). Stripe les garde dans
+son tableau de bord (Facturation → Factures) et les envoie au client. Coût : 0,4 % du montant, au plus
+environ 2 € par facture (frais Stripe des factures après paiement).
+
+À régler une fois dans Stripe :
+- **Settings → Business → Public details** : raison sociale, adresse, e-mail et téléphone du vendeur.
+- **Settings → Billing → Invoice template** : pied de page avec SIRET, forme juridique et mention de TVA
+  (numéro de TVA intracommunautaire, ou « TVA non applicable, art. 293 B du CGI » en franchise).
+- **Settings → Customer emails** : cocher l'envoi des factures et des reçus de paiement.
 
 ## E-mails
 

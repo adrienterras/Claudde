@@ -219,6 +219,13 @@ export function checkoutParams({ order, items, email, origin, now = Date.now() }
     ['cancel_url', `${site}/atelier/?panier`],
   ];
   if (email) p.push(['customer_email', email]);
+  // la facture : faite par Stripe après le paiement (numérotée, au nom et à l'adresse de facturation du
+  // client, livraison comprise), envoyée au client par Stripe et gardée dans le tableau de bord Stripe ;
+  // les mentions légales du vendeur (raison sociale, SIRET, TVA) viennent des réglages Stripe
+  p.push(['invoice_creation[enabled]', 'true'],
+    ['invoice_creation[invoice_data][description]', `Commande ${order.ref} — Atelier Gribouille`],
+    ['invoice_creation[invoice_data][custom_fields][0][name]', 'Commande'], ['invoice_creation[invoice_data][custom_fields][0][value]', String(order.ref)],
+    ['invoice_creation[invoice_data][metadata][order_id]', order.id], ['invoice_creation[invoice_data][metadata][ref]', order.ref]);
   items.forEach((it, i) => {
     const b = `line_items[${i}]`;
     p.push([`${b}[quantity]`, String(it.qty)], [`${b}[price_data][currency]`, 'eur'], [`${b}[price_data][unit_amount]`, String(cents(it.unit))],

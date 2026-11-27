@@ -69,6 +69,11 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(p.get('mode')).toBe('payment');
     expect(p.get('customer_email')).toBe('lou@example.org');
     expect(p.get('metadata[order_id]')).toBe('o-1');
+    // la facture : faite par Stripe après le paiement, avec la référence de la commande
+    expect(p.get('invoice_creation[enabled]')).toBe('true');
+    expect(p.get('invoice_creation[invoice_data][custom_fields][0][value]')).toBe('AG-261125-AB12');
+    expect(p.get('invoice_creation[invoice_data][metadata][order_id]')).toBe('o-1');
+    expect(p.get('invoice_creation[invoice_data][description]')).toBe('Commande AG-261125-AB12 — Atelier Gribouille');
     expect(p.get('line_items[0][price_data][unit_amount]')).toBe('12900');
     expect(p.get('line_items[0][quantity]')).toBe('2');
     expect(p.get('line_items[1][price_data][unit_amount]')).toBe('2900');
