@@ -144,6 +144,7 @@ function textOf({ title, paras, order, extra }) {
 // opts.invoice : le lien de la facture Stripe (confirmation de commande)
 export function customerEmail(status, order, visuals, opts) {
   const invoice = status === 'payee' && opts && typeof opts.invoice === 'string' && /^https:\/\/([a-z0-9-]+\.)*stripe\.com\//i.test(opts.invoice) ? opts.invoice : null;
+  const guides = status === 'payee' && opts ? Math.max(0, Math.floor(Number(opts.guides) || 0)) : 0;
   const vis = visuals && visuals.map;
   const first = String(nameOf(order) || '').split(' ')[0];
   const hello = first ? `Bonjour ${first},` : 'Bonjour,';
@@ -182,13 +183,14 @@ export function customerEmail(status, order, visuals, opts) {
     para(esc(hello)),
     ...C1.paras.map((p) => para(esc(p))),
     `<tr><td style="padding:8px 0 24px;">${btn(C1.cta[0], C1.cta[1])}</td></tr>`,
+    status === 'payee' && guides ? para(esc(guideLine(order, guides))) : '',
     status === 'payee' ? para(invoice
       ? `Votre facture : <a href="${esc(invoice)}" style="color:${C.ink};font-weight:700;">la télécharger</a> (elle reste aussi disponible dans Mes commandes).`
       : `Votre facture est disponible dans <a href="${esc(ordersLink(order))}" style="color:${C.ink};font-weight:700;">Mes commandes</a>.`) : '',
     recapHtml(order, vis),
     status !== 'annulee' ? addressHtml(order, 'Adresse de livraison') : '',
   ].join('\n');
-  const extra = [url ? `Suivre le colis : ${url}` : null, status === 'payee' ? (invoice ? `Votre facture : ${invoice}` : `Votre facture est disponible dans Mes commandes : ${ordersLink(order)}`) : null].filter(Boolean);
+  const extra = [url ? `Suivre le colis : ${url}` : null, guides ? guideLine(order, guides) : null, status === 'payee' ? (invoice ? `Votre facture : ${invoice}` : `Votre facture est disponible dans Mes commandes : ${ordersLink(order)}`) : null].filter(Boolean);
   return {
     subject: C1.subject,
     html: page({ preheader: C1.paras[0], title: C1.title, body, footnote: 'Vous recevez cet e-mail au sujet de votre commande sur ateliergribouille.art.' }),
@@ -198,6 +200,26 @@ export function customerEmail(status, order, visuals, opts) {
 }
 
 // l'e-mail à la boutique : nouvelle commande (avec l'adresse) ou commande annulée par le client
+// le guide de découpe joint (commandes « Originaux ») ; le kit, lui, part par la poste
+export function guideLine(order, n) {
+  const kit = (order.items || []).some((it) => it.product === 'kit');
+  const one = n > 1 ? 'Vos guides de découpe sont joints à cet e-mail (PDF)' : 'Votre guide de découpe est joint à cet e-mail (PDF)';
+  return `${one} : imprimez-le pour découper et coller vos dessins originaux.${kit ? ' Votre kit vous sera expédié, nous vous écrirons à son départ.' : ''}`;
+}
+// le guide renvoyé au client par l'équipe (Gestion des commandes)
+export function guideEmail(order, n) {
+  const first = String(nameOf(order) || '').split(' ')[0];
+  const hello = first ? `Bonjour ${first},` : 'Bonjour,';
+  const title = n > 1 ? 'Vos guides de découpe' : 'Votre guide de découpe';
+  const paras = [`${n > 1 ? 'Voici vos guides de découpe' : 'Voici votre guide de découpe'} pour la commande ${order.ref}, en pièce jointe (PDF).`, 'Une question ? Répondez simplement à cet e-mail.'];
+  const body = [para(esc(hello)), ...paras.map((x) => para(esc(x))), `<tr><td style="padding:8px 0 24px;">${btn(ordersLink(order), 'Voir ma commande')}</td></tr>`].join('\n');
+  return {
+    subject: `${title} (commande ${order.ref})`,
+    html: page({ preheader: paras[0], title, body, footnote: 'Vous recevez cet e-mail au sujet de votre commande sur ateliergribouille.art.' }),
+    text: textOf({ title, paras: [hello, ...paras], order }),
+    attachments: [],
+  };
+}
 // l'accord du client (case cochée au panier) pour montrer son œuvre
 export const consentLine = (order) => (order.consent
   ? 'accepté (réseaux, communication, publicité ; sans nom ni prénom ou visage d’enfant)'

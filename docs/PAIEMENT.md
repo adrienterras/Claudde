@@ -101,6 +101,20 @@ rôle « tableau », avec la double authentification : client, adresse, œuvres 
 d'impression, fait sur place), statut et suivi, **Annuler et rembourser** jusqu'à l'expédition. Détail dans
 `docs/TABLEAU-DE-BORD.md`. Fonctions `commande-statut` et `commande-annuler` : réservées à l'équipe.
 
+## Commandes « Originaux » : le guide de découpe
+
+Pour un article **Guide DIY** ou **Kit DIY**, l'atelier fait le guide de découpe et de collage (PDF) au
+moment de l'ajout au panier, sur l'œuvre ouverte, et l'envoie avec l'article dans le compte
+(`<compte>/<article>/guide.pdf`, `meta.guide`). Au paiement, le webhook le range avec la commande (bucket
+privé `impressions`, `<commande>/guide-<n° de l'article>.pdf`) et le **joint à l'e-mail de confirmation**
+(jusqu'à 30 Mo de pièces jointes ; au-delà, il reste à télécharger). Le kit physique, lui, est préparé et
+expédié par l'équipe.
+
+Dans **Gestion des commandes**, l'article montre « Guide de découpe envoyé au client », avec
+**Télécharger le guide** et **Renvoyer au client** (nouvel e-mail avec le guide joint, inscrit à
+l'historique). Fonctions : `stripe-webhook` (rangement et pièce jointe), `commande-statut`
+(`action: 'guide'`, équipe seulement), module `_shared/guides.js`.
+
 ## Factures
 
 Faites par **Stripe** après chaque paiement (`invoice_creation` dans la session de paiement,

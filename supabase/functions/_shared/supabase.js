@@ -23,6 +23,20 @@ export async function rest(method, path, body, prefer) {
   return text ? JSON.parse(text) : null;
 }
 
+// un fichier du stockage, avec la clé serveur : lu (octets, ou null s'il manque) et écrit (remplacé)
+export async function storageGet(bucket, path) {
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`, { headers: serverHeaders() });
+  if (r.status === 404 || r.status === 400) return null;
+  if (!r.ok) throw new Error(`stockage (${r.status}) : ${(await r.text()).slice(0, 200)}`);
+  return new Uint8Array(await r.arrayBuffer());
+}
+export async function storagePut(bucket, path, bytes, type) {
+  const r = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`, {
+    method: 'POST', headers: serverHeaders({ 'Content-Type': type, 'x-upsert': 'true' }), body: bytes,
+  });
+  if (!r.ok) throw new Error(`stockage (${r.status}) : ${(await r.text()).slice(0, 200)}`);
+}
+
 // le compte qui appelle (jeton de session envoyé par l'atelier), ou null
 export async function userOf(req) {
   const auth = req.headers.get('Authorization') || '';

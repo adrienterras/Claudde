@@ -5,8 +5,9 @@
 // deux fois ne change rien de plus.
 import { verifySignature, orderTrace, invoiceLink } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
-import { rest, thumbsOf } from '../_shared/supabase.js';
+import { rest, thumbsOf, storageGet, storagePut } from '../_shared/supabase.js';
 import { orderLog } from '../_shared/historique.js';
+import { GUIDE_PRODUCTS, guidePath, guideAttachments } from '../_shared/guides.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
 
 journalFrom('stripe-webhook');
@@ -53,9 +54,18 @@ async function paid(session: any) {
   if (!won || !won.length) return;
   await orderLog(id, null, 'payée', 'le client');
   // les œuvres commandées : hors du panier, figées, avec la trace de la commande
-  for (const it of order.items || []) {
+  const guides: { index: number, bytes: Uint8Array | null }[] = [];
+  for (const [index, it] of (order.items || []).entries()) {
     const [row] = (await rest('GET', `compositions?id=eq.${it.compId}&user_id=eq.${order.user_id}&select=id,name,meta`)) || [];
     if (!row) continue;
+    // le guide de découpe (articles Guide et Kit) : rangé avec la commande, pour l'e-mail et pour l'équipe
+    if (GUIDE_PRODUCTS.includes(it.product) && row.meta && typeof row.meta.guide === 'string' && row.meta.guide.startsWith(`${order.user_id}/`)) {
+      try {
+        const bytes = await storageGet('drawings', row.meta.guide);
+        if (bytes) await storagePut('impressions', guidePath(order.id, index), bytes, 'application/pdf');
+        guides.push({ index, bytes });
+      } catch (e) { console.error('guide', e); await journal('erreur', `guide de découpe : ${errText(e)}`, order.ref); }
+    }
     const meta = Object.assign({}, row.meta);
     delete meta.cart;
     meta.ordered = true;
@@ -66,7 +76,9 @@ async function paid(session: any) {
   const [saved] = (await rest('GET', `orders?id=eq.${id}&select=*`)) || [];
   if (saved) {
     const vis = visualsOf(saved, await thumbsOf(saved));
-    await send(customerAddress(saved), customerEmail('payee', saved, vis, { invoice: await invoiceOf(session) }));
+    const mail = customerEmail('payee', saved, vis, { invoice: await invoiceOf(session), guides: guides.filter((g) => g.bytes).length });
+    if (mail) mail.attachments = (mail.attachments || []).concat(guideAttachments(saved, guides));
+    await send(customerAddress(saved), mail);
     await send(shopAddress(), shopEmail('nouvelle', saved, vis));
   }
 }

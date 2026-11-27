@@ -250,12 +250,18 @@ test.describe('Comptes utilisateurs', () => {
     // l'exemple : chargé et manipulé sans compte
     await page.locator('#empty-sample').click();
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length > 0 && AtelierGribouille.state.drawings.every((d) => d.sample) && AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
-    await openStep(page, 'import-section'); // (l'étape Importer, venue avec les dessins, est repliée)
-    await expect(page.locator('#import-account')).toBeVisible();
-    await expect(page.locator('#import-account')).toContainText('librement');
     await page.evaluate(() => AtelierGribouille.selectProposal(1));
     expect(await page.evaluate(() => AtelierGribouille.state.comp.style)).toBeTruthy();
     await expect(page.locator('#account-section')).toBeHidden();
+    // l'exemple ne reçoit pas d'autres dessins : « Commencer une nouvelle œuvre », puis ses propres fichiers,
+    // importés sans compte
+    await openStep(page, 'import-section'); // (l'étape Importer, venue avec les dessins, est repliée)
+    await page.locator('#new-work').click();
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await openStep(page, 'import-section');
+    await expect(page.locator('#import-account')).toBeVisible();
+    await expect(page.locator('#import-account')).toContainText('librement');
     // photographier (sur téléphone : le bouton n'est pas sur ordinateur) : sans compte, le conseil puis
     // l'appareil photo, pas de connexion demandée
     await expect(page.locator('#camera-open')).toBeHidden();
@@ -266,9 +272,6 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#account-section')).toBeHidden();
     await page.locator('#camera-advice [data-close]').click();
     await page.setViewportSize({ width: 1440, height: 1000 });
-    // des fichiers déposés sans compte : importés tout de suite, à la place de l'exemple
-    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
-    await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && AtelierGribouille.state.drawings.every((d) => !d.sample) && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#account-section')).toBeHidden();
     // l'icône Enregistrer, tout à gauche de la barre d'outils : sans compte, la connexion ou la création
     // d'un compte d'abord ; connecté, l'œuvre est enregistrée d'elle-même (un message sur l'œuvre)
@@ -710,6 +713,53 @@ test.describe('Comptes utilisateurs', () => {
     const [ew, eh] = area; // (avec marges, la feuille garde ce format : l'œuvre est en retrait de 3 cm)
     expect(Math.abs(bw - ew)).toBeLessThan(0.1);
     expect(Math.abs(bh - eh)).toBeLessThan(0.1);
+  });
+
+  test('Originaux : le guide de découpe est fait à l’ajout au panier, rangé avec la commande, joint à la confirmation ; l’équipe le télécharge et le renvoie', async ({ acc }) => {
+    test.setTimeout(240000);
+    const { page } = acc;
+    await page.goto('index.html?paiement=test');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await signUpAndIn(page, 'diy@example.org', 'Rouge-Soleil-42', 'Lou');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => { AtelierGribouille.setMode('toile'); AtelierGribouille.state.pinned = null; AtelierGribouille.regenerate(); });
+    await page.waitForFunction(() => AtelierGribouille.state.comp && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await openStep(page, 'export-section');
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add input[name="cart-prod"][value="guide"]').check({ force: true });
+    await page.locator('#cart-add-ok').click();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart && r.meta.guide).length), { timeout: 120000 }).toBe(1);
+    const cartRow = await page.evaluate(() => window.__fake.db.rows.find((r) => r.meta && r.meta.cart));
+    expect(cartRow.meta.cart.product).toBe('guide');
+    expect(cartRow.meta.guide).toBe(`${cartRow.user_id}/${cartRow.id}/guide.pdf`);
+    expect(await page.evaluate((k) => atob(window.__fake.db.files[k]).slice(0, 4), cartRow.meta.guide)).toBe('%PDF');
+    // la commande : le guide rangé avec elle, et joint à l'e-mail de confirmation
+    if (!(await page.locator('#cart').isVisible())) await page.locator('.cart-btn-desk').click();
+    await page.locator('#cart-consent').check();
+    await page.locator('#cart-order').click();
+    await page.waitForURL(/commandes\.html\?commande=AG-/, { timeout: 30000 });
+    const order = await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders'));
+    expect(await page.evaluate((id) => !!JSON.parse(localStorage.getItem('fake.files'))[`impressions:${id}/guide-0.pdf`], order.id)).toBe(true);
+    // l'équipe : la commande, son guide (télécharger, renvoyer au client)
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await page.addLocatorHandler(page.locator('#resume-modal'), () => page.locator('#resume-new').click());
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
+    await openStep(page, 'saved-section');
+    await adminMfa(page, { enroll: true });
+    await page.goto('gestion-commandes.html');
+    await expect(page.locator('#gc-list .o-card')).toHaveCount(1, { timeout: 30000 });
+    await page.locator('#gc-list .o-item').click();
+    const d = page.locator('#gc-detail');
+    await expect(d.locator('.gd-hd.ok')).toContainText('Guide de découpe envoyé au client');
+    await expect(d.locator('[data-guide="0"]')).toBeVisible();
+    await expect(d.locator('.gd-make')).toHaveCount(0); // (pas de fichier HD pour un guide)
+    await d.locator('[data-guide-send]').click();
+    await expect(page.locator('#gc-done')).toContainText('guide de découpe renvoyé au client');
+    await expect(d.locator('.gd-log li').first()).toContainText('Admin : guide de découpe renvoyé au client');
   });
 
   test('administration : la liste se lit par pages de 60, « Afficher les œuvres suivantes » charge la suite', async ({ acc }) => {

@@ -5183,6 +5183,25 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   $('preview-close').onclick = () => { $('preview').hidden = true; document.body.classList.remove('editing'); };
 
   // Guide de création : planches de découpe à taille réelle et ordre de collage.
+  // le guide de découpe et de collage (PDF) d'une composition faite des dessins ouverts : pour l'équipe
+  // (télécharger) et pour un article Guide ou Kit du panier (joint à la commande)
+  async function buildGuide(comp, onProgress) {
+    try { await needJsPdf(); } catch (e) { console.warn(e); }
+    if (!window.Guide || !window.jspdf) throw new Error(tr('Le module de création du guide n’a pas pu se charger. Rechargez la page.'));
+    const st = STYLES.find((x) => x.id === comp.style) || STYLES[0];
+    return Guide.build(comp, {
+      drawings: state.drawings.filter((d) => roleOf(d) !== 'off'),
+      numberOf: (d) => state.drawings.indexOf(d) + 1,
+      nameOf: (d) => {
+        const n = state.drawings.indexOf(d) + 1;
+        return d.ai && d.ai.sujet ? d.ai.sujet.charAt(0).toUpperCase() + d.ai.sujet.slice(1) : `Dessin ${n}`;
+      },
+      title: titleFor(st.id),
+      styleName: st.name,
+      aside: asideDrawings().map((d) => state.drawings.indexOf(d) + 1),
+      onProgress,
+    });
+  }
   async function exportGuide() {
     if (document.body.classList.contains('no-export')) return; // (réservé à l'équipe : voir syncTeamTools)
     if (!state.comp) return;
@@ -5194,19 +5213,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     state.selected = null;
     render();
     try {
-      const st = STYLES.find((x) => x.id === state.comp.style) || STYLES[0];
-      const res = await Guide.build(state.comp, {
-        drawings: state.drawings.filter((d) => roleOf(d) !== 'off'),
-        numberOf: (d) => state.drawings.indexOf(d) + 1,
-        nameOf: (d) => {
-          const n = state.drawings.indexOf(d) + 1;
-          return d.ai && d.ai.sujet ? d.ai.sujet.charAt(0).toUpperCase() + d.ai.sujet.slice(1) : `Dessin ${n}`;
-        },
-        title: titleFor(st.id),
-        styleName: st.name,
-        aside: asideDrawings().map((d) => state.drawings.indexOf(d) + 1),
-        onProgress: (t) => { label.textContent = t; },
-      });
+      const res = await buildGuide(state.comp, (t) => { label.textContent = t; });
       label.textContent = tr('Enregistrement…');
       const gname = exportFileName('pdf', tr('guide-de-creation'));
       if (await saveFile(res.blob, gname)) await recordExport(res.blob, gname);
@@ -6268,14 +6275,8 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   function importUserFiles(files) {
     if (!files.length) return;
     if ($('import-pick') && !$('import-pick').hidden) closeModal($('import-pick')); // (des fichiers déposés pendant le choix d'ajout)
-    if (state.drawings.some((d) => d.sample)) {
-      state.drawings = state.drawings.filter((d) => !d.sample);
-      state.pinned = null; state.sceneLayout = null; state.current = null; state.selected = null;
-      $('sample-note').hidden = true;
-      restoreDensityAfterSample();
-      importFiles(files).then(() => notice(tr('Les dessins d’exemple ont été retirés : place aux vôtres.')));
-      return;
-    }
+    // (l'exemple ouvert ne reçoit pas d'autres dessins : « Commencer une nouvelle œuvre » d'abord)
+    if (onlySamples()) { notice(tr('Pour importer vos dessins, commencez une nouvelle œuvre : l’exemple sert seulement à découvrir l’atelier.')); return; }
     importFiles(files);
   }
   $('file').addEventListener('change', (e) => {
@@ -9233,6 +9234,17 @@ Réponds uniquement avec ce JSON :
       if (state.workId && !state.copyOf) it.workId = state.workId;
       else if (pending.fromWork) it.workId = pending.fromWork; // (recommandée : les fichiers de l'œuvre d'origine)
       if (it.product === 'kit') it.kit = Object.assign({}, choice.kit); else delete it.kit;
+      // Guide ou Kit : le guide de découpe est fait maintenant, sur l'œuvre ouverte, et voyage avec l'article
+      // (compte, commande) : il part dans l'e-mail de confirmation et reste avec la commande
+      if ((it.product === 'guide' || it.product === 'kit') && pending.comp === state.comp) {
+        busyOn(tr('Préparation de votre guide de découpe…'));
+        try {
+          const g = await buildGuide(comp, (t) => busyStep(t));
+          const ref = `guide-${id}`;
+          await filesPut(ref, { data: await g.blob.arrayBuffer(), type: 'application/pdf' });
+          it.guideRef = ref;
+        } catch (e) { console.error('guide', e); } finally { busyOff(); }
+      }
       if (it.product === 'print' && it.finish === 'cadre') { it.frame = choice.frame; it.mat = !!choice.mat; } else { delete it.frame; delete it.mat; }
       if (it.product === 'hd') it.finish = 'papier'; // (le fichier : une affiche à la taille choisie)
       if ((it.product === 'print' && !(it.finish === 'cadre' && it.mat)) || it.product === 'hd') it.margin = !!choice.margin; else delete it.margin;
@@ -9401,6 +9413,7 @@ Réponds uniquement avec ce JSON :
     if (onStep) onStep(k, rec.drawings.length);
     rec.name = it.title;
     rec.cart = cartMeta(it);
+    if (it.guideRef) { const gref = it.guideRef; rec.loadGuide = () => filesGet(gref).catch(() => null); }
     if (it.workId) rec.fromWork = it.workId;
     return rec;
   }

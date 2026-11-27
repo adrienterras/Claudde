@@ -401,8 +401,15 @@
       const edits = (d.pieceEdits || []).map((e, j) => (e && e.mask ? Object.assign({}, e, { mask: put(`${base}/d${i}-e${j}.png`, e.mask, 'image/png') }) : null));
       drawings.push(Object.assign({}, d, { data: undefined, file: path, pieceEdits: edits, saved, workRef: undefined, workSavedRef: undefined, loadImage: undefined, loadPack: undefined }));
     }
+    // le guide de découpe d'un article Guide ou Kit (voir app.js) : à côté de ses images
+    let guide = null;
+    if (rec.loadGuide) {
+      const g = await rec.loadGuide();
+      if (g && g.data) { guide = `${base}/guide.pdf`; jobs.push({ path: guide, bytes: g.data, type: 'application/pdf' }); }
+    }
     await uploadAll(jobs, onProgress);
     const meta = { v: rec.v || null, date: rec.date, settings: rec.settings, comp: rec.comp, drawings, n: drawings.length };
+    if (guide) meta.guide = guide;
     if (rec.cart) meta.cart = rec.cart; // article du panier (voir app.js) : pas dans « Mes œuvres » tant qu'il n'est pas commandé
     if (rec.ordered) meta.ordered = true; // composition commandée : figée, rouverte en copie
     if (rec.order) meta.order = rec.order; // le détail de la commande (référence, produit, quantité, prix)
@@ -723,7 +730,8 @@
     await Promise.all((orderIds || []).filter((id) => /^[0-9a-f-]{36}$/.test(String(id))).map(async (id) => {
       const { data, error } = await client.storage.from(PRINTS).list(id);
       if (error) return;
-      out[id] = (data || []).filter((f) => /^\d+\.pdf$/.test(f.name)).map((f) => ({ index: Number(f.name.split('.')[0]), size: (f.metadata && f.metadata.size) || f.size || 0, at: f.updated_at || f.created_at || null }));
+      // (le fichier HD de l'article n : n.pdf ; son guide de découpe, articles Guide et Kit : guide-n.pdf)
+      out[id] = (data || []).filter((f) => /^(guide-)?\d+\.pdf$/.test(f.name)).map((f) => ({ kind: f.name.startsWith('guide-') ? 'guide' : 'hd', index: Number(f.name.replace(/^guide-/, '').split('.')[0]), size: (f.metadata && f.metadata.size) || f.size || 0, at: f.updated_at || f.created_at || null }));
     }));
     return out;
   }
@@ -732,6 +740,14 @@
     const { error } = await client.storage.from(PRINTS).upload(hdPath(orderId, index), blob, { upsert: true, contentType: 'application/pdf', cacheControl: '60' });
     err(error);
   }
+  // le guide de découpe rangé avec la commande (lien signé de 10 minutes), et son renvoi au client
+  async function guideUrl(orderId, index, name) {
+    if (!user || !canDashboard()) throw new Error(tr('connexion requise'));
+    const { data, error } = await client.storage.from(PRINTS).createSignedUrl(`${orderId}/guide-${Number(index) || 0}.pdf`, 600, { download: name || true });
+    err(error);
+    return data.signedUrl;
+  }
+  const guideResend = (id) => fnCall('commande-statut', { id, action: 'guide' });
   async function hdUrl(orderId, index, name) {
     const { data, error } = await client.storage.from(PRINTS).createSignedUrl(hdPath(orderId, index), 600, { download: name || true });
     err(error);
@@ -875,7 +891,7 @@
     isAdmin, canDashboard, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
-    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, invoice: ordersInvoice, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl, log: orderLog, hdLogged },
+    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, invoice: ordersInvoice, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl, guideUrl, guideResend, log: orderLog, hdLogged },
     contactEmail: cfg.contactEmail || '',
   };
 })();

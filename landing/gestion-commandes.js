@@ -143,12 +143,21 @@ function openDetail(ref) {
   const at = STEPS.findIndex(([k]) => k === o.status);
   const steps = o.status === 'annulee' ? '' : `<ol class="od-steps">${STEPS.map(([k, l], i) => `<li class="${i < at ? 'done' : i === at ? 'done now' : ''}"><i></i>${esc(l)}</li>`).join('')}</ol>`;
   const files = hd[o.id] || [];
-  const hdOf = (i) => files.find((f) => f.index === i);
+  const hdOf = (i) => files.find((f) => f.kind !== 'guide' && f.index === i);
+  const guideOf = (i) => files.find((f) => f.kind === 'guide' && f.index === i);
   const items = (o.items || []).map((it, i) => {
     const f = hdOf(i);
     // le fichier d'impression HD (tableaux imprimés) : fait sur place (l'atelier travaille en coulisse,
     // voir startHD), puis rangé avec la commande
     const running = job && job.orderId === o.id && job.index === i;
+    // articles Guide et Kit : le guide de découpe rangé avec la commande (envoyé au client avec la confirmation)
+    if (it.product === 'guide' || it.product === 'kit') {
+      const g = guideOf(i);
+      const line = g
+        ? `<span class="gd-hd ok">Guide de découpe envoyé au client${g.size ? ` · ${esc(Math.round(g.size / 1048576 * 10) / 10)} Mo` : ''}</span><button type="button" class="gd-open gd-dl" data-guide="${i}">Télécharger le guide</button> <button type="button" class="gd-redo" data-guide-send>Renvoyer au client</button>${it.product === 'kit' ? '<span class="gd-hd">Kit à préparer et à expédier</span>' : ''}`
+        : `<span class="gd-hd">Guide de découpe absent : demandez au client de recommander depuis l’atelier, ou faites-le depuis l’atelier (Outils de l’équipe)</span>${it.product === 'kit' ? '<span class="gd-hd">Kit à préparer et à expédier</span>' : ''}`;
+      return `<li><span class="od-vis" data-vis="${i}"></span><span><b>${esc(it.title || 'Œuvre')}</b><small>${esc(it.label || '')}${Number(it.qty) > 1 ? ` × ${Math.round(Number(it.qty))}` : ''}</small><span class="gd-hd-row">${line}</span></span><span class="od-price">${esc(euros(Math.round((Number(it.unit) || 0) * 100) * (Number(it.qty) || 1)))}</span></li>`;
+    }
     const file = it.product !== 'print' || !it.compId ? '' : running ? jobHtml()
       : f
         ? `<span class="gd-hd ok">Fichier HD prêt${f.size ? ` · ${esc(Math.round(f.size / 1048576 * 10) / 10)} Mo` : ''}${f.at ? ` · ${esc(day(f.at))}` : ''}</span><button type="button" class="gd-open gd-dl" data-hd="${i}">Télécharger le fichier HD</button> <button type="button" class="gd-redo" data-make="${i}"${job ? ' disabled' : ''}>Refaire</button>`
@@ -199,6 +208,21 @@ function openDetail(ref) {
     } catch (err) { console.error(err); done(`Fichier HD indisponible : ${(err && err.message) || ''}`, true); } finally { b.disabled = false; }
   }));
   body.querySelectorAll('[data-make]').forEach((b) => b.addEventListener('click', () => startHD(o, Number(b.dataset.make))));
+  // le guide de découpe : le télécharger (lien signé de 10 minutes), le renvoyer au client par e-mail
+  body.querySelectorAll('[data-guide]').forEach((b) => b.addEventListener('click', async () => {
+    if (!actions || !actions.guideUrl) return;
+    b.disabled = true;
+    try {
+      const i = Number(b.dataset.guide);
+      const url = await actions.guideUrl(o.id, i, `guide-de-creation-${o.ref}.pdf`);
+      const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
+    } catch (err) { console.error(err); done(`Guide indisponible : ${(err && err.message) || ''}`, true); } finally { b.disabled = false; }
+  }));
+  body.querySelectorAll('[data-guide-send]').forEach((resend) => resend.addEventListener('click', async () => {
+    if (!actions || !actions.guideResend) return;
+    resend.disabled = true;
+    try { await actions.guideResend(o.id); done(`${o.ref} : guide de découpe renvoyé au client.`); } catch (err) { console.error(err); done(`Guide non renvoyé : ${(err && err.message) || ''}`, true); } finally { resend.disabled = false; }
+  }));
   // copier l'adresse (étiquette du colis)
   const copy = body.querySelector('[data-copy]');
   copy.addEventListener('click', () => {
@@ -341,6 +365,8 @@ const page = staffPage({
       set: (id, patch) => A.orders.set(id, patch),
       cancel: (id) => A.orders.cancel(id),
       hdUrl: (id, i, name) => A.orders.hdUrl(id, i, name),
+      guideUrl: (id, i, name) => A.orders.guideUrl(id, i, name),
+      guideResend: (id) => A.orders.guideResend(id),
     }, (text, err) => { doneMsg(text, err); if (!err) page.reload(); });
     render(rows, th, files, log);
     $('tb-when').textContent = `Mis à jour à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ')}`;

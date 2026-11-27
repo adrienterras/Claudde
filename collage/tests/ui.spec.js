@@ -1059,7 +1059,7 @@ test.describe('Dessins d’exemple', () => {
     expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(19);
     // « Commencer une nouvelle œuvre » : l'import revient, avec ses propres dessins
     await page.locator('#new-work').click();
-    await expect(page.locator('#import-photos')).toBeVisible();
+    await expect(page.locator('body')).not.toHaveClass(/sample-on/);
     await page.setInputFiles('#file', [fixture('page-cutout.png'), fixture('page-two.png')]);
     await page.waitForFunction(() => AtelierGribouille.state.drawings.length === 3 && document.getElementById('progress').hidden, null, { timeout: 120000 });
     const names = await page.evaluate(() => AtelierGribouille.state.drawings.map((d) => d.name));

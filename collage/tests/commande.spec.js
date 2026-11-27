@@ -62,6 +62,19 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(m.deliveryOptions([items[3]])).toEqual([]);
   });
 
+  test('le guide de découpe d’une commande : articles concernés, chemin, nom, pièces jointes sous la limite', async () => {
+    const g = await import(pathToFileURL(path.join(__dirname, '..', '..', 'supabase', 'functions', '_shared', 'guides.js')).href);
+    const order = { id: 'o-1', ref: 'AG-261128-X1', items: [{ product: 'print' }, { product: 'guide' }, { product: 'kit' }] };
+    expect(g.guideItems(order).map((x) => x.index)).toEqual([1, 2]);
+    expect(g.guidePath('o-1', 2)).toBe('o-1/guide-2.pdf');
+    expect(g.guideFileName(order, 1)).toBe('guide-de-creation-AG-261128-X1-2.pdf');
+    expect(g.guideFileName({ ref: 'AG-1', items: [{ product: 'guide' }] }, 0)).toBe('guide-de-creation-AG-1.pdf');
+    const small = new Uint8Array([37, 80, 68, 70]);
+    const att = g.guideAttachments(order, [{ index: 1, bytes: small }, { index: 2, bytes: null }, { index: 2, bytes: new Uint8Array(g.MAX_ATTACH + 1) }]);
+    expect(att).toHaveLength(1);
+    expect(att[0]).toEqual({ filename: 'guide-de-creation-AG-261128-X1-2.pdf', content: 'JVBERg==', content_type: 'application/pdf' });
+  });
+
   test('la session de paiement : montants en centimes, adresse en France, livraison, retour sur le site', async () => {
     const m = await load();
     const items = m.orderItems([{ id: 'a', name: 'Lou', meta: { cart: cart({ qty: 2 }) } }, { id: 'd', name: 'HD', meta: { cart: { product: 'hd', W: 30, H: 40 } } }]);
@@ -152,6 +165,11 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(e.customerEmail('payee', order, null, { invoice: 'https://evil.example/f.pdf' }).html).not.toContain('evil.example');
     expect(e.customerEmail('payee', order, null).text).toContain('Votre facture est disponible dans Mes commandes');
     expect(e.customerEmail('expediee', order, null, { invoice: inv }).html).not.toContain(inv);
+    // le guide de découpe joint (commandes Originaux) : la phrase, et le kit qui part par la poste
+    expect(e.customerEmail('payee', order, null, { guides: 1 }).text).toContain('Votre guide de découpe est joint à cet e-mail');
+    expect(e.customerEmail('payee', Object.assign({}, order, { items: [{ product: 'kit' }] }), null, { guides: 1 }).text).toContain('Votre kit vous sera expédié');
+    expect(e.customerEmail('payee', order, null).text).not.toContain('guide de découpe');
+    expect(e.guideEmail(order, 1).subject).toBe(`Votre guide de découpe (commande ${order.ref})`);
     // expédiée : le lien de suivi du transporteur
     const sent = e.customerEmail('expediee', Object.assign({}, order, { carrier: 'Colissimo', tracking: '6A12345678901' }));
     expect(sent.html).toContain('https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901');

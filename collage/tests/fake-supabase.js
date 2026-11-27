@@ -255,6 +255,13 @@
         if (!o || (!admin && o.user_id !== u.id)) return fnError('commande inconnue');
         if (name === 'commande-statut') {
           if (!admin) return fnError('réservé à l’administrateur, connecté avec la double authentification');
+          if (body.action === 'guide') {
+            const n = (o.items || []).filter((it, i) => ['guide', 'kit'].includes(it.product) && db.files[PRINTS + `${o.id}/guide-${i}.pdf`]).length;
+            if (!n) return fnError('aucun guide de découpe rangé avec cette commande');
+            window.__fake.mails = (window.__fake.mails || []).concat([['guide-renvoye', o.ref]]);
+            logOrder(o.id, actorOf(u), 'guide de découpe renvoyé au client');
+            return ok({ mailed: true });
+          }
           const before = o.status;
           Object.assign(o, { status: body.status || o.status, carrier: body.carrier == null ? o.carrier : body.carrier, tracking: body.tracking == null ? o.tracking : body.tracking });
           window.__fake.mails = (window.__fake.mails || []).concat(before !== o.status ? [[o.status, o.ref]] : []);
@@ -303,6 +310,15 @@
       const shipping = window.__fake.shipping == null ? 990 : window.__fake.shipping;
       db.rows.push({ __table: 'orders', id: crypto.randomUUID(), user_id: u.id, ref, status: 'payee', email: u.email, consent: body.consent === true, items, subtotal_cents: 1000, shipping_cents: shipping, total_cents: 1000 + shipping, created_at: now, paid_at: now, carrier: null, tracking: null });
       cart.forEach((r) => { const c = r.meta.cart; delete r.meta.cart; r.meta.ordered = true; r.meta.order = Object.assign({}, c, { ref, at: now, paid: true }); r.name = `${ref} · ${r.name}`; });
+      // (comme le webhook : le guide de découpe des articles Guide et Kit, rangé avec la commande et joint à
+      // l'e-mail de confirmation)
+      const order = db.rows[db.rows.length - 1];
+      items.forEach((it, i) => {
+        const row = cart[i];
+        if (!['guide', 'kit'].includes(it.product) || !row.meta.guide || !db.files[row.meta.guide]) return;
+        db.files[PRINTS + `${order.id}/guide-${i}.pdf`] = db.files[row.meta.guide];
+        window.__fake.mails = (window.__fake.mails || []).concat([['guide-joint', ref]]);
+      });
       persist();
       return ok({ url: `/commandes.html?commande=${ref}`, ref }); // (comme le serveur : la page Mes commandes du site)
     },
