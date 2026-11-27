@@ -1575,7 +1575,12 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
    les outils d'un dessin, dans une barre qui n'apparaît que quand on le touche (#piece-bar) */
 .piece-bar, .toolbar .tb-sep-zoom { display: none; }
 @media (max-width: 860px) {
-  .stage canvas { inset: 92px 0 calc(var(--sheet) + 44px) 0; width: 100%; }
+  /* (l'œuvre s'arrête au-dessus de la ligne « Commander » et de la note « Cliquez pour générer… » : rien
+     n'est posé sur elle) */
+  .stage canvas { inset: 92px 0 calc(var(--sheet) + 116px) 0; width: 100%; height: max(0px, calc(100% - 92px - var(--sheet) - 116px)); }
+  body.stage-full .stage canvas { height: calc(100% - 96px - 120px - env(safe-area-inset-top, 0px)); }
+  /* tiroir agrandi ou fiche d'un dessin : le bouton « Commander » est caché, l'œuvre reprend sa place */
+  body.sheet-tall:not(.stage-full) .stage canvas, body.sheet-detail:not(.stage-full) .stage canvas { inset: 92px 0 calc(var(--sheet) + 44px) 0; height: max(0px, calc(100% - 92px - var(--sheet) - 44px)); }
   .toolbar { max-width: calc(100% - 16px); overflow-x: auto; scrollbar-width: none; }
   .toolbar::-webkit-scrollbar { display: none; }
   .toolbar [data-act="front"], .toolbar [data-act="back"], .toolbar [data-act="dup"], .toolbar [data-act="edit"], .toolbar [data-act="del"], .toolbar .tb-sep-piece { display: none; }
@@ -1587,6 +1592,9 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
   .toolbar .zoom .zoom-val { min-width: 38px; padding: 0; font-size: 0.66rem; }
   .toolbar .zoom-orient { flex-direction: row; margin: 0; padding: 0; border: 0; }
   .toolbar .zoom button.mode { width: 30px; min-width: 30px; max-width: 30px; height: 34px; }
+  /* bouton allumé (Plein écran…) : un rond, pas un ovale — le bouton reste haut pour le doigt, seul le fond est rond */
+  .toolbar .zoom button[aria-pressed="true"], .toolbar .zoom button.mode[aria-pressed="true"] { background: radial-gradient(circle closest-side, var(--ink) calc(100% - 0.75px), transparent 100%); }
+  .toolbar .zoom button:hover:not([aria-pressed="true"]) { background: radial-gradient(circle closest-side, var(--accent-soft) calc(100% - 0.75px), transparent 100%); }
   .toolbar .ground-open .ground-dot { display: block; width: 16px; height: 16px; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--muted); } /* (visible même de la couleur de la barre) */
   /* tiroir baissé : la barre prend toute la largeur ; « Mon compte » descend à droite de « Mettre en scène » */
   body.stage-full .toolbar { left: 50%; transform: translateX(-50%); max-width: calc(100% - 16px); }
@@ -1602,7 +1610,7 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
   .piece-bar button .ico { width: 18px; height: 18px; }
   .piece-bar .pb-main { background: var(--ink); color: var(--on-ink); padding: 0 10px; }
   .piece-bar .pb-del { color: var(--danger); }
-  .piece-bar .pb-close { font-size: 1.4rem; font-weight: 400; color: var(--muted); }
+  .piece-bar .pb-close { min-width: 40px; width: 40px; height: 40px; margin: 0 4px; padding: 0; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); font-size: 1.5rem; font-weight: 500; line-height: 1; } /* (le ×, bien visible : un rond plein) */
 }
 /* petit téléphone : la barre du haut se resserre pour que tous ses boutons tiennent */
 @media (max-width: 370px) {

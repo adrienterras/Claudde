@@ -677,6 +677,32 @@ test.describe('Téléphone : un dessin touché sur l’œuvre', () => {
     expect(b.y + b.height <= sel.y || b.y >= sel.y).toBe(true);
     expect(b.y).toBeGreaterThanOrEqual(c.y);
     expect(b.x + b.width).toBeLessThanOrEqual(390);
+    // toucher de nouveau le dessin sélectionné le désélectionne (ici dans son cadre, sur un blanc entre ses
+    // traits : c'est bien lui qu'on touche) ; sa barre s'efface
+    const corner = await page.evaluate(() => {
+      const A = AtelierGribouille, L = A.state.selected, v = A.view, r = document.getElementById('canvas').getBoundingClientRect();
+      const lx = L.w / 2 - 2, ly = -(L.h / 2 - 2), c = Math.cos(L.rot), sn = Math.sin(L.rot);
+      const X = L.x + lx * c - ly * sn, Y = L.y + lx * sn + ly * c;
+      return { x: r.left + (v.ox + X * v.s) / v.dpr, y: r.top + (v.oy + Y * v.s) / v.dpr };
+    });
+    await page.waitForTimeout(400); // (pas de double toucher)
+    await page.touchscreen.tap(corner.x, corner.y);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => AtelierGribouille.state.selected)).toBeNull();
+    await expect(bar).toBeHidden();
+    // touché encore : de nouveau sélectionné
+    await page.waitForTimeout(400);
+    await page.touchscreen.tap(pt.x, pt.y);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => AtelierGribouille.state.selected === AtelierGribouille.state.comp.items[0])).toBe(true);
+    await expect(bar).toBeVisible();
+    // le tiroir remonté (Tailles : la mise en scène) couvre l'œuvre : la barre ne passe pas par-dessus
+    await page.locator('#sheet-tabs [data-tab="sizes-section"]').click();
+    await page.waitForTimeout(600);
+    const covered = await page.evaluate(() => { const b = document.getElementById('piece-bar'), p = document.querySelector('.panel').getBoundingClientRect(); return b.hidden || b.getBoundingClientRect().bottom <= p.top; });
+    expect(covered).toBe(true);
+    await page.locator('#sheet-tabs [data-tab="compose-section"]').click();
+    await page.waitForTimeout(600);
     // Devant : le dessin passe au premier plan ; × referme la barre et désélectionne
     const n = await page.evaluate(() => AtelierGribouille.state.comp.items.length);
     await bar.locator('[data-pact="front"]').click();

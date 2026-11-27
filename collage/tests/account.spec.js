@@ -1194,6 +1194,8 @@ test.describe('Comptes utilisateurs', () => {
     await page.goto(url1);
     await expect(page.locator('#share-receive .share-status')).toContainText('n’est plus valable', { timeout: 60000 });
     await expect(page.locator('#share-receive-ok')).toBeHidden();
+    await expect(page.locator('#share-receive .share-progress')).toBeHidden(); // la barre d'attente s'en va avec l'erreur
+    await expect(page.locator('#share-receive .share-progress.waiting .cart-progress-bar')).toHaveCount(1); // (elle accompagne la lecture du lien)
     // le lien : l'œuvre, qui la partage ; « Recevoir » demande un compte
     await page.goto(url);
     const rec = page.locator('#share-receive');

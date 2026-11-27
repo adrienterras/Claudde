@@ -2642,6 +2642,10 @@ test.describe('Barre d’outils du haut (téléphone)', () => {
       }
       // les outils du dessin ne sont plus dans la barre (ils apparaissent quand on touche un dessin)
       for (const a of ['edit', 'front', 'del']) await expect(page.locator(`#toolbar [data-act="${a}"]`)).toBeHidden();
+      // l'œuvre s'arrête au-dessus de « Commander » et de la note « Cliquez pour générer… » : rien n'est posé sur elle
+      const m = await page.evaluate(() => ({ canvas: document.getElementById('canvas').getBoundingClientRect().bottom, cta: document.querySelector('.stage-cta').getBoundingClientRect().top, hint: document.getElementById('gen-hint').hidden ? Infinity : document.getElementById('gen-hint').getBoundingClientRect().top }));
+      expect(m.canvas).toBeLessThanOrEqual(m.cta);
+      expect(m.canvas).toBeLessThanOrEqual(m.hint);
       await ctx.close();
     }
   });

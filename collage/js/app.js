@@ -3972,6 +3972,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     return hitBg(p);
   }
 
+  // le point (coordonnées de l'œuvre) est-il dans le cadre d'un calque posé (tourné), blancs compris ?
+  function insideLayer(L, p) {
+    const dx = p.X - L.x, dy = p.Y - L.y, c = Math.cos(L.rot), sn = Math.sin(L.rot);
+    return Math.abs(dx * c + dy * sn) <= L.w / 2 && Math.abs(-dx * sn + dy * c) <= L.h / 2;
+  }
+
   // Mode « fond seul » : on ne voit que les pages de fond, et on les déplace à sa guise.
   function setBgMode(on) {
     state.bgMode = !!on;
@@ -4034,7 +4040,12 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
         return;
       }
     }
-    const hit = hitAt(p);
+    let hit = hitAt(p);
+    // dans le cadre du dessin sélectionné (un blanc entre ses traits, ou la page du fond dessous) : c'est
+    // lui qu'on touche (on le déplace ; un simple toucher le désélectionne, voir plus bas) ; un autre dessin
+    // touché par-dessus, lui, se sélectionne
+    if (L && hit !== L && (!hit || hit.kind === 'bg') && insideLayer(L, p)) hit = L;
+    tapOnSelected = !!(L && hit === L);
     if (hit) {
       state.selected = hit;
       drag = { mode: 'move', L: hit, dx: p.X - hit.x, dy: p.Y - hit.y, x0: hit.x, y0: hit.y, snap: snapshot() };
@@ -4132,7 +4143,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // à la souris : le double-clic du navigateur ; au doigt, le double-toucher est reconnu ici (le
   // navigateur ne le produit plus, la toile bloquant les gestes d'iOS)
   canvas.addEventListener('dblclick', (e) => { if (Date.now() - lastDouble > 600) onDouble(e); });
-  let tapDown = null, lastTap = null;
+  let tapDown = null, lastTap = null, tapOnSelected = false;
   canvas.addEventListener('pointerdown', (e) => { tapDown = e.pointerType === 'mouse' ? null : { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now() }; });
   canvas.addEventListener('pointerup', (e) => {
     const d = tapDown;
@@ -4142,8 +4153,9 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12 || now - d.t > 350) { lastTap = null; return; }
     if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { lastTap = null; onDouble(e); return; }
     lastTap = { t: now, x: e.clientX, y: e.clientY };
-    // (téléphone : un dessin touché reste sélectionné sur l'œuvre, le tiroir ne bouge pas ; « Retoucher »
-    // apparaît à côté de « Mettre en scène »)
+    // téléphone : toucher de nouveau le dessin déjà sélectionné (sans le déplacer) le désélectionne ; sa barre
+    // d'outils s'efface (un double toucher, lui, ouvre sa retouche)
+    if (tapOnSelected && state.selected) { tapOnSelected = false; state.selected = null; updateToolbar(); render(); }
   });
 
   $('zoom-in').onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(1.4, (r.width * view.dpr) / 2, (r.height * view.dpr) / 2); };
@@ -4776,7 +4788,25 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const top0 = canvas.offsetTop, h = bar.offsetHeight || 64, gap = 6;
     const above = top0 + r[1] / dpr - h - gap, below = top0 + r[3] / dpr + gap;
     const minTop = top0 + 4, maxTop = top0 + canvas.clientHeight - h - 4;
-    bar.style.top = `${Math.round(above >= minTop ? above : Math.min(below, maxTop))}px`;
+    const top = Math.round(above >= minTop ? above : Math.min(below, maxTop));
+    bar.style.top = `${top}px`;
+    // le tiroir remonté couvre l'œuvre (Tailles, mise en scène…) : la barre ne passe pas par-dessus
+    const panel = document.querySelector('.panel');
+    const limit = panel ? panel.getBoundingClientRect().top : window.innerHeight;
+    const stageTop = canvas.getBoundingClientRect().top - top0;
+    if (stageTop + top + h > limit || stageTop + top0 + r[1] / dpr > limit) bar.hidden = true;
+  }
+  // (le tiroir monte ou descend : la barre se replace, ou s'efface)
+  {
+    let raf2 = 0;
+    const again = () => { if (!raf2) raf2 = requestAnimationFrame(() => { raf2 = 0; placePieceBar(); }); };
+    const panel = document.querySelector('.panel');
+    if (panel) {
+      panel.addEventListener('transitionend', again);
+      new MutationObserver(again).observe(panel, { attributes: true, attributeFilter: ['style', 'class', 'data-tab'] });
+    }
+    new MutationObserver(again).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', again);
   }
   document.querySelectorAll('#piece-bar [data-pact]').forEach((b) => (b.onclick = () => {
     const a = b.dataset.pact;
@@ -9473,7 +9503,12 @@ Réponds uniquement avec ce JSON :
   // « partage » du serveur). Le lien mène à cet atelier : ?partage=…
   const SHARE_PENDING_KEY = 'atelier.partage-en-attente'; // (un lien ouvert sans compte : reçu à la connexion)
   const shareUrl = (token) => new URL(`./?partage=${encodeURIComponent(token)}`, location.href).href;
-  function shareSay(box, text, err) { const el = box.querySelector('.share-status'); el.textContent = text || ''; el.hidden = !text; el.classList.toggle('err', !!err); }
+  // le message de la fenêtre, et sa barre d'attente pendant que ça travaille (busy)
+  function shareSay(box, text, err, busy) {
+    const el = box.querySelector('.share-status'), bar = box.querySelector('.share-progress');
+    el.textContent = text || ''; el.hidden = !text; el.classList.toggle('err', !!err);
+    if (bar) bar.hidden = !(text && busy);
+  }
   function shareThumb(box, src) { const p = box.querySelector('.share-thumb'), ok = safeData(src); p.hidden = !ok; if (ok) p.querySelector('img').src = ok; }
   async function openShare(e) {
     const box = $('share-modal'), A = window.Account;
@@ -9481,7 +9516,7 @@ Réponds uniquement avec ce JSON :
     shareThumb(box, e.info.thumb);
     box.querySelector('.share-link').hidden = true;
     openModal(box);
-    shareSay(box, tr('Préparation du lien…'));
+    shareSay(box, tr('Préparation du lien…'), false, true);
     try {
       // (l'œuvre affichée part d'abord dans le compte, telle qu'elle est maintenant)
       if (e.current || !e.cloud) await syncCloud();
@@ -9522,7 +9557,7 @@ Réponds uniquement avec ce JSON :
     shareThumb(box, '');
     ok.disabled = true;
     openModal(box);
-    shareSay(box, tr('Lecture de l’œuvre partagée…'));
+    shareSay(box, tr('Lecture de l’œuvre partagée…'), false, true);
     let info;
     try { info = await A.share.see(token); } catch (err) { shareSay(box, (err && err.message) || String(err), true); ok.hidden = true; return; }
     shareSay(box, '');
@@ -9541,7 +9576,7 @@ Réponds uniquement avec ce JSON :
     lsSet(SHARE_PENDING_KEY, null);
     openModal(box);
     $('share-receive-ok').disabled = true;
-    shareSay(box, tr('Copie de l’œuvre dans votre compte…'));
+    shareSay(box, tr('Copie de l’œuvre dans votre compte…'), false, true);
     let res;
     try { res = await A.share.receive(token); } catch (err) { $('share-receive-ok').disabled = false; shareSay(box, tr`L’œuvre n’a pas pu être reçue : ${(err && err.message) || err}`, true); return; }
     closeModal(box);
