@@ -30,7 +30,7 @@
       if (options && options.captchaToken) window.__fake.calls.push(['captcha', 'signup', options.captchaToken]);
       if (db.users[email]) return ko('User already registered');
       if (password.length < 8) return ko('Password should be at least 8 characters');
-      const u = { id: 'u-' + Math.random().toString(36).slice(2, 8), email, password, confirmed: !window.__FAKE_CONFIRM, user_metadata: (options && options.data) || {}, app_metadata: Object.assign({ provider: 'email' }, (window.__FAKE_ADMINS || []).includes(email) ? { atelier_role: 'admin' } : {}) };
+      const u = { id: 'u-' + Math.random().toString(36).slice(2, 8), email, password, confirmed: !window.__FAKE_CONFIRM, user_metadata: (options && options.data) || {}, app_metadata: Object.assign({ provider: 'email' }, (window.__FAKE_ADMINS || []).includes(email) ? { atelier_role: 'admin' } : (window.__FAKE_VIEWERS || []).includes(email) ? { atelier_role: 'tableau' } : {}) };
       db.users[email] = u; persist();
       if (!u.confirmed) return ok({ session: null, user: u });
       setSession(u); return ok({ session: db.session, user: u });
@@ -225,7 +225,9 @@
       // chiffres tirés du faux serveur ; ni GitHub ni Umami
       if (name === 'tableau-de-bord') {
         const u = db.session && db.session.user;
-        if (!isAdm(u)) return fnError('réservé à l’administrateur, connecté avec la double authentification');
+        // (l'administrateur, ou le rôle « tableau » : lecture du tableau de bord seulement)
+        const reader = u && u.app_metadata && ['admin', 'tableau'].includes(u.app_metadata.atelier_role) && db.session && db.session.aal === 'aal2';
+        if (!reader) return fnError('réservé à l’équipe du site, connectée avec la double authentification');
         const days = Array.from({ length: 30 }, (_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10));
         const orders = db.rows.filter((r) => r.__table === 'orders');
         const paid = orders.filter((o) => o.paid_at && !['annulee', 'abandonnee', 'attente_paiement'].includes(o.status));

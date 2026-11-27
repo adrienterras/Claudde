@@ -34,11 +34,11 @@ export async function userOf(req) {
   return u && u.id ? u : null;
 }
 
-// l'administrateur (rôle écrit par le serveur dans app_metadata) connecté avec la double
-// authentification (niveau aal2 du jeton, comme public.is_admin()) ; sinon null
-export async function adminOf(req) {
+// le compte qui appelle, s'il a l'un de ces rôles (écrits par le serveur dans app_metadata) et s'est
+// connecté avec la double authentification (niveau aal2 du jeton, comme public.is_admin()) ; sinon null
+async function withRole(req, roles) {
   const u = await userOf(req);
-  if (!u || !(u.app_metadata && u.app_metadata.atelier_role === 'admin')) return null;
+  if (!u || !(u.app_metadata && roles.includes(u.app_metadata.atelier_role))) return null;
   try {
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
@@ -46,6 +46,11 @@ export async function adminOf(req) {
     return claims.aal === 'aal2' ? u : null;
   } catch (e) { return null; }
 }
+// l'administrateur (tous les pouvoirs)
+export const adminOf = (req) => withRole(req, ['admin']);
+// qui peut lire le tableau de bord : l'administrateur, ou un compte au rôle « tableau » (lecture du
+// tableau de bord seulement : ni les œuvres des clients, ni les commandes, ni les remboursements)
+export const dashboardOf = (req) => withRole(req, ['admin', 'tableau']);
 
 // la réponse JSON d'une fonction appelée par l'atelier, avec les en-têtes CORS du site
 export function replier(req, origins) {

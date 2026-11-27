@@ -272,10 +272,13 @@
    * sont les règles du serveur qui donnent, ou non, les lignes et les fichiers.
    */
   const isAdmin = () => !!(user && user.app_metadata && user.app_metadata.atelier_role === 'admin');
+  // le tableau de bord du site : l'administrateur, ou un compte au rôle « tableau » (lecture seule de cette
+  // page ; le serveur le vérifie, avec la double authentification)
+  const canDashboard = () => isAdmin() || !!(user && user.app_metadata && user.app_metadata.atelier_role === 'tableau');
   // 'none' : pas administrateur ; 'enroll' : double authentification à activer ; 'verify' : code à
   // saisir pour cette connexion ; 'ok' : connecté avec la double authentification
   async function mfaState() {
-    if (!isAdmin()) return 'none';
+    if (!canDashboard()) return 'none';
     const { data: lvl, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
     err(error);
     if (lvl && lvl.currentLevel === 'aal2') return 'ok';
@@ -799,7 +802,7 @@
     checkPassword, PASSWORD_MIN,
     share: { create: shareCreate, get: shareGet, revoke: shareRevoke, see: shareSee, receive: shareReceive },
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet, prune: cloudPrune },
-    isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
+    isAdmin, canDashboard, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet },

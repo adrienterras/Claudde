@@ -2,7 +2,7 @@
 
 `https://ateliergribouille.art/tableau-de-bord.html` : l'état du site d'un coup d'œil, sur téléphone
 comme sur ordinateur. Lien « Tableau de bord » dans le menu du compte (pastille en haut des pages du
-site), visible seulement pour le compte administrateur.
+site), visible seulement pour l'administrateur et l'équipe (rôle « tableau »).
 
 ## Ce qu'il montre
 
@@ -20,10 +20,26 @@ site), visible seulement pour le compte administrateur.
 
 ## Qui peut le voir
 
-Seul le compte qui a le rôle administrateur (écrit par le serveur dans `app_metadata`), connecté avec la
-**double authentification** : la page demande le code de l'application d'authentification si la
-connexion ne l'a pas encore validé. C'est la fonction serveur `tableau-de-bord` qui vérifie le rôle et
-la double authentification ; la page ne fait qu'afficher ce que le serveur renvoie.
+Les comptes qui ont le rôle **administrateur** (`admin`) ou **tableau** (`tableau`), écrits par le
+serveur dans `app_metadata`, connectés avec la **double authentification** : la page demande le code de
+l'application d'authentification, et l'active elle-même la première fois (code à scanner). C'est la
+fonction serveur `tableau-de-bord` qui vérifie le rôle et la double authentification ; la page ne fait
+qu'afficher ce que le serveur renvoie.
+
+Le rôle `tableau` n'ouvre que cette page : ni les œuvres des clients, ni la gestion des commandes, ni
+les remboursements, ni les quotas (tout cela reste réservé au rôle `admin`).
+
+**Donner le rôle `tableau`** à un compte (qui doit déjà exister : la personne crée son compte sur le
+site et confirme son e-mail) : Supabase → SQL Editor → New query →
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"atelier_role": "tableau"}'::jsonb
+where email in ('anastasia@ateliergribouille.art', 'stan@ateliergribouille.art');
+```
+
+→ Run. Le rôle compte à la prochaine connexion (se déconnecter puis se reconnecter). Pour le retirer :
+`set raw_app_meta_data = raw_app_meta_data - 'atelier_role'`.
 
 ## Comment c'est fait
 

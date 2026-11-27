@@ -103,7 +103,7 @@ function watchRows(d) {
   return `<div class="tb-watch">${rows.map(([k, w, text, sub, href]) => `<${href ? `a href="${href}"` : 'div'} class="tb-watch-row">${pill(k, w)}<span>${esc(text)}${sub ? `<small>${esc(sub)}</small>` : ''}</span>${href ? '<span class="go" aria-hidden="true">›</span>' : '<span></span>'}</${href ? 'a' : 'div'}>`).join('')}</div>`;
 }
 
-function ventes(v) {
+function ventes(v, opts) {
   const st = v.statuts || {};
   const chips = STATUS.filter(([k]) => st[k]).map(([k, l]) => `<span class="tb-chip">${esc(l)} <b>${num(st[k])}</b></span>`).join('') || '<span class="tb-chip">Aucune commande</span>';
   const todo = v.aPreparer || [];
@@ -121,7 +121,7 @@ function ventes(v) {
     <div class="tb-chips">${chips}</div>
     <p class="tb-sub">À préparer, la plus ancienne d’abord</p>
     <ul class="tb-list">${list}</ul>
-    <a class="tb-more" href="atelier/?compte" target="_blank" rel="noopener">Ouvrir les commandes dans l’atelier ›</a>
+    ${opts && opts.admin ? '<a class="tb-more" href="atelier/?compte" target="_blank" rel="noopener">Ouvrir les commandes dans l’atelier ›</a>' : ''}
   </section>`;
 }
 
@@ -186,7 +186,7 @@ function sante(s, v) {
 export function render(d, opts) {
   const body = $('tb-body');
   body.innerHTML = `<section class="tb-sec" aria-labelledby="tb-h-watch"><h2 id="tb-h-watch">À surveiller${opts && opts.example ? '<span class="tb-example">Données d’exemple</span>' : ''}</h2>${watchRows(d)}</section>
-    ${ventes(d.ventes)}${activite(d.activite)}${audience(d.audience)}${sante(d.sante || {}, d.ventes || {})}`;
+    ${ventes(d.ventes, opts)}${activite(d.activite)}${audience(d.audience)}${sante(d.sante || {}, d.ventes || {})}`;
   body.hidden = false;
   $('tb-when').textContent = `Mis à jour ${when(d.at)}`;
   wireCharts(body);
@@ -194,14 +194,14 @@ export function render(d, opts) {
 window.TableauDeBord = { render };
 
 // ---------- l'accès et le chargement ----------
-let A = null, busy = false, loadedAt = 0;
+let A = null, busy = false, loadedAt = 0, factorId = null;
 const status = (text) => { const el = $('tb-status'); el.textContent = text || ''; el.hidden = !text; };
 // la porte : 'signin' (pas connecté), 'notadmin', 'enroll' (double authentification à activer), 'verify' (code)
 function gate(kind) {
   const texts = {
     signin: 'Connectez-vous avec le compte administrateur pour voir le tableau de bord.',
-    notadmin: 'Cette page est réservée à l’administrateur du site.',
-    enroll: 'Le tableau de bord demande la double authentification : activez-la d’abord dans votre compte, dans l’atelier.',
+    notadmin: 'Cette page est réservée à l’équipe du site.',
+    enroll: 'Le tableau de bord demande la double authentification : activez-la une fois, avec une application d’authentification sur votre téléphone.',
     verify: 'Pour voir le tableau de bord, saisissez le code de votre application d’authentification.',
   };
   $('tb-gate').hidden = !kind;
@@ -211,6 +211,8 @@ function gate(kind) {
   $('tb-signin-btn').hidden = kind !== 'signin';
   $('tb-enroll').hidden = kind !== 'enroll';
   $('tb-mfa').hidden = kind !== 'verify';
+  $('tb-qr').hidden = true;
+  factorId = null;
   $('tb-when').textContent = '';
   if (kind === 'verify') setTimeout(() => $('tb-code').focus(), 50);
 }
@@ -222,7 +224,7 @@ async function load() {
   try {
     const d = await A.dashboard();
     if (!d || !d.ventes) throw new Error('réponse inattendue du serveur');
-    render(d);
+    render(d, { admin: A.isAdmin() });
     loadedAt = Date.now();
   } catch (e) {
     console.error(e);
@@ -235,7 +237,7 @@ async function load() {
 }
 async function start(user) {
   if (!user) { gate('signin'); return; }
-  if (!A.isAdmin()) { gate('notadmin'); return; }
+  if (!(A.canDashboard ? A.canDashboard() : A.isAdmin())) { gate('notadmin'); return; }
   let st = 'ok';
   try { st = await A.mfaState(); } catch (e) { console.error(e); }
   if (st === 'enroll' || st === 'verify') { gate(st); return; }
@@ -243,6 +245,24 @@ async function start(user) {
   await load();
 }
 $('tb-signin-btn').addEventListener('click', () => { if (window.SiteAccount) window.SiteAccount.open(); });
+// la double authentification activée ici : le code à scanner, puis le premier code saisi la valide
+$('tb-enroll').addEventListener('click', async () => {
+  const b = $('tb-enroll');
+  b.disabled = true;
+  status('');
+  try {
+    const f = await A.mfaEnroll();
+    factorId = f.factorId;
+    if (f.qr) $('tb-qr-img').src = f.qr; else $('tb-qr-img').hidden = true;
+    $('tb-qr-secret').textContent = f.secret || '';
+    $('tb-qr').hidden = false;
+    $('tb-mfa').hidden = false;
+    b.hidden = true;
+    setTimeout(() => $('tb-code').focus(), 50);
+  } catch (e) {
+    status((e && e.message) || 'La double authentification n’a pas pu être préparée.');
+  } finally { b.disabled = false; }
+});
 $('tb-refresh').addEventListener('click', () => { if (A && A.user()) start(A.user()); });
 $('tb-mfa').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -250,7 +270,7 @@ $('tb-mfa').addEventListener('submit', async (e) => {
   ok.disabled = true;
   status('');
   try {
-    await A.mfaVerify($('tb-code').value);
+    await A.mfaVerify($('tb-code').value, factorId || undefined);
     $('tb-code').value = '';
     await start(A.user());
   } catch (err) {

@@ -106,6 +106,9 @@ grant execute on function public.is_admin() to authenticated;
 --   update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"atelier_role": "admin"}'::jsonb
 --     where id = '<identifiant du compte, Authentication → Users>';
 -- Pour le retirer : « - 'atelier_role' » au lieu de « || … ». (Plus d'adresse e-mail dans ce fichier.)
+-- Le rôle « tableau » (27 novembre 2026) n'ouvre que le tableau de bord du site (fonction
+-- « tableau-de-bord ») : ni les œuvres des clients, ni les commandes, ni les quotas ; il se donne de même,
+-- avec '{"atelier_role": "tableau"}'.
 
 -- Les anciennes règles de lecture directe sont retirées
 drop policy if exists "compositions: admin reads all" on public.compositions;

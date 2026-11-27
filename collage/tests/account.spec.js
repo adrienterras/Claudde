@@ -1305,7 +1305,7 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
     await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
     await page.goto('tableau-de-bord.html');
-    await expect(page.locator('#tb-gate-text')).toContainText('réservée à l’administrateur', { timeout: 30000 });
+    await expect(page.locator('#tb-gate-text')).toContainText('réservée à l’équipe du site', { timeout: 30000 });
     expect(await page.evaluate(async () => { try { await (await window.SiteAccount.account()).dashboard(); return 'lu'; } catch (e) { return e.message; } })).toContain('double authentification');
     // une commande payée à préparer
     await page.evaluate(() => {
@@ -1320,7 +1320,7 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
     await page.goto('tableau-de-bord.html');
     await expect(page.locator('#tb-gate-text')).toContainText('activez-la', { timeout: 30000 });
-    await expect(page.locator('#tb-enroll')).toHaveAttribute('href', 'atelier/?compte');
+    await expect(page.locator('#tb-enroll')).toBeVisible();
     // activée dans l'atelier ; puis une nouvelle connexion (sans le code) : la page demande le code
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
@@ -1361,6 +1361,37 @@ test.describe('Comptes utilisateurs', () => {
     const n = await page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'tableau-de-bord').length);
     await page.locator('#tb-refresh').click();
     await expect.poll(() => page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'tableau-de-bord').length)).toBeGreaterThan(n);
+    // l'administrateur a le lien vers les commandes de l'atelier
+    await expect(body.locator('#tb-ventes .tb-more')).toHaveAttribute('href', 'atelier/?compte');
+  });
+
+  test('tableau de bord, rôle « tableau » : la page seulement, double authentification activée sur la page ; rien de l’administration', async ({ acc }) => {
+    const { page } = acc;
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await page.evaluate(() => { window.__FAKE_VIEWERS = ['stan@example.org']; });
+    await signUpAndIn(page, 'stan@example.org', 'Rouge-Soleil-42', 'Stan');
+    // l'atelier ne lui ouvre pas l'administration, et le serveur refuse ses appels d'administrateur
+    await openStep(page, 'saved-section');
+    await expect(page.locator('#admin-box')).toBeHidden();
+    expect(await page.evaluate(async () => { const r = await window.supabase.createClient().rpc('admin_works', { p_from: 0, p_count: 10 }); return r.error ? 'refusé' : 'lu'; })).toBe('refusé');
+    // la page : activer la double authentification ici (code à scanner, clé), puis le premier code
+    await page.goto('tableau-de-bord.html');
+    await expect(page.locator('#tb-gate-text')).toContainText('activez-la une fois', { timeout: 30000 });
+    await page.locator('#tb-enroll').click();
+    await expect(page.locator('#tb-qr')).toBeVisible();
+    await expect(page.locator('#tb-qr-secret')).toHaveText('JBSWY3DPEHPK3PXP');
+    expect(await page.locator('#tb-qr-img').getAttribute('src')).toMatch(/^data:image\/svg\+xml/);
+    await page.fill('#tb-code', '123456');
+    await page.locator('#tb-code-ok').click();
+    const body = page.locator('#tb-body');
+    await expect(body).toBeVisible();
+    await expect(page.locator('#tb-gate')).toBeHidden();
+    await expect(body.locator('#tb-ventes')).toBeVisible();
+    // pas de lien vers l'administration de l'atelier
+    await expect(body.locator('#tb-ventes .tb-more')).toHaveCount(0);
+    // le menu du compte du site lui propose le tableau de bord
+    expect(await page.evaluate(() => (window.Account.user().app_metadata || {}).atelier_role)).toBe('tableau');
   });
 
   test('page Mes commandes : la liste (visuels encadrés, statut, total), le détail dans une fenêtre (frise, œuvres, livraison, suivi) ; le lien #REF l’ouvre ; sans session, la connexion', async ({ acc }) => {

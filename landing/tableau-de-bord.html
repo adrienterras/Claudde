@@ -211,7 +211,13 @@
       <div class="o-box" id="tb-gate" hidden>
         <p id="tb-gate-text">Connectez-vous avec le compte administrateur.</p>
         <button type="button" class="btn btn-primary" id="tb-signin-btn" hidden>Se connecter</button>
-        <a class="btn btn-primary" id="tb-enroll" href="atelier/?compte" hidden>Activer la double authentification</a>
+        <button type="button" class="btn btn-primary" id="tb-enroll" hidden>Activer la double authentification</button>
+        <!-- l'activation : le code à scanner avec l'application d'authentification, ou la clé à saisir -->
+        <div class="tb-qr" id="tb-qr" hidden>
+          <p>Scannez ce code avec votre application d’authentification (Google Authenticator, 1Password, Authy…), puis saisissez le code à 6 chiffres qu’elle affiche.</p>
+          <img id="tb-qr-img" alt="Code à scanner pour la double authentification" width="180" height="180">
+          <p class="tb-qr-key">Ou saisissez cette clé à la main : <code id="tb-qr-secret"></code></p>
+        </div>
         <form class="tb-mfa" id="tb-mfa" hidden>
           <label for="tb-code">Code à 6 chiffres de votre application d’authentification</label>
           <div class="tb-mfa-row">

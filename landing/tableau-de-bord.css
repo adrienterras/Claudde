@@ -92,6 +92,10 @@ a.tb-watch-row:hover { background: var(--accent-soft); }
 .tb-example { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #f7ead0; color: #8a5a12; font-size: .7rem; font-weight: 600; letter-spacing: .04em; vertical-align: middle; font-family: var(--f-body); }
 @media (prefers-reduced-motion: reduce) { .tb-refresh.spin svg { animation: none; } }
 .tb-mfa { display: grid; gap: 8px; width: 100%; }
+.tb-qr { display: grid; gap: 10px; justify-items: start; }
+.tb-qr img { width: 180px; height: 180px; background: #fff; border-radius: 12px; padding: 8px; border: 1px solid var(--line); }
+.tb-qr-key { font-size: .84rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.tb-qr-key code { font-size: .9rem; letter-spacing: .06em; color: var(--ink); }
 .tb-mfa label { font-size: .86rem; color: var(--ink-2); }
 .tb-mfa-row { display: flex; gap: 8px; }
 .tb-mfa input { flex: 1; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: inherit; font-size: 1.1rem; letter-spacing: .2em; font-variant-numeric: tabular-nums; }

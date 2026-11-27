@@ -1,10 +1,10 @@
 // Fonction « tableau-de-bord » : les chiffres du tableau de bord de l'administrateur
-// (tableau-de-bord.html), seulement pour le compte administrateur connecté avec la double
-// authentification. La base (fonction SQL admin_dashboard), puis, si leurs clés sont dans les secrets :
+// (tableau-de-bord.html), seulement pour l'administrateur et les comptes au rôle « tableau »,
+// connectés avec la double authentification. La base (fonction SQL admin_dashboard), puis, si leurs clés sont dans les secrets :
 // les mises en ligne (GitHub, clé en lecture seule GITHUB_TOKEN_LECTURE) et l'audience (Umami,
 // UMAMI_API_KEY). Une source qui ne répond pas n'empêche pas les autres.
 import { ORIGINS } from '../_shared/commande.js';
-import { rest, adminOf, replier } from '../_shared/supabase.js';
+import { rest, dashboardOf, replier } from '../_shared/supabase.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
 import { stripeMode, deploysOf, audienceOf, lastDays, GITHUB_REPO, GITHUB_BRANCH, UMAMI_API, UMAMI_SITE } from '../_shared/tableau.js';
 
@@ -52,8 +52,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return reply(405, { error: 'méthode non permise' });
   try {
-    const admin = await adminOf(req);
-    if (!admin) return reply(403, { error: 'réservé à l’administrateur, connecté avec la double authentification' });
+    const reader = await dashboardOf(req);
+    if (!reader) return reply(403, { error: 'réservé à l’équipe du site, connectée avec la double authentification' });
     const [base, runs, aud] = await Promise.all([
       rest('POST', 'rpc/admin_dashboard', {}),
       deploys().then((r) => ({ runs: r }), (e) => ({ error: errText(e) })),
