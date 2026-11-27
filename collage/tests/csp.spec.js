@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { test, expect, fixture, openStep } = require('./helpers');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html', 'landing/a-propos.html', 'landing/commandes.html', 'landing/tableau-de-bord.html'];
+const PAGES = ['collage/index.html', 'collage/confidentialite.html', 'landing/index.html', 'landing/tarifs.html', 'landing/idees-dessins-enfants.html', 'landing/photographier-les-dessins.html', 'landing/a-propos.html', 'landing/commandes.html', 'landing/tableau-de-bord.html', 'landing/gestion-commandes.html'];
 // la vérification anti-robot (Cloudflare Turnstile) : son script n'est permis que si sa clé est réglée
 const TURNSTILE = 'https://challenges.cloudflare.com';
 const captchaOn = /captchaSiteKey:\s*'[^']+'/.test(fs.readFileSync(path.join(ROOT, 'collage', 'config.js'), 'utf8'));

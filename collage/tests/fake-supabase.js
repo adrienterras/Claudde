@@ -107,7 +107,24 @@
     };
     return chain;
   };
-  const storage = { from: () => ({
+  // les fichiers d'impression HD des commandes (bucket « impressions ») : l'équipe seulement, comme la règle
+  // « impressions: staff » (dossier = une commande existante)
+  const PRINTS = 'impressions:';
+  const printsOk = (path) => isStaff(db.session && db.session.user) && db.rows.some((o) => o.__table === 'orders' && o.id === String(path).split('/')[0]);
+  const prints = {
+    async upload(path, blob) {
+      if (!printsOk(path)) return { data: null, error: { message: 'new row violates row-level security policy' } };
+      db.files[PRINTS + path] = b64(await blob.arrayBuffer()); persist(); window.__fake.calls.push(['upload-hd', path, blob.size, blob.type]);
+      return { data: { path }, error: null };
+    },
+    async list(prefix) {
+      if (!isStaff(db.session && db.session.user)) return { data: [], error: null };
+      return { data: Object.keys(db.files).filter((p) => p.startsWith(PRINTS + prefix + '/')).map((p) => ({ name: p.slice(PRINTS.length + prefix.length + 1), metadata: { size: Math.round(db.files[p].length * 0.75) }, updated_at: new Date().toISOString() })), error: null };
+    },
+    async createSignedUrl(path) { return printsOk(path) && db.files[PRINTS + path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'Object not found' } }; },
+    async download(path) { return printsOk(path) && db.files[PRINTS + path] ? { data: new Blob([unb64(db.files[PRINTS + path])]), error: null } : { data: null, error: { message: 'Object not found' } }; },
+  };
+  const storage = { from: (bucket) => (bucket === 'impressions' ? prints : {
     async upload(path, blob) { db.files[path] = b64(await blob.arrayBuffer()); persist(); window.__fake.calls.push(['upload', path]); return { data: { path }, error: null }; },
     async download(path) {
       // (comme les règles du stockage : son dossier ; l'administrateur, le dossier d'un compte dont il a ouvert une œuvre)
@@ -129,6 +146,11 @@
   const orderedWork = (id) => db.rows.some((o) => o.__table === 'orders' && !['attente_paiement', 'abandonnee'].includes(o.status) && (o.items || []).some((it) => it.compId === id));
   const rpc = (name, args) => {
     if (name === 'is_admin') return ok(isAdm(db.session && db.session.user));
+    // (les vignettes des œuvres commandées, pour l'équipe : staff_order_thumbs)
+    if (name === 'staff_order_thumbs') {
+      if (!isStaff(db.session && db.session.user)) return ok([]);
+      return ok(db.rows.filter((r) => (args.p_ids || []).includes(r.id) && orderedWork(r.id) && r.thumb).map((r) => ({ id: r.id, thumb: r.thumb })));
+    }
     if (name === 'admin_works' || name === 'admin_open') {
       const u = db.session && db.session.user;
       // (admin_works : l'administrateur ; admin_open : l'équipe aussi, pour une œuvre commandée seulement)
@@ -259,7 +281,7 @@
       const now = new Date().toISOString();
       const items = cart.map((r) => Object.assign({}, r.meta.cart, { compId: r.id, title: r.name, label: 'article', unit: 10 }));
       const shipping = window.__fake.shipping == null ? 990 : window.__fake.shipping;
-      db.rows.push({ __table: 'orders', id: `o-${orderN}`, user_id: u.id, ref, status: 'payee', email: u.email, consent: body.consent === true, items, subtotal_cents: 1000, shipping_cents: shipping, total_cents: 1000 + shipping, created_at: now, paid_at: now, carrier: null, tracking: null });
+      db.rows.push({ __table: 'orders', id: crypto.randomUUID(), user_id: u.id, ref, status: 'payee', email: u.email, consent: body.consent === true, items, subtotal_cents: 1000, shipping_cents: shipping, total_cents: 1000 + shipping, created_at: now, paid_at: now, carrier: null, tracking: null });
       cart.forEach((r) => { const c = r.meta.cart; delete r.meta.cart; r.meta.ordered = true; r.meta.order = Object.assign({}, c, { ref, at: now, paid: true }); r.name = `${ref} · ${r.name}`; });
       persist();
       return ok({ url: `/commandes.html?commande=${ref}`, ref }); // (comme le serveur : la page Mes commandes du site)

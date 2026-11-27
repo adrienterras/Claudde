@@ -311,6 +311,13 @@ possible ; supprimer l'ancien workflow Firebase de la branche `main` et le secre
 - `grep -n "innerHTML" collage/js/app.js` : chaque interpolation de donnée passe par `esc()`.
 - `npm test` dans `collage/` : 98 tests, dont l'absence d'erreur de page et `tests/csp.spec.js`.
 
+Ajouts du même jour (gestion des commandes par l'équipe) : la page `gestion-commandes.html` n'affiche
+que ce que le serveur renvoie au rôle `tableau` ou `admin` avec double authentification ; les vignettes
+des œuvres passent par `staff_order_thumbs()` (œuvres d'une commande seulement) ; les fichiers HD
+d'impression sont dans le bucket privé `impressions` (PDF seulement, 200 Mo), politique « impressions:
+staff » : `is_staff()` et dossier d'une commande existante, aucun accès client ni anonyme, téléchargement
+par lien signé de 10 minutes.
+
 ## Polices auto-hébergées (novembre 2026)
 
 Montserrat et Playfair Display ne viennent plus de Google Fonts : le site les sert lui-même

@@ -128,7 +128,7 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(paid.text).toContain('Total : 48,90 € (dont 9,90 € de livraison)');
     expect(paid.html).toContain('https://ateliergribouille.art/commandes.html#AG-261125-AB12'); // (la page Mes commandes, sur cette commande)
     expect(paid.text).toContain('https://ateliergribouille.art/commandes.html#AG-261125-AB12');
-    expect(e.shopEmail('nouvelle', order).html).toContain('https://ateliergribouille.art/atelier/?gestion-commandes');
+    expect(e.shopEmail('nouvelle', order).html).toContain(`https://ateliergribouille.art/gestion-commandes.html#${order.ref}`); // (la page Gestion des commandes, sur cette commande)
     // expédiée : le lien de suivi du transporteur
     const sent = e.customerEmail('expediee', Object.assign({}, order, { carrier: 'Colissimo', tracking: '6A12345678901' }));
     expect(sent.html).toContain('https://www.laposte.fr/outils/suivre-vos-envois?code=6A12345678901');

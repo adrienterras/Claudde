@@ -467,96 +467,163 @@ test.describe('Comptes utilisateurs', () => {
     expect(left).toEqual([w1]);
   });
 
-  test('administration : Commandes — adresse, œuvres, statut et suivi ; le client est prévenu ; annuler rembourse ; un autre compte ne voit rien', async ({ acc }) => {
-    const { page } = acc;
-    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
-    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
-    await page.evaluate(() => {
-      const now = new Date().toISOString();
-      const items = [{ compId: '55555555-5555-4555-8555-000000000001', title: 'Courtepointe', label: 'Affiche 21 × 30 cm', product: 'print', finish: 'papier', size: '21x30', W: 21, H: 30, qty: 1, unit: 39 }];
-      const base = { __table: 'orders', user_id: 'u-client', email: 'client@example.org', consent: false, items, subtotal_cents: 3900, created_at: now, paid_at: now, carrier: null, tracking: null };
-      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000001', ref: 'AG-261125-AAAA', status: 'payee', shipping_cents: 990, total_cents: 4890, delivery: 'domicile', customer: { name: 'Camille Martin', email: 'client@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } }));
-      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000002', ref: 'AG-261125-BBBB', status: 'payee', shipping_cents: 1990, total_cents: 5890, delivery: 'express', customer: { name: 'Sam', email: 'sam@example.org' }, shipping: { name: 'Sam', address: { line1: '1 place Bellecour', postal_code: '69002', city: 'Lyon', country: 'FR' } } }));
-      // (paiements commencés puis abandonnés : pas dans la liste)
-      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000003', ref: 'AG-261125-CCCC', status: 'abandonnee', shipping_cents: 0, total_cents: 3900 }));
-    });
-    await openStep(page, 'saved-section');
-    await adminMfa(page, { enroll: true });
-    const orders = page.locator('#admin-orders .admin-order');
-    await expect(orders).toHaveCount(2);
-    await expect(page.locator('#admin-orders-count')).toHaveText('(2)');
-    const first = orders.filter({ hasText: 'AG-261125-AAAA' });
-    await expect(first).toContainText('Camille Martin');
-    await expect(first).toContainText('3 rue des Lilas');
-    await expect(first).toContainText('Colissimo');
-    await expect(first.locator('[data-open]')).toHaveText('Ouvrir l’œuvre');
-    await expect(orders.filter({ hasText: 'AG-261125-BBBB' })).toContainText('Express Chronopost 24 h');
-    await expect(orders.filter({ hasText: 'AG-261125-BBBB' }).locator('input[name="carrier"]')).toHaveValue('Chronopost');
-    // expédiée, avec le numéro de suivi : enregistrée, le client prévenu
-    await first.locator('select[name="status"]').selectOption('expediee');
-    await first.locator('input[name="tracking"]').fill('6A12345678901');
-    await first.locator('button[type="submit"]').click();
-    await expect(page.locator('#admin-orders-status')).toContainText('le client est prévenu par e-mail');
-    const o = await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261125-AAAA'));
-    expect([o.status, o.carrier, o.tracking]).toEqual(['expediee', 'Colissimo', '6A12345678901']);
-    await expect(orders.filter({ hasText: 'AG-261125-AAAA' }).locator('.order-status')).toHaveText('Expédiée');
-    // annuler et rembourser l'autre (deux touches)
-    const second = orders.filter({ hasText: 'AG-261125-BBBB' });
-    await second.locator('[data-cancel]').click();
-    await expect(second.locator('[data-cancel]')).toContainText('Rembourser');
-    await second.locator('[data-cancel]').click();
-    await expect(page.locator('#admin-orders-status')).toContainText('annulée et remboursée');
-    await expect(orders.filter({ hasText: 'AG-261125-BBBB' }).locator('.order-status')).toHaveText('Annulée');
-    await expect(orders.filter({ hasText: 'AG-261125-BBBB' }).locator('form')).toHaveCount(0);
-    // un compte ordinaire : ni la section, ni les commandes des autres
-    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
-    await signUpAndIn(page, 'simple@example.org', 'Rouge-Soleil-42', 'Simple');
-    await expect(page.locator('#admin-orders')).toBeHidden();
-    expect(await page.evaluate(() => window.Account.orders.admin())).toEqual([]);
-  });
-
-  test('équipe (rôle « tableau ») : Commandes — statut, suivi, annulation et remboursement, œuvres commandées seulement ; jamais « Toutes les œuvres »', async ({ acc }) => {
+  test('gestion des commandes (page du site) : liste et filtres, détail (client, adresse, œuvres), étapes avec e-mail, expédition avec suivi, annulation remboursée ; fermée aux autres comptes', async ({ acc }) => {
     const { page } = acc;
     await page.evaluate(() => { window.__FAKE_VIEWERS = ['stan@example.org']; });
     await signUpAndIn(page, 'stan@example.org', 'Rouge-Soleil-42', 'Stan');
     const ORDERED = '55555555-5555-4555-8555-000000000011', PRIVATE = '55555555-5555-4555-8555-000000000012';
     await page.evaluate(({ ORDERED, PRIVATE }) => {
-      const now = new Date().toISOString();
-      window.__fake.db.rows.push({ id: ORDERED, user_id: 'u-client', name: 'commandée', thumb: null, created_at: now, meta: { ordered: true } });
-      window.__fake.db.rows.push({ id: PRIVATE, user_id: 'u-client', name: 'privée', thumb: null, created_at: now, meta: {} });
+      const now = new Date().toISOString(), old = new Date(Date.now() - 5 * 864e5).toISOString();
+      const c = document.createElement('canvas'); c.width = 120; c.height = 160; const x = c.getContext('2d'); x.fillStyle = '#2b3f80'; x.fillRect(0, 0, 120, 160);
+      const thumb = c.toDataURL('image/jpeg', 0.8);
+      window.__fake.db.rows.push({ id: ORDERED, user_id: 'u-client', name: 'commandée', thumb, created_at: now, meta: { ordered: true } });
+      window.__fake.db.rows.push({ id: PRIVATE, user_id: 'u-client', name: 'privée', thumb, created_at: now, meta: {} });
       const items = [{ compId: ORDERED, title: 'Courtepointe', label: 'Affiche 21 × 30 cm', product: 'print', finish: 'papier', size: '21x30', W: 21, H: 30, qty: 1, unit: 39 }];
-      const base = { __table: 'orders', user_id: 'u-client', email: 'client@example.org', consent: false, items, subtotal_cents: 3900, created_at: now, paid_at: now, carrier: null, tracking: null, delivery: 'domicile', customer: { name: 'Camille Martin', email: 'client@example.org' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } };
-      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000011', ref: 'AG-261127-EQP1', status: 'payee', shipping_cents: 990, total_cents: 4890 }));
-      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000012', ref: 'AG-261127-EQP2', status: 'payee', shipping_cents: 990, total_cents: 4890 }));
+      const base = { __table: 'orders', user_id: 'u-client', email: 'client@example.org', consent: false, items, subtotal_cents: 3900, created_at: now, paid_at: now, carrier: null, tracking: null, delivery: 'domicile', customer: { name: 'Camille Martin', email: 'client@example.org', phone: '+33600000000' }, shipping: { name: 'Camille Martin', address: { line1: '3 rue des Lilas', postal_code: '75011', city: 'Paris', country: 'FR' } } };
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000011', ref: 'AG-261127-EQP1', status: 'payee', shipping_cents: 990, total_cents: 4890, paid_at: old }));
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000012', ref: 'AG-261127-EQP2', status: 'payee', shipping_cents: 1990, total_cents: 5890, delivery: 'express', customer: { name: 'Sam', email: 'sam@example.org' }, shipping: { name: 'Sam <b>B</b>', address: { line1: '1 place Bellecour', postal_code: '69002', city: 'Lyon', country: 'FR' } } }));
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000013', ref: 'AG-261127-EQP3', status: 'en_preparation', shipping_cents: 990, total_cents: 4890 }));
+      window.__fake.db.rows.push(Object.assign({}, base, { id: '66666666-6666-4666-8666-000000000014', ref: 'AG-261127-GONE', status: 'abandonnee', shipping_cents: 0, total_cents: 3900 }));
+      localStorage.setItem('fake.rows', JSON.stringify(window.__fake.db.rows));
     }, { ORDERED, PRIVATE });
-    // avant la double authentification : rien
-    expect(await page.evaluate(() => window.Account.orders.admin())).toEqual([]);
+    // l'atelier n'a plus de partie Commandes, ni « Toutes les œuvres » pour l'équipe
     await openStep(page, 'saved-section');
-    await adminMfa(page, { enroll: true });
-    // les commandes, sans « Toutes les œuvres »
-    const orders = page.locator('#admin-orders .admin-order');
-    await expect(orders).toHaveCount(2);
-    await expect(orders.first()).toContainText('3 rue des Lilas');
-    await expect(page.locator('#admin-box h3.admin-works')).toBeHidden();
-    await expect(page.locator('#admin-list')).toBeHidden();
-    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'admin_works').length)).toBe(0);
-    expect(await page.evaluate(async () => (await window.supabase.createClient().rpc('admin_works', { p_from: 0, p_count: 10 })).error ? 'refusé' : 'lu')).toBe('refusé');
-    // une œuvre commandée s'ouvre (pour l'imprimer) ; une autre œuvre du même client, jamais
+    await expect(page.locator('#admin-box')).toBeHidden();
+    expect(await page.locator('#admin-orders').count()).toBe(0);
+    // la page : la double authentification activée sur place, puis les commandes à préparer
+    await page.goto('gestion-commandes.html');
+    await expect(page.locator('#tb-gate-text')).toContainText('activez-la une fois', { timeout: 30000 });
+    await page.locator('#tb-enroll').click();
+    await page.fill('#tb-code', '123456');
+    await page.locator('#tb-code-ok').click();
+    const list = page.locator('#gc-list .o-card');
+    await expect(list).toHaveCount(2);
+    await expect(page.locator('#gc-filters [aria-pressed="true"]')).toContainText('À préparer 2');
+    await expect(list.first()).toContainText('AG-261127-EQP1'); // (la plus ancienne d'abord, signalée)
+    await expect(list.first()).toContainText('payée il y a plus de 3 jours');
+    await expect(list.first().locator('.o-vis img')).toHaveCount(1); // (la vignette de l'œuvre commandée)
+    await expect(list.nth(1)).toContainText('Express 24 h');
+    // l'abandonnée n'apparaît nulle part ; la recherche
+    await page.locator('#gc-filters [data-f="all"]').click();
+    await expect(list).toHaveCount(3);
+    await page.fill('#gc-q', 'lyon');
+    await expect(list).toHaveCount(1);
+    await expect(list.first()).toContainText('Sam <b>B</b>'); // (du texte, jamais du code)
+    await page.fill('#gc-q', '');
+    await page.locator('#gc-filters [data-f="payee"]').click();
+    // le détail : client, adresse, œuvre (ouvrir dans l'atelier, fichier HD à préparer)
+    await list.first().locator('.o-item').click();
+    const d = page.locator('#gc-detail');
+    await expect(d).toBeVisible();
+    await expect(d.locator('#gd-title')).toHaveText('AG-261127-EQP1');
+    await expect(d).toContainText('3 rue des Lilas');
+    await expect(d).toContainText('+33600000000');
+    await expect(d.locator('.gd-open').first()).toHaveAttribute('href', `atelier/?commande-oeuvre=${ORDERED}`);
+    await expect(d.locator('.gd-make')).toHaveAttribute('href', 'atelier/?fichier-hd=66666666-6666-4666-8666-000000000011&article=0');
+    // l'étape suivante : en préparation, le client prévenu
+    await d.locator('#gd-next button[type="submit"]').click();
+    await expect(page.locator('#gc-done')).toContainText('en préparation, le client est prévenu par e-mail');
+    expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1').status)).toBe('en_preparation');
+    // puis expédiée : le numéro de suivi est demandé
+    await expect(d.locator('#gd-next button[type="submit"]')).toHaveText('Marquer comme expédiée');
+    await expect(d.locator('#gd-next input[name="carrier"]')).toHaveValue('Colissimo');
+    await d.locator('#gd-next button[type="submit"]').click();
+    expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1').status)).toBe('en_preparation'); // (sans numéro : refusé par le formulaire)
+    await d.locator('#gd-next input[name="tracking"]').fill('6A12345678901');
+    await d.locator('#gd-next button[type="submit"]').click();
+    await expect(page.locator('#gc-done')).toContainText('expédiée');
+    const o1 = await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1'));
+    expect([o1.status, o1.carrier, o1.tracking]).toEqual(['expediee', 'Colissimo', '6A12345678901']);
+    await page.locator('#gd-close').click();
+    // annuler et rembourser l'autre (deux touches)
+    await page.locator('#gc-filters [data-f="payee"]').click();
+    await list.filter({ hasText: 'AG-261127-EQP2' }).locator('.o-item').click();
+    await d.locator('[data-cancel]').click();
+    await expect(d.locator('[data-cancel]')).toContainText('Toucher encore');
+    await d.locator('[data-cancel]').click();
+    await expect(page.locator('#gc-done')).toContainText('annulée et remboursée');
+    expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP2').refund)).toBe('re_fake');
+    // une œuvre commandée s'ouvre pour l'équipe ; une autre œuvre du client, jamais ; « Toutes les œuvres » non plus
     expect(await page.evaluate(async (id) => { const r = await window.supabase.createClient().rpc('admin_open', { p_id: id }); return r.error ? r.error.message : 'ouverte'; }, ORDERED)).toBe('ouverte');
     expect(await page.evaluate(async (id) => { const r = await window.supabase.createClient().rpc('admin_open', { p_id: id }); return r.error ? r.error.message : 'ouverte'; }, PRIVATE)).toContain('introuvable');
-    // statut et suivi
-    const first = orders.filter({ hasText: 'AG-261127-EQP1' });
-    await first.locator('select[name="status"]').selectOption('expediee');
-    await first.locator('input[name="tracking"]').fill('6A99999999999');
-    await first.locator('button[type="submit"]').click();
-    await expect(page.locator('#admin-orders-status')).toContainText('le client est prévenu par e-mail');
-    expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1').status)).toBe('expediee');
-    // annuler et rembourser
-    const second = orders.filter({ hasText: 'AG-261127-EQP2' });
-    await second.locator('[data-cancel]').click();
-    await second.locator('[data-cancel]').click();
-    await expect(page.locator('#admin-orders-status')).toContainText('annulée et remboursée');
-    expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP2').refund)).toBe('re_fake');
+    expect(await page.evaluate(async () => (await window.supabase.createClient().rpc('admin_works', { p_from: 0, p_count: 10 })).error ? 'refusé' : 'lu')).toBe('refusé');
+    // le lien de l'e-mail « Nouvelle commande » : gestion-commandes.html#REF ouvre cette commande
+    await page.goto('gestion-commandes.html#AG-261127-EQP3');
+    await expect(page.locator('#gd-title')).toHaveText('AG-261127-EQP3', { timeout: 30000 });
+    // un compte ordinaire : la page est fermée
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await signUpAndIn(page, 'simple@example.org', 'Rouge-Soleil-42', 'Simple');
+    await page.goto('gestion-commandes.html');
+    await expect(page.locator('#tb-gate-text')).toContainText('réservée à l’équipe', { timeout: 30000 });
+    await expect(page.locator('#gc-body')).toBeHidden();
+    expect(await page.evaluate(async () => (await window.SiteAccount.account()).orders.admin())).toEqual([]);
+    // l'ancien lien de l'atelier mène à la page
+    await page.goto('index.html?gestion-commandes');
+    await page.waitForURL(/gestion-commandes\.html/);
+  });
+
+  test('fichier HD d’une commande : préparé dans l’atelier par l’équipe, aux options commandées, rangé avec la commande ; le client ne le voit pas', async ({ acc }) => {
+    const { page } = acc;
+    // un client commande une affiche (paiement de test)
+    await page.goto('index.html?paiement=test');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await signUpAndIn(page, 'client@example.org', 'Rouge-Soleil-42', 'Client');
+    await page.setInputFiles('#file', ['page-cutout.png', 'page-two.png'].map(fixture));
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length >= 2 && AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 20; AtelierGribouille.setMode('impression'); });
+    await openStep(page, 'export-section');
+    await page.locator('#add-cart').click();
+    await page.locator('#cart-add [data-finish="papier"]').click();
+    await page.locator('#cart-add-ok').click();
+    await expect(page.locator('#cart-add')).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.meta && r.meta.cart).length), { timeout: 60000 }).toBe(1);
+    if (!(await page.locator('#cart').isVisible())) await page.locator('.cart-btn-desk').click();
+    await expect(page.locator('#cart .cart-item')).toHaveCount(1);
+    await page.locator('#cart-consent').check();
+    await page.locator('#cart-order').click();
+    await page.waitForURL(/commandes\.html\?commande=AG-/, { timeout: 30000 });
+    await expect.poll(() => page.evaluate(() => window.__fake.db.rows.filter((r) => r.__table === 'orders').length), { timeout: 60000 }).toBe(1);
+    const order = await page.evaluate(() => window.__fake.db.rows.find((r) => r.__table === 'orders'));
+    // le client ne peut ni lire ni déposer de fichier d'impression
+    expect(await page.evaluate(async (id) => (await window.supabase.createClient().storage.from('impressions').upload(`${id}/0.pdf`, new Blob(['x']))).error ? 'refusé' : 'déposé', order.id)).toBe('refusé');
+    // l'administrateur : double authentification, puis le fichier HD de l'article
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    // (l'œuvre commandée est encore sur l'appareil : l'atelier peut proposer de la reprendre, à son heure)
+    await page.addLocatorHandler(page.locator('#resume-modal'), () => page.locator('#resume-new').click());
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
+    await openStep(page, 'saved-section');
+    await adminMfa(page, { enroll: true });
+    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 20; });
+    await page.goto(`index.html?fichier-hd=${order.id}&article=0`);
+    await expect(page.locator('#notice')).toContainText(`Fichier HD de ${order.ref}`, { timeout: 120000 });
+    await expect(page.locator('#notice')).toContainText('rangé avec la commande');
+    const up = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload-hd'));
+    expect(up).toHaveLength(1);
+    expect(up[0][1]).toBe(`${order.id}/0.pdf`);
+    expect(up[0][3]).toBe('application/pdf');
+    // le PDF : la taille de l'affiche commandée (format imprimé de l'article, marges comprises, en points)
+    const pdf = await page.evaluate((id) => atob(JSON.parse(localStorage.getItem('fake.files'))[`impressions:${id}/0.pdf`]).slice(0, 4000), order.id);
+    expect(pdf.startsWith('%PDF')).toBe(true);
+    const box = /\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/.exec(pdf);
+    expect(box).not.toBeNull();
+    const [bw, bh] = [Number(box[1]) / 72 * 2.54, Number(box[2]) / 72 * 2.54].sort((a, b) => a - b);
+    const it0 = order.items[0];
+    const area = { '21x30': [21, 29.7], '30x40': [30, 40], '40x50': [40, 50], '50x70': [50, 70], '70x100': [70, 100] }[it0.size];
+    expect(area).toBeTruthy();
+    const [ew, eh] = area; // (avec marges, la feuille garde ce format : l'œuvre est en retrait de 3 cm)
+    expect(Math.abs(bw - ew)).toBeLessThan(0.1);
+    expect(Math.abs(bh - eh)).toBeLessThan(0.1);
+    // la page Gestion des commandes le propose au téléchargement
+    await page.goto('gestion-commandes.html');
+    await expect(page.locator('#gc-list .o-card')).toHaveCount(1, { timeout: 30000 });
+    await page.locator('#gc-list .o-item').click();
+    await expect(page.locator('#gc-detail .gd-hd.ok')).toContainText('Fichier HD prêt');
+    await expect(page.locator('#gc-detail .gd-dl')).toBeVisible();
   });
 
   test('administration : la liste se lit par pages de 60, « Afficher les œuvres suivantes » charge la suite', async ({ acc }) => {
@@ -1341,7 +1408,7 @@ test.describe('Comptes utilisateurs', () => {
     // sans session : se connecter
     await page.goto('tableau-de-bord.html');
     await expect(page.locator('#tb-gate')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('#tb-gate-text')).toContainText('Connectez-vous avec le compte administrateur');
+    await expect(page.locator('#tb-gate-text')).toContainText('Connectez-vous avec un compte de l’équipe');
     await expect(page.locator('#tb-signin-btn')).toBeVisible();
     await expect(page.locator('#tb-body')).toBeHidden();
     // un compte ordinaire : la page est fermée, et le serveur refuse l'appel direct

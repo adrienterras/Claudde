@@ -25,13 +25,17 @@
   // arrivée pour le compte (Mon compte, Mes commandes, connexion, panier, retour de paiement) : l'œuvre en
   // cours est rouverte sans la question « Reprendre ? », qui passerait devant (l'adresse est lue ici,
   // avant que ces paramètres ne s'effacent)
-  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|gestion-commandes|connexion|panier|commande=|recommander=|partage=)/.test(location.search);
+  // la gestion des commandes est sur une page du site (les anciens liens des e-mails y mènent)
+  if (/[?&]gestion-commandes\b/.test(location.search)) location.replace('../gestion-commandes.html');
+  const ACCOUNT_ARRIVAL = /[?&](compte|commandes|connexion|panier|commande=|recommander=|partage=|commande-oeuvre=|fichier-hd=)/.test(location.search);
   // recommander une œuvre (depuis Mes commandes) : l'œuvre commandée se rouvre ; ni l'œuvre en cours ni la
   // dernière du compte ne se rouvrent ou ne se proposent à sa place (elles restent dans Mes œuvres)
   const REORDER = /[?&]recommander=/.test(location.search);
   // une œuvre partagée par un lien (?partage=…) : son accueil passe avant tout (voir shareArrival)
   const SHARE_TOKEN = (/[?&]partage=([A-Za-z0-9_-]{16,64})/.exec(location.search) || [])[1] || '';
-  const ARRIVAL_TASK = REORDER || !!SHARE_TOKEN;
+  // l'équipe, depuis la page Gestion des commandes : ouvrir une œuvre commandée, ou en faire le fichier HD
+  const STAFF_TASK = /[?&](commande-oeuvre|fichier-hd)=/.test(location.search);
+  const ARRIVAL_TASK = REORDER || !!SHARE_TOKEN || STAFF_TASK;
   let genHintSeen = false; // la note « Cliquez pour générer… » a servi pendant cette visite
   const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignoré */ } };
   // Échappe toute donnée (nom de fichier, titre, réponse de Claude, ligne de la base) insérée dans du HTML.
@@ -7920,13 +7924,9 @@ Réponds uniquement avec ce JSON :
   async function renderAdmin() {
     const box = $('admin-box'), list = $('admin-list');
     const A = window.Account;
-    // l'administrateur : les commandes et toutes les œuvres ; l'équipe (rôle « tableau ») : les commandes seulement
-    const full = !!(A && A.isAdmin && A.isAdmin());
-    const staff = full || !!(A && A.canDashboard && A.canDashboard());
-    if (!box || !(A && A.enabled && A.user() && staff)) { if (box) box.hidden = true; syncResumeSaved(); return; }
+    // (l'administrateur seulement : les commandes se gèrent sur la page du site gestion-commandes.html)
+    if (!box || !(A && A.enabled && A.user() && A.isAdmin && A.isAdmin())) { if (box) box.hidden = true; syncResumeSaved(); return; }
     box.hidden = false;
-    box.querySelectorAll('.admin-works').forEach((el) => { el.hidden = !full; });
-    if (!full) $('admin-more').hidden = true;
     syncResumeSaved();
     const run = ++adminRun;
     const mfa = $('admin-mfa');
@@ -7952,8 +7952,6 @@ Réponds uniquement avec ce JSON :
       return;
     }
     mfa.hidden = true;
-    renderAdminOrders();
-    if (!full) { adminStatus(''); return; }
     adminStatus(tr('Lecture des œuvres de tous les comptes…'));
     let rows = [];
     try { rows = await timed(A.adminList(0)); } catch (e) { failed(e); return; }
@@ -7975,72 +7973,6 @@ Réponds uniquement avec ce JSON :
       };
     };
     show(rows);
-  }
-  // Commandes (administrateur) : chaque commande payée, son adresse, ses œuvres (à rouvrir pour les
-  // exporter), son statut, son transporteur et son numéro de suivi ; le client est prévenu par e-mail
-  const ADMIN_STEPS = ['payee', 'en_preparation', 'expediee', 'livree'];
-  const adminOrdersStatus = (t) => { const el = $('admin-orders-status'); if (el) { el.textContent = t || ''; el.hidden = !t; } };
-  async function renderAdminOrders() {
-    const box = $('admin-orders'), list = $('admin-orders-list');
-    const A = window.Account;
-    if (!box || !(A && A.orders && A.orders.admin)) return;
-    box.hidden = false;
-    let rows = [];
-    try { rows = await A.orders.admin(); } catch (e) { console.error(e); adminOrdersStatus(tr`Commandes indisponibles : ${e.message}`); return; }
-    $('admin-orders-count').textContent = rows.length ? `(${rows.length})` : '';
-    $('admin-orders-empty').hidden = rows.length > 0;
-    list.innerHTML = '';
-    rows.forEach((o) => {
-      const el = document.createElement('div');
-      el.className = 'admin-order';
-      const c = o.customer || {}, sh = o.shipping || {}, a = sh.address || {};
-      const when = new Date(o.paid_at || o.created_at).toLocaleString(I18n.locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-      const addr = [sh.name, a.line1, a.line2, [a.postal_code, a.city].filter(Boolean).join(' '), a.country].filter(Boolean).join('\n');
-      const express = o.delivery === 'express';
-      const items = (o.items || []).map((it, k) => {
-        let label = it.label || '';
-        try { label = productLabel(it) || label; } catch (e) { /* le libellé gardé */ }
-        return `<li>${esc(it.title || '')} — ${esc(label)}${Number(it.qty) > 1 ? ` × ${Math.round(Number(it.qty))}` : ''}${it.compId ? ` <button type="button" class="link" data-open="${k}">${tr('Ouvrir l’œuvre')}</button>` : ''}</li>`;
-      }).join('');
-      const done = !ADMIN_STEPS.includes(o.status);
-      el.innerHTML = `<div class="order-head"><b>${esc(o.ref)}</b><span class="order-status s-${esc(o.status)}">${esc(orderStatus(o.status))}</span></div>
-        <p class="order-meta">${esc(when)} · ${esc(euros((o.total_cents || 0) / 100))}${o.shipping_cents ? ` ${esc(tr`dont ${euros(o.shipping_cents / 100)} de livraison`)}` : ''}</p>
-        <p>${esc([c.name, c.email || o.email, c.phone].filter(Boolean).join(' · '))}</p>
-        ${addr ? `<p class="ship"><b class="${express ? 'express' : ''}">${esc(express ? tr('Express Chronopost 24 h') : tr('Colissimo'))}</b>\n${esc(addr)}</p>` : ''}
-        <ul>${items}</ul>
-        ${done ? '' : `<form class="admin-order-form">
-          <select name="status" aria-label="${tr('Statut')}">${ADMIN_STEPS.map((x) => `<option value="${x}"${x === o.status ? ' selected' : ''}>${esc(orderStatus(x))}</option>`).join('')}</select>
-          <input name="carrier" list="admin-carriers" aria-label="${tr('Transporteur')}" placeholder="${tr('Transporteur')}" value="${esc(o.carrier || (express ? 'Chronopost' : 'Colissimo'))}">
-          <input name="tracking" aria-label="${tr('Numéro de suivi')}" placeholder="${tr('Numéro de suivi')}" value="${esc(o.tracking || '')}">
-          <button type="submit" class="btn">${tr('Enregistrer et prévenir le client')}</button>
-          <button type="button" class="link" data-cancel>${tr('Annuler et rembourser')}</button>
-        </form>`}`;
-      el.querySelectorAll('[data-open]').forEach((b) => (b.onclick = () => {
-        const it = o.items[Number(b.dataset.open)];
-        openAdminCopy({ id: `cloud:${it.compId}` });
-      }));
-      const form = el.querySelector('form');
-      if (form) {
-        form.onsubmit = async (e) => {
-          e.preventDefault();
-          const btn = form.querySelector('[type="submit"]');
-          btn.disabled = true;
-          try {
-            const r = await A.orders.set(o.id, { status: form.status.value, carrier: form.carrier.value, tracking: form.tracking.value });
-            adminOrdersStatus(r && r.mailed ? tr`Commande ${o.ref} enregistrée ; le client est prévenu par e-mail.` : tr`Commande ${o.ref} enregistrée.`);
-            renderAdminOrders();
-          } catch (err) { console.error(err); adminOrdersStatus(tr`Commande ${o.ref} non enregistrée : ${err.message}`); } finally { btn.disabled = false; }
-        };
-        const cancel = form.querySelector('[data-cancel]');
-        cancel.onclick = async () => {
-          if (!cancel.classList.contains('confirm')) { cancel.classList.add('confirm'); cancel.textContent = tr`Rembourser ${euros((o.total_cents || 0) / 100)} et annuler ?`; setTimeout(() => { cancel.classList.remove('confirm'); cancel.textContent = tr('Annuler et rembourser'); }, 6000); return; }
-          cancel.disabled = true;
-          try { await A.orders.cancel(o.id); adminOrdersStatus(tr`Commande ${o.ref} annulée et remboursée.`); renderAdminOrders(); }
-          catch (err) { console.error(err); adminOrdersStatus(tr`Annulation impossible : ${err.message}`); } finally { cancel.disabled = false; }
-        };
-      }
-      list.appendChild(el);
-    });
   }
   // groupées par compte, le compte à l'œuvre la plus récente en tête
   function drawAdminRows(rows) {
@@ -8448,20 +8380,6 @@ Réponds uniquement avec ce JSON :
         showAccount();
         // une fois fait, l'adresse l'oublie : actualiser la page ne rouvre pas le compte
         try { const url = new URL(location.href); ['connexion', 'compte'].forEach((k) => url.searchParams.delete(k)); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
-      });
-    }
-    // la gestion des commandes (lien de l'e-mail « Nouvelle commande ») : l'espace administrateur, sur
-    // Commandes (après la double authentification)
-    if (/[?&]gestion-commandes\b/.test(location.search)) {
-      let once = false;
-      A.onChange((u) => {
-        if (once || !u) return;
-        once = true;
-        if (mobileQuery.matches) { setStageFull(false); selectTab('import-section'); document.body.classList.add('sheet-tall'); }
-        const go = () => { const b = $('admin-orders'); if (b && !b.hidden) { b.scrollIntoView({ block: 'start', behavior: 'smooth' }); return true; } return false; };
-        let n = 0;
-        const timer = setInterval(() => { if (go() || ++n > 40) clearInterval(timer); }, 500);
-        try { const url = new URL(location.href); url.searchParams.delete('gestion-commandes'); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
       });
     }
     $('acc-close').onclick = () => openPanel(false);
@@ -9636,6 +9554,97 @@ Réponds uniquement avec ce JSON :
       const A = window.Account;
       if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); }
     }
+  }
+
+  // L'équipe, depuis la page Gestion des commandes du site : ?commande-oeuvre=<œuvre commandée> la rouvre (en
+  // copie, pour l'exporter et l'imprimer) ; ?fichier-hd=<commande>&article=<n> fait en plus le fichier
+  // d'impression HD de cet article — PDF à 300 dpi, aux options commandées (taille, bordure blanche,
+  // passe-partout : la même feuille que l'export de l'atelier) — et le range avec la commande (espace
+  // « impressions », que seule l'équipe lit ; jamais le client). Le serveur vérifie l'équipe et la double
+  // authentification ; sans elle, l'atelier renvoie à la page Gestion des commandes.
+  // l'œuvre mise aux dimensions w × h (cm), sur une copie (l'œuvre affichée ne change pas)
+  function printCopy(comp, w, h) {
+    const layer = (L) => Object.assign({}, L, L.clip ? { clip: L.clip.map((q) => q.slice()) } : {});
+    const copy = Object.assign({}, comp, {
+      items: comp.items.map(layer), bg: comp.bg.map(layer),
+      frames: comp.frames && comp.frames.map((x) => Object.assign({}, x)),
+      tiles: comp.tiles && comp.tiles.map((x) => Object.assign({}, x)),
+      lines: comp.lines && comp.lines.map((x) => x.slice()),
+    });
+    const r = w / h;
+    if (Math.abs(r - comp.W / comp.H) >= 0.002) { const W0 = Math.sqrt(comp.W * comp.H * r); fitCompTo(copy, W0, W0 / r); }
+    fitCompTo(copy, w, h);
+    return copy;
+  }
+  // la feuille imprimée d'un article commandé : l'œuvre (w × h), et la feuille autour (cadre entier avec le
+  // passe-partout, papier avec la bordure blanche), comme framePlan côté serveur et exportComp ici
+  function orderSheet(it) {
+    const [pw, ph] = printAreaOf(it);
+    const f = PRINT_FRAMES.find((x) => x.key === it.size) || PRINT_FRAMES[1];
+    const land = pw >= ph, or = ([a, b]) => (land ? [Math.max(a, b), Math.min(a, b)] : [Math.min(a, b), Math.max(a, b)]);
+    const mat = it.finish === 'cadre' && !!it.mat, m = it.margin && !mat ? MARGIN_CM : 0;
+    const [W, H] = mat ? or([f.w, f.h]) : [pw + 2 * m, ph + 2 * m];
+    return { w: pw, h: ph, sheet: mat || m ? { W, H, ox: (W - pw) / 2, oy: (H - ph) / 2 } : null };
+  }
+  async function makeOrderHD(order, index, it) {
+    const A = window.Account;
+    busyOn(tr`Fichier HD de ${order.ref}`);
+    try {
+      const { w, h, sheet } = orderSheet(it);
+      const comp = printCopy(state.comp, w, h);
+      const W = sheet ? sheet.W : w, H = sheet ? sheet.H : h;
+      // 300 dpi, dans la limite de la mémoire de cet appareil (sur un ordinateur : jusqu'à 180 Mpx)
+      let s = 300 / 2.54;
+      if (W * H * s * s > MAX_PIXELS()) s = Math.sqrt(MAX_PIXELS() / (W * H));
+      const dpi = Math.round(s * 2.54);
+      busyStep(tr('Images en haute définition…'), 1, 4);
+      await hydrateHD(comp, s);
+      await sharpenHD(comp, s);
+      busyStep(tr('Assemblage du PDF…'), 2, 4);
+      await tick();
+      const blob = await exportPdf(comp, s, sheet);
+      releaseHD();
+      busyStep(tr('Envoi du fichier avec la commande…'), 3, 4);
+      await A.orders.hdPut(order.id, index, blob);
+      busyStep('', 4, 4);
+      notice(dpi < 290
+        ? tr`Fichier HD de ${order.ref} (article ${index + 1}) rangé avec la commande, mais à ${dpi} dpi seulement : cet appareil manque de mémoire, refaites-le depuis un ordinateur.`
+        : tr`Fichier HD de ${order.ref} (article ${index + 1}) prêt, à ${dpi} dpi : il est rangé avec la commande, sur la page Gestion des commandes.`);
+      window.Atelier.track('Fichier HD commande');
+    } catch (e) {
+      console.error(e);
+      releaseHD();
+      notice(tr`Le fichier HD de ${order.ref} n’a pas pu être fait : ${(e && e.message) || ''}`);
+    } finally { busyOff(); }
+  }
+  async function staffTask(q) {
+    try { const url = new URL(location.href); ['commande-oeuvre', 'fichier-hd', 'article'].forEach((k) => url.searchParams.delete(k)); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
+    const A = window.Account;
+    if (!(A && A.canDashboard && A.canDashboard())) { notice(tr('Réservé à l’équipe du site.')); return; }
+    let st = 'ok';
+    try { st = await A.mfaState(); } catch (e) { console.error(e); }
+    if (st !== 'ok') { notice(tr('Validez d’abord la double authentification sur la page Gestion des commandes, puis réessayez.')); return; }
+    const orderId = q.get('fichier-hd'), index = Math.max(0, Math.floor(Number(q.get('article')) || 0));
+    // (les commandes lues d'abord : leurs œuvres deviennent ouvrables, voir Account.orders.admin)
+    let rows = [];
+    try { rows = await A.orders.admin(); } catch (e) { console.error(e); notice(tr`Commandes indisponibles : ${e.message}`); return; }
+    let compId = q.get('commande-oeuvre'), order = null, it = null;
+    if (orderId) {
+      order = rows.find((o) => o.id === orderId) || null;
+      it = order && (order.items || [])[index];
+      if (!it || !it.compId || it.product !== 'print') { notice(tr('Cet article de commande est introuvable.')); return; }
+      compId = it.compId;
+    }
+    if (!compId || !/^[0-9a-f-]{8,40}$/.test(compId)) return;
+    await openAdminCopy({ id: `cloud:${compId}` });
+    if (!state.comp) { notice(tr('Cette œuvre n’a pas pu être rouverte.')); return; }
+    if (order) await makeOrderHD(order, index, it);
+  }
+  if (STAFF_TASK) {
+    const q = new URLSearchParams(location.search);
+    const go = requireAccount(tr('gérer les commandes'), () => staffTask(q));
+    const A = window.Account;
+    if (A && A.enabled) { let once = false; A.onChange(() => { if (once) return; once = true; setTimeout(go, 0); }); }
   }
 
   // Retour de la page de paiement (?commande=REF) d'une commande partie avant la page « Mes commandes » du

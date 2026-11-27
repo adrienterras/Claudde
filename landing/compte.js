@@ -200,7 +200,11 @@
     // les commandes : leur page sur le site (statut, détail, suivi du colis), dans cet onglet
     pop.appendChild(el('a', { role: 'menuitem', href: `commandes.html${en() ? '?lang=en' : ''}`, text: t('Mes commandes') }));
     // l'administrateur : le tableau de bord du site (le serveur vérifie le rôle et la double authentification)
-    if (user.app_metadata && ['admin', 'tableau'].includes(user.app_metadata.atelier_role)) pop.appendChild(el('a', { role: 'menuitem', href: 'tableau-de-bord.html', text: t('Tableau de bord') }));
+    // l'équipe (administrateur, rôle « tableau ») : la gestion des commandes et le tableau de bord du site
+    if (user.app_metadata && ['admin', 'tableau'].includes(user.app_metadata.atelier_role)) {
+      pop.appendChild(el('a', { role: 'menuitem', href: 'gestion-commandes.html', text: t('Gestion des commandes') }));
+      pop.appendChild(el('a', { role: 'menuitem', href: 'tableau-de-bord.html', text: t('Tableau de bord') }));
+    }
     // le panier, comme dans l'atelier : l'icône du chariot et le nombre d'articles ; il s'ouvre dans l'atelier
     const items = cartCount();
     const cart = el('a', { role: 'menuitem', class: 'cart', href: `atelier/?panier${en() ? '&lang=en' : ''}`, target: '_blank', rel: 'noopener', 'aria-label': items ? trFn`Mon panier : ${items} article(s)` : t('Mon panier') });

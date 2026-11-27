@@ -1,0 +1,43 @@
+/* Gestion des commandes (gestion-commandes.html), pour l'équipe : la liste, filtrée par statut, et le
+   détail de chaque commande dans une fenêtre (mêmes cartes et même fenêtre que Mes commandes). */
+.gc-page .o-list { margin-top: 14px; }
+.gc-search { display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.gc-search svg { width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-linecap: round; flex: none; }
+.gc-search input { flex: 1; min-width: 0; padding: 12px 0; border: 0; background: none; font: inherit; font-size: 1rem; color: var(--ink); outline: none; }
+.gc-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.gc-filters { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.gc-filters::-webkit-scrollbar { display: none; }
+.gc-filters button { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font: inherit; font-size: .84rem; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.gc-filters button b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.gc-filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--craie); }
+.gc-filters button[aria-pressed="true"] b { color: var(--craie); }
+.gc-filters button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* une commande : le nom du client et sa ville sous la référence */
+.gc-page .o-main .gc-who { font-size: .86rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.gc-late { color: #8a5a12; font-weight: 600; }
+.gc-express { justify-self: start; margin-top: 2px; padding: 1px 9px; border-radius: 999px; background: #f7ead0; color: #8a5a12; font-size: .74rem; font-weight: 600; }
+/* le détail */
+.gd-contact { display: grid; gap: 4px; }
+.gd-contact a { color: var(--accent); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.gd-copy { justify-self: start; margin-top: 8px; appearance: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; background: var(--surface); font: inherit; font-size: .8rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+.gd-copy:hover { border-color: var(--accent); color: var(--accent); }
+.gd-mode { display: inline-block; margin-bottom: 6px; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); font-size: .78rem; font-weight: 600; color: var(--ink); }
+.gd-mode.express { background: #f7ead0; color: #8a5a12; }
+.gd-open { display: inline-block; margin-top: 6px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: .8rem; font-weight: 600; text-decoration: none; }
+.gd-open:hover { border-color: var(--accent); color: var(--accent); }
+/* l'étape suivante : un seul gros bouton ; l'expédition demande le transporteur et le numéro de suivi */
+.gd-next { margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); display: grid; gap: 10px; }
+.gd-next p { margin: 0; font-size: .86rem; color: var(--ink-2); }
+.gd-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+.gd-fields label { display: grid; gap: 4px; font-size: .78rem; color: var(--muted); min-width: 0; }
+.gd-fields input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; font-size: 1rem; color: var(--ink); }
+.gd-fields input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gd-next .btn { justify-content: center; width: 100%; }
+@media (max-width: 420px) { .gd-fields { grid-template-columns: 1fr; } }
+/* le fichier d'impression HD d'un article */
+.gd-hd-row { display: block; margin-top: 8px; }
+.gd-hd { display: block; font-size: .78rem; color: #8a5a12; font-weight: 600; }
+.gd-hd.ok { color: #2f6a43; }
+.gd-dl { cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600; }
+.gd-make { border-color: var(--ink); }
+.gd-redo { font-size: .78rem; color: var(--muted); margin-left: 6px; }

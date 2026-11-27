@@ -144,20 +144,9 @@
         <div id="exports-list" class="saved-list"></div>
         <p id="exports-status" class="save-status" role="status" hidden></p>
       </div>
-      <!-- administration : les commandes (administrateur et équipe) et les œuvres de tous les comptes, en
-           lecture seule (administrateur seulement) -->
+      <!-- administration : les œuvres de tous les comptes, en lecture seule (administrateur seulement ; les
+           commandes se gèrent sur la page du site gestion-commandes.html) -->
       <div id="admin-box" hidden>
-        <!-- les commandes payées de tous les comptes : adresse, œuvres à imprimer, statut et suivi (le client
-             reçoit un e-mail à chaque étape) ; annuler rembourse le client -->
-        <div id="admin-orders" class="admin-orders" hidden>
-          <h3>Commandes <small id="admin-orders-count"></small></h3>
-          <p class="hint">Faites avancer chaque commande : le client reçoit un e-mail à chaque étape (en préparation, expédiée avec le suivi, livrée). « Ouvrir l’œuvre » la rouvre en copie, pour l’exporter et l’imprimer.</p>
-          <p id="admin-orders-empty" class="hint" hidden>Aucune commande payée pour l’instant.</p>
-          <div id="admin-orders-list" class="admin-orders-list"></div>
-          <datalist id="admin-carriers"><option value="Colissimo"><option value="Chronopost"><option value="Mondial Relay"></datalist>
-          <p id="admin-orders-status" class="save-status" role="status" hidden></p>
-        </div>
-        <!-- (« Toutes les œuvres » : l'administrateur seulement ; l'équipe ne voit que les commandes) -->
         <h3 class="admin-works">Toutes les œuvres <small id="admin-count"></small></h3>
         <p class="hint admin-works">Administration : les œuvres de tous les comptes, en lecture seule. Ouvrir une œuvre en fait une copie dans votre compte ; l’original n’est pas touché.</p>
         <!-- double authentification exigée par le serveur avant toute lecture (voir supabase/schema.sql) -->

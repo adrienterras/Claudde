@@ -667,6 +667,38 @@
     rows.forEach((o) => (o.items || []).forEach((it) => { if (it.compId) adminOpenable.add(it.compId); }));
     return rows;
   }
+  // Gestion des commandes (l'équipe : page gestion-commandes.html) : les vignettes des œuvres commandées,
+  // et les fichiers d'impression HD rangés avec chaque commande (bucket « impressions », que seule
+  // l'équipe lit et écrit : <commande>/<n° de l'article>.pdf)
+  async function staffThumbs(ids) {
+    const list = [...new Set((ids || []).map(String).filter((x) => /^[0-9a-f-]{36}$/.test(x)))];
+    if (!user || !canDashboard() || !list.length) return {};
+    const { data, error } = await withTimeout(client.rpc('staff_order_thumbs', { p_ids: list }), 30000);
+    err(error);
+    return Object.fromEntries((data || []).filter((r) => r.thumb).map((r) => [r.id, r.thumb]));
+  }
+  const PRINTS = 'impressions';
+  const hdPath = (orderId, index) => `${orderId}/${Number(index) || 0}.pdf`;
+  async function hdList(orderIds) {
+    if (!user || !canDashboard()) return {};
+    const out = {};
+    await Promise.all((orderIds || []).filter((id) => /^[0-9a-f-]{36}$/.test(String(id))).map(async (id) => {
+      const { data, error } = await client.storage.from(PRINTS).list(id);
+      if (error) return;
+      out[id] = (data || []).filter((f) => /^\d+\.pdf$/.test(f.name)).map((f) => ({ index: Number(f.name.split('.')[0]), size: (f.metadata && f.metadata.size) || f.size || 0, at: f.updated_at || f.created_at || null }));
+    }));
+    return out;
+  }
+  async function hdPut(orderId, index, blob) {
+    if (!user || !canDashboard()) throw new Error(tr('connexion requise'));
+    const { error } = await client.storage.from(PRINTS).upload(hdPath(orderId, index), blob, { upsert: true, contentType: 'application/pdf', cacheControl: '60' });
+    err(error);
+  }
+  async function hdUrl(orderId, index, name) {
+    const { data, error } = await client.storage.from(PRINTS).createSignedUrl(hdPath(orderId, index), 600, { download: name || true });
+    err(error);
+    return data && data.signedUrl;
+  }
   // les vignettes des œuvres commandées (le visuel de chaque article dans « Mes commandes ») : { id: data URL }
   async function ordersThumbs(ids) {
     const list = [...new Set((ids || []).map(String).filter((x) => /^[0-9a-f-]{8,40}$/.test(x)))];
@@ -805,7 +837,7 @@
     isAdmin, canDashboard, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
-    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet },
+    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl },
     contactEmail: cfg.contactEmail || '',
   };
 })();

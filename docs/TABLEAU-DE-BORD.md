@@ -26,10 +26,10 @@ l'application d'authentification, et l'active elle-même la première fois (code
 fonction serveur `tableau-de-bord` qui vérifie le rôle et la double authentification ; la page ne fait
 qu'afficher ce que le serveur renvoie.
 
-Le rôle `tableau` (l'équipe) ouvre ce tableau de bord et la **gestion des commandes** dans l'atelier
-(onglet du compte → Commandes) : adresse de livraison, statuts, suivi, annulation et remboursement, et
-l'ouverture des **œuvres commandées** pour les imprimer (fichiers de cette œuvre seulement, pendant une
-heure, inscrit au journal `admin_log`). Il n'ouvre ni « Toutes les œuvres », ni les autres œuvres des
+Le rôle `tableau` (l'équipe) ouvre ce tableau de bord et la **gestion des commandes**
+(`gestion-commandes.html`, lien « Gestion des commandes » du menu du compte) : adresse de livraison,
+statuts, suivi, annulation et remboursement, et l'ouverture des **œuvres commandées** pour les imprimer
+(fichiers de cette œuvre seulement, pendant une heure, inscrit au journal `admin_log`). Il n'ouvre ni « Toutes les œuvres », ni les autres œuvres des
 clients, ni leurs exports, et ne lève pas les quotas : cela reste au rôle `admin`. Le serveur le vérifie
 (`is_staff()`, `staff_opened()`, fonctions `commande-statut` et `commande-annuler`).
 
@@ -44,6 +44,25 @@ where email in ('anastasia@ateliergribouille.art', 'stan@ateliergribouille.art')
 
 → Run. Le rôle compte à la prochaine connexion (se déconnecter puis se reconnecter). Pour le retirer :
 `set raw_app_meta_data = raw_app_meta_data - 'atelier_role'`.
+
+## Gestion des commandes
+
+`https://ateliergribouille.art/gestion-commandes.html` (`landing/gestion-commandes.html`, `.css`, `.js` ;
+l'accès et la double authentification sont communs avec le tableau de bord : `landing/equipe.js`).
+
+- **La liste** : recherche (référence, nom, ville, e-mail), filtres par statut (« À préparer » d'abord,
+  la plus ancienne en tête), visuel des œuvres dans leur cadre, alerte au-delà de 3 jours, badge Express.
+- **Le détail** (touche une commande, ou lien `gestion-commandes.html#AG-…` de l'e-mail « Nouvelle
+  commande ») : étapes, client, adresse (« Copier l'adresse »), œuvres, étape suivante en un bouton
+  (l'expédition demande transporteur et numéro de suivi), « Annuler et rembourser » en deux touches.
+- **Le fichier HD d'impression** : pour chaque article imprimé, « Préparer le fichier HD » ouvre l'atelier
+  (`atelier/?fichier-hd=<commande>&article=<n>`), qui rouvre l'œuvre commandée, refait l'image en haute
+  définition (300 dpi, plafonnée par la mémoire de l'appareil : un ordinateur pour les grands formats),
+  en fait un PDF au format commandé (feuille du cadre avec passe-partout, sinon papier + marges) et le
+  range avec la commande. Ensuite « Télécharger le fichier HD » (lien signé de 10 minutes) et « Refaire ».
+  Le fichier est dans l'espace privé `impressions` (`<commande>/<article>.pdf`, PDF seulement, 200 Mo au
+  plus) : lisible et déposable par l'équipe seulement (`is_staff()`), jamais par le client, jamais envoyé.
+  Supabase → Storage → Files → Settings : « Global file size limit » doit être d'au moins 200 MB.
 
 ## Comment c'est fait
 

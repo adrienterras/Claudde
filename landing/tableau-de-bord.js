@@ -193,103 +193,14 @@ export function render(d, opts) {
 }
 window.TableauDeBord = { render };
 
-// ---------- l'accès et le chargement ----------
-let A = null, busy = false, loadedAt = 0, factorId = null;
-const status = (text) => { const el = $('tb-status'); el.textContent = text || ''; el.hidden = !text; };
-// la porte : 'signin' (pas connecté), 'notadmin', 'enroll' (double authentification à activer), 'verify' (code)
-function gate(kind) {
-  const texts = {
-    signin: 'Connectez-vous avec le compte administrateur pour voir le tableau de bord.',
-    notadmin: 'Cette page est réservée à l’équipe du site.',
-    enroll: 'Le tableau de bord demande la double authentification : activez-la une fois, avec une application d’authentification sur votre téléphone.',
-    verify: 'Pour voir le tableau de bord, saisissez le code de votre application d’authentification.',
-  };
-  $('tb-gate').hidden = !kind;
-  $('tb-body').hidden = !!kind || !$('tb-body').childElementCount;
-  if (!kind) return;
-  $('tb-gate-text').textContent = texts[kind];
-  $('tb-signin-btn').hidden = kind !== 'signin';
-  $('tb-enroll').hidden = kind !== 'enroll';
-  $('tb-mfa').hidden = kind !== 'verify';
-  $('tb-qr').hidden = true;
-  factorId = null;
-  $('tb-when').textContent = '';
-  if (kind === 'verify') setTimeout(() => $('tb-code').focus(), 50);
-}
-async function load() {
-  if (busy) return;
-  busy = true;
-  $('tb-refresh').classList.add('spin');
-  status('');
-  try {
+// ---------- l'accès et le chargement (commun aux pages de l'équipe : equipe.js) ----------
+const { staffPage } = await import(`./equipe.js${new URL(import.meta.url).search}`); // (même version que cette page)
+staffPage({
+  body: 'tb-body',
+  what: 'le tableau de bord',
+  async load(A) {
     const d = await A.dashboard();
     if (!d || !d.ventes) throw new Error('réponse inattendue du serveur');
     render(d, { admin: A.isAdmin() });
-    loadedAt = Date.now();
-  } catch (e) {
-    console.error(e);
-    status(`Le tableau de bord n’a pas pu être chargé : ${(e && e.message) || ''}`);
-    if (!loadedAt) $('tb-when').textContent = '';
-  } finally {
-    busy = false;
-    $('tb-refresh').classList.remove('spin');
-  }
-}
-async function start(user) {
-  if (!user) { gate('signin'); return; }
-  if (!(A.canDashboard ? A.canDashboard() : A.isAdmin())) { gate('notadmin'); return; }
-  let st = 'ok';
-  try { st = await A.mfaState(); } catch (e) { console.error(e); }
-  if (st === 'enroll' || st === 'verify') { gate(st); return; }
-  gate(null);
-  await load();
-}
-$('tb-signin-btn').addEventListener('click', () => { if (window.SiteAccount) window.SiteAccount.open(); });
-// la double authentification activée ici : le code à scanner, puis le premier code saisi la valide
-$('tb-enroll').addEventListener('click', async () => {
-  const b = $('tb-enroll');
-  b.disabled = true;
-  status('');
-  try {
-    const f = await A.mfaEnroll();
-    factorId = f.factorId;
-    if (f.qr) $('tb-qr-img').src = f.qr; else $('tb-qr-img').hidden = true;
-    $('tb-qr-secret').textContent = f.secret || '';
-    $('tb-qr').hidden = false;
-    $('tb-mfa').hidden = false;
-    b.hidden = true;
-    setTimeout(() => $('tb-code').focus(), 50);
-  } catch (e) {
-    status((e && e.message) || 'La double authentification n’a pas pu être préparée.');
-  } finally { b.disabled = false; }
+  },
 });
-$('tb-refresh').addEventListener('click', () => { if (A && A.user()) start(A.user()); });
-$('tb-mfa').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const ok = $('tb-code-ok');
-  ok.disabled = true;
-  status('');
-  try {
-    await A.mfaVerify($('tb-code').value, factorId || undefined);
-    $('tb-code').value = '';
-    await start(A.user());
-  } catch (err) {
-    status((err && err.message) || 'Code refusé.');
-  } finally { ok.disabled = false; }
-});
-// de retour sur l'onglet après quelques minutes : les chiffres sont relus
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && loadedAt && Date.now() - loadedAt > 3 * 60e3 && A && A.user()) load();
-});
-if (!window.__TB_NO_START) (async () => {
-  try {
-    A = await window.SiteAccount.account();
-    let first = true;
-    A.onChange((u) => { first = false; start(u); });
-    setTimeout(() => { if (first) start(A.user()); }, 1500);
-  } catch (e) {
-    console.error(e);
-    $('tb-when').textContent = '';
-    status((e && e.message) || 'Le service des comptes n’est pas disponible pour le moment.');
-  }
-})();

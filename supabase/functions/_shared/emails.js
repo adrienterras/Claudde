@@ -198,8 +198,8 @@ export function shopEmail(kind, order, visuals) {
   const c = order.customer || {};
   const who = [c.name, c.email || order.email, c.phone].filter(Boolean).join(' · ');
   const addr = addressLines(order);
-  // (la gestion des commandes, dans l'atelier : espace administrateur)
-  const admin = `${SITE}/atelier/?gestion-commandes`;
+  // (la page Gestion des commandes du site, ouverte sur cette commande)
+  const admin = `${SITE}/gestion-commandes.html#${encodeURIComponent(order.ref || '')}`;
   const cancelled = kind === 'annulee';
   const title = cancelled ? 'Commande annulée par le client' : 'Nouvelle commande';
   const lead = cancelled ? `Commande ${order.ref} : le client l’a annulée, il est remboursé automatiquement.` : `Commande ${order.ref} · paiement reçu : ${eur(order.total_cents)}.`;

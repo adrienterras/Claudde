@@ -502,3 +502,34 @@ grant execute on function public.share_room(uuid, text[], boolean) to service_ro
 create unique index if not exists compositions_share_token_key
   on public.compositions ((meta -> 'share' ->> 'token'))
   where meta -> 'share' ->> 'token' is not null;
+
+-- Gestion des commandes (page gestion-commandes.html, 27 novembre 2026) : les vignettes des œuvres
+-- commandées (pour l'équipe, qui ne lit pas les fiches des clients), et les fichiers d'impression HD,
+-- préparés par l'équipe dans l'atelier et rangés avec la commande, dans un espace à part (bucket
+-- « impressions ») que seule l'équipe lit et écrit : jamais le client.
+create or replace function public.staff_order_thumbs(p_ids uuid[])
+returns table (id uuid, thumb text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select c.id, c.thumb from public.compositions c
+  where public.is_staff() and c.id = any (p_ids)
+    and exists (select 1 from public.orders o, jsonb_array_elements(o.items) it where it ->> 'compId' = c.id::text);
+$$;
+revoke all on function public.staff_order_thumbs(uuid[]) from public;
+revoke execute on function public.staff_order_thumbs(uuid[]) from anon;
+grant execute on function public.staff_order_thumbs(uuid[]) to authenticated;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('impressions', 'impressions', false, 209715200, array['application/pdf'])
+  on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+-- (un dossier par commande : <id de la commande>/<n° de l'article>.pdf)
+drop policy if exists "impressions: staff" on storage.objects;
+create policy "impressions: staff" on storage.objects
+  for all to authenticated
+  using (bucket_id = 'impressions' and public.is_staff()
+    and exists (select 1 from public.orders o where o.id::text = (storage.foldername(name))[1]))
+  with check (bucket_id = 'impressions' and public.is_staff()
+    and exists (select 1 from public.orders o where o.id::text = (storage.foldername(name))[1]));

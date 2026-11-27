@@ -2732,17 +2732,20 @@ test.describe('Champs de saisie sur téléphone', () => {
     await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: '', supabaseAnonKey: '' };" }));
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille);
-    const small = await page.evaluate(() => {
-      // (le formulaire d'une commande, tel que l'espace administrateur le construit)
+    const tooSmall = () => [...document.querySelectorAll('input, select, textarea')]
+      .filter((el) => !['range', 'checkbox', 'radio', 'file', 'color', 'hidden'].includes(el.type))
+      .map((el) => [el.id || el.name || el.className || el.outerHTML.slice(0, 60), parseFloat(getComputedStyle(el).fontSize)])
+      .filter(([, px]) => px < 16);
+    const small = await page.evaluate(`(${tooSmall})()`);
+    // la page Gestion des commandes : la recherche, et le formulaire d'expédition tel que le détail le construit
+    await page.goto('gestion-commandes.html');
+    await page.waitForFunction(() => window.GestionCommandes);
+    small.push(...await page.evaluate(`(() => {
       const box = document.createElement('div');
-      box.className = 'admin-order';
-      box.innerHTML = '<form class="admin-order-form"><select name="status"><option>Expédiée</option></select><input name="carrier" list="admin-carriers"><input name="tracking" placeholder="N° de suivi"></form>';
-      document.getElementById('admin-orders-list').appendChild(box);
-      return [...document.querySelectorAll('input, select, textarea')]
-        .filter((el) => !['range', 'checkbox', 'radio', 'file', 'color', 'hidden'].includes(el.type))
-        .map((el) => [el.id || el.name || el.className || el.outerHTML.slice(0, 60), parseFloat(getComputedStyle(el).fontSize)])
-        .filter(([, px]) => px < 16);
-    });
+      box.innerHTML = '<form class="gd-next"><div class="gd-fields"><label>Transporteur<input name="carrier"></label><label>N° de suivi<input name="tracking"></label></div></form>';
+      document.getElementById('gd-body').appendChild(box);
+      return (${tooSmall})();
+    })()`));
     expect(small).toEqual([]);
     await ctx.close();
   });

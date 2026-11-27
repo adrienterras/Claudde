@@ -365,6 +365,7 @@
     "Mon panier": "My cart",
     "Mes commandes": "My orders",
     "Tableau de bord": "Dashboard",
+    "Gestion des commandes": "Order management",
     "Mon panier : {0} article(s)": "My cart: {0} item(s)",
     // page À propos
     "À propos : l’histoire d’Atelier Gribouille | Atelier Gribouille": "About: the story of Atelier Gribouille | Atelier Gribouille",

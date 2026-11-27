@@ -102,8 +102,9 @@ test('accueil : la pastille du compte, ronde, l’icône sans session, la photo 
   });
   await pageA.goto('http://accueil.test/');
   await pageA.locator('a.nav-account').click();
-  await expect(pageA.locator('.acc-pop [role="menuitem"]')).toHaveText(['L’atelier', 'Mon compte', 'Mes commandes', 'Tableau de bord', 'Mon panier', 'Se déconnecter']);
-  expect(await pageA.locator('.acc-pop a').nth(3).getAttribute('href')).toBe('tableau-de-bord.html');
+  await expect(pageA.locator('.acc-pop [role="menuitem"]')).toHaveText(['L’atelier', 'Mon compte', 'Mes commandes', 'Gestion des commandes', 'Tableau de bord', 'Mon panier', 'Se déconnecter']);
+  expect(await pageA.locator('.acc-pop a').nth(3).getAttribute('href')).toBe('gestion-commandes.html');
+  expect(await pageA.locator('.acc-pop a').nth(4).getAttribute('href')).toBe('tableau-de-bord.html');
   await ctxA.close();
   // avec une photo de compte (Google) : la photo, sans initiale ; l'en-tête tient sur un téléphone
   const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
