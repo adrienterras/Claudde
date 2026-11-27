@@ -74,6 +74,14 @@ test.describe('Commandes : calcul côté serveur', () => {
     expect(p.get('invoice_creation[invoice_data][custom_fields][0][value]')).toBe('AG-261125-AB12');
     expect(p.get('invoice_creation[invoice_data][metadata][order_id]')).toBe('o-1');
     expect(p.get('invoice_creation[invoice_data][description]')).toBe('Commande AG-261125-AB12 — Atelier Gribouille');
+    // le lien de la facture : chez Stripe seulement, le PDF d'abord
+    expect(m.invoiceLink({ invoice_pdf: 'https://pay.stripe.com/invoice/acct/x/pdf', hosted_invoice_url: 'https://invoice.stripe.com/i/acct/x' })).toBe('https://pay.stripe.com/invoice/acct/x/pdf');
+    expect(m.invoiceLink({ invoice_pdf: null, hosted_invoice_url: 'https://invoice.stripe.com/i/acct/x' })).toBe('https://invoice.stripe.com/i/acct/x');
+    expect(m.invoiceLink({ invoice_pdf: 'https://evil.example/stripe.com/x.pdf' })).toBeNull();
+    expect(m.invoiceLink({ invoice_pdf: 'https://stripe.com.evil.example/x.pdf' })).toBeNull();
+    expect(m.invoiceLink({ invoice_pdf: 'http://pay.stripe.com/x.pdf' })).toBeNull();
+    expect(m.invoiceLink('in_123')).toBeNull(); // (la facture non dépliée)
+    expect(m.INVOICE_STATUSES).not.toContain('attente_paiement');
     expect(p.get('line_items[0][price_data][unit_amount]')).toBe('12900');
     expect(p.get('line_items[0][quantity]')).toBe('2');
     expect(p.get('line_items[1][price_data][unit_amount]')).toBe('2900');

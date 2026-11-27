@@ -92,6 +92,9 @@
 .od-sum span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .od-track a { color: var(--accent); font-weight: 600; }
 .od-actions { margin-top: 24px; display: grid; gap: 10px; }
+.od-invoice { appearance: none; justify-self: start; border: 1px solid var(--ink); border-radius: 999px; padding: 10px 16px; background: var(--surface); font: inherit; font-size: .9rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+.od-invoice:hover { border-color: var(--accent); color: var(--accent); }
+.od-invoice:disabled { opacity: .6; cursor: default; }
 .od-cancel { appearance: none; border: 1px solid var(--line); border-radius: 999px; padding: 12px 18px; background: var(--surface); font: inherit; font-size: .9rem; color: var(--ink-2); cursor: pointer; }
 .od-cancel:hover { border-color: #8a3a26; color: #8a3a26; }
 .od-cancel.confirm { border-color: #8a3a26; background: #8a3a26; color: #fff; font-weight: 600; }

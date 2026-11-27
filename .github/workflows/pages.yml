@@ -68,7 +68,7 @@ jobs:
           exit 1
 
   # Fonctions Supabase (supabase/functions : paiement « commande », « stripe-webhook », « commande-statut »,
-  # « commande-annuler » ; partage « partage » ; « tableau-de-bord » de l'administrateur), déployées après
+  # « commande-annuler », « facture » ; partage « partage » ; « tableau-de-bord » de l'équipe), déployées après
   # le site, dans leur propre job : la clé SUPABASE_ACCESS_TOKEN (Supabase → Account preferences →
   # Access Tokens) n'est jamais dans le même job que celle de Cloudflare. Sans elle, rien n'est déployé
   # (le site est publié quand même). Les clés Stripe, Resend… sont dans Supabase (Edge Functions →
@@ -101,7 +101,7 @@ jobs:
           REF="$(sed -n "s#.*supabaseUrl: 'https://\([a-z0-9]*\)\.supabase\.co'.*#\1#p" collage/config.js)"
           if [ -z "$REF" ]; then echo "::error::Projet Supabase introuvable dans collage/config.js"; exit 1; fi
           S="deploy/outils-supabase/node_modules/.bin/supabase"
-          for f in commande stripe-webhook commande-statut commande-annuler partage tableau-de-bord; do
+          for f in commande stripe-webhook commande-statut commande-annuler partage tableau-de-bord facture; do
             ok=0
             for i in 1 2 3; do
               $S functions deploy "$f" --project-ref "$REF" --no-verify-jwt && { ok=1; break; }

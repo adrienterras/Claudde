@@ -106,7 +106,10 @@ fichier HD d'impression), statut et suivi, **Annuler et rembourser** jusqu'à l'
 Faites par **Stripe** après chaque paiement (`invoice_creation` dans la session de paiement,
 `_shared/commande.js`) : numérotées à la suite, au nom et à l'adresse de facturation saisis par le client,
 articles et livraison détaillés, référence de la commande (champ « Commande »). Stripe les garde dans
-son tableau de bord (Facturation → Factures) et les envoie au client. Coût : 0,4 % du montant, au plus
+son tableau de bord (Facturation → Factures) et les envoie au client. Le client la retrouve aussi dans
+**Mes commandes** (détail d'une commande → « Télécharger la facture ») : la fonction `facture` vérifie
+que la commande est la sienne et payée, retrouve la facture par la session de paiement et ne renvoie
+qu'un lien chez Stripe (une commande payée avant les factures n'en a pas : le bouton le dit). Coût : 0,4 % du montant, au plus
 environ 2 € par facture (frais Stripe des factures après paiement).
 
 À régler une fois dans Stripe :

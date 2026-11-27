@@ -653,6 +653,8 @@
   }
   // annuler (et rembourser) une commande : le client tant qu'elle est payée, l'administrateur jusqu'à l'expédition
   const ordersCancel = (id) => fnCall('commande-annuler', { id });
+  // la facture d'une commande payée (faite par Stripe) : son lien, demandé au serveur
+  const ordersInvoice = (id) => fnCall('facture', { id });
   // l'administrateur fait avancer une commande (statut, transporteur, numéro de suivi) ; le client est prévenu
   const ordersSet = (id, patch) => fnCall('commande-statut', Object.assign({ id }, patch));
   // les chiffres du tableau de bord du site (administrateur, double authentification : vérifié par le serveur)
@@ -837,7 +839,7 @@
     isAdmin, canDashboard, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
-    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl },
+    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, invoice: ordersInvoice, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl },
     contactEmail: cfg.contactEmail || '',
   };
 })();

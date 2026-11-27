@@ -264,6 +264,19 @@ export function summary(items) {
   if (shown.length < lines.length) shown = shown.concat(`et ${lines.length - shown.length} autre(s) article(s)`);
   return `Votre commande : ${shown.concat(tail).join(' · ')}`.slice(0, 1200);
 }
+// La facture d'une commande (faite par Stripe après le paiement) : le lien du PDF, sinon de la page de
+// la facture, seulement s'il mène chez Stripe ; null tant qu'elle n'est pas prête
+export const INVOICE_STATUSES = ['payee', 'en_preparation', 'expediee', 'livree', 'annulee'];
+export function invoiceLink(invoice) {
+  if (!invoice || typeof invoice !== 'object') return null;
+  for (const u of [invoice.invoice_pdf, invoice.hosted_invoice_url]) {
+    try {
+      const url = new URL(String(u || ''));
+      if (url.protocol === 'https:' && /(^|\.)stripe\.com$/.test(url.hostname)) return url.href;
+    } catch (e) { /* pas un lien */ }
+  }
+  return null;
+}
 export const formBody = (pairs) => pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 
 // La signature d'une notification Stripe (en-tête Stripe-Signature : « t=…,v1=… ») : HMAC-SHA256 du

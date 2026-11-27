@@ -316,7 +316,9 @@ que ce que le serveur renvoie au rôle `tableau` ou `admin` avec double authenti
 des œuvres passent par `staff_order_thumbs()` (œuvres d'une commande seulement) ; les fichiers HD
 d'impression sont dans le bucket privé `impressions` (PDF seulement, 200 Mo), politique « impressions:
 staff » : `is_staff()` et dossier d'une commande existante, aucun accès client ni anonyme, téléchargement
-par lien signé de 10 minutes.
+par lien signé de 10 minutes. Factures : fonction `facture` (connexion requise ; la commande du compte,
+ou l'équipe avec double authentification ; commande payée), lien renvoyé seulement s'il mène en https chez
+Stripe, revérifié par la page avant d'y aller.
 
 ## Polices auto-hébergées (novembre 2026)
 

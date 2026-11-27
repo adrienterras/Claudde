@@ -1549,6 +1549,19 @@ test.describe('Comptes utilisateurs', () => {
     await expect(detail).toContainText('3 rue des Lilas');
     await expect(detail.locator('.od-track a')).toHaveAttribute('href', /laposte\.fr.*6A12345678901/);
     await expect(detail.locator('.od-cancel')).toHaveCount(0); // (expédiée : plus annulable en ligne)
+    // la facture : demandée au serveur au clic ; s'il n'en a pas, la raison est dite
+    const inv = detail.locator('.od-invoice');
+    await expect(inv).toHaveText('Télécharger la facture');
+    await page.evaluate(() => { window.__fake.fns = { facture: () => ({ data: null, error: { message: 'Edge Function returned a non-2xx status code', context: { json: async () => ({ error: 'facture introuvable pour cette commande' }) } } }) }; });
+    await inv.click();
+    await expect(detail.locator('.od-invoice-err')).toContainText('facture introuvable pour cette commande');
+    await expect(inv).toBeEnabled();
+    expect(await page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'facture').map((c) => c[2].id))).toHaveLength(1);
+    // (un lien qui ne mène pas chez Stripe n'est jamais suivi)
+    await page.evaluate(() => { window.__fake.fns = { facture: () => ({ data: { url: 'https://evil.example/facture.pdf' }, error: null }) }; });
+    await inv.click();
+    await expect(detail.locator('.od-invoice-err')).toContainText('lien de facture invalide');
+    expect(page.url()).toContain('commandes.html');
     // recommander le tableau : un lien vers l'atelier, l'article commandé déjà choisi
     const again = detail.locator('.od-items .od-again');
     await expect(again).toHaveText('Recommander');
@@ -1585,6 +1598,13 @@ test.describe('Comptes utilisateurs', () => {
     if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-detail-telephone.png` });
     await detail.locator('#od-close').click();
     if (process.env.CAP_OUT) await page.screenshot({ path: `${process.env.CAP_OUT}/commandes-liste-telephone.png`, fullPage: true });
+    // la facture prête : le PDF de Stripe s'ouvre
+    await page.route('https://invoice.stripe.com/**', (r) => r.fulfill({ contentType: 'application/pdf', body: '%PDF-1.4 facture' }));
+    await page.evaluate(() => { window.__fake.fns = { facture: () => ({ data: { url: 'https://invoice.stripe.com/i/acct_x/test_y/pdf' }, error: null }) }; });
+    await items.nth(0).click();
+    const go = page.waitForRequest((r) => r.url().startsWith('https://invoice.stripe.com/') && r.isNavigationRequest());
+    await detail.locator('.od-invoice').click();
+    expect((await go).url()).toBe('https://invoice.stripe.com/i/acct_x/test_y/pdf');
   });
 
   test('paiement en ligne (essai, ?paiement=test) : livraison au panier, page de paiement, retour, Mes commandes ; une erreur du serveur est dite', async ({ acc }) => {

@@ -210,8 +210,32 @@ function fillDetail(o) {
     li.append(v, txt, price);
     ul.appendChild(li);
   });
-  // annuler, tant que la commande est payée (pas encore en préparation) : remboursée aussitôt
   const actions = $('od-actions');
+  // la facture (faite par Stripe après le paiement) : demandée au serveur au moment du clic
+  if (!pending && o.status !== 'abandonnee') {
+    const f = document.createElement('button');
+    f.type = 'button';
+    f.className = 'od-invoice';
+    f.textContent = t('Télécharger la facture');
+    f.onclick = async () => {
+      f.disabled = true;
+      f.textContent = t('Préparation de la facture…');
+      const old = actions.querySelector('.od-invoice-err');
+      if (old) old.remove();
+      try {
+        const { url } = await A.orders.invoice(o.id);
+        if (!/^https:\/\/([a-z0-9-]+\.)*stripe\.com\//i.test(String(url || ''))) throw new Error(t('lien de facture invalide'));
+        location.assign(url);
+      } catch (e) {
+        console.error(e);
+        f.insertAdjacentHTML('afterend', `<p class="od-note od-invoice-err">${esc(tf('Facture indisponible : {0}', (e && e.message) || ''))}</p>`);
+      }
+      f.disabled = false;
+      f.textContent = t('Télécharger la facture');
+    };
+    actions.appendChild(f);
+  }
+  // annuler, tant que la commande est payée (pas encore en préparation) : remboursée aussitôt
   if (o.status === 'payee') {
     const b = document.createElement('button');
     b.type = 'button';
