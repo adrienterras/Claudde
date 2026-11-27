@@ -34,6 +34,12 @@ statuts, suivi, annulation et remboursement, et l'ouverture des **œuvres comman
 clients, ni leurs exports, et ne lève pas les quotas : cela reste au rôle `admin`. Le serveur le vérifie
 (`is_staff()`, `staff_opened()`, fonctions `commande-statut` et `commande-annuler`).
 
+Dans l'atelier, l'étape **Exporter** (télécharger l'œuvre, format, guide de découpe, ajout au panier)
+n'est visible que pour l'équipe (administrateur et rôle `tableau`) : les clients commandent par le bouton
+« Commander ». L'équipe retrouve aussi « Exporter l'œuvre » et « Générer le guide de découpe » dans le
+panneau du compte (« Outils de l'équipe »), et, sur téléphone, un onglet « Exporter ». C'est un choix
+d'affichage : l'œuvre est calculée dans le navigateur du client, ce n'est pas une protection du fichier.
+
 **Donner le rôle `tableau`** à un compte (qui doit déjà exister : la personne crée son compte sur le
 site et confirme son e-mail) : Supabase → SQL Editor → New query →
 

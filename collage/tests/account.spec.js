@@ -12,7 +12,7 @@ const test = base.extend({
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
-    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: 'https://fake.supabase.co', supabaseAnonKey: 'anon', contactEmail: 'test@example.org' };" }));
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: 'https://fake.supabase.co', supabaseAnonKey: 'anon', contactEmail: 'test@example.org', exportForAll: true };" }));
     await page.addInitScript(FAKE);
     await page.goto('index.html');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
@@ -77,12 +77,70 @@ test.describe('Comptes utilisateurs', () => {
   test('téléphone : les champs de connexion font 16 px (iOS ne zoome pas en les remplissant)', async ({ acc }) => {
     const { page } = acc;
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.locator('#acc-head').click(); // (téléphone : le compte s'ouvre par « Mon compte », dans l'en-tête)
-    await page.locator('#acc-open').click();
+    await page.locator('#acc-head').click(); // (téléphone : « Mon compte », dans l'en-tête, ouvre la connexion)
     await expect(page.locator('#auth-email')).toBeVisible();
     for (const id of ['#auth-email', '#auth-password']) expect(parseFloat(await page.locator(id).evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
     await page.locator('.auth-tabs [data-mode="signup"]').click();
     expect(parseFloat(await page.locator('#auth-name').evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+  });
+
+  test('Exporter : réservé à l’équipe ; téléphone : la photo ou l’initiale dans l’en-tête ouvre le profil', async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.route('**/vendor/supabase.js', (r) => r.fulfill({ contentType: 'text/javascript', body: '// remplacé par le faux' }));
+    // (la configuration du site, sans exportForAll)
+    await page.route('**/config.js', (r) => r.fulfill({ contentType: 'text/javascript', body: "window.ATELIER_CONFIG = { supabaseUrl: 'https://fake.supabase.co', supabaseAnonKey: 'anon' };" }));
+    await page.addInitScript(FAKE);
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    // sans compte : pas d'étape Exporter ; l'icône du compte
+    await expect(page.locator('body')).toHaveClass(/no-export/);
+    await expect(page.locator('#acc-head .ico')).toBeVisible();
+    await expect(page.locator('#acc-head .acc-avatar')).toBeHidden();
+    // un client connecté : l'initiale de son prénom dans l'en-tête ; elle ouvre son profil directement
+    await page.locator('#acc-head').click();
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-name', 'Lou'); await page.fill('#auth-email', 'lou@example.org'); await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-head .acc-avatar')).toHaveText('L');
+    await expect(page.locator('#acc-head .ico')).toBeHidden();
+    if (!(await page.locator('#account-section').isHidden())) await page.locator('#acc-close').click();
+    await expect(page.locator('#account-section')).toBeHidden();
+    await page.locator('#acc-head').click();
+    await expect(page.locator('#profile-box')).toBeVisible();
+    await expect(page.locator('#profile-title')).toHaveText('Bonjour Lou');
+    await expect(page.locator('#acc-team')).toBeHidden(); // (pas d'outils de l'équipe pour un client)
+    await page.locator('#acc-close').click();
+    // toujours pas d'Exporter pour un client, ni d'onglet ; « Commander » reste le chemin du panier
+    await expect(page.locator('body')).toHaveClass(/no-export/);
+    await expect(page.locator('#sheet-tabs .tab-more')).toBeHidden();
+    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
+    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#export-section')).toBeHidden();
+    // l'équipe (rôle « tableau ») : l'étape Exporter, et son onglet sur téléphone
+    await page.locator('#acc-head').click();
+    await page.locator('#acc-signout').click();
+    await page.evaluate(() => { window.__FAKE_VIEWERS = ['stan@example.org']; });
+    await page.locator('#acc-head').click();
+    await page.locator('.auth-tabs [data-mode="signup"]').click();
+    await page.fill('#auth-name', 'Stan'); await page.fill('#auth-email', 'stan@example.org'); await page.fill('#auth-password', 'Rouge-Soleil-42');
+    await page.locator('#auth-submit').click();
+    await expect(page.locator('#acc-head .acc-avatar')).toHaveText('S');
+    await expect(page.locator('body')).not.toHaveClass(/no-export/);
+    if (!(await page.locator('#account-section').isHidden())) await page.locator('#acc-close').click();
+    await expect(page.locator('#sheet-tabs .tab-more')).toBeVisible();
+    await expect(page.locator('#sheet-tabs .tab-more')).toContainText('Exporter');
+    await page.locator('#sheet-tabs .tab-more').click();
+    await expect(page.locator('#export')).toBeVisible();
+    // et, dans le panneau du compte, « Exporter l'œuvre » et « Générer le guide de découpe »
+    await page.locator('#acc-head').click();
+    await expect(page.locator('#acc-team')).toBeVisible();
+    await page.locator('#acc-guide').click();
+    await expect(page.locator('#account-section')).toBeHidden();
+    // (sur téléphone, le fichier prêt s'ouvre dans une fenêtre : un toucher l'enregistre)
+    await expect(page.locator('#preview-title')).toHaveText('Votre fichier est prêt', { timeout: 120000 });
+    await expect(page.locator('#preview-doc')).toContainText('.pdf');
+    await ctx.close();
   });
 
   test('inscription par e-mail avec confirmation, puis connexion', async ({ acc }) => {
@@ -1721,20 +1779,18 @@ test.describe('Comptes utilisateurs', () => {
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
     await page.waitForTimeout(800);
     await expect(page.locator('#account-section')).toBeHidden();
-    // téléphone : le tiroir s'ouvre sur l'onglet Compte (connecté : pas de panneau par-dessus)
+    // téléphone : connecté, le profil s'ouvre directement (comme en touchant la pastille de l'en-tête)
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('index.html?compte');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && Account.user());
-    await expect(page.locator('body')).not.toHaveClass(/stage-full/);
-    await expect.poll(() => page.evaluate(() => document.querySelector('.panel').dataset.tab)).toBe('more');
-    await expect(page.locator('#acc-menu')).toBeVisible();
-    await expect(page.locator('#account-section')).toBeHidden();
-    // pas connecté : l'onglet Compte, et le panneau de connexion par-dessus
-    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
-    await expect(page.locator('#acc-open')).toBeVisible();
+    await expect(page.locator('#account-section')).toBeVisible();
+    await expect(page.locator('#profile-box')).toBeVisible();
+    await expect(page.locator('#acc-head .acc-avatar')).toHaveText('T');
+    // pas connecté : le panneau de connexion
+    await page.locator('#acc-signout').click();
+    await expect(page.locator('#acc-head .acc-avatar')).toBeHidden();
     await page.goto('index.html?connexion');
     await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
-    await expect.poll(() => page.evaluate(() => document.querySelector('.panel').dataset.tab)).toBe('more');
     await expect(page.locator('#account-section')).toBeVisible();
     await expect(page.locator('#auth-form')).toBeVisible();
   });

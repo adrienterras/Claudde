@@ -24,6 +24,8 @@ http.createServer((req, res) => {
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end('introuvable'); return; }
+    // (les essais voient l'étape Exporter, réservée en ligne à l'équipe : tests/account.spec.js couvre la règle)
+    if (path.basename(file) === 'config.js' && file.startsWith(root)) data = Buffer.concat([data, Buffer.from('\nwindow.ATELIER_CONFIG.exportForAll = true;\n')]);
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
   });

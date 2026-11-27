@@ -389,6 +389,8 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .guide-box { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding: 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
 .guide-title { margin: 0; font-family: var(--f-display); font-style: italic; font-size: 1.08rem; }
 .guide-box .hint:empty { display: none; }
+/* l'étape Exporter : réservée à l'équipe (voir syncTeamTools) ; les clients commandent par « Commander » */
+body.no-export #export-section { display: none !important; }
 #export-section > .guide-box { margin: 0 0 6px; border: 1.5px solid var(--accent); background: var(--accent-soft); }
 .guide-btn { padding: 16px 18px; font-size: 1rem; }
 
@@ -519,6 +521,10 @@ body.stage-full .stage-cta { display: none; }
 .cart-ship[hidden] { display: none; }
 /* Mes commandes (paiement en ligne), dans Mon compte */
 .acc-orders-link { margin-top: 14px; }
+/* les outils de l'équipe (exporter, guide de découpe) */
+.acc-team { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line); display: grid; gap: 8px; }
+.acc-team-title { margin: 0; font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.acc-team .hint { margin: 0; }
 .order { padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 0.84rem; }
 .order-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .order-status { font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; }
@@ -1223,6 +1229,10 @@ body.stage-full .scene-open { display: none; }
   /* l'en-tête porte « Mon compte » : l'icône seule, ronde (le panier est le dernier onglet du tiroir) */
   .acc-head { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; padding: 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
   .acc-head .ico { width: 20px; height: 20px; }
+  /* connecté : la photo du compte, ou l'initiale du prénom, à la place de l'icône */
+  .acc-head.signed { padding: 3px; }
+  .acc-head.signed .ico { display: none; }
+  .acc-head .acc-avatar { width: 28px; height: 28px; font-size: .82rem; }
   .acc-head.on { background: var(--accent-soft); }
   /* tiroir baissé (et accueil) : l'œuvre couvre l'en-tête ; « Mon compte » reste à portée, dans l'angle haut droit */
   body.stage-full .acc-head { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 43; box-shadow: 0 6px 16px -10px rgba(0, 0, 0, .45); }
@@ -1234,7 +1244,7 @@ body.stage-full .scene-open { display: none; }
   .sheet-tabs .cart-btn-tab { position: relative; box-shadow: none; }
   .sheet-tabs .cart-btn-tab .cart-count { position: absolute; top: 4px; left: calc(50% + 4px); min-width: 16px; height: 16px; padding: 0 4px; font-size: 0.62rem; }
   .sheet-tabs .cart-btn-tab .cart-count[hidden] { display: none; }
-  .sheet-tabs .tab-more { display: none; }
+  body:not(.staff) .sheet-tabs .tab-more { display: none; }
   .cart-btn-desk { display: none; }
   /* téléphone : « Commander » (petit, avec l'icône du sac) flotte en bas à gauche de l'œuvre, au-dessus
      du curseur, à l'opposé des outils (barre en haut, colonne de zoom à droite) */

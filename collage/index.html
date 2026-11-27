@@ -90,7 +90,7 @@
     <span class="brand-mark" aria-hidden="true"></span>
     <span class="mobile-brand-name" role="heading" aria-level="1"><small>Atelier</small> Gribouille</span>
     <!-- téléphone : « Mon compte » dans l'en-tête (le panier est le dernier onglet du tiroir) -->
-    <button type="button" id="acc-head" class="acc-head" aria-label="Mon compte" title="Mon compte"><svg class="ico"><use href="#i-user"/></svg></button>
+    <button type="button" id="acc-head" class="acc-head" aria-label="Mon compte" title="Mon compte"><svg class="ico"><use href="#i-user"/></svg><span class="acc-avatar" hidden></span></button>
     <div class="lang-switch mobile-lang" role="group" aria-label="Langue / Language">
       <button type="button" data-lang="fr" lang="fr" aria-pressed="true">FR</button><button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
     </div>
@@ -104,7 +104,7 @@
       <button type="button" data-tab="compose-section" disabled><svg class="ico"><use href="#i-wand"/></svg><span>Propositions</span></button>
       <button type="button" data-tab="drawings-section" disabled><svg class="ico"><use href="#i-layers"/></svg><span>Dessins</span></button>
       <!-- (l'onglet Compte n'a plus de bouton dans la barre : il s'ouvre par « Mon compte », dans l'en-tête) -->
-      <button type="button" data-tab="more" class="tab-more" hidden><svg class="ico"><use href="#i-user"/></svg><span>Compte</span></button>
+      <button type="button" data-tab="more" class="tab-more" hidden><svg class="ico"><use href="#i-download"/></svg><span>Exporter</span></button>
       <button type="button" class="cart-btn cart-btn-tab" aria-label="Panier"><svg class="ico"><use href="#i-cart"/></svg><span>Panier</span><b class="cart-count" hidden>0</b></button>
     </nav>
     <header class="brand">
@@ -429,6 +429,13 @@
         </form>
         <!-- les commandes ont leur page sur le site (hors de l'atelier) -->
         <a class="btn btn-wide acc-orders-link" href="../commandes.html" target="_blank" rel="noopener">Mes commandes</a>
+        <!-- l'équipe (administrateur, rôle « tableau ») : exporter l'œuvre ouverte et son guide de découpe -->
+        <div class="acc-team" id="acc-team" hidden>
+          <p class="acc-team-title">Outils de l’équipe</p>
+          <button type="button" class="btn btn-wide" id="acc-export"><svg class="ico"><use href="#i-download"/></svg><span>Exporter l’œuvre</span></button>
+          <button type="button" class="btn btn-wide" id="acc-guide"><svg class="ico"><use href="#i-guide"/></svg><span>Générer le guide de découpe</span></button>
+          <p class="hint" id="acc-team-hint" hidden></p>
+        </div>
         <div class="danger-zone">
           <p class="hint">Supprimer le compte efface définitivement vos œuvres et dessins enregistrés dans le compte, ainsi que ceux de cet appareil.</p>
           <button type="button" class="btn btn-danger" id="acc-delete">Supprimer mon compte</button>

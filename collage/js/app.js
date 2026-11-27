@@ -6404,6 +6404,33 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   initMode();
   $('export-margin').querySelectorAll('[data-margin]').forEach((b) => b.addEventListener('click', () => { setPrintMargin(b.dataset.margin === '1'); updateExportInfo(); }));
   $('export').onclick = requireAccount(tr('télécharger votre œuvre'), exportImage);
+  // L'étape « Exporter » (téléchargements, format, guide de découpe, ajout au panier) : réservée à l'équipe
+  // (administrateur et rôle « tableau ») ; les clients commandent par « Commander », qui ouvre le choix de
+  // l'article. (Sans comptes — atelier hors ligne, essais — elle reste visible ; exportForAll : les tests.)
+  function syncTeamTools() {
+    const A = window.Account, cfg = window.ATELIER_CONFIG || {};
+    const team = !(A && A.enabled) || cfg.exportForAll === true || !!(A.canDashboard && A.canDashboard());
+    document.body.classList.toggle('no-export', !team);
+    // (sur téléphone, l'équipe a un onglet « Exporter » ; le compte s'ouvre par la pastille de l'en-tête)
+    const staff = !!(A && A.enabled && A.canDashboard && A.canDashboard());
+    document.body.classList.toggle('staff', staff);
+    const more = document.querySelector('.sheet-tabs .tab-more');
+    if (more) more.hidden = !staff;
+    if ($('acc-team')) $('acc-team').hidden = !staff;
+  }
+  // les outils de l'équipe dans le panneau du compte : les boutons de l'étape Exporter (même format, mêmes
+  // réglages), pour l'œuvre ouverte ; le panneau se ferme pour laisser voir la progression
+  [['acc-export', 'export'], ['acc-guide', 'guide']].forEach(([from, to]) => {
+    if (!$(from)) return;
+    $(from).onclick = () => {
+      const hint = $('acc-team-hint');
+      if (!state.comp) { hint.textContent = tr('Ouvrez d’abord une œuvre dans l’atelier.'); hint.hidden = false; return; }
+      hint.hidden = true;
+      if (!$('account-section').hidden) $('acc-close').click();
+      $(to).click();
+    };
+  });
+  syncTeamTools();
   $('export-free').onclick = exportPreview;
   $('sizes-alert-go').onclick = () => {
     const sec = $('sizes-section');
@@ -8360,16 +8387,8 @@ Réponds uniquement avec ce JSON :
     $('acc-menu').onclick = () => openPanel(sec.hidden);
     window.openAccount = (hint) => { openPanel(true); if (hint) status(hint); };
     // venu de l'en-tête du site (« Se connecter », ou le prénom) : le panneau s'ouvre à l'arrivée, sur
-    // la connexion ou sur le profil selon l'état du compte
-    // sur téléphone, c'est le tiroir qui s'ouvre, sur l'onglet Compte (et le panneau de connexion par-dessus
-    // s'il faut encore se connecter)
-    // Mon compte ouvert (sur téléphone, le tiroir en grand, onglet Compte)
-    showAccount = () => {
-      const u = A.user();
-      // (le tiroir s'ouvre en grand : « Mon compte » se voit en entier)
-      if (mobileQuery.matches) { setStageFull(false); selectTab('more'); document.body.classList.add('sheet-tall'); if (!u) openPanel(true); }
-      else openPanel(true);
-    };
+    // la connexion ou sur le profil selon l'état du compte (téléphone comme ordinateur)
+    showAccount = () => openPanel(true);
     // « Mes commandes » a sa page sur le site (hors de l'atelier) : les anciens liens (?commandes) y mènent
     if (/[?&]commandes\b/.test(location.search)) location.replace(`../commandes.html${I18n.lang === 'en' ? '?lang=en' : ''}`);
     if (/[?&](connexion|compte)\b/.test(location.search)) {
@@ -8487,10 +8506,13 @@ Réponds uniquement avec ce JSON :
     let wasSigned = null;
     A.onChange((u, info) => {
       updateExportNote();
+      syncTeamTools();
       const signed = !!u, recovering = !!(info && info.recovering);
       const arrival = wasSigned === null; // (première réponse du service : l'arrivée sur la page)
       $('acc-open').hidden = signed;
       $('acc-menu').hidden = !signed;
+      // téléphone : dans l'en-tête, la photo du compte (ou l'initiale) remplace l'icône une fois connecté
+      if ($('acc-head')) { $('acc-head').classList.toggle('signed', signed); $('acc-head').querySelector('.acc-avatar').hidden = !signed; }
       $('auth-box').hidden = signed || recovering;
       $('profile-box').hidden = !signed || recovering;
       $('recover-form').hidden = !recovering;
@@ -8502,7 +8524,8 @@ Réponds uniquement avec ce JSON :
         // ni barres obliques inverses : sinon l'initiale
         const raw = u.user_metadata && (u.user_metadata.avatar_url || u.user_metadata.picture);
         const pic = typeof raw === 'string' && /^https:\/\/lh3\.googleusercontent\.com\/[^"'\\()\s]+$/.test(raw) ? raw : '';
-        [av, $('profile-avatar')].forEach((a) => { a.textContent = pic ? '' : (name[0] || '?').toUpperCase(); a.style.backgroundImage = pic ? `url("${pic}")` : ''; });
+        const headAv = $('acc-head') && $('acc-head').querySelector('.acc-avatar');
+        [av, $('profile-avatar'), headAv].filter(Boolean).forEach((a) => { a.textContent = pic ? '' : (name[0] || '?').toUpperCase(); a.style.backgroundImage = pic ? `url("${pic}")` : ''; });
         $('profile-title').textContent = name ? tr`Bonjour ${name}` : tr('Mon compte');
         $('profile-name').value = name;
         $('profile-email').value = u.email || '';
@@ -8648,7 +8671,8 @@ Réponds uniquement avec ce JSON :
     const leaveFull = () => { if (document.body.classList.contains('stage-full')) $('zoom-full').click(); };
     tabs.querySelectorAll('button[data-tab]').forEach((b) => { b.onclick = () => { leaveFull(); selectTab(b.dataset.tab); }; });
     // « Mon compte », dans l'en-tête du téléphone : l'onglet Compte (son bouton n'est plus dans la barre)
-    if ($('acc-head')) $('acc-head').onclick = () => { leaveFull(); selectTab('more'); };
+    // (le panneau du compte s'ouvre directement : connexion, ou profil une fois connecté)
+    if ($('acc-head')) $('acc-head').onclick = () => { if (window.openAccount) window.openAccount(); else { leaveFull(); selectTab('more'); } };
     // la poignée (double-clic) agrandit ou réduit le tiroir
     tabs.addEventListener('dblclick', () => { if (!document.body.classList.contains('stage-full')) document.body.classList.toggle('sheet-tall'); });
     // Au doigt, le tiroir suit le glissement (la barre et le tiroir seuls bougent, l'œuvre attend la
