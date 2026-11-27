@@ -1341,7 +1341,7 @@ body.stage-full .scene-open { display: none; }
   body.stage-full .density-bar input[type=range] { flex: 1 1 100px; width: auto; min-width: 48px; }
   body.stage-full .density-bar label { white-space: nowrap; }
   /* « Commander » reste visible tiroir baissé : au-dessus du curseur, à gauche (les pastilles sont à droite) */
-  body.stage-full .stage-cta { display: block; left: 10px; bottom: 60px; }
+  body.stage-full .stage-cta { display: block; left: 10px; bottom: 46px; }
   /* sur téléphone : la barre d'outils seule en haut, le zoom en colonne compacte collée au bord
      droit, l'œuvre à gauche de cette colonne (pas de superposition) */
   /* (92 px en haut : la barre d'outils, puis « Mettre en scène », qui ne doit pas couvrir l'œuvre) */
