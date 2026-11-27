@@ -408,8 +408,6 @@
     'Refaire': 'Redo',
     'Découpe automatique': 'Automatic cut-out',
     'Revenir à la découpe faite par l’atelier': 'Go back to the cut-out made by the workshop',
-    '« {0} » est déjà dans l’atelier (même fichier) : il n’a pas été ajouté une deuxième fois.': '“{0}” is already in the workshop (same file): it was not added a second time.',
-    '{0} fichiers sont déjà dans l’atelier (mêmes fichiers) : ils n’ont pas été ajoutés une deuxième fois.': '{0} files are already in the workshop (same files): they were not added a second time.',
     'le dessin relu ne correspond plus à la page retouchée': 'the reloaded drawing no longer matches the edited page',
     '{0} retouche(s) de découpe n’ont pas pu être replacées sur le dessin relu : la découpe automatique est gardée pour ce(s) dessin(s).': '{0} cut-out edit(s) could not be put back on the reloaded drawing: the automatic cut-out is kept for this drawing (or these drawings).',
     ', {0} retouche(s) non rejouée(s) : dessin relu différemment, découpe automatique gardée': ', {0} edit(s) not replayed: drawing read differently, automatic cut-out kept',

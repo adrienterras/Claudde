@@ -65,10 +65,10 @@ test.describe('Une page, plusieurs sujets', () => {
     expect(await page.evaluate(() => { const [, a, b] = AtelierGribouille.state.drawings; return a.analysis.page === b.analysis.page && (!a.original || a.original === b.original) && !!a.part && !!b.part; })).toBe(true);
     // et chacun garde sa vignette à lui (pas la feuille entière)
     expect(await page.evaluate(() => { const [, a, b] = AtelierGribouille.state.drawings; return a.thumb !== b.thumb; })).toBe(true);
-    // la feuille réimportée est reconnue : elle n'est pas ajoutée une deuxième fois
+    // la même feuille, ajoutée de nouveau, l'est bien (nouvelle analyse, nouvelle découpe) : pas de refus
     await page.setInputFiles('#file', [require('./helpers').fixture('page-two.png')]);
-    await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(3);
+    await page.waitForFunction(() => AtelierGribouille.state.drawings.length > 3 && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await expect(page.locator('#notice')).not.toContainText('déjà dans l’atelier');
   });
 
   test('« Dupliquer » : un nouveau dessin dans la liste, indépendant de l’original ; Défaire le retire ; une page de fond aussi', async ({ app }) => {

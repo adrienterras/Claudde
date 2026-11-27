@@ -482,10 +482,6 @@ test.describe('Réouverture fidèle des retouches', () => {
     await page.setInputFiles('#file', [fixture('page-two.png'), fixture('scan-300dpi.jpg')]);
     await ready(4); // (page-two.png en donne deux)
     expect(await page.evaluate(() => AtelierGribouille.state.drawings[1].srcLong)).toBeLessThan(edited.long);
-    // le même fichier, réimporté, n'est pas ajouté une deuxième fois
-    await page.setInputFiles('#file', [fixture('page-cutout.png')]);
-    await expect(page.locator('#notice')).toContainText('déjà dans l’atelier');
-    expect(await page.evaluate(() => AtelierGribouille.state.drawings.length)).toBe(4);
     const draft = () => page.evaluate(() => new Promise((res) => {
       const q = indexedDB.open('atelier-gribouille');
       q.onsuccess = () => { const g = q.result.transaction('compositions').objectStore('compositions').get('brouillon'); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); };

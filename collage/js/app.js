@@ -454,16 +454,12 @@
     if (!state.drawings.length && !state.restoring) setGround(undefined); // et la couleur du fond, automatique
     notice('');
     setProgress(0, 1, tr('Lecture des fichiers…'));
-    // (les sujets d'une feuille découpée en plusieurs dessins gardent la clé de son fichier : sheetKey)
-    const known = new Set(state.drawings.flatMap((d) => [d.fileKey, d.sheetKey]).filter(Boolean));
-    const twins = [];
+    // un fichier déjà dans l'atelier peut être ajouté de nouveau : nouvelle analyse, nouvelle découpe
+    // (ses deux exemplaires gardent chacun leurs découpes : elles sont rangées sous une clé à elles)
     for (let fi = 0; fi < files.length; fi++) {
       const f = files[fi];
       try {
         const key = await fileKey(f);
-        // un fichier déjà dans l'atelier n'est pas importé une deuxième fois (sauf à la réouverture)
-        if (!state.restoring && known.has(key)) { twins.push(f.name); continue; }
-        known.add(key);
         const ps = await pagesFromFile(f);
         ps.forEach((pg) => { pg.fileIndex = fi; pg.fileKey = key; });
         pages = pages.concat(ps);
@@ -472,7 +468,6 @@
         notice(tr`Impossible de lire « ${f.name} ». Vérifiez qu’il s’agit d’un PDF, JPG ou PNG.`);
       }
     }
-    if (twins.length) notice(twins.length === 1 ? tr`« ${twins[0]} » est déjà dans l’atelier (même fichier) : il n’a pas été ajouté une deuxième fois.` : tr`${twins.length} fichiers sont déjà dans l’atelier (mêmes fichiers) : ils n’ont pas été ajoutés une deuxième fois.`);
     const releases = new Set(pages.map((p) => p.release).filter(Boolean));
     const max = sourceMax(state.drawings.length + pages.length);
     const longs = (opts && opts.longs) || [];

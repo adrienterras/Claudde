@@ -444,8 +444,8 @@ cd collage && python3 -m http.server 8000
      facteur ; les retouches suivent, par leur rapport de page) ; une retouche
      dont la page ne correspond plus (proportions, empreinte 16 × 16) n'est pas rejouée — la
      découpe automatique est gardée et c'est signalé ;
-   - un fichier **déjà importé** (même contenu, même renommé « … 2.JPG ») n'est pas ajouté une
-     deuxième fois ;
+   - un fichier **déjà importé** peut être ajouté de nouveau : il est réanalysé et redécoupé, et
+     chaque exemplaire garde ses propres découpes (utile quand la première découpe était ratée) ;
    - **panier** : les produits d'un tableau imprimé sont « Impression » (affiche ou encadré, dès le
      prix du 30 × 40 sur papier) et « Fichier HD » ; pour le fichier HD, la taille d'impression et la
      bordure blanche se choisissent comme pour une affiche (`.cart-hd`, sans prix sur les tailles : le
