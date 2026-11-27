@@ -1577,10 +1577,10 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
 @media (max-width: 860px) {
   /* (l'œuvre s'arrête au-dessus de la ligne « Commander » et de la note « Cliquez pour générer… » : rien
      n'est posé sur elle) */
-  .stage canvas { inset: 92px 0 calc(var(--sheet) + 116px) 0; width: 100%; height: max(0px, calc(100% - 92px - var(--sheet) - 116px)); }
-  body.stage-full .stage canvas { height: calc(100% - 96px - 120px - env(safe-area-inset-top, 0px)); }
-  /* tiroir agrandi ou fiche d'un dessin : le bouton « Commander » est caché, l'œuvre reprend sa place */
-  body.sheet-tall:not(.stage-full) .stage canvas, body.sheet-detail:not(.stage-full) .stage canvas { inset: 92px 0 calc(var(--sheet) + 44px) 0; height: max(0px, calc(100% - 92px - var(--sheet) - 44px)); }
+  /* la toile descend jusqu'au tiroir : l'ombre de l'œuvre s'estompe librement ; l'œuvre elle-même s'arrête
+     au-dessus de « Commander », de l'aide et du cartel (artLimit dans app.js) */
+  .stage canvas { inset: 92px 0 var(--sheet) 0; width: 100%; height: max(0px, calc(100% - 92px - var(--sheet))); }
+  body.stage-full .stage canvas { height: calc(100% - 96px - env(safe-area-inset-top, 0px)); }
   .toolbar { max-width: calc(100% - 16px); overflow-x: auto; scrollbar-width: none; }
   .toolbar::-webkit-scrollbar { display: none; }
   .toolbar [data-act="front"], .toolbar [data-act="back"], .toolbar [data-act="dup"], .toolbar [data-act="edit"], .toolbar [data-act="del"], .toolbar .tb-sep-piece { display: none; }

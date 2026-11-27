@@ -3693,6 +3693,19 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (clip && before && (view.s !== before.s || view.ox !== before.ox || view.oy !== before.oy)) render();
   }
 
+  // bas de la place de l'œuvre sur téléphone (en pixels de la toile) : au-dessus du premier élément posé
+  // sur la scène sous elle, sinon un peu au-dessus du tiroir ; null sur ordinateur (toute la toile)
+  function artLimit(dpr) {
+    if (!mobileQuery.matches) return null;
+    const c = canvas.getBoundingClientRect();
+    let limit = c.bottom - 16;
+    for (const el of [document.querySelector('.stage-cta'), $('gen-hint'), $('density-bar'), $('label')]) {
+      if (!el || el.hidden || !el.offsetParent) continue;
+      const r = el.getBoundingClientRect();
+      if (r.height && r.top > c.top + 40 && r.top < limit + 14) limit = r.top - 14;
+    }
+    return Math.max(0, limit - c.top) * dpr;
+  }
   function drawScene() {
     const dpr = window.devicePixelRatio || 1;
     const cw = canvas.clientWidth * dpr, ch = canvas.clientHeight * dpr;
@@ -3705,7 +3718,10 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     if (!comp) return;
     // sur téléphone, l'œuvre prend toute la largeur disponible
     const pad = (document.body.classList.contains('stage-full') ? 12 : mobileQuery.matches ? 8 : 36) * dpr;
-    const fitS = Math.min((cw - 2 * pad) / comp.W, (ch - 2 * pad) / comp.H);
+    // téléphone : la toile descend jusqu'au tiroir (l'ombre de l'œuvre s'y estompe sans être coupée),
+    // l'œuvre s'arrête juste au-dessus de « Commander », de l'aide ou du cartel
+    const lim = artLimit(dpr), bot = lim == null ? ch - pad : Math.min(ch - pad, lim);
+    const fitS = Math.min((cw - 2 * pad) / comp.W, (bot - pad) / comp.H);
     // zone de l'œuvre trop petite (tiroir du téléphone agrandi) : rien à dessiner pour l'instant
     if (!(fitS > 0)) return;
     const Z = state.zoom;
@@ -3714,7 +3730,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     const mx = Math.max(0, (comp.W * s - cw) / 2 + cw * 0.4), my = Math.max(0, (comp.H * s - ch) / 2 + ch * 0.4);
     Z.px = Math.max(-mx, Math.min(mx, Z.px));
     Z.py = Math.max(-my, Math.min(my, Z.py));
-    const ox = (cw - comp.W * s) / 2 + Z.px, oy = (ch - comp.H * s) / 2 + Z.py;
+    const ox = (cw - comp.W * s) / 2 + Z.px, oy = (pad + bot - comp.H * s) / 2 + Z.py;
     view = { s, ox, oy, dpr, fitS };
     placeLabel(oy + comp.H * s, dpr);
     placeHint(oy + comp.H * s / 2, dpr);

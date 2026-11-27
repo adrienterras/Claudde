@@ -1869,12 +1869,13 @@ test.describe('Plein écran sur téléphone', () => {
     const canvas = await page.locator('#canvas').boundingBox();
     expect(Math.round(tabs.y + tabs.height)).toBe(844); // barre posée en bas de l'écran
     expect(panel.height).toBeLessThanOrEqual(tabs.height + 1); // rien d'autre du tiroir
-    expect(canvas.y + canvas.height).toBeLessThanOrEqual(tabs.y + 1); // l'œuvre au-dessus de la barre
+    expect(canvas.y + canvas.height).toBeLessThanOrEqual(tabs.y + 1); // la toile s'arrête à la barre (l'ombre de l'œuvre s'y estompe)
+    const artBottom = await page.evaluate(() => { const A = AtelierGribouille, v = A.view; return document.getElementById('canvas').getBoundingClientRect().top + (v.oy + A.state.comp.H * v.s) / v.dpr; });
     // le curseur « Nombre de dessins » reste, entre l'œuvre et la barre des sections
     await expect(page.locator('#density-bar')).toBeVisible();
     const dens = await page.locator('#density-bar').boundingBox();
     expect(dens.y + dens.height).toBeLessThanOrEqual(tabs.y + 1);
-    expect(dens.y).toBeGreaterThanOrEqual(canvas.y + canvas.height - 1);
+    expect(dens.y).toBeGreaterThanOrEqual(artBottom - 1); // (l'œuvre, elle, s'arrête au-dessus)
     // « Commander » aussi, juste au-dessus du curseur, à gauche (les pastilles rondes sont à droite)
     await expect(page.locator('.order-cta-desk')).toBeVisible();
     const cta = await page.locator('.order-cta-desk').boundingBox(), fab = await page.locator('#stage-generate').boundingBox();
@@ -2643,7 +2644,8 @@ test.describe('Barre d’outils du haut (téléphone)', () => {
       // les outils du dessin ne sont plus dans la barre (ils apparaissent quand on touche un dessin)
       for (const a of ['edit', 'front', 'del']) await expect(page.locator(`#toolbar [data-act="${a}"]`)).toBeHidden();
       // l'œuvre s'arrête au-dessus de « Commander » et de la note « Cliquez pour générer… » : rien n'est posé sur elle
-      const m = await page.evaluate(() => ({ canvas: document.getElementById('canvas').getBoundingClientRect().bottom, cta: document.querySelector('.stage-cta').getBoundingClientRect().top, hint: document.getElementById('gen-hint').hidden ? Infinity : document.getElementById('gen-hint').getBoundingClientRect().top }));
+      // (la toile, elle, descend jusqu'au tiroir pour que l'ombre de l'œuvre s'estompe sans être coupée)
+      const m = await page.evaluate(() => ({ canvas: (() => { const A = AtelierGribouille, v = A.view; return document.getElementById('canvas').getBoundingClientRect().top + (v.oy + A.state.comp.H * v.s) / v.dpr; })(), cta: document.querySelector('.stage-cta').getBoundingClientRect().top, hint: document.getElementById('gen-hint').hidden ? Infinity : document.getElementById('gen-hint').getBoundingClientRect().top }));
       expect(m.canvas).toBeLessThanOrEqual(m.cta);
       expect(m.canvas).toBeLessThanOrEqual(m.hint);
       await ctx.close();
