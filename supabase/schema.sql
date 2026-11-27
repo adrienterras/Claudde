@@ -423,7 +423,11 @@ begin
           select o.ref, o.total_cents, o.paid_at, o.delivery,
             coalesce(o.shipping ->> 'name', o.customer ->> 'name', '') as client,
             (select coalesce(sum(greatest(coalesce((it ->> 'qty')::int, 1), 1)), 0) from jsonb_array_elements(o.items) it where (it ->> 'qty') is null or (it ->> 'qty') ~ '^[0-9]{1,3}$') as articles
-          from public.orders o where o.status = 'payee' order by o.paid_at limit 20) x), '[]'::jsonb)
+          from public.orders o where o.status = 'payee' order by o.paid_at limit 20) x), '[]'::jsonb),
+      -- l'historique des commandes (order_log) : les dernières actions de l'équipe, et les annulations
+      'equipe', coalesce((select jsonb_agg(jsonb_build_object('at', l.at, 'actor', l.actor, 'action', l.action, 'ref', l.ref) order by l.at desc) from (
+          select g.at, g.actor, g.action, o.ref from public.order_log g join public.orders o on o.id = g.order_id
+          where g.at > now() - interval '30 days' and g.action <> 'payée' order by g.at desc limit 25) l), '[]'::jsonb)
     ),
     'activite', jsonb_build_object(
       'comptes', (select jsonb_build_object('total', count(*), 'd7', count(*) filter (where created_at > now() - interval '7 days')) from auth.users),
@@ -533,3 +537,45 @@ create policy "impressions: staff" on storage.objects
     and exists (select 1 from public.orders o where o.id::text = (storage.foldername(name))[1]))
   with check (bucket_id = 'impressions' and public.is_staff()
     and exists (select 1 from public.orders o where o.id::text = (storage.foldername(name))[1]));
+
+-- ---------- L'historique des commandes : qui a fait quoi, et quand ----------
+-- Une ligne par action : paiement, étape suivante, suivi, annulation et remboursement (écrites par les
+-- fonctions serveur, avec le compte qui agit), fichier HD d'impression (fonction order_log_hd ci-dessous,
+-- appelée par l'équipe depuis l'atelier). Lue seulement par l'équipe (page Gestion des commandes), jamais
+-- par le client ; personne ne la modifie ni ne l'efface depuis le navigateur.
+create table if not exists public.order_log (
+  id bigint generated always as identity primary key,
+  at timestamptz not null default now(),
+  order_id uuid not null references public.orders (id) on delete cascade,
+  actor_id uuid,
+  actor text,                     -- le nom montré : prénom du compte, « le client »…
+  action text not null
+);
+create index if not exists order_log_order_idx on public.order_log (order_id, at);
+alter table public.order_log enable row level security;
+revoke all on public.order_log from anon, authenticated;
+grant select on public.order_log to authenticated;
+drop policy if exists "order_log: staff reads" on public.order_log;
+create policy "order_log: staff reads" on public.order_log for select to authenticated using (public.is_staff());
+
+create or replace function public.order_log_hd(p_order uuid, p_index integer, p_dpi integer)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_name text;
+begin
+  if not public.is_staff() then raise exception 'réservé à l’équipe'; end if;
+  if not exists (select 1 from public.orders where id = p_order) then raise exception 'commande inconnue'; end if;
+  select coalesce(nullif(split_part(trim(coalesce(raw_user_meta_data ->> 'name', raw_user_meta_data ->> 'full_name', '')), ' ', 1), ''), split_part(email, '@', 1))
+    into v_name from auth.users where id = auth.uid();
+  insert into public.order_log (order_id, actor_id, actor, action)
+    values (p_order, auth.uid(), left(coalesce(v_name, ''), 60),
+      format('fichier HD préparé (article %s, %s dpi)', greatest(p_index, 0) + 1, greatest(least(p_dpi, 1200), 0)));
+end;
+$$;
+revoke all on function public.order_log_hd(uuid, integer, integer) from public;
+revoke execute on function public.order_log_hd(uuid, integer, integer) from anon;
+grant execute on function public.order_log_hd(uuid, integer, integer) to authenticated;

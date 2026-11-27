@@ -26,13 +26,14 @@ sed -i -E "s#(src=\"(js/[a-z0-9-]+|config)\.js)\"#\1?v=$V\"#g; s#href=\"style\.c
 sed -i -E "s#(src=\"[a-z0-9-]+\.js)\"#\1?v=$V\"#g; s#(href=\"[a-z0-9-]+\.css)\"#\1?v=$V\"#g" _site/index.html _site/tarifs.html _site/idees-dessins-enfants.html _site/photographier-les-dessins.html _site/a-propos.html _site/commandes.html _site/tableau-de-bord.html _site/gestion-commandes.html
 touch _site/.nojekyll
 # En-têtes HTTP (Cloudflare Pages les applique ; GitHub Pages les ignore) : ce qu'une balise meta ne
-# peut pas faire — interdire l'affichage du site dans le cadre d'un autre site (clickjacking), imposer
+# peut pas faire — interdire l'affichage du site dans le cadre d'un autre site (clickjacking ; le site
+# lui-même le peut : la page Gestion des commandes ouvre l'atelier en coulisse pour le fichier HD), imposer
 # le HTTPS au navigateur (HSTS), ne jamais deviner le type d'un fichier.
 cat > _site/_headers <<'HEADERS'
 /*
   Strict-Transport-Security: max-age=31536000
-  X-Frame-Options: DENY
-  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=()

@@ -679,6 +679,23 @@
     err(error);
     return Object.fromEntries((data || []).filter((r) => r.thumb).map((r) => [r.id, r.thumb]));
   }
+  // l'historique des commandes (équipe seulement, voir order_log dans supabase/schema.sql) : { [orderId]: [lignes] }
+  async function orderLog(orderIds) {
+    if (!user || !canDashboard()) return {};
+    const ids = (orderIds || []).filter((id) => /^[0-9a-f-]{36}$/.test(String(id)));
+    if (!ids.length) return {};
+    const { data, error } = await withTimeout(client.from('order_log').select('order_id, at, actor, action').in('order_id', ids).order('at', { ascending: true }).range(0, 999), 30000);
+    err(error);
+    const out = {};
+    (data || []).forEach((r) => { (out[r.order_id] = out[r.order_id] || []).push(r); });
+    return out;
+  }
+  // le fichier HD préparé : inscrit à l'historique sous le nom de l'équipier (par le serveur)
+  async function hdLogged(orderId, index, dpi) {
+    if (!user || !canDashboard()) return;
+    const { error } = await client.rpc('order_log_hd', { p_order: orderId, p_index: Number(index) || 0, p_dpi: Math.round(Number(dpi) || 0) });
+    err(error);
+  }
   const PRINTS = 'impressions';
   const hdPath = (orderId, index) => `${orderId}/${Number(index) || 0}.pdf`;
   async function hdList(orderIds) {
@@ -839,7 +856,7 @@
     isAdmin, canDashboard, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
-    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, invoice: ordersInvoice, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl },
+    orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, invoice: ordersInvoice, admin: ordersAdmin, set: ordersSet, staffThumbs, hdList, hdPut, hdUrl, log: orderLog, hdLogged },
     contactEmail: cfg.contactEmail || '',
   };
 })();

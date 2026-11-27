@@ -67,7 +67,7 @@ function visual(it, src, size) {
 }
 
 // ---------- l'état de la page ----------
-let orders = [], thumbs = new Map(), hd = {}, filter = 'payee', query = '', openRef = null;
+let orders = [], thumbs = new Map(), hd = {}, logs = {}, filter = 'payee', query = '', openRef = null;
 let actions = null; // { set(id, patch), cancel(id) } : branchés au compte (voir start)
 
 function matches(o) {
@@ -176,6 +176,7 @@ function openDetail(ref) {
       <button type="submit" class="btn btn-primary">${esc(next[1])}</button>
       <p>${esc(next[2])}</p>
     </form>` : ''}
+    ${historyHtml(o)}
     ${canCancel ? `<div class="od-actions"><button type="button" class="od-cancel" data-cancel>Annuler et rembourser ${esc(euros(o.total_cents))}</button><p class="od-note">Le client est remboursé en entier par Stripe et reçoit un e-mail.</p></div>` : ''}`;
   (o.items || []).forEach((it, i) => { const src = thumbs.get(String(it.compId)); const slot = body.querySelector(`[data-vis="${i}"]`); if (src && slot) slot.appendChild(visual(it, src, 110)); });
   // télécharger un fichier HD (lien signé, valable 10 minutes)
@@ -226,6 +227,15 @@ function openDetail(ref) {
 }
 let onDone = null;
 function done(text, err) { if (onDone) onDone(text, err); }
+
+// l'historique : qui a fait quoi, et quand (écrit par le serveur ; la plus récente action en haut)
+function historyHtml(o) {
+  const rows = (logs[o.id] || []).slice().reverse();
+  const list = rows.length
+    ? `<ol class="gd-log">${rows.map((r) => `<li><span class="gd-log-at">${esc(dayTime(r.at))}</span><span><b>${esc(r.actor || 'l’équipe')}</b> : ${esc(r.action || '')}</span></li>`).join('')}</ol>`
+    : '<p class="gd-log-empty">Rien d’inscrit pour l’instant : l’historique note chaque action depuis sa mise en place.</p>';
+  return `<section class="od-sec"><h3>Historique</h3>${list}</section>`;
+}
 
 // ---------- le fichier HD, fait sans quitter la page ----------
 // L'atelier (même site, même compte) s'ouvre dans un cadre invisible avec fichier-hd=…&coulisse=1 : il
@@ -287,9 +297,10 @@ window.addEventListener('message', (e) => {
   else if (m.kind === 'error') jobEnd(String(m.text || `Le fichier HD de ${job.ref} n’a pas pu être fait.`), true);
 });
 
-export function render(rows, thumbMap, hdMap) {
+export function render(rows, thumbMap, hdMap, logMap) {
   orders = (rows || []).filter((o) => STATUS[o.status]);
   hd = hdMap || {};
+  logs = logMap || {};
   thumbs = new Map(Object.entries(thumbMap || {}).map(([k, v]) => [k, safeData(v)]).filter(([, v]) => v));
   renderFilters();
   renderList();
@@ -312,16 +323,17 @@ const page = staffPage({
   async load(A) {
     const rows = await A.orders.admin();
     const ids = [...new Set(rows.flatMap((o) => (o.items || []).map((it) => String(it.compId || ''))).filter(Boolean))];
-    const [th, files] = await Promise.all([
+    const [th, files, log] = await Promise.all([
       A.orders.staffThumbs(ids).catch((e) => { console.error(e); return {}; }),
       A.orders.hdList(rows.map((o) => o.id)).catch((e) => { console.error(e); return {}; }),
+      A.orders.log(rows.map((o) => o.id)).catch((e) => { console.error(e); return {}; }),
     ]);
     window.GestionCommandes.setActions({
       set: (id, patch) => A.orders.set(id, patch),
       cancel: (id) => A.orders.cancel(id),
       hdUrl: (id, i, name) => A.orders.hdUrl(id, i, name),
     }, (text, err) => { doneMsg(text, err); if (!err) page.reload(); });
-    render(rows, th, files);
+    render(rows, th, files, log);
     $('tb-when').textContent = `Mis à jour à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', ' h ')}`;
     // gestion-commandes.html#AG-… (lien de l'e-mail « Nouvelle commande ») : cette commande ouverte
     if (firstLoad) { firstLoad = false; openFromHash(); }

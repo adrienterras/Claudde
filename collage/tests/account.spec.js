@@ -534,6 +534,11 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#gc-done')).toContainText('expédiée');
     const o1 = await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP1'));
     expect([o1.status, o1.carrier, o1.tracking]).toEqual(['expediee', 'Colissimo', '6A12345678901']);
+    // l'historique : qui a fait quoi (la plus récente en haut), sous le prénom du compte
+    const log = d.locator('.gd-log li');
+    await expect(log).toHaveCount(2);
+    await expect(log.first()).toContainText('Stan : passée « Expédiée », suivi : Colissimo 6A12345678901');
+    await expect(log.nth(1)).toContainText('Stan : passée « En préparation »');
     await page.locator('#gd-close').click();
     // annuler et rembourser l'autre (deux touches)
     await page.locator('#gc-filters [data-f="payee"]').click();
@@ -543,6 +548,8 @@ test.describe('Comptes utilisateurs', () => {
     await d.locator('[data-cancel]').click();
     await expect(page.locator('#gc-done')).toContainText('annulée et remboursée');
     expect(await page.evaluate(() => window.__fake.db.rows.find((r) => r.ref === 'AG-261127-EQP2').refund)).toBe('re_fake');
+    await expect(d.locator('.gd-log li').first()).toContainText('Stan : annulée et remboursée');
+    // le client ne lit jamais l'historique
     // une œuvre commandée s'ouvre pour l'équipe ; une autre œuvre du client, jamais ; « Toutes les œuvres » non plus
     expect(await page.evaluate(async (id) => { const r = await window.supabase.createClient().rpc('admin_open', { p_id: id }); return r.error ? r.error.message : 'ouverte'; }, ORDERED)).toBe('ouverte');
     expect(await page.evaluate(async (id) => { const r = await window.supabase.createClient().rpc('admin_open', { p_id: id }); return r.error ? r.error.message : 'ouverte'; }, PRIVATE)).toContain('introuvable');
@@ -559,6 +566,7 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('#tb-gate-text')).toContainText('réservée à l’équipe', { timeout: 30000 });
     await expect(page.locator('#gc-body')).toBeHidden();
     expect(await page.evaluate(async () => (await window.SiteAccount.account()).orders.admin())).toEqual([]);
+    expect(await page.evaluate(async () => (await window.supabase.createClient().from('order_log').select('*')).data)).toEqual([]);
     // l'ancien lien de l'atelier mène à la page
     await page.goto('index.html?gestion-commandes');
     await page.waitForURL(/gestion-commandes\.html/);
@@ -616,6 +624,7 @@ test.describe('Comptes utilisateurs', () => {
     expect(page.url()).toContain('gestion-commandes.html');
     await expect(detail.locator('.gd-hd.ok')).toContainText('Fichier HD prêt', { timeout: 30000 });
     await expect(detail.locator('.gd-dl')).toBeVisible();
+    await expect(detail.locator('.gd-log li').first()).toContainText('Admin : fichier HD préparé (article 1,');
     // le PDF : la taille de l'affiche commandée (format imprimé de l'article, marges comprises, en points)
     const pdf = await page.evaluate((id) => atob(JSON.parse(localStorage.getItem('fake.files'))[`impressions:${id}/0.pdf`]).slice(0, 4000), order.id);
     expect(pdf.startsWith('%PDF')).toBe(true);
@@ -1424,6 +1433,7 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate(async () => { try { await (await window.SiteAccount.account()).dashboard(); return 'lu'; } catch (e) { return e.message; } })).toContain('double authentification');
     // une commande payée à préparer
     await page.evaluate(() => {
+      window.__fake.db.rows.push({ __table: 'order_log', id: 'l-1', order_id: '44444444-4444-4444-4444-444444444444', at: new Date().toISOString(), actor: 'Anastasia', action: 'passée « En préparation »' });
       window.__fake.db.rows.push({ __table: 'orders', id: '44444444-4444-4444-4444-444444444444', user_id: 'u-x', ref: 'AG-261127-PREP', status: 'payee', created_at: new Date().toISOString(), paid_at: new Date().toISOString(), subtotal_cents: 8000, shipping_cents: 900, total_cents: 8900, delivery: 'express', shipping: { name: 'Camille <i>D</i>' }, items: [{ qty: 1 }] });
       localStorage.setItem('fake.rows', JSON.stringify(window.__fake.db.rows));
     });
@@ -1458,14 +1468,14 @@ test.describe('Comptes utilisateurs', () => {
     await expect(body.locator('.tb-watch')).toContainText('Paiement en mode test');
     await expect(body.locator('.tb-watch')).toContainText('1 erreur serveur en 24 h');
     await expect(body.locator('#tb-ventes .tb-tile').first()).toContainText('89 €');
-    await expect(body.locator('#tb-ventes .tb-list')).toContainText('AG-261127-PREP');
-    await expect(body.locator('#tb-ventes .tb-list')).toContainText('Chronopost express');
+    await expect(body.locator('#tb-ventes .tb-list:not(.tb-team)')).toContainText('AG-261127-PREP');
+    await expect(body.locator('#tb-ventes .tb-list:not(.tb-team)')).toContainText('Chronopost express');
     await expect(body.locator('#tb-ventes .tb-chart svg rect')).toHaveCount(30);
     await expect(body.locator('#tb-activite .tb-tile').first()).toContainText('2');
     await expect(body.locator('#tb-audience')).toContainText('Audience non branchée');
     await expect(body.locator('#tb-sante')).toContainText('Mises en ligne illisibles');
     // tout ce qui vient du serveur est du texte, jamais du code
-    expect(await body.locator('#tb-ventes .tb-list b, #tb-ventes .tb-list i').allTextContents()).toEqual(['AG-261127-PREP']);
+    expect(await body.locator('#tb-ventes .tb-list:not(.tb-team) b, #tb-ventes .tb-list i').allTextContents()).toEqual(['AG-261127-PREP']);
     await expect(body.locator('#tb-sante .tb-list.err')).toContainText('<b>boom</b>');
     // une barre touchée : sa valeur et son jour
     const bar = body.locator('#tb-ventes .tb-chart svg');
@@ -1476,8 +1486,11 @@ test.describe('Comptes utilisateurs', () => {
     const n = await page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'tableau-de-bord').length);
     await page.locator('#tb-refresh').click();
     await expect.poll(() => page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'tableau-de-bord').length)).toBeGreaterThan(n);
-    // l'administrateur a le lien vers les commandes de l'atelier
-    await expect(body.locator('#tb-ventes .tb-more')).toHaveAttribute('href', 'atelier/?compte');
+    // le lien vers la page Gestion des commandes ; les dernières actions de l'équipe (qui a fait quoi)
+    await expect(body.locator('#tb-ventes .tb-more')).toHaveAttribute('href', 'gestion-commandes.html');
+    await expect(body.locator('.tb-team li').first()).toContainText('Anastasia · AG-261127-PREP');
+    await expect(body.locator('.tb-team li').first()).toContainText('passée « En préparation »');
+    await expect(body.locator('.tb-team li a').first()).toHaveAttribute('href', 'gestion-commandes.html#AG-261127-PREP');
   });
 
   test('tableau de bord, rôle « tableau » : double authentification activée sur la page ; pas « Toutes les œuvres »', async ({ acc }) => {
@@ -1503,8 +1516,8 @@ test.describe('Comptes utilisateurs', () => {
     await expect(body).toBeVisible();
     await expect(page.locator('#tb-gate')).toBeHidden();
     await expect(body.locator('#tb-ventes')).toBeVisible();
-    // pas de lien vers l'administration de l'atelier
-    await expect(body.locator('#tb-ventes .tb-more')).toHaveCount(0);
+    // le lien vers la gestion des commandes (l'équipe y a droit aussi)
+    await expect(body.locator('#tb-ventes .tb-more')).toHaveAttribute('href', 'gestion-commandes.html');
     // le menu du compte du site lui propose le tableau de bord
     expect(await page.evaluate(() => (window.Account.user().app_metadata || {}).atelier_role)).toBe('tableau');
   });

@@ -107,6 +107,9 @@ function ventes(v, opts) {
   const st = v.statuts || {};
   const chips = STATUS.filter(([k]) => st[k]).map(([k, l]) => `<span class="tb-chip">${esc(l)} <b>${num(st[k])}</b></span>`).join('') || '<span class="tb-chip">Aucune commande</span>';
   const todo = v.aPreparer || [];
+  // l'historique des commandes : les dernières actions de l'équipe (et les annulations), 30 jours
+  const acts = v.equipe || [];
+  const team = acts.length ? acts.slice(0, 10).map((x) => `<li><span><b>${esc(x.actor || 'l’équipe')}</b> · <a href="gestion-commandes.html#${encodeURIComponent(x.ref || '')}">${esc(x.ref || '')}</a></span><span class="num"></span><small>${esc(x.action || '')} · ${esc(when(x.at))}</small></li>`).join('') : '<li class="empty">Aucune action ces 30 derniers jours.</li>';
   const list = todo.length ? todo.slice(0, 8).map((o) => `<li><span><b>${esc(o.ref)}</b> · ${esc(o.client || '')}</span><span class="num">${esc(euros(o.total_cents))}</span><small>payée ${esc(when(o.paid_at))} · ${esc(plural(o.articles, 'article', 'articles'))} · ${esc(LIVRAISON[o.delivery] || LIVRAISON.domicile)}</small></li>`).join('') : '<li class="empty">Aucune commande à préparer.</li>';
   return `<section class="tb-sec" id="tb-ventes" aria-labelledby="tb-h-ventes">
     <h2 id="tb-h-ventes">Ventes <small>commandes payées, remboursements déduits</small></h2>
@@ -121,7 +124,9 @@ function ventes(v, opts) {
     <div class="tb-chips">${chips}</div>
     <p class="tb-sub">À préparer, la plus ancienne d’abord</p>
     <ul class="tb-list">${list}</ul>
-    ${opts && opts.admin ? '<a class="tb-more" href="atelier/?compte" target="_blank" rel="noopener">Ouvrir les commandes dans l’atelier ›</a>' : ''}
+    <p class="tb-sub">Dernières actions sur les commandes (qui a fait quoi)</p>
+    <ul class="tb-list tb-team">${team}</ul>
+    <a class="tb-more" href="gestion-commandes.html">Gestion des commandes ›</a>
   </section>`;
 }
 

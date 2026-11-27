@@ -53,3 +53,8 @@
 .gd-job .gd-job-note { color: var(--muted); }
 /* l'atelier qui travaille en coulisse : hors de l'écran, jamais visible */
 .gc-backstage { position: fixed; left: -12000px; top: 0; width: 1280px; height: 900px; border: 0; visibility: hidden; pointer-events: none; }
+/* l'historique : qui a fait quoi, et quand */
+.gd-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.gd-log li { display: grid; gap: 1px; font-size: .86rem; color: var(--ink); padding-left: 12px; border-left: 2px solid var(--line); }
+.gd-log-at { font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gd-log-empty { font-size: .84rem; color: var(--muted); margin: 0; }

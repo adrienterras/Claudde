@@ -10,7 +10,8 @@ site), visible seulement pour l'administrateur et l'équipe (rôle « tableau »
   e-mails non partis, paiement encore en mode test.
 - **Ventes** : chiffre d'affaires du jour, sur 7 et 30 jours (commandes payées, sans les annulées et
   remboursées), panier moyen, une barre par jour, commandes par statut, commandes à préparer (la plus
-  ancienne d'abord).
+  ancienne d'abord), et les **dernières actions sur les commandes** : qui a fait quoi (historique des
+  commandes, 30 jours), avec le lien vers la commande.
 - **Activité** : comptes, œuvres enregistrées, liens de partage actifs, œuvres reçues, place de stockage
   utilisée, nouveaux comptes et œuvres par jour.
 - **Audience** (Umami) : visiteurs et pages vues sur 7 et 30 jours, visiteurs par jour, pages les plus
@@ -65,6 +66,12 @@ l'accès et la double authentification sont communs avec le tableau de bord : `l
   Le fichier est dans l'espace privé `impressions` (`<commande>/<article>.pdf`, PDF seulement, 200 Mo au
   plus) : lisible et déposable par l'équipe seulement (`is_staff()`), jamais par le client, jamais envoyé.
   Supabase → Storage → Files → Settings : « Global file size limit » doit être d'au moins 200 MB.
+
+- **L'historique** de chaque commande, en bas de son détail : qui a fait quoi, et quand (paiement,
+  étape suivante, suivi, fichier HD, annulation et remboursement). Écrit par le serveur avec le compte
+  qui agit (prénom du compte ; « le client » pour une annulation faite par lui), table `order_log` :
+  lue par l'équipe seulement, jamais par le client, ni modifiable ni effaçable depuis le navigateur.
+  Il démarre à sa mise en place (le 27 novembre 2026) : rien pour les actions d'avant.
 
 ## Comment c'est fait
 

@@ -8,6 +8,7 @@ import { ORIGINS } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, userOf, staffOf, replier, thumbsOf } from '../_shared/supabase.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
+import { orderLog, cancelLine } from '../_shared/historique.js';
 
 journalFrom('commande-annuler');
 
@@ -62,6 +63,8 @@ Deno.serve(async (req) => {
       await rest('PATCH', `orders?id=eq.${id}`, { cancelled_at: at });
     }
     const [saved] = (await rest('GET', `orders?id=eq.${id}&select=*`)) || [done[0]];
+    // l'historique : l'équipe sous son nom ; le client, comme « le client »
+    await orderLog(id, admin || user, cancelLine(order, !!order.payment_intent), admin && order.user_id !== admin.id ? '' : 'le client');
     const vis = visualsOf(saved, await thumbsOf(saved));
     await send(customerAddress(saved), customerEmail('annulee', saved, vis));
     if (!admin) await send(shopAddress(), shopEmail('annulee', saved, vis));

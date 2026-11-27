@@ -85,7 +85,10 @@
       if (!uid) return ko('JWT expired');
       // (comme les règles RLS : ses propres lignes seulement ; l'administrateur passe par admin_works et admin_open)
       // (les commandes de tous les comptes : l'administrateur, avec la double authentification, les lit)
-      let rows = db.rows.filter((r) => (r.user_id === uid || (table === 'orders' && isStaff(db.session && db.session.user))) && (r.__table || 'compositions') === table);
+      // (l'historique est sur le serveur, partagé : une ligne écrite depuis une autre fenêtre du site — l'atelier
+      // en coulisse — se voit aussitôt)
+      if (table === 'order_log') { const have = new Set(db.rows.map((r) => r.id)); load('fake.rows', []).forEach((r) => { if (r.__table === 'order_log' && !have.has(r.id)) db.rows.push(r); }); }
+      let rows = db.rows.filter((r) => (table === 'order_log' ? isStaff(db.session && db.session.user) : (r.user_id === uid || (table === 'orders' && isStaff(db.session && db.session.user)))) && (r.__table || 'compositions') === table);
       // colonne, ou chemin JSON « meta->>clé » (texte : null si la clé manque ou vaut null)
       const val = (r, k) => { if (!k.includes('->>')) return r[k]; const [col, key] = k.split('->>'); const o = r[col]; return o && o[key] != null ? o[key] : null; };
       q.filters.forEach(([k, v, op]) => { rows = rows.filter((r) => { const x = val(r, k); return op === 'in' ? v.includes(x) : op === 'is' ? x == v : op === 'not-is' ? x != v : op === 'neq' ? x !== v : x === v; }); });
@@ -94,7 +97,7 @@
       if (q.op === 'insert') { const row = Object.assign({ user_id: uid, created_at: new Date().toISOString(), __table: table }, q.row); db.rows.push(row); persist(); return ok([row]); }
       if (q.op === 'delete') { const ids = new Set(rows.map((r) => r.id)); db.rows = db.rows.filter((r) => !ids.has(r.id)); persist(); return ok(rows.map((r) => ({ id: r.id }))); } // (comme .delete().select() : les lignes supprimées)
       if (q.op === 'update') { rows.forEach((r) => Object.assign(r, q.row)); persist(); return ok(rows); }
-      if (q.order) rows.sort((a, b) => (a[q.order] < b[q.order] ? 1 : -1));
+      if (q.order) rows.sort((a, b) => (a[q.order] < b[q.order] ? 1 : -1) * (q.asc ? -1 : 1));
       if (q.single) return rows.length ? ok(rows[0]) : q.single === 'maybe' ? ok(null) : ko('Cannot coerce the result to a single JSON object');
       if (q.range) rows = rows.slice(q.range[0], q.range[1] + 1);
       window.__fake.calls.push(['select', table, q.range ? q.range.join('-') : 'all']);
@@ -102,7 +105,7 @@
     };
     const chain = {
       select() { return chain; }, insert(row) { q.op = 'insert'; q.row = row; return chain; }, delete() { q.op = 'delete'; return chain; }, update(row) { q.op = 'update'; q.row = row; return chain; },
-      eq(k, v) { q.filters.push([k, v]); return chain; }, in(k, v) { q.filters.push([k, v, 'in']); return chain; }, neq(k, v) { q.filters.push([k, v, 'neq']); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k) { q.order = k; return chain; }, single() { q.single = true; return chain; }, maybeSingle() { q.single = 'maybe'; return chain; }, range(a, b) { q.range = [a, b]; return chain; },
+      eq(k, v) { q.filters.push([k, v]); return chain; }, in(k, v) { q.filters.push([k, v, 'in']); return chain; }, neq(k, v) { q.filters.push([k, v, 'neq']); return chain; }, is(k, v) { q.filters.push([k, v, 'is']); return chain; }, not(k, op, v) { q.filters.push([k, v, 'not-' + op]); return chain; }, order(k, o) { q.order = k; q.asc = !!(o && o.ascending); return chain; }, single() { q.single = true; return chain; }, maybeSingle() { q.single = 'maybe'; return chain; }, range(a, b) { q.range = [a, b]; return chain; },
       then(res, rej) { return run().then(res, rej); },
     };
     return chain;
@@ -147,8 +150,17 @@
   const isStaff = (u) => !!(u && u.app_metadata && ['admin', 'tableau'].includes(u.app_metadata.atelier_role) && db.session && db.session.aal === 'aal2');
   // (une œuvre d'une commande payée : l'équipe peut l'ouvrir pour l'imprimer)
   const orderedWork = (id) => db.rows.some((o) => o.__table === 'orders' && !['attente_paiement', 'abandonnee'].includes(o.status) && (o.items || []).some((it) => it.compId === id));
+  // l'historique des commandes (order_log), écrit comme le serveur : le prénom du compte qui agit
+  const actorOf = (u) => String((u && u.user_metadata && u.user_metadata.name) || '').trim().split(/\s+/)[0] || String((u && u.email) || '').split('@')[0];
+  const logOrder = (orderId, actor, action) => { db.rows.push({ __table: 'order_log', id: 'l-' + Math.random().toString(36).slice(2, 10), order_id: orderId, at: new Date(Date.now() + db.rows.length).toISOString(), actor, action }); persist(); };
   const rpc = (name, args) => {
     if (name === 'is_admin') return ok(isAdm(db.session && db.session.user));
+    if (name === 'order_log_hd') {
+      const u = db.session && db.session.user;
+      if (!isStaff(u)) return ko('réservé à l’équipe');
+      logOrder(args.p_order, actorOf(u), `fichier HD préparé (article ${(Number(args.p_index) || 0) + 1}, ${args.p_dpi} dpi)`);
+      return ok(null);
+    }
     // (les vignettes des œuvres commandées, pour l'équipe : staff_order_thumbs)
     if (name === 'staff_order_thumbs') {
       if (!isStaff(db.session && db.session.user)) return ok([]);
@@ -246,11 +258,15 @@
           const before = o.status;
           Object.assign(o, { status: body.status || o.status, carrier: body.carrier == null ? o.carrier : body.carrier, tracking: body.tracking == null ? o.tracking : body.tracking });
           window.__fake.mails = (window.__fake.mails || []).concat(before !== o.status ? [[o.status, o.ref]] : []);
+          const LBL = { en_preparation: 'En préparation', expediee: 'Expédiée', livree: 'Livrée' };
+          const parts = [before !== o.status ? `passée « ${LBL[o.status] || o.status} »` : '', body.tracking ? `suivi : ${[o.carrier, o.tracking].filter(Boolean).join(' ')}` : ''].filter(Boolean);
+          if (parts.length) logOrder(o.id, actorOf(u), parts.join(', '));
           persist();
           return ok({ order: o, mailed: before !== o.status });
         }
         if (!(admin ? ['payee', 'en_preparation'] : ['payee']).includes(o.status)) return fnError('cette commande est déjà en préparation : elle ne peut plus être annulée en ligne, écrivez-nous à contact@ateliergribouille.art');
         o.status = 'annulee'; o.refund = 're_fake'; persist();
+        logOrder(o.id, admin && o.user_id !== u.id ? actorOf(u) : 'le client', `annulée et remboursée (${((o.total_cents || 0) / 100).toFixed(2).replace('.', ',')} €)`);
         return ok({ order: o });
       }
       // le tableau de bord (administrateur et double authentification, comme la vraie fonction) : les
@@ -269,7 +285,8 @@
         return ok({
           at: new Date().toISOString(),
           ventes: { today: sum(paid), d7: sum(paid), d30: sum(paid), byDay: days.map((d) => ({ d, cents: paid.filter((o) => o.paid_at.slice(0, 10) === d).reduce((a, o) => a + o.total_cents, 0) })), statuts, stripeMode: 'test',
-            aPreparer: orders.filter((o) => o.status === 'payee').map((o) => ({ ref: o.ref, total_cents: o.total_cents, paid_at: o.paid_at, delivery: o.delivery, client: (o.shipping && o.shipping.name) || '', articles: (o.items || []).length })) },
+            aPreparer: orders.filter((o) => o.status === 'payee').map((o) => ({ ref: o.ref, total_cents: o.total_cents, paid_at: o.paid_at, delivery: o.delivery, client: (o.shipping && o.shipping.name) || '', articles: (o.items || []).length })),
+            equipe: db.rows.filter((l) => l.__table === 'order_log' && l.action !== 'payée').sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 25).map((l) => ({ at: l.at, actor: l.actor, action: l.action, ref: ((orders.find((o) => o.id === l.order_id)) || {}).ref || '' })) },
           activite: { comptes: { total: Object.keys(db.users).length, d7: Object.keys(db.users).length }, oeuvres: { total: works.length, d7: works.length }, partages: { actifs: 0, recus7: 0 }, stockage: { bytes: 0, files: Object.keys(db.files).length }, byDay: days.map((d) => ({ d, comptes: 0, oeuvres: 0 })) },
           audience: { error: 'Audience non branchée : ajoutez la clé UMAMI_API_KEY dans les secrets Supabase (voir docs/TABLEAU-DE-BORD.md).' },
           sante: { deploys: [], deployError: 'api.github.com : 404', erreurs24: 1, erreurs: [{ at: new Date().toISOString(), fn: 'partage', message: '<b>boom</b>' }], emails: [], services: { resend: false, umami: false, github: false } },

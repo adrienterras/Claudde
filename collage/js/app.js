@@ -9620,6 +9620,8 @@ Réponds uniquement avec ce JSON :
       releaseHD();
       step(tr('Envoi du fichier avec la commande…'), 80);
       await A.orders.hdPut(order.id, index, blob);
+      // (l'historique de la commande : qui l'a fait ; un échec ici ne gâche pas le fichier)
+      try { await A.orders.hdLogged(order.id, index, dpi); } catch (e) { console.error(e); }
       step('', 100);
       const msg = dpi < 290
         ? tr`Fichier HD de ${order.ref} (article ${index + 1}) rangé avec la commande, mais à ${dpi} dpi seulement : cet appareil manque de mémoire, refaites-le depuis un ordinateur.`

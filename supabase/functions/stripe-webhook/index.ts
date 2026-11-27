@@ -6,6 +6,7 @@
 import { verifySignature, orderTrace } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, thumbsOf } from '../_shared/supabase.js';
+import { orderLog } from '../_shared/historique.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
 
 journalFrom('stripe-webhook');
@@ -40,6 +41,7 @@ async function paid(session: any) {
   }, 'return=representation');
   // (une notification reçue deux fois, en même temps : seule la première passe, la seconde s'arrête là)
   if (!won || !won.length) return;
+  await orderLog(id, null, 'payée', 'le client');
   // les œuvres commandées : hors du panier, figées, avec la trace de la commande
   for (const it of order.items || []) {
     const [row] = (await rest('GET', `compositions?id=eq.${it.compId}&user_id=eq.${order.user_id}&select=id,name,meta`)) || [];

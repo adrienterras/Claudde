@@ -72,7 +72,7 @@ Supabase et GitHub (liste plus bas).
 ## Limites connues, acceptées
 
 - Depuis le passage à Cloudflare Pages (22 novembre 2026), `_headers` applique HSTS,
-  `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, etc. La CSP complète est en balise
+  `frame-ancestors 'self'` (aucun autre site ne peut afficher celui-ci dans un cadre), `X-Frame-Options`, `nosniff`, etc. La CSP complète est en balise
   `<meta>` sur chaque page (testée par `tests/csp.spec.js`) ; `style-src` garde `'unsafe-inline'`.
 - Le jeton de session Supabase est gardé dans `localStorage` (comportement par défaut de la
   librairie) : une injection de script le lirait. C'est pourquoi l'échappement HTML ci-dessus
@@ -318,7 +318,11 @@ d'impression sont dans le bucket privé `impressions` (PDF seulement, 200 Mo), p
 staff » : `is_staff()` et dossier d'une commande existante, aucun accès client ni anonyme, téléchargement
 par lien signé de 10 minutes. Factures : fonction `facture` (connexion requise ; la commande du compte,
 ou l'équipe avec double authentification ; commande payée), lien renvoyé seulement s'il mène en https chez
-Stripe, revérifié par la page avant d'y aller.
+Stripe, revérifié par la page avant d'y aller. Historique des commandes (`order_log`) : écrit par les fonctions
+serveur et par `order_log_hd()` (équipe seulement, auteur = `auth.uid()`), lu par `is_staff()` seulement,
+aucune écriture directe depuis le navigateur. Fichier HD en coulisse : l'atelier est ouvert dans un cadre
+du même site (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`) ; les messages ne sont acceptés
+que de la même origine et du cadre ouvert par la page.
 
 ## Polices auto-hébergées (novembre 2026)
 

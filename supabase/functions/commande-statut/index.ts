@@ -1,10 +1,12 @@
 // Fonction « commande-statut » : l'administrateur (double authentification) fait avancer une commande —
 // en préparation, expédiée (transporteur, numéro de suivi), livrée — et le client reçoit un e-mail à
-// chaque étape. Appelée depuis l'espace administrateur de l'atelier (Commandes).
+// chaque étape ; le changement est inscrit à l'historique de la commande, avec son auteur. Appelée
+// depuis la page Gestion des commandes.
 import { ORIGINS } from '../_shared/commande.js';
 import { customerEmail, customerAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, staffOf, replier, thumbsOf } from '../_shared/supabase.js';
 import { journal, journalFrom, errText } from '../_shared/journal.js';
+import { orderLog, statusLine } from '../_shared/historique.js';
 
 journalFrom('commande-statut');
 
@@ -31,6 +33,9 @@ Deno.serve(async (req) => {
     const carrier = body.carrier == null ? order.carrier : String(body.carrier).slice(0, 60) || null;
     const tracking = body.tracking == null ? order.tracking : String(body.tracking).trim().slice(0, 80) || null;
     const [saved] = await rest('PATCH', `orders?id=eq.${id}`, { status, carrier, tracking, updated_at: new Date().toISOString() }, 'return=representation');
+    // l'historique : qui a fait avancer la commande
+    const line = statusLine(order, saved);
+    if (line) await orderLog(id, admin, line);
     // le client est prévenu quand le statut change (et à l'expédition, si le suivi arrive ensuite)
     let mailed = false;
     const changed = status !== order.status || (status === 'expediee' && tracking && tracking !== order.tracking);
