@@ -18,3 +18,7 @@ verify_jwt = false
 # « partage » : « voir » sans compte (l'accueil du lien), « recevoir » vérifie lui-même le jeton du compte
 [functions.partage]
 verify_jwt = false
+
+# le tableau de bord de l'administrateur : la fonction vérifie elle-même le compte et la double authentification
+[functions.tableau-de-bord]
+verify_jwt = false

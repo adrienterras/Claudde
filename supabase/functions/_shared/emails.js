@@ -12,6 +12,9 @@
  */
 
 import { framePlan, framePixels, trackingUrl } from './commande.js';
+import { journal, errText } from './journal.js';
+// la référence de la commande dans le sujet d'un e-mail (pour le journal)
+const refOf = (subject) => ((/AG-[0-9]{6}-[A-Z0-9]{4}/.exec(String(subject || '')) || [])[0]) || null;
 
 export { trackingUrl };
 
@@ -243,9 +246,17 @@ export async function send(to, mail, env = (k) => (globalThis.Deno ? Deno.env.ge
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign({ from: env('ORDER_FROM') || 'Atelier Gribouille <commandes@ateliergribouille.art>', to: [to], reply_to: 'contact@ateliergribouille.art', subject: mail.subject, html: mail.html, text: mail.text }, mail.attachments && mail.attachments.length ? { attachments: mail.attachments } : {})),
     });
-    if (!r.ok) console.error('Resend', r.status, await r.text());
+    if (!r.ok) {
+      const text = await r.text();
+      console.error('Resend', r.status, text);
+      await journal('email', `${mail.subject} : Resend ${r.status} ${text.slice(0, 160)}`, refOf(mail.subject));
+    }
     return r.ok;
-  } catch (e) { console.error('Resend', e); return false; }
+  } catch (e) {
+    console.error('Resend', e);
+    await journal('email', `${mail.subject} : ${errText(e)}`, refOf(mail.subject));
+    return false;
+  }
 }
 export const shopAddress = (env = (k) => (globalThis.Deno ? Deno.env.get(k) : undefined)) => env('ORDER_NOTIFY') || 'contact@ateliergribouille.art';
 // l'adresse du client : celle saisie à la page de paiement, sinon celle du compte

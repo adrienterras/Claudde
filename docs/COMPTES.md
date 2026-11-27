@@ -212,3 +212,9 @@ retouches). Le secret GitHub `SUPABASE_SERVICE_ROLE_KEY` n'a plus d'usage et doi
   pour un vrai public, branchez un SMTP (Brevo, Postmark, Resend) dans Authentication → SMTP Settings.
 - RGPD : données hébergées en UE si la région Europe est choisie ; la page `confidentialite.html`
   décrit les traitements et la suppression. Déclarez Supabase comme sous-traitant dans votre registre.
+
+## Tableau de bord
+
+L'administrateur a aussi un tableau de bord du site (ventes, activité, audience, santé technique) :
+`tableau-de-bord.html`, réservé à son compte avec la double authentification. Voir
+[TABLEAU-DE-BORD.md](TABLEAU-DE-BORD.md).

@@ -92,6 +92,19 @@ test('accueil : la pastille du compte, ronde, l’icône sans session, la photo 
   await page2.keyboard.press('Escape');
   await expect(pop).toBeHidden();
   await ctx2.close();
+  // l'administrateur (rôle donné par le serveur) : « Tableau de bord » en plus, après « Mes commandes »
+  const ctxA = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const pageA = await ctxA.newPage();
+  await serve(pageA);
+  await pageA.addInitScript(() => {
+    localStorage.setItem('atelier-gribouille:lang', 'fr');
+    localStorage.setItem('sb-fakeproj-auth-token', JSON.stringify({ access_token: 'x', refresh_token: 'y', expires_at: Math.floor(Date.now() / 1000) + 3600, user: { email: 'admin@example.org', app_metadata: { atelier_role: 'admin' }, user_metadata: { name: 'Admin' } } }));
+  });
+  await pageA.goto('http://accueil.test/');
+  await pageA.locator('a.nav-account').click();
+  await expect(pageA.locator('.acc-pop [role="menuitem"]')).toHaveText(['L’atelier', 'Mon compte', 'Mes commandes', 'Tableau de bord', 'Mon panier', 'Se déconnecter']);
+  expect(await pageA.locator('.acc-pop a').nth(3).getAttribute('href')).toBe('tableau-de-bord.html');
+  await ctxA.close();
   // avec une photo de compte (Google) : la photo, sans initiale ; l'en-tête tient sur un téléphone
   const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page3 = await ctx3.newPage();

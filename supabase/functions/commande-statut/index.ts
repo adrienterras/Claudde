@@ -4,6 +4,9 @@
 import { ORIGINS } from '../_shared/commande.js';
 import { customerEmail, customerAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, adminOf, replier, thumbsOf } from '../_shared/supabase.js';
+import { journal, journalFrom, errText } from '../_shared/journal.js';
+
+journalFrom('commande-statut');
 
 const STEPS = ['payee', 'en_preparation', 'expediee', 'livree'];
 
@@ -31,6 +34,7 @@ Deno.serve(async (req) => {
     return reply(200, { order: saved, mailed });
   } catch (e) {
     console.error(e);
+    await journal('erreur', errText(e));
     return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
   }
 });

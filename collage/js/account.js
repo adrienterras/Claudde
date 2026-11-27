@@ -633,14 +633,14 @@
   // le panier du compte devient une commande : la fonction « commande » (serveur) relit le panier,
   // recalcule les prix et la livraison et renvoie l'adresse de la page de paiement Stripe
   // (l'appel d'une fonction du serveur ; son message d'erreur, en clair)
-  async function fnCall(name, body) {
+  async function fnCall(name, body, offline) {
     if (!user) throw new Error(tr('connexion requise'));
     const { data, error } = await client.functions.invoke(name, { body });
     if (error) {
       let msg = error.message || String(error);
       try { const j = error.context && error.context.json && (await error.context.json()); if (j && j.error) msg = j.error; } catch (e) { /* réponse sans détail */ }
       // (serveur injoignable : réseau coupé, ou fonction pas encore installée)
-      if (error.name === 'FunctionsFetchError' || /failed to send a request|failed to fetch|load failed|networkerror/i.test(msg)) msg = tr('le service de paiement ne répond pas : réessayez dans un instant');
+      if (error.name === 'FunctionsFetchError' || /failed to send a request|failed to fetch|load failed|networkerror/i.test(msg)) msg = offline || tr('le service de paiement ne répond pas : réessayez dans un instant');
       throw new Error(msg);
     }
     return data;
@@ -654,6 +654,8 @@
   const ordersCancel = (id) => fnCall('commande-annuler', { id });
   // l'administrateur fait avancer une commande (statut, transporteur, numéro de suivi) ; le client est prévenu
   const ordersSet = (id, patch) => fnCall('commande-statut', Object.assign({ id }, patch));
+  // les chiffres du tableau de bord du site (administrateur, double authentification : vérifié par le serveur)
+  const dashboard = () => fnCall('tableau-de-bord', {}, 'le serveur ne répond pas : réessayez dans un instant');
   // toutes les commandes (administrateur, double authentification), les plus récentes d'abord, sans
   // les paiements commencés et abandonnés ; leurs œuvres s'ouvrent comme celles de Toutes les œuvres
   async function ordersAdmin() {
@@ -799,7 +801,7 @@
     checkPassword, PASSWORD_MIN,
     share: { create: shareCreate, get: shareGet, revoke: shareRevoke, see: shareSee, receive: shareReceive },
     cloud: { list: cloudList, put: cloudPut, get: cloudGet, del: cloudDel, rename: cloudRename, workPut, workInfo, cart: cloudCart, cartSet: cloudCartSet, prune: cloudPrune },
-    isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify,
+    isAdmin, adminList, adminPage: ADMIN_PAGE, mfaState, mfaEnroll, mfaVerify, dashboard,
     limits: { max: WORK_MAX, keepDays: WORK_KEEP_DAYS },
     exports: { list: exportsList, put: exportPut, url: exportUrl, blob: exportBlob, del: exportDel },
     orders: { checkout: ordersCheckout, list: ordersList, thumbs: ordersThumbs, cancel: ordersCancel, admin: ordersAdmin, set: ordersSet },

@@ -364,6 +364,7 @@
     "Importez-les dans l’atelier : il découpe chaque dessin à sa taille réelle et compose huit propositions de tableau, gratuitement.": "Import them into the studio: it cuts out each drawing at its real size and composes eight artwork suggestions, for free.",
     "Mon panier": "My cart",
     "Mes commandes": "My orders",
+    "Tableau de bord": "Dashboard",
     "Mon panier : {0} article(s)": "My cart: {0} item(s)",
     // page À propos
     "À propos : l’histoire d’Atelier Gribouille | Atelier Gribouille": "About: the story of Atelier Gribouille | Atelier Gribouille",

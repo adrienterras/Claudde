@@ -227,3 +227,45 @@ test.describe('Partage : la copie reçue, côté serveur', () => {
     expect(p.shareValid({ token: 'a/b', expires: '2099-01-01' })).toBe(false);
   });
 });
+
+test.describe('Tableau de bord : les sources extérieures, côté serveur', () => {
+  const TAB = pathToFileURL(path.join(__dirname, '..', '..', 'supabase', 'functions', '_shared', 'tableau.js')).href;
+  test('mode du paiement, mises en ligne GitHub, audience Umami (deux formes de réponse), 30 jours à l’heure de Paris', async () => {
+    const t = await import(TAB);
+    expect(t.stripeMode('sk_live_abc')).toBe('live');
+    expect(t.stripeMode('rk_test_abc')).toBe('test');
+    expect(t.stripeMode('')).toBeNull();
+    expect(t.stripeMode('pk_live_abc')).toBeNull(); // (une clé publique n'est pas la clé du serveur)
+    const runs = { workflow_runs: [
+      { run_number: 713, display_title: 'Tests : plus de réimport\nsuite', status: 'completed', conclusion: 'success', updated_at: '2026-11-27T12:25:23Z' },
+      { run_number: 714, display_title: 'En cours', status: 'in_progress', conclusion: null, run_started_at: '2026-11-27T13:00:00Z' },
+      { run_number: 712, display_title: 'Raté', status: 'completed', conclusion: 'failure' },
+    ] };
+    expect(t.deploysOf(runs)).toEqual([
+      { n: 713, title: 'Tests : plus de réimport', status: 'success', at: '2026-11-27T12:25:23Z' },
+      { n: 714, title: 'En cours', status: 'in_progress', at: '2026-11-27T13:00:00Z' },
+      { n: 712, title: 'Raté', status: 'failure', at: null },
+    ]);
+    expect(t.deploysOf(null)).toEqual([]);
+    // les jours : 30, du plus ancien à aujourd'hui, à l'heure de Paris (23 h 30 UTC = le lendemain à Paris)
+    const days = t.lastDays(new Date('2026-11-27T23:30:00Z'));
+    expect(days).toHaveLength(30);
+    expect(days[29]).toBe('2026-11-28');
+    expect(days[0]).toBe('2026-10-30');
+    // Umami : valeurs simples ou { value } ; visiteurs par jour depuis « sessions »
+    const a = t.audienceOf({
+      stats7: { visitors: { value: 612 }, pageviews: { value: 2140 } }, stats30: { visitors: 2380, pageviews: 8710 },
+      series: { sessions: [{ x: `${days[29]} 00:00:00`, y: 41 }, { x: `${days[0]} 00:00:00`, y: 7 }] },
+      pages: [{ x: '/', y: 3120 }, { x: '/atelier/', y: 2480 }], sources: [{ x: null, y: 12 }], pays: [{ x: 'FR', y: 2010 }],
+    }, days);
+    expect(a.d7).toEqual({ visitors: 612, pageviews: 2140 });
+    expect(a.d30).toEqual({ visitors: 2380, pageviews: 8710 });
+    expect(a.byDay).toHaveLength(30);
+    expect(a.byDay[29]).toEqual({ d: days[29], visitors: 41 });
+    expect(a.byDay[0].visitors).toBe(7);
+    expect(a.byDay[10].visitors).toBe(0);
+    expect(a.pages).toEqual([{ x: '/', n: 3120 }, { x: '/atelier/', n: 2480 }]);
+    expect(a.sources).toEqual([{ x: '', n: 12 }]);
+    expect(a.pays).toEqual([{ x: 'FR', n: 2010 }]);
+  });
+});

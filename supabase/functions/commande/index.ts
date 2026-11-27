@@ -3,6 +3,9 @@
 // l'adresse de la page de paiement. Les prix et la livraison sont recalculés ici (_shared/commande.js).
 import { orderItems, totals, orderRef, checkoutParams, formBody, ORIGINS } from '../_shared/commande.js';
 import { rest, userOf } from '../_shared/supabase.js';
+import { journal, journalFrom, errText } from '../_shared/journal.js';
+
+journalFrom('commande');
 
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
 
@@ -50,12 +53,14 @@ Deno.serve(async (req) => {
     if (!r.ok) {
       await rest('PATCH', `orders?id=eq.${order.id}`, { status: 'annulee' });
       console.error('Stripe', session);
+      await journal('erreur', `Stripe refuse la page de paiement : ${(session.error && session.error.message) || r.status}`, order.ref);
       return reply(502, { error: `Stripe : ${(session.error && session.error.message) || r.status}` });
     }
     await rest('PATCH', `orders?id=eq.${order.id}`, { stripe_session: session.id });
     return reply(200, { url: session.url, ref: order.ref });
   } catch (e) {
     console.error(e);
+    await journal('erreur', errText(e));
     return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
   }
 });

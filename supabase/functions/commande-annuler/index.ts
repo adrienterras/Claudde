@@ -7,6 +7,9 @@
 import { ORIGINS } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, userOf, adminOf, replier, thumbsOf } from '../_shared/supabase.js';
+import { journal, journalFrom, errText } from '../_shared/journal.js';
+
+journalFrom('commande-annuler');
 
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
 
@@ -42,6 +45,7 @@ Deno.serve(async (req) => {
       if (!r.ok) {
         await rest('PATCH', `orders?id=eq.${id}`, { status: order.status, updated_at: new Date().toISOString() });
         console.error('Stripe', refund);
+        await journal('erreur', `Stripe refuse le remboursement : ${(refund.error && refund.error.message) || r.status}`, order.ref);
         return reply(502, { error: `remboursement refusé par Stripe : ${(refund.error && refund.error.message) || r.status}` });
       }
       await rest('PATCH', `orders?id=eq.${id}`, { refund: refund.id, cancelled_at: at });
@@ -55,6 +59,7 @@ Deno.serve(async (req) => {
     return reply(200, { order: saved });
   } catch (e) {
     console.error(e);
+    await journal('erreur', errText(e));
     return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
   }
 });

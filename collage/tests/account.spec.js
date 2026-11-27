@@ -1292,6 +1292,77 @@ test.describe('Comptes utilisateurs', () => {
     expect(await page.evaluate((id) => window.__fake.db.rows.filter((r) => r.id === id).length, id)).toBe(1);
   });
 
+  test('tableau de bord : fermé sans compte, à un compte ordinaire et sans la double authentification ; l’administrateur voit ventes, activité, santé', async ({ acc }) => {
+    const { page } = acc;
+    // sans session : se connecter
+    await page.goto('tableau-de-bord.html');
+    await expect(page.locator('#tb-gate')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('#tb-gate-text')).toContainText('Connectez-vous avec le compte administrateur');
+    await expect(page.locator('#tb-signin-btn')).toBeVisible();
+    await expect(page.locator('#tb-body')).toBeHidden();
+    // un compte ordinaire : la page est fermée, et le serveur refuse l'appel direct
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await signUpAndIn(page, 'lou@example.org', 'Rouge-Soleil-42', 'Lou');
+    await page.goto('tableau-de-bord.html');
+    await expect(page.locator('#tb-gate-text')).toContainText('réservée à l’administrateur', { timeout: 30000 });
+    expect(await page.evaluate(async () => { try { await (await window.SiteAccount.account()).dashboard(); return 'lu'; } catch (e) { return e.message; } })).toContain('double authentification');
+    // une commande payée à préparer
+    await page.evaluate(() => {
+      window.__fake.db.rows.push({ __table: 'orders', id: '44444444-4444-4444-4444-444444444444', user_id: 'u-x', ref: 'AG-261127-PREP', status: 'payee', created_at: new Date().toISOString(), paid_at: new Date().toISOString(), subtotal_cents: 8000, shipping_cents: 900, total_cents: 8900, delivery: 'express', shipping: { name: 'Camille <i>D</i>' }, items: [{ qty: 1 }] });
+      localStorage.setItem('fake.rows', JSON.stringify(window.__fake.db.rows));
+    });
+    // l'administrateur sans double authentification : à activer d'abord
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await page.locator('#acc-menu').click(); await page.locator('#acc-signout').click();
+    await page.evaluate(() => { window.__FAKE_ADMINS = ['admin@example.org']; });
+    await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
+    await page.goto('tableau-de-bord.html');
+    await expect(page.locator('#tb-gate-text')).toContainText('activez-la', { timeout: 30000 });
+    await expect(page.locator('#tb-enroll')).toHaveAttribute('href', 'atelier/?compte');
+    // activée dans l'atelier ; puis une nouvelle connexion (sans le code) : la page demande le code
+    await page.goto('index.html');
+    await page.waitForFunction(() => window.AtelierGribouille && window.Account && window.Account.enabled);
+    await openStep(page, 'saved-section');
+    await adminMfa(page, { enroll: true });
+    await page.evaluate(() => { window.__fake.db.session.aal = 'aal1'; localStorage.setItem('fake.session', JSON.stringify(window.__fake.db.session)); });
+    await page.goto('tableau-de-bord.html');
+    await expect(page.locator('#tb-mfa')).toBeVisible({ timeout: 30000 });
+    await page.fill('#tb-code', '000000');
+    await page.locator('#tb-code-ok').click();
+    await expect(page.locator('#tb-status')).toContainText('Code incorrect');
+    await expect(page.locator('#tb-body')).toBeHidden();
+    await page.fill('#tb-code', '123 456');
+    await page.locator('#tb-code-ok').click();
+    // les chiffres : à surveiller, ventes, commandes à préparer, activité, audience non branchée, santé
+    const body = page.locator('#tb-body');
+    await expect(body).toBeVisible();
+    await expect(page.locator('#tb-gate')).toBeHidden();
+    await expect(body.locator('.tb-watch')).toContainText('1 commande à préparer');
+    await expect(body.locator('.tb-watch')).toContainText('Paiement en mode test');
+    await expect(body.locator('.tb-watch')).toContainText('1 erreur serveur en 24 h');
+    await expect(body.locator('#tb-ventes .tb-tile').first()).toContainText('89 €');
+    await expect(body.locator('#tb-ventes .tb-list')).toContainText('AG-261127-PREP');
+    await expect(body.locator('#tb-ventes .tb-list')).toContainText('Chronopost express');
+    await expect(body.locator('#tb-ventes .tb-chart svg rect')).toHaveCount(30);
+    await expect(body.locator('#tb-activite .tb-tile').first()).toContainText('2');
+    await expect(body.locator('#tb-audience')).toContainText('Audience non branchée');
+    await expect(body.locator('#tb-sante')).toContainText('Mises en ligne illisibles');
+    // tout ce qui vient du serveur est du texte, jamais du code
+    expect(await body.locator('#tb-ventes .tb-list b, #tb-ventes .tb-list i').allTextContents()).toEqual(['AG-261127-PREP']);
+    await expect(body.locator('#tb-sante .tb-list.err')).toContainText('<b>boom</b>');
+    // une barre touchée : sa valeur et son jour
+    const bar = body.locator('#tb-ventes .tb-chart svg');
+    const bb = await bar.boundingBox();
+    await page.mouse.move(bb.x + bb.width - 2, bb.y + bb.height / 2);
+    await expect(body.locator('#tb-ventes .tb-tip')).toContainText('89 €');
+    // Actualiser relit les chiffres
+    const n = await page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'tableau-de-bord').length);
+    await page.locator('#tb-refresh').click();
+    await expect.poll(() => page.evaluate(() => window.__fake.calls.filter((c) => c[1] === 'tableau-de-bord').length)).toBeGreaterThan(n);
+  });
+
   test('page Mes commandes : la liste (visuels encadrés, statut, total), le détail dans une fenêtre (frise, œuvres, livraison, suivi) ; le lien #REF l’ouvre ; sans session, la connexion', async ({ acc }) => {
     const { page } = acc;
     // sans session : la page propose de se connecter

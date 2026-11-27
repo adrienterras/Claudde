@@ -328,3 +328,90 @@ create policy "orders: admin updates" on public.orders
 -- (l'administrateur ne change que le statut, le transporteur et le numéro de suivi)
 revoke update on public.orders from authenticated;
 grant update (status, carrier, tracking, updated_at) on public.orders to authenticated;
+
+-- Journal du site (27 novembre 2026) : les erreurs des fonctions serveur et les e-mails qui ne sont pas
+-- partis. Écrit seulement par les fonctions (clé serveur), lu seulement par le tableau de bord de
+-- l'administrateur (fonction admin_dashboard ci-dessous) ; gardé 30 jours. Aucun accès depuis le navigateur.
+create table if not exists public.site_events (
+  id bigint generated always as identity primary key,
+  at timestamptz not null default now(),
+  kind text not null check (kind in ('erreur', 'email')),
+  fn text check (char_length(fn) <= 40),
+  message text not null check (char_length(message) <= 400),
+  ref text check (char_length(ref) <= 60)
+);
+create index if not exists site_events_at_idx on public.site_events (at desc);
+alter table public.site_events enable row level security;
+revoke all on public.site_events from anon, authenticated;
+
+-- Les chiffres du tableau de bord (tableau-de-bord.html), en un appel : ventes, commandes à préparer,
+-- comptes, œuvres, partages, stockage, journal. Appelée seulement par la fonction « tableau-de-bord »
+-- (clé serveur), qui vérifie d'abord l'administrateur et sa double authentification ; jours comptés à
+-- l'heure de Paris. Ventes : commandes payées, sans les annulées (remboursées) ni les abandonnées.
+create or replace function public.admin_dashboard()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  today date := (now() at time zone 'Europe/Paris')::date;
+  now_iso text := to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS');
+  out jsonb;
+begin
+  delete from public.site_events where at < now() - interval '30 days';
+  with days as (
+    select (today - g)::date as d from generate_series(0, 29) as g
+  ),
+  paid as (
+    select o.total_cents, (o.paid_at at time zone 'Europe/Paris')::date as d
+    from public.orders o
+    where o.paid_at is not null and o.status not in ('annulee', 'abandonnee', 'attente_paiement')
+  ),
+  works as (
+    select c.created_at, c.meta from public.compositions c
+    where c.meta ->> 'cart' is null and c.meta ->> 'draft' is null
+  )
+  select jsonb_build_object(
+    'at', now(),
+    'ventes', jsonb_build_object(
+      'today', (select jsonb_build_object('cents', coalesce(sum(total_cents), 0), 'n', count(*)) from paid where d = today),
+      'd7', (select jsonb_build_object('cents', coalesce(sum(total_cents), 0), 'n', count(*)) from paid where d > today - 7),
+      'd30', (select jsonb_build_object('cents', coalesce(sum(total_cents), 0), 'n', count(*)) from paid where d > today - 30),
+      'byDay', (select jsonb_agg(jsonb_build_object('d', days.d, 'cents', coalesce(s.cents, 0)) order by days.d)
+                from days left join (select d, sum(total_cents) as cents from paid group by d) s on s.d = days.d),
+      'statuts', coalesce((select jsonb_object_agg(status, n) from (select status, count(*) as n from public.orders group by status) st), '{}'::jsonb),
+      'aPreparer', coalesce((select jsonb_agg(x order by x.paid_at) from (
+          select o.ref, o.total_cents, o.paid_at, o.delivery,
+            coalesce(o.shipping ->> 'name', o.customer ->> 'name', '') as client,
+            (select coalesce(sum(greatest(coalesce((it ->> 'qty')::int, 1), 1)), 0) from jsonb_array_elements(o.items) it where (it ->> 'qty') is null or (it ->> 'qty') ~ '^[0-9]{1,3}$') as articles
+          from public.orders o where o.status = 'payee' order by o.paid_at limit 20) x), '[]'::jsonb)
+    ),
+    'activite', jsonb_build_object(
+      'comptes', (select jsonb_build_object('total', count(*), 'd7', count(*) filter (where created_at > now() - interval '7 days')) from auth.users),
+      'oeuvres', (select jsonb_build_object('total', count(*), 'd7', count(*) filter (where created_at > now() - interval '7 days')) from works),
+      'partages', jsonb_build_object(
+        'actifs', (select count(*) from public.compositions c where c.meta -> 'share' ->> 'token' is not null
+          and (c.meta -> 'share' ->> 'expires') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' and (c.meta -> 'share' ->> 'expires') > now_iso),
+        'recus7', (select count(*) from public.compositions c where c.meta ? 'sharedFrom' and c.created_at > now() - interval '7 days')),
+      'stockage', (select jsonb_build_object('bytes', coalesce(sum(case when (o.metadata ->> 'size') ~ '^[0-9]{1,15}$' then (o.metadata ->> 'size')::bigint else 0 end), 0), 'files', count(*))
+                   from storage.objects o where o.bucket_id = 'drawings'),
+      'byDay', (select jsonb_agg(jsonb_build_object('d', days.d, 'comptes', coalesce(u.n, 0), 'oeuvres', coalesce(w.n, 0)) order by days.d)
+                from days
+                left join (select (created_at at time zone 'Europe/Paris')::date as d, count(*) as n from auth.users group by 1) u on u.d = days.d
+                left join (select (created_at at time zone 'Europe/Paris')::date as d, count(*) as n from works group by 1) w on w.d = days.d)
+    ),
+    'sante', jsonb_build_object(
+      'erreurs24', (select count(*) from public.site_events where kind = 'erreur' and at > now() - interval '24 hours'),
+      'erreurs', coalesce((select jsonb_agg(jsonb_build_object('at', e.at, 'fn', e.fn, 'message', e.message, 'ref', e.ref) order by e.at desc)
+                 from (select * from public.site_events where kind = 'erreur' and at > now() - interval '7 days' order by at desc limit 20) e), '[]'::jsonb),
+      'emails', coalesce((select jsonb_agg(jsonb_build_object('at', e.at, 'fn', e.fn, 'what', e.message, 'ref', e.ref) order by e.at desc)
+                 from (select * from public.site_events where kind = 'email' and at > now() - interval '7 days' order by at desc limit 20) e), '[]'::jsonb)
+    )
+  ) into out;
+  return out;
+end;
+$$;
+revoke all on function public.admin_dashboard() from public;
+revoke execute on function public.admin_dashboard() from anon, authenticated;
+grant execute on function public.admin_dashboard() to service_role;

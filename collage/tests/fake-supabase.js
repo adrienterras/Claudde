@@ -207,6 +207,26 @@
         o.status = 'annulee'; o.refund = 're_fake'; persist();
         return ok({ order: o });
       }
+      // le tableau de bord (administrateur et double authentification, comme la vraie fonction) : les
+      // chiffres tirés du faux serveur ; ni GitHub ni Umami
+      if (name === 'tableau-de-bord') {
+        const u = db.session && db.session.user;
+        if (!isAdm(u)) return fnError('réservé à l’administrateur, connecté avec la double authentification');
+        const days = Array.from({ length: 30 }, (_, i) => new Date(Date.now() - (29 - i) * 864e5).toISOString().slice(0, 10));
+        const orders = db.rows.filter((r) => r.__table === 'orders');
+        const paid = orders.filter((o) => o.paid_at && !['annulee', 'abandonnee', 'attente_paiement'].includes(o.status));
+        const sum = (list) => ({ cents: list.reduce((a, o) => a + (o.total_cents || 0), 0), n: list.length });
+        const statuts = {}; orders.forEach((o) => { statuts[o.status] = (statuts[o.status] || 0) + 1; });
+        const works = db.rows.filter((r) => (r.__table || 'compositions') === 'compositions' && !(r.meta && (r.meta.cart || r.meta.draft)));
+        return ok({
+          at: new Date().toISOString(),
+          ventes: { today: sum(paid), d7: sum(paid), d30: sum(paid), byDay: days.map((d) => ({ d, cents: paid.filter((o) => o.paid_at.slice(0, 10) === d).reduce((a, o) => a + o.total_cents, 0) })), statuts, stripeMode: 'test',
+            aPreparer: orders.filter((o) => o.status === 'payee').map((o) => ({ ref: o.ref, total_cents: o.total_cents, paid_at: o.paid_at, delivery: o.delivery, client: (o.shipping && o.shipping.name) || '', articles: (o.items || []).length })) },
+          activite: { comptes: { total: Object.keys(db.users).length, d7: Object.keys(db.users).length }, oeuvres: { total: works.length, d7: works.length }, partages: { actifs: 0, recus7: 0 }, stockage: { bytes: 0, files: Object.keys(db.files).length }, byDay: days.map((d) => ({ d, comptes: 0, oeuvres: 0 })) },
+          audience: { error: 'Audience non branchée : ajoutez la clé UMAMI_API_KEY dans les secrets Supabase (voir docs/TABLEAU-DE-BORD.md).' },
+          sante: { deploys: [], deployError: 'api.github.com : 404', erreurs24: 1, erreurs: [{ at: new Date().toISOString(), fn: 'partage', message: '<b>boom</b>' }], emails: [], services: { resend: false, umami: false, github: false } },
+        });
+      }
       if (name !== 'commande') return fnError('fonction inconnue');
       const u = db.session && db.session.user;
       if (!u) return fnError('connexion requise');

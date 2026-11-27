@@ -6,6 +6,9 @@
 import { verifySignature, orderTrace } from '../_shared/commande.js';
 import { customerEmail, customerAddress, shopEmail, shopAddress, send, visualsOf } from '../_shared/emails.js';
 import { rest, thumbsOf } from '../_shared/supabase.js';
+import { journal, journalFrom, errText } from '../_shared/journal.js';
+
+journalFrom('stripe-webhook');
 
 const SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
 const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') || '';
@@ -70,6 +73,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ received: true }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error(e);
+    await journal('erreur', errText(e));
     // (une erreur : Stripe renverra la notification plus tard)
     return new Response('erreur', { status: 500 });
   }

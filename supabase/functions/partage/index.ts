@@ -8,6 +8,9 @@
 import { ORIGINS } from '../_shared/commande.js';
 import { rest, userOf, replier, authUser, storageCopy, storageRemove } from '../_shared/supabase.js';
 import { shareValid, receivedCopy, TOKEN_RE } from '../_shared/partage.js';
+import { journal, journalFrom, errText } from '../_shared/journal.js';
+
+journalFrom('partage');
 
 const BUCKET = 'drawings';
 const WORK_MAX = 15; // (comme l'atelier : Mes œuvres, sans les commandes ni le panier)
@@ -68,6 +71,7 @@ Deno.serve(async (req) => {
     return reply(200, { id });
   } catch (e) {
     console.error(e);
+    await journal('erreur', errText(e));
     return reply(500, { error: String((e && (e as Error).message) || e).slice(0, 300) });
   }
 });

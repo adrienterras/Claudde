@@ -87,7 +87,7 @@ jobs:
           fi
           REF="$(sed -n "s#.*supabaseUrl: 'https://\([a-z0-9]*\)\.supabase\.co'.*#\1#p" collage/config.js)"
           if [ -z "$REF" ]; then echo "::error::Projet Supabase introuvable dans collage/config.js"; exit 1; fi
-          for f in commande stripe-webhook commande-statut commande-annuler partage; do
+          for f in commande stripe-webhook commande-statut commande-annuler partage tableau-de-bord; do
             ok=0
             for i in 1 2 3; do
               npx --yes supabase@2 functions deploy "$f" --project-ref "$REF" --no-verify-jwt && { ok=1; break; }
