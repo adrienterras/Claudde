@@ -519,7 +519,7 @@ test.describe('Comptes utilisateurs', () => {
     await expect(d).toContainText('3 rue des Lilas');
     await expect(d).toContainText('+33600000000');
     await expect(d.locator('.gd-open').first()).toHaveAttribute('href', `atelier/?commande-oeuvre=${ORDERED}`);
-    await expect(d.locator('.gd-make')).toHaveAttribute('href', 'atelier/?fichier-hd=66666666-6666-4666-8666-000000000011&article=0');
+    await expect(d.locator('.gd-make')).toHaveText('Préparer le fichier HD'); // (fait sur place : voir le test du fichier HD)
     // l'étape suivante : en préparation, le client prévenu
     await d.locator('#gd-next button[type="submit"]').click();
     await expect(page.locator('#gc-done')).toContainText('en préparation, le client est prévenu par e-mail');
@@ -598,14 +598,24 @@ test.describe('Comptes utilisateurs', () => {
     await signUpAndIn(page, 'admin@example.org', 'Rouge-Soleil-42', 'Admin');
     await openStep(page, 'saved-section');
     await adminMfa(page, { enroll: true });
-    await page.evaluate(() => { AtelierGribouille.state.exportDpi = 20; });
-    await page.goto(`index.html?fichier-hd=${order.id}&article=0`);
-    await expect(page.locator('#notice')).toContainText(`Fichier HD de ${order.ref}`, { timeout: 120000 });
-    await expect(page.locator('#notice')).toContainText('rangé avec la commande');
-    const up = await page.evaluate(() => window.__fake.calls.filter((c) => c[0] === 'upload-hd'));
-    expect(up).toHaveLength(1);
-    expect(up[0][1]).toBe(`${order.id}/0.pdf`);
-    expect(up[0][3]).toBe('application/pdf');
+    // sur la page Gestion des commandes : « Préparer le fichier HD » ; l'atelier travaille en coulisse (cadre
+    // invisible), la page reste là et montre la barre de progression, puis le fichier prêt
+    await page.goto('gestion-commandes.html');
+    await expect(page.locator('#gc-list .o-card')).toHaveCount(1, { timeout: 30000 });
+    await page.locator('#gc-list .o-item').click();
+    const detail = page.locator('#gc-detail');
+    await expect(detail.locator('.gd-hd').first()).toContainText('Fichier HD à préparer');
+    await detail.locator('.gd-make').click();
+    await expect(detail.locator('.gd-job')).toBeVisible();
+    await expect(detail.locator('.gd-bar')).toHaveAttribute('role', 'progressbar');
+    await expect(page.locator('iframe.gc-backstage')).toHaveCount(1);
+    await expect.poll(() => detail.locator('.gd-bar').getAttribute('aria-valuenow').then(Number), { timeout: 60000 }).toBeGreaterThanOrEqual(5);
+    await expect(page.locator('#gc-done')).toContainText(`Fichier HD de ${order.ref}`, { timeout: 120000 });
+    await expect(page.locator('#gc-done')).toContainText('rangé avec la commande');
+    await expect(page.locator('iframe.gc-backstage')).toHaveCount(0);
+    expect(page.url()).toContain('gestion-commandes.html');
+    await expect(detail.locator('.gd-hd.ok')).toContainText('Fichier HD prêt', { timeout: 30000 });
+    await expect(detail.locator('.gd-dl')).toBeVisible();
     // le PDF : la taille de l'affiche commandée (format imprimé de l'article, marges comprises, en points)
     const pdf = await page.evaluate((id) => atob(JSON.parse(localStorage.getItem('fake.files'))[`impressions:${id}/0.pdf`]).slice(0, 4000), order.id);
     expect(pdf.startsWith('%PDF')).toBe(true);
@@ -618,12 +628,6 @@ test.describe('Comptes utilisateurs', () => {
     const [ew, eh] = area; // (avec marges, la feuille garde ce format : l'œuvre est en retrait de 3 cm)
     expect(Math.abs(bw - ew)).toBeLessThan(0.1);
     expect(Math.abs(bh - eh)).toBeLessThan(0.1);
-    // la page Gestion des commandes le propose au téléchargement
-    await page.goto('gestion-commandes.html');
-    await expect(page.locator('#gc-list .o-card')).toHaveCount(1, { timeout: 30000 });
-    await page.locator('#gc-list .o-item').click();
-    await expect(page.locator('#gc-detail .gd-hd.ok')).toContainText('Fichier HD prêt');
-    await expect(page.locator('#gc-detail .gd-dl')).toBeVisible();
   });
 
   test('administration : la liste se lit par pages de 60, « Afficher les œuvres suivantes » charge la suite', async ({ acc }) => {

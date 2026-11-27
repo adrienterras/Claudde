@@ -40,4 +40,16 @@
 .gd-hd.ok { color: #2f6a43; }
 .gd-dl { cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600; }
 .gd-make { border-color: var(--ink); }
-.gd-redo { font-size: .78rem; color: var(--muted); margin-left: 6px; }
+.gd-redo { appearance: none; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: .78rem; color: var(--muted); text-decoration: underline; margin-left: 6px; }
+.gd-make, .gd-dl { appearance: none; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 600; }
+.gd-make:disabled, .gd-redo:disabled { opacity: .5; cursor: default; }
+/* la préparation en cours : la barre de progression, l'étape */
+.gd-job { display: grid; gap: 6px; margin-top: 6px; color: var(--ink); font-weight: 400; }
+.gd-job-top { display: flex; justify-content: space-between; gap: 8px; font-size: .8rem; }
+.gd-job-top span { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.gd-bar { display: block; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.gd-bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--ink); transition: width .4s ease; }
+.gd-job small { font-size: .76rem; color: var(--ink-2); }
+.gd-job .gd-job-note { color: var(--muted); }
+/* l'atelier qui travaille en coulisse : hors de l'écran, jamais visible */
+.gc-backstage { position: fixed; left: -12000px; top: 0; width: 1280px; height: 900px; border: 0; visibility: hidden; pointer-events: none; }

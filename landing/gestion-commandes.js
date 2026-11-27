@@ -141,11 +141,14 @@ function openDetail(ref) {
   const files = hd[o.id] || [];
   const hdOf = (i) => files.find((f) => f.index === i);
   const items = (o.items || []).map((it, i) => {
-    const f = hdOf(i), make = `atelier/?fichier-hd=${encodeURIComponent(o.id)}&article=${i}`;
-    // le fichier d'impression HD (tableaux imprimés) : à préparer dans l'atelier, puis rangé avec la commande
-    const file = it.product !== 'print' || !it.compId ? '' : f
-      ? `<span class="gd-hd ok">Fichier HD prêt${f.size ? ` · ${esc(Math.round(f.size / 1048576 * 10) / 10)} Mo` : ''}${f.at ? ` · ${esc(day(f.at))}` : ''}</span><button type="button" class="gd-open gd-dl" data-hd="${i}">Télécharger le fichier HD</button> <a class="gd-redo" href="${esc(make)}" target="_blank" rel="noopener">Refaire</a>`
-      : `<span class="gd-hd">Fichier HD à préparer (depuis un ordinateur)</span><a class="gd-open gd-make" href="${esc(make)}" target="_blank" rel="noopener">Préparer le fichier HD</a>`;
+    const f = hdOf(i);
+    // le fichier d'impression HD (tableaux imprimés) : fait sur place (l'atelier travaille en coulisse,
+    // voir startHD), puis rangé avec la commande
+    const running = job && job.orderId === o.id && job.index === i;
+    const file = it.product !== 'print' || !it.compId ? '' : running ? jobHtml()
+      : f
+        ? `<span class="gd-hd ok">Fichier HD prêt${f.size ? ` · ${esc(Math.round(f.size / 1048576 * 10) / 10)} Mo` : ''}${f.at ? ` · ${esc(day(f.at))}` : ''}</span><button type="button" class="gd-open gd-dl" data-hd="${i}">Télécharger le fichier HD</button> <button type="button" class="gd-redo" data-make="${i}"${job ? ' disabled' : ''}>Refaire</button>`
+        : `<span class="gd-hd">Fichier HD à préparer (depuis un ordinateur pour les grands formats)</span><button type="button" class="gd-open gd-make" data-make="${i}"${job ? ' disabled' : ''}>Préparer le fichier HD</button>`;
     return `<li><span class="od-vis" data-vis="${i}"></span><span><b>${esc(it.title || 'Œuvre')}</b><small>${esc(it.label || '')}${Number(it.qty) > 1 ? ` × ${Math.round(Number(it.qty))}` : ''}</small>${it.compId ? `<a class="gd-open" href="atelier/?commande-oeuvre=${encodeURIComponent(it.compId)}" target="_blank" rel="noopener">Ouvrir dans l’atelier</a>` : ''}<span class="gd-hd-row">${file}</span></span><span class="od-price">${esc(euros(Math.round((Number(it.unit) || 0) * 100) * (Number(it.qty) || 1)))}</span></li>`;
   }).join('');
   const next = NEXT[o.status];
@@ -185,6 +188,7 @@ function openDetail(ref) {
       const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; document.body.appendChild(a); a.click(); a.remove();
     } catch (err) { console.error(err); done(`Fichier HD indisponible : ${(err && err.message) || ''}`, true); } finally { b.disabled = false; }
   }));
+  body.querySelectorAll('[data-make]').forEach((b) => b.addEventListener('click', () => startHD(o, Number(b.dataset.make))));
   // copier l'adresse (étiquette du colis)
   const copy = body.querySelector('[data-copy]');
   copy.addEventListener('click', () => {
@@ -222,6 +226,66 @@ function openDetail(ref) {
 }
 let onDone = null;
 function done(text, err) { if (onDone) onDone(text, err); }
+
+// ---------- le fichier HD, fait sans quitter la page ----------
+// L'atelier (même site, même compte) s'ouvre dans un cadre invisible avec fichier-hd=…&coulisse=1 : il
+// rouvre l'œuvre, la refait en haute définition, range le PDF avec la commande, et dit où il en est
+// (postMessage) ; la page montre la barre de progression. Un seul fichier à la fois.
+let job = null; // { orderId, ref, index, frame, pct, text, timer }
+const JOB_SILENCE = 180000; // (sans nouvelles de l'atelier pendant 3 minutes : abandon)
+function jobHtml() {
+  const pct = Math.max(0, Math.min(100, Math.round(job.pct || 0)));
+  return `<span class="gd-hd gd-job" data-job><span class="gd-job-top"><b>Fichier HD en préparation</b><span data-job-pct>${pct} %</span></span>`
+    + `<span class="gd-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Préparation du fichier HD"><i style="width:${pct}%"></i></span>`
+    + `<small data-job-text>${esc(job.text || '')}</small><small class="gd-job-note">Gardez cette page ouverte.</small></span>`;
+}
+function jobPaint() {
+  const el = document.querySelector('#gd-body [data-job]');
+  if (!el || !job) return;
+  const pct = Math.max(0, Math.min(100, Math.round(job.pct || 0)));
+  el.querySelector('[data-job-pct]').textContent = `${pct} %`;
+  const bar = el.querySelector('.gd-bar');
+  bar.setAttribute('aria-valuenow', String(pct));
+  bar.firstElementChild.style.width = `${pct}%`;
+  el.querySelector('[data-job-text]').textContent = job.text || '';
+}
+function jobEnd(text, err) {
+  if (!job) return;
+  clearTimeout(job.timer);
+  job.frame.remove();
+  job = null;
+  window.removeEventListener('beforeunload', jobGuard);
+  if (openRef) openDetail(openRef); // (les boutons reviennent ; la liste des fichiers se relit après)
+  done(text, err);
+}
+function jobWatch() { clearTimeout(job.timer); job.timer = setTimeout(() => jobEnd(`Le fichier HD de ${job.ref} n’a pas pu être fait : l’atelier ne répond plus. Réessayez, depuis un ordinateur pour les grands formats.`, true), JOB_SILENCE); }
+function jobGuard(e) { e.preventDefault(); e.returnValue = ''; }
+function startHD(o, index) {
+  if (job) return;
+  const frame = document.createElement('iframe');
+  frame.className = 'gc-backstage';
+  frame.title = 'Préparation du fichier HD';
+  frame.setAttribute('aria-hidden', 'true');
+  frame.tabIndex = -1;
+  frame.src = `atelier/?fichier-hd=${encodeURIComponent(o.id)}&article=${index}&coulisse=1`;
+  job = { orderId: o.id, ref: o.ref, index, frame, pct: 1, text: 'Ouverture de l’atelier…', timer: 0 };
+  document.body.appendChild(frame);
+  window.addEventListener('beforeunload', jobGuard);
+  jobWatch();
+  if (openRef === o.ref) openDetail(o.ref);
+}
+window.addEventListener('message', (e) => {
+  if (!job || e.origin !== location.origin || e.source !== job.frame.contentWindow) return;
+  const m = e.data || {};
+  if (m.atelier !== 'fichier-hd') return;
+  if (m.kind === 'progress') {
+    job.pct = Math.max(job.pct, Number(m.pct) || 0);
+    if (m.text) job.text = String(m.text);
+    jobWatch();
+    jobPaint();
+  } else if (m.kind === 'done') jobEnd(String(m.text || `Fichier HD de ${job.ref} prêt.`));
+  else if (m.kind === 'error') jobEnd(String(m.text || `Le fichier HD de ${job.ref} n’a pas pu être fait.`), true);
+});
 
 export function render(rows, thumbMap, hdMap) {
   orders = (rows || []).filter((o) => STATUS[o.status]);

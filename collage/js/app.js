@@ -9586,9 +9586,22 @@ Réponds uniquement avec ce JSON :
     const [W, H] = mat ? or([f.w, f.h]) : [pw + 2 * m, ph + 2 * m];
     return { w: pw, h: ph, sheet: mat || m ? { W, H, ox: (W - pw) / 2, oy: (H - ph) / 2 } : null };
   }
+  // fichier-hd=…&coulisse=1 : l'atelier travaille dans un cadre invisible de la page Gestion des commandes
+  // (même site) ; il lui dit où il en est (étape, pourcentage), puis le résultat, et ne montre rien
+  const BACKSTAGE = /[?&]coulisse=1\b/.test(location.search) && window.parent !== window;
+  function backstage(msg) {
+    if (!BACKSTAGE) return;
+    try { window.parent.postMessage(Object.assign({ atelier: 'fichier-hd' }, msg), location.origin); } catch (e) { /* page fermée */ }
+  }
+  // un message de la tâche de l'équipe : dans l'atelier, une notice ; en coulisse, à la page de la commande
+  function staffSay(text, kind) {
+    if (BACKSTAGE) backstage({ kind: kind || 'error', text });
+    else notice(text);
+  }
   async function makeOrderHD(order, index, it) {
     const A = window.Account;
     busyOn(tr`Fichier HD de ${order.ref}`);
+    const step = (text, pct) => { busyStep(text, pct, 100); backstage({ kind: 'progress', text, pct }); };
     try {
       const { w, h, sheet } = orderSheet(it);
       const comp = printCopy(state.comp, w, h);
@@ -9597,50 +9610,56 @@ Réponds uniquement avec ce JSON :
       let s = 300 / 2.54;
       if (W * H * s * s > MAX_PIXELS()) s = Math.sqrt(MAX_PIXELS() / (W * H));
       const dpi = Math.round(s * 2.54);
-      busyStep(tr('Images en haute définition…'), 1, 4);
+      step(tr('Images en haute définition…'), 20);
       await hydrateHD(comp, s);
+      step(tr('Netteté des dessins…'), 45);
       await sharpenHD(comp, s);
-      busyStep(tr('Assemblage du PDF…'), 2, 4);
+      step(tr('Assemblage du PDF…'), 60);
       await tick();
       const blob = await exportPdf(comp, s, sheet);
       releaseHD();
-      busyStep(tr('Envoi du fichier avec la commande…'), 3, 4);
+      step(tr('Envoi du fichier avec la commande…'), 80);
       await A.orders.hdPut(order.id, index, blob);
-      busyStep('', 4, 4);
-      notice(dpi < 290
+      step('', 100);
+      const msg = dpi < 290
         ? tr`Fichier HD de ${order.ref} (article ${index + 1}) rangé avec la commande, mais à ${dpi} dpi seulement : cet appareil manque de mémoire, refaites-le depuis un ordinateur.`
-        : tr`Fichier HD de ${order.ref} (article ${index + 1}) prêt, à ${dpi} dpi : il est rangé avec la commande, sur la page Gestion des commandes.`);
+        : tr`Fichier HD de ${order.ref} (article ${index + 1}) prêt, à ${dpi} dpi : il est rangé avec la commande, sur la page Gestion des commandes.`;
+      if (BACKSTAGE) backstage({ kind: 'done', text: msg, dpi, size: blob.size });
+      else notice(msg);
       window.Atelier.track('Fichier HD commande');
     } catch (e) {
       console.error(e);
       releaseHD();
-      notice(tr`Le fichier HD de ${order.ref} n’a pas pu être fait : ${(e && e.message) || ''}`);
+      staffSay(tr`Le fichier HD de ${order.ref} n’a pas pu être fait : ${(e && e.message) || ''}`);
     } finally { busyOff(); }
   }
   async function staffTask(q) {
     try { const url = new URL(location.href); ['commande-oeuvre', 'fichier-hd', 'article'].forEach((k) => url.searchParams.delete(k)); window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash); } catch (e) { /* ignoré */ }
     const A = window.Account;
-    if (!(A && A.canDashboard && A.canDashboard())) { notice(tr('Réservé à l’équipe du site.')); return; }
+    if (!(A && A.canDashboard && A.canDashboard())) { staffSay(tr('Réservé à l’équipe du site.')); return; }
     let st = 'ok';
     try { st = await A.mfaState(); } catch (e) { console.error(e); }
-    if (st !== 'ok') { notice(tr('Validez d’abord la double authentification sur la page Gestion des commandes, puis réessayez.')); return; }
+    if (st !== 'ok') { staffSay(tr('Validez d’abord la double authentification sur la page Gestion des commandes, puis réessayez.')); return; }
     const orderId = q.get('fichier-hd'), index = Math.max(0, Math.floor(Number(q.get('article')) || 0));
     // (les commandes lues d'abord : leurs œuvres deviennent ouvrables, voir Account.orders.admin)
     let rows = [];
-    try { rows = await A.orders.admin(); } catch (e) { console.error(e); notice(tr`Commandes indisponibles : ${e.message}`); return; }
+    try { rows = await A.orders.admin(); } catch (e) { console.error(e); staffSay(tr`Commandes indisponibles : ${e.message}`); return; }
     let compId = q.get('commande-oeuvre'), order = null, it = null;
     if (orderId) {
       order = rows.find((o) => o.id === orderId) || null;
       it = order && (order.items || [])[index];
-      if (!it || !it.compId || it.product !== 'print') { notice(tr('Cet article de commande est introuvable.')); return; }
+      if (!it || !it.compId || it.product !== 'print') { staffSay(tr('Cet article de commande est introuvable.')); return; }
       compId = it.compId;
     }
     if (!compId || !/^[0-9a-f-]{8,40}$/.test(compId)) return;
+    if (order) backstage({ kind: 'progress', text: tr('Ouverture de l’œuvre…'), pct: 5 });
     await openAdminCopy({ id: `cloud:${compId}` });
-    if (!state.comp) { notice(tr('Cette œuvre n’a pas pu être rouverte.')); return; }
+    if (!state.comp) { staffSay(tr('Cette œuvre n’a pas pu être rouverte.')); return; }
     if (order) await makeOrderHD(order, index, it);
   }
   if (STAFF_TASK) {
+    backstage({ kind: 'progress', text: tr('Ouverture de l’atelier…'), pct: 2 });
+    if (BACKSTAGE && !(window.Account && window.Account.enabled)) staffSay(tr('Comptes indisponibles : rechargez la page.'));
     const q = new URLSearchParams(location.search);
     const go = requireAccount(tr('gérer les commandes'), () => staffTask(q));
     const A = window.Account;

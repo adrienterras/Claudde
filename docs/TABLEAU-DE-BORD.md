@@ -55,11 +55,13 @@ l'accès et la double authentification sont communs avec le tableau de bord : `l
 - **Le détail** (touche une commande, ou lien `gestion-commandes.html#AG-…` de l'e-mail « Nouvelle
   commande ») : étapes, client, adresse (« Copier l'adresse »), œuvres, étape suivante en un bouton
   (l'expédition demande transporteur et numéro de suivi), « Annuler et rembourser » en deux touches.
-- **Le fichier HD d'impression** : pour chaque article imprimé, « Préparer le fichier HD » ouvre l'atelier
-  (`atelier/?fichier-hd=<commande>&article=<n>`), qui rouvre l'œuvre commandée, refait l'image en haute
-  définition (300 dpi, plafonnée par la mémoire de l'appareil : un ordinateur pour les grands formats),
-  en fait un PDF au format commandé (feuille du cadre avec passe-partout, sinon papier + marges) et le
-  range avec la commande. Ensuite « Télécharger le fichier HD » (lien signé de 10 minutes) et « Refaire ».
+- **Le fichier HD d'impression** : pour chaque article imprimé, « Préparer le fichier HD » le fait sans
+  quitter la page, avec une barre de progression : l'atelier s'ouvre en coulisse dans un cadre invisible
+  (`atelier/?fichier-hd=<commande>&article=<n>&coulisse=1`, même site, même compte), rouvre l'œuvre
+  commandée, refait l'image en haute définition (300 dpi, plafonnée par la mémoire de l'appareil : un
+  ordinateur pour les grands formats), en fait un PDF au format commandé (feuille du cadre avec
+  passe-partout, sinon papier + marges), le range avec la commande et dit à la page où il en est
+  (`postMessage`, même origine seulement). Sans nouvelles pendant 3 minutes, la page abandonne et le dit. Ensuite « Télécharger le fichier HD » (lien signé de 10 minutes) et « Refaire ».
   Le fichier est dans l'espace privé `impressions` (`<commande>/<article>.pdf`, PDF seulement, 200 Mo au
   plus) : lisible et déposable par l'équipe seulement (`is_staff()`), jamais par le client, jamais envoyé.
   Supabase → Storage → Files → Settings : « Global file size limit » doit être d'au moins 200 MB.

@@ -119,6 +119,9 @@
     },
     async list(prefix) {
       if (!isStaff(db.session && db.session.user)) return { data: [], error: null };
+      // (comme le vrai stockage, partagé : un fichier rangé depuis une autre fenêtre du site — l'atelier en
+      // coulisse — se voit aussitôt)
+      Object.assign(db.files, load('fake.files', {}));
       return { data: Object.keys(db.files).filter((p) => p.startsWith(PRINTS + prefix + '/')).map((p) => ({ name: p.slice(PRINTS.length + prefix.length + 1), metadata: { size: Math.round(db.files[p].length * 0.75) }, updated_at: new Date().toISOString() })), error: null };
     },
     async createSignedUrl(path) { return printsOk(path) && db.files[PRINTS + path] ? { data: { signedUrl: 'blob:fake/' + path }, error: null } : { data: null, error: { message: 'Object not found' } }; },
