@@ -97,8 +97,8 @@ et sort de « Mes commandes ».
 ## Suivre les commandes (équipe)
 
 Page **Gestion des commandes** (`gestion-commandes.html`, menu du compte), pour l'administrateur et le
-rôle « tableau », avec la double authentification : client, adresse, œuvres (« Ouvrir dans l'atelier »,
-fichier HD d'impression), statut et suivi, **Annuler et rembourser** jusqu'à l'expédition. Détail dans
+rôle « tableau », avec la double authentification : client, adresse, œuvres (fichier HD
+d'impression, fait sur place), statut et suivi, **Annuler et rembourser** jusqu'à l'expédition. Détail dans
 `docs/TABLEAU-DE-BORD.md`. Fonctions `commande-statut` et `commande-annuler` : réservées à l'équipe.
 
 ## Factures

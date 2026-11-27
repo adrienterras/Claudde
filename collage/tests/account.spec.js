@@ -518,7 +518,7 @@ test.describe('Comptes utilisateurs', () => {
     await expect(d.locator('#gd-title')).toHaveText('AG-261127-EQP1');
     await expect(d).toContainText('3 rue des Lilas');
     await expect(d).toContainText('+33600000000');
-    await expect(d.locator('.gd-open').first()).toHaveAttribute('href', `atelier/?commande-oeuvre=${ORDERED}`);
+    await expect(d.locator('a.gd-open')).toHaveCount(0); // (plus d'« Ouvrir dans l'atelier » : le fichier HD se fait sur place)
     await expect(d.locator('.gd-make')).toHaveText('Préparer le fichier HD'); // (fait sur place : voir le test du fichier HD)
     // l'étape suivante : en préparation, le client prévenu
     await d.locator('#gd-next button[type="submit"]').click();

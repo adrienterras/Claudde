@@ -5,7 +5,7 @@
  *
  * La liste : filtrée par statut (à préparer d'abord), cherchée par référence, nom, ville ou e-mail ;
  * chaque commande avec le visuel de ses œuvres. Le détail, dans une fenêtre : le client, la livraison,
- * les œuvres (« Ouvrir dans l'atelier » pour l'exporter et l'imprimer), les étapes, l'étape suivante
+ * les œuvres (le fichier HD d'impression, fait sur place), les étapes, l'étape suivante
  * (le client reçoit un e-mail à chacune), l'annulation avec remboursement.
  *
  * Tout ce qui vient de la base est échappé (esc) ou posé en texte.
@@ -149,7 +149,7 @@ function openDetail(ref) {
       : f
         ? `<span class="gd-hd ok">Fichier HD prêt${f.size ? ` · ${esc(Math.round(f.size / 1048576 * 10) / 10)} Mo` : ''}${f.at ? ` · ${esc(day(f.at))}` : ''}</span><button type="button" class="gd-open gd-dl" data-hd="${i}">Télécharger le fichier HD</button> <button type="button" class="gd-redo" data-make="${i}"${job ? ' disabled' : ''}>Refaire</button>`
         : `<span class="gd-hd">Fichier HD à préparer (depuis un ordinateur pour les grands formats)</span><button type="button" class="gd-open gd-make" data-make="${i}"${job ? ' disabled' : ''}>Préparer le fichier HD</button>`;
-    return `<li><span class="od-vis" data-vis="${i}"></span><span><b>${esc(it.title || 'Œuvre')}</b><small>${esc(it.label || '')}${Number(it.qty) > 1 ? ` × ${Math.round(Number(it.qty))}` : ''}</small>${it.compId ? `<a class="gd-open" href="atelier/?commande-oeuvre=${encodeURIComponent(it.compId)}" target="_blank" rel="noopener">Ouvrir dans l’atelier</a>` : ''}<span class="gd-hd-row">${file}</span></span><span class="od-price">${esc(euros(Math.round((Number(it.unit) || 0) * 100) * (Number(it.qty) || 1)))}</span></li>`;
+    return `<li><span class="od-vis" data-vis="${i}"></span><span><b>${esc(it.title || 'Œuvre')}</b><small>${esc(it.label || '')}${Number(it.qty) > 1 ? ` × ${Math.round(Number(it.qty))}` : ''}</small><span class="gd-hd-row">${file}</span></span><span class="od-price">${esc(euros(Math.round((Number(it.unit) || 0) * 100) * (Number(it.qty) || 1)))}</span></li>`;
   }).join('');
   const next = NEXT[o.status];
   const canCancel = ['payee', 'en_preparation'].includes(o.status);
