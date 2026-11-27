@@ -1,8 +1,11 @@
 {
   "name": "atelier-gribouille-outils-cloudflare",
   "private": true,
-  "description": "Outil de publication du site sur Cloudflare Pages (wrangler), à une version exacte, dépendances verrouillées par package-lock.json : la publication l'installe avec npm ci.",
+  "description": "Outil de publication du site sur Cloudflare Pages (wrangler), à une version exacte, dépendances verrouillées par package-lock.json : la publication l'installe avec npm ci. undici est forcé à une version corrigée (7.30.1 : failles de undici ≤ 7.30.0, dont wrangler 4.152.0 dépend).",
   "dependencies": {
     "wrangler": "4.152.0"
+  },
+  "overrides": {
+    "undici": "7.30.1"
   }
 }
