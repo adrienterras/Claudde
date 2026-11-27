@@ -391,6 +391,7 @@ button.link { border: 0; padding: 0; background: none; color: var(--accent); tex
 .guide-box .hint:empty { display: none; }
 /* l'étape Exporter : réservée à l'équipe (voir syncTeamTools) ; les clients commandent par « Commander » */
 body.no-export #export-section { display: none !important; }
+body.no-export canvas, body.no-export #scene-zoom img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 #export-section > .guide-box { margin: 0 0 6px; border: 1.5px solid var(--accent); background: var(--accent-soft); }
 .guide-btn { padding: 16px 18px; font-size: 1rem; }
 

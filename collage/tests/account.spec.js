@@ -115,8 +115,16 @@ test.describe('Comptes utilisateurs', () => {
     await expect(page.locator('body')).toHaveClass(/no-export/);
     await expect(page.locator('#sheet-tabs .tab-more')).toBeHidden();
     await page.setInputFiles('#file', [fixture('page-cutout.png')]);
-    await page.waitForFunction(() => AtelierGribouille.state.proposals && document.getElementById('progress').hidden, null, { timeout: 120000 });
+    await page.waitForFunction(() => AtelierGribouille.hasWork() && document.getElementById('progress').hidden, null, { timeout: 120000 });
     await expect(page.locator('#export-section')).toBeHidden();
+    // en ligne, la page n'expose pas les fonctions de l'atelier ; un bouton caché réaffiché ne fait rien ;
+    // pas de « Enregistrer l'image » au clic droit sur l'œuvre
+    expect(await page.evaluate(() => Object.keys(window.AtelierGribouille))).toEqual(['hasWork']);
+    await page.evaluate(() => { document.getElementById('export-section').style.setProperty('display', 'block', 'important'); document.getElementById('guide').click(); });
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#preview')).toBeHidden();
+    expect(await page.evaluate(() => { const c = document.querySelector('.stage canvas'); const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); c.dispatchEvent(e); return e.defaultPrevented; })).toBe(true);
+    await page.evaluate(() => document.getElementById('export-section').style.removeProperty('display'));
     // l'équipe (rôle « tableau ») : l'étape Exporter, et son onglet sur téléphone
     await page.locator('#acc-head').click();
     await page.locator('#acc-signout').click();
@@ -138,6 +146,8 @@ test.describe('Comptes utilisateurs', () => {
     // (sur téléphone, le fichier prêt s'ouvre dans une fenêtre : un toucher l'enregistre)
     await expect(page.locator('#preview-title')).toHaveText('Votre fichier est prêt', { timeout: 120000 });
     await expect(page.locator('#preview-doc')).toContainText('.pdf');
+    // (l'équipe garde le clic droit sur l'œuvre)
+    expect(await page.evaluate(() => { const c = document.querySelector('.stage canvas'); const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); c.dispatchEvent(e); return e.defaultPrevented; })).toBe(false);
     await ctx.close();
   });
 

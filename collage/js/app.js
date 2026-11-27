@@ -4951,6 +4951,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   // Aperçu sans compte : l'image en 1200 px, avec un filigrane discret ; la haute définition et
   // la sauvegarde restent réservées au compte.
   async function exportPreview() {
+    if (document.body.classList.contains('no-export')) return; // (réservé à l'équipe : voir syncTeamTools)
     if (!state.comp) return;
     const btn = $('export-free');
     btn.disabled = true;
@@ -5178,6 +5179,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
 
   // Guide de création : planches de découpe à taille réelle et ordre de collage.
   async function exportGuide() {
+    if (document.body.classList.contains('no-export')) return; // (réservé à l'équipe : voir syncTeamTools)
     if (!state.comp) return;
     try { await needJsPdf(); } catch (e) { console.warn(e); }
     if (!window.Guide || !window.jspdf) { notice(tr('Le module de création du guide n’a pas pu se charger. Rechargez la page.')); return; }
@@ -5224,6 +5226,7 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
   }
 
   async function exportImage() {
+    if (document.body.classList.contains('no-export')) return; // (réservé à l'équipe : voir syncTeamTools)
     if (!state.comp) return;
     const btn = $('export');
     btn.disabled = true;
@@ -6428,6 +6431,11 @@ Réfléchis à la scène avant de répondre, puis réponds uniquement avec ce JS
     };
   });
   syncTeamTools();
+  // (l'œuvre à l'écran : ni « Enregistrer l'image » au clic droit, ni image glissée vers le bureau, hors équipe)
+  const ART = 'canvas, #scene-zoom img, #preview-img, .stage img';
+  ['contextmenu', 'dragstart'].forEach((ev) => document.addEventListener(ev, (e) => {
+    if (document.body.classList.contains('no-export') && e.target && e.target.closest && e.target.closest(ART)) e.preventDefault();
+  }));
   $('export-free').onclick = exportPreview;
   $('sizes-alert-go').onclick = () => {
     const sec = $('sizes-section');
@@ -9796,7 +9804,11 @@ Réponds uniquement avec ce JSON :
   renderCartButton();
 
   // accès pour le débogage depuis la console
-  window.AtelierGribouille = { act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom, cartStatus };
+  // (en ligne, avec les comptes : rien de l'atelier n'est exposé aux curieux, seulement « une œuvre est en
+  // cours ? » pour le changement de langue ; sans comptes — essais, atelier hors ligne — tout, pour les tests)
+  const OPEN_API = (() => { const c = window.ATELIER_CONFIG || {}; return c.exportForAll === true || !(c.supabaseUrl && c.supabaseAnonKey); })();
+  const hasWork = () => state.drawings.length > 0;
+  window.AtelierGribouille = !OPEN_API ? Object.freeze({ hasWork }) : { hasWork, act, state, writingTurn, cropOf, setCrop, options, pickGround, printCount, kitPrice, sourceMax, savedOf, restoreAnalysis, replaceDrawing, syncCloud, checkWorks, checkCurrentWork, freezeWork, selectProposal, curate, planCoverage, regenerate, hydrateHD, sharpenHD, releaseHD, exportSize, exportComp, editPiece, estimateSizes, render, renderRect, layerRect, undo, redo, setMode, scale, formatCm, renderSaved, get view() { return view; }, sceneZoom, cartStatus };
   // Dessins d'exemple : proposés (jamais chargés d'office) s'ils sont fournis avec la page ou
   // présents dans samples/manifest.json à côté de l'app ; un clic sur « exemple » les importe.
   (async function offerSamples() {

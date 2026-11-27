@@ -38,7 +38,11 @@ Dans l'atelier, l'étape **Exporter** (télécharger l'œuvre, format, guide de 
 n'est visible que pour l'équipe (administrateur et rôle `tableau`) : les clients commandent par le bouton
 « Commander ». L'équipe retrouve aussi « Exporter l'œuvre » et « Générer le guide de découpe » dans le
 panneau du compte (« Outils de l'équipe ») : sur téléphone, c'est là qu'elles sont. C'est un choix
-d'affichage : l'œuvre est calculée dans le navigateur du client, ce n'est pas une protection du fichier.
+d'affichage, renforcé : hors équipe, les fonctions d'export refusent de travailler même si l'on
+réaffiche l'étape, la page n'expose plus les fonctions de l'atelier (`window.AtelierGribouille` réduit à
+`hasWork`), et le clic droit « Enregistrer l'image » ou le glisser de l'œuvre sont coupés. L'œuvre étant
+calculée dans le navigateur du client, ce n'est pas une protection absolue (capture d'écran, outils de
+développement) : seul un calcul sur le serveur le serait.
 
 **Donner le rôle `tableau`** à un compte (qui doit déjà exister : la personne crée son compte sur le
 site et confirme son e-mail) : Supabase → SQL Editor → New query →

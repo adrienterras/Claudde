@@ -1179,7 +1179,7 @@
       b.classList.toggle('on', b.dataset.lang === lang);
       b.onclick = () => {
         const app = window.AtelierGribouille;
-        if (app && app.state && app.state.drawings && app.state.drawings.length && !window.confirm(tr('Changer de langue recharge la page : les dessins importés devront être réimportés. Continuer ?'))) return;
+        if (app && (app.hasWork ? app.hasWork() : app.state && app.state.drawings && app.state.drawings.length) && !window.confirm(tr('Changer de langue recharge la page : les dessins importés devront être réimportés. Continuer ?'))) return;
         set(b.dataset.lang);
       };
     });
