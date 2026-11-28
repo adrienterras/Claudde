@@ -204,7 +204,7 @@ test.describe('Interface', () => {
     // et la garde : une deuxième touche rapide au même endroit sur un texte est annulée, pas sur un bouton
     const guard = await page.evaluate(() => {
       const fire = (el, x, y) => { const t = new Touch({ identifier: 1, target: el, clientX: x, clientY: y }); const ev = new TouchEvent('touchend', { changedTouches: [t], bubbles: true, cancelable: true }); el.dispatchEvent(ev); return ev.defaultPrevented; };
-      const txt = document.querySelector('.panel p, .panel h2'), btn = document.querySelector('.panel button');
+      const txt = document.querySelector('.panel .brand-tag'), btn = document.querySelector('.panel button'); // (un texte hors lien : le logo, lui, est un lien vers l'accueil)
       const a = fire(txt, 100, 500), b = fire(txt, 104, 503);
       const c = fire(btn, 50, 50), d = fire(btn, 50, 50);
       return { a, b, c, d };
@@ -459,11 +459,9 @@ test.describe('Mise en scène de près (téléphone)', () => {
     await expect(p.locator('#scene-zoom')).toBeVisible();
     await p.locator('#scene-zoom-close').click();
     await expect(p.locator('#scene-zoom')).toBeHidden();
-    // sous la mise en scène de l'onglet Tailles, « Commander l'œuvre », comme dans la fenêtre de l'ordinateur
-    await expect(p.locator('#scene-order')).toBeVisible();
-    await p.locator('#scene-order').scrollIntoViewIfNeeded();
-    await p.locator('#scene-order').click();
-    await expect(p.locator('#cart-add')).toBeVisible();
+    // sous la mise en scène de l'onglet Tailles, « Commander l'œuvre »… mais pas pour l'exemple, qui ne se
+    // commande pas (voir « Dessins d'exemple »)
+    await expect(p.locator('#scene-order')).toBeHidden();
     await ctx.close();
   });
 

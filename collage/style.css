@@ -1627,5 +1627,6 @@ kbd { display: inline-block; min-width: 1.4em; padding: 1px 6px; border: 1px sol
   .mobile-brand-name small { display: none; }
   .mobile-brand-name { font-size: 1.15rem; }
 }
-/* l'exemple ouvert : pas d'import ni de reprise par-dessus, seulement « Commencer une nouvelle œuvre » */
-body.sample-on #drop, body.sample-on #import-account, body.sample-on #resume-saved, body.sample-on #draft-offer { display: none !important; }
+/* l'exemple ouvert : pas d'import par-dessus, ni « Commander l'œuvre » (mise en scène) */
+/* (reprendre son œuvre en cours, ou une œuvre de Mes œuvres, reste possible : ce n'est pas un ajout) */
+body.sample-on #drop, body.sample-on #import-account, body.sample-on #scene-order { display: none !important; }
